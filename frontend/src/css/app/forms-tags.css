@@ -360,6 +360,12 @@
   overflow: visible;
 }
 
+#set-tags-modal .modal-footer,
+#batch-set-tags-modal .modal-footer {
+  border-radius: 0 0 calc(var(--radius-2xl) - 1px)
+    calc(var(--radius-2xl) - 1px);
+}
+
 .set-tags-primary-dropdown {
   width: 100%;
   overflow: visible;
