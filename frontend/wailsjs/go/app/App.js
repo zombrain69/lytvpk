@@ -94,6 +94,10 @@ export function FetchPanelMapHotReloadStatus(arg1) {
   return window['go']['app']['App']['FetchPanelMapHotReloadStatus'](arg1);
 }
 
+export function FetchPanelMapIssues(arg1, arg2) {
+  return window['go']['app']['App']['FetchPanelMapIssues'](arg1, arg2);
+}
+
 export function FetchPanelMapList(arg1) {
   return window['go']['app']['App']['FetchPanelMapList'](arg1);
 }

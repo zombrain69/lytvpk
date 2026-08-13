@@ -54,6 +54,45 @@ type PanelMapHotReloadResult struct {
 	Message string `json:"message"`
 }
 
+type PanelMapIssue struct {
+	DictionaryMissing    int  `json:"dictionaryMissing"`
+	DictionaryUnreadable bool `json:"dictionaryUnreadable"`
+	GlobalScripts        int  `json:"globalScripts"`
+}
+
+type PanelMapIssuesResponse struct {
+	Supported bool                     `json:"supported"`
+	Items     map[string]PanelMapIssue `json:"items"`
+}
+
+type panelMapSummaryResponse struct {
+	Items map[string]panelMapSummary `json:"items"`
+}
+
+type panelMapSummary struct {
+	Error      string              `json:"error"`
+	Inspection *panelMapInspection `json:"inspection"`
+}
+
+type panelMapInspection struct {
+	Dictionary    panelMapDictionaryInspection `json:"dictionary"`
+	GlobalScripts panelMapGlobalScripts        `json:"global_scripts"`
+}
+
+type panelMapDictionaryInspection struct {
+	Status   string                      `json:"status"`
+	Chapters []panelMapChapterInspection `json:"chapters"`
+}
+
+type panelMapChapterInspection struct {
+	Status string `json:"status"`
+}
+
+type panelMapGlobalScripts struct {
+	Status string   `json:"status"`
+	Files  []string `json:"files"`
+}
+
 type panelCredentials struct {
 	baseURL    string
 	password   string
@@ -91,6 +130,76 @@ func (a *App) FetchPanelMapList(serverID string) ([]PanelCampaign, error) {
 		return []PanelCampaign{}, nil
 	}
 	return maps, nil
+}
+
+func (a *App) FetchPanelMapIssues(serverID string, vpkNames []string) (*PanelMapIssuesResponse, error) {
+	names := normalizePanelMapIssueNames(vpkNames)
+	result := &PanelMapIssuesResponse{
+		Supported: true,
+		Items:     make(map[string]PanelMapIssue),
+	}
+	if len(names) == 0 {
+		return result, nil
+	}
+
+	var summaries panelMapSummaryResponse
+	response, err := a.panelPostJSON(serverID, "/maps/summary", map[string]interface{}{
+		"maps": names,
+	}, &summaries)
+	if response != nil && (response.StatusCode() == 404 || response.StatusCode() == 405) {
+		result.Supported = false
+		return result, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	for mapName, summary := range summaries.Items {
+		if strings.TrimSpace(summary.Error) != "" || summary.Inspection == nil {
+			continue
+		}
+		result.Items[mapName] = compactPanelMapIssue(*summary.Inspection)
+	}
+	return result, nil
+}
+
+func normalizePanelMapIssueNames(vpkNames []string) []string {
+	result := make([]string, 0, len(vpkNames))
+	seen := make(map[string]struct{}, len(vpkNames))
+	for _, vpkName := range vpkNames {
+		vpkName = strings.TrimSpace(vpkName)
+		if vpkName == "" {
+			continue
+		}
+		key := strings.ToLower(vpkName)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, vpkName)
+	}
+	return result
+}
+
+func compactPanelMapIssue(inspection panelMapInspection) PanelMapIssue {
+	dictionaryStatus := strings.ToLower(strings.TrimSpace(inspection.Dictionary.Status))
+	issue := PanelMapIssue{
+		DictionaryUnreadable: dictionaryStatus == "unreadable",
+	}
+	if dictionaryStatus == "missing" || dictionaryStatus == "unreadable" {
+		for _, chapter := range inspection.Dictionary.Chapters {
+			switch {
+			case strings.EqualFold(chapter.Status, "missing"):
+				issue.DictionaryMissing++
+			case strings.EqualFold(chapter.Status, "unreadable"):
+				issue.DictionaryUnreadable = true
+			}
+		}
+	}
+	if strings.EqualFold(inspection.GlobalScripts.Status, "detected") {
+		issue.GlobalScripts = len(inspection.GlobalScripts.Files)
+	}
+	return issue
 }
 
 func (a *App) ClearPanelMaps(serverID string) (string, error) {
@@ -177,20 +286,39 @@ func (a *App) getPanelCredentials(serverID string) (*panelCredentials, error) {
 }
 
 func (a *App) panelPost(serverID string, endpoint string, formData map[string]string, result interface{}) (string, error) {
-	credentials, err := a.getPanelCredentials(serverID)
+	response, err := a.panelPostRequest(serverID, endpoint, func(request *resty.Request) {
+		if formData != nil {
+			request.SetFormData(formData)
+		}
+	}, result)
 	if err != nil {
 		return "", err
+	}
+	return strings.TrimSpace(response.String()), nil
+}
+
+func (a *App) panelPostJSON(serverID string, endpoint string, body interface{}, result interface{}) (*resty.Response, error) {
+	return a.panelPostRequest(serverID, endpoint, func(request *resty.Request) {
+		request.SetHeader("Content-Type", "application/json")
+		request.SetBody(body)
+	}, result)
+}
+
+func (a *App) panelPostRequest(serverID string, endpoint string, configure func(*resty.Request), result interface{}) (*resty.Response, error) {
+	credentials, err := a.getPanelCredentials(serverID)
+	if err != nil {
+		return nil, err
 	}
 
 	requestURL, err := joinPanelEndpoint(credentials.baseURL, endpoint)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	client := resty.New().SetTimeout(8 * time.Second)
 	request := client.R().SetHeader("Authorization", "Bearer "+credentials.password)
-	if formData != nil {
-		request.SetFormData(formData)
+	if configure != nil {
+		configure(request)
 	}
 	if result != nil {
 		request.SetResult(result)
@@ -198,23 +326,23 @@ func (a *App) panelPost(serverID string, endpoint string, formData map[string]st
 
 	response, err := request.Post(requestURL)
 	if err != nil {
-		return "", fmt.Errorf("连接面板失败: %w", err)
+		return response, fmt.Errorf("连接面板失败: %w", err)
 	}
 	if response.StatusCode() == 401 || response.StatusCode() == 429 {
-		return "", fmt.Errorf("面板认证失败，请检查密码或稍后重试")
+		return response, fmt.Errorf("面板认证失败，请检查密码或稍后重试")
 	}
 	if response.StatusCode() == 403 {
-		return "", fmt.Errorf("没有权限执行该面板操作")
+		return response, fmt.Errorf("没有权限执行该面板操作")
 	}
 	if !response.IsSuccess() {
 		body := strings.TrimSpace(response.String())
 		if body == "" {
 			body = response.Status()
 		}
-		return "", fmt.Errorf("面板请求失败(%d): %s", response.StatusCode(), body)
+		return response, fmt.Errorf("面板请求失败(%d): %s", response.StatusCode(), body)
 	}
 
-	return strings.TrimSpace(response.String()), nil
+	return response, nil
 }
 
 func normalizePanelBaseURL(raw string) (string, error) {

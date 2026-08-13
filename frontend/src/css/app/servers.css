@@ -778,11 +778,50 @@
   color: var(--text-primary);
 }
 
+.panel-map-campaign-header > div {
+  min-width: 0;
+}
+
 .panel-map-campaign-header > div > span {
   display: block;
   margin-top: 2px;
   color: var(--text-tertiary);
   font-size: var(--text-xs);
+}
+
+.panel-map-risk-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-width: 100%;
+  margin-top: 0.4rem;
+}
+
+.panel-map-risk-tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.14rem 0.42rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  user-select: none;
+  cursor: default;
+}
+
+.panel-map-risk-tag.is-danger {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+.panel-map-risk-tag.is-warning {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
 }
 
 .panel-map-type {

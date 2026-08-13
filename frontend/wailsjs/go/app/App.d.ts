@@ -51,6 +51,8 @@ export function ExtractVPKFromZip(arg1:string,arg2:string):Promise<void>;
 
 export function FetchPanelMapHotReloadStatus(arg1:string):Promise<app.PanelMapHotReloadStatus>;
 
+export function FetchPanelMapIssues(arg1:string,arg2:Array<string>):Promise<app.PanelMapIssuesResponse>;
+
 export function FetchPanelMapList(arg1:string):Promise<Array<app.PanelCampaign>>;
 
 export function FetchPanelServerStatus(arg1:string):Promise<app.PanelServerStatus>;

@@ -6,6 +6,7 @@ let showConfirmModal;
 let FetchPanelServerStatus;
 let RestartPanelServer;
 let FetchPanelMapList;
+let FetchPanelMapIssues;
 let ClearPanelMaps;
 let ChangePanelMap;
 let FetchPanelMapHotReloadStatus;
@@ -36,6 +37,7 @@ export function configurePanelModal(deps) {
     FetchPanelServerStatus,
     RestartPanelServer,
     FetchPanelMapList,
+    FetchPanelMapIssues,
     ClearPanelMaps,
     ChangePanelMap,
     FetchPanelMapHotReloadStatus,
@@ -63,9 +65,13 @@ export function configurePanelModal(deps) {
 let currentPanelServer = null;
 let currentPanelServerIndex = -1;
 let currentPanelMaps = [];
+const currentPanelMapIssues = new Map();
 let currentPanelDifficulty = "";
 let panelOfficialMapsHidden = false;
+let panelMapIssueRequestToken = 0;
 const completedPanelUploadNotifications = new Set();
+
+const PANEL_MAP_ISSUE_BATCH_SIZE = 10;
 
 const PANEL_DIFFICULTIES = [
   { value: "简单", desc: "Easy" },
@@ -338,21 +344,27 @@ export function openPanelMapModal() {
 }
 
 export function closePanelMapModal() {
+  panelMapIssueRequestToken += 1;
+  currentPanelMapIssues.clear();
   document.getElementById("panel-map-modal")?.classList.add("hidden");
 }
 
 async function loadPanelMaps() {
   if (!currentPanelServer) return;
+  const serverID = currentPanelServer.id;
+  const requestToken = ++panelMapIssueRequestToken;
   const loading = document.getElementById("panel-map-loading");
   const list = document.getElementById("panel-map-list");
   const refreshBtn = document.getElementById("panel-map-refresh-btn");
+  currentPanelMapIssues.clear();
   loading.classList.remove("hidden");
   list.innerHTML = "";
   refreshBtn.disabled = true;
   refreshBtn.querySelector(".icon-svg")?.classList.add("spinning");
 
   try {
-    const customMaps = await FetchPanelMapList(currentPanelServer.id);
+    const customMaps = await FetchPanelMapList(serverID);
+    if (!isCurrentPanelMapRequest(serverID, requestToken)) return;
     currentPanelMaps = [
       ...OFFICIAL_CAMPAIGNS.map((campaign) => normalizeCampaign(campaign, false)),
       ...(Array.isArray(customMaps) ? customMaps : []).map((campaign) =>
@@ -360,13 +372,69 @@ async function loadPanelMaps() {
       ),
     ];
     renderPanelMapList();
+    loadPanelMapIssues(serverID, currentPanelMaps, requestToken);
   } catch (err) {
+    if (!isCurrentPanelMapRequest(serverID, requestToken)) return;
     console.error("获取地图列表失败:", err);
     list.innerHTML = `<div class="panel-error-box">获取地图列表失败: ${escapeHtml(err)}</div>`;
   } finally {
+    if (!isCurrentPanelMapRequest(serverID, requestToken)) return;
     loading.classList.add("hidden");
     refreshBtn.disabled = false;
     refreshBtn.querySelector(".icon-svg")?.classList.remove("spinning");
+  }
+}
+
+function isCurrentPanelMapRequest(serverID, requestToken) {
+  return (
+    requestToken === panelMapIssueRequestToken &&
+    currentPanelServer?.id === serverID &&
+    !document.getElementById("panel-map-modal")?.classList.contains("hidden")
+  );
+}
+
+function normalizePanelMapIssueKey(vpkName) {
+  return String(vpkName || "").trim().toLowerCase();
+}
+
+function getUniquePanelMapVpkNames(campaigns) {
+  const names = [];
+  const seen = new Set();
+  campaigns.forEach((campaign) => {
+    if (!campaign.isCustom) return;
+    const vpkName = String(campaign.vpkName || "").trim();
+    const key = normalizePanelMapIssueKey(vpkName);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    names.push(vpkName);
+  });
+  return names;
+}
+
+async function loadPanelMapIssues(serverID, campaigns, requestToken) {
+  const vpkNames = getUniquePanelMapVpkNames(campaigns);
+  for (let index = 0; index < vpkNames.length; index += PANEL_MAP_ISSUE_BATCH_SIZE) {
+    if (!isCurrentPanelMapRequest(serverID, requestToken)) return;
+    const batch = vpkNames.slice(index, index + PANEL_MAP_ISSUE_BATCH_SIZE);
+    let response;
+    try {
+      response = await FetchPanelMapIssues(serverID, batch);
+    } catch {
+      return;
+    }
+    if (!isCurrentPanelMapRequest(serverID, requestToken)) return;
+    if (!response?.supported) return;
+
+    Object.entries(response.items || {}).forEach(([vpkName, issue]) => {
+      const key = normalizePanelMapIssueKey(vpkName);
+      if (!key) return;
+      currentPanelMapIssues.set(key, {
+        dictionaryMissing: Math.max(0, Number(issue?.dictionaryMissing) || 0),
+        dictionaryUnreadable: Boolean(issue?.dictionaryUnreadable),
+        globalScripts: Math.max(0, Number(issue?.globalScripts) || 0),
+      });
+    });
+    renderVisiblePanelMapIssueTags();
   }
 }
 
@@ -751,6 +819,30 @@ function getPanelModeSearchText(modes) {
     .toLowerCase();
 }
 
+function getFilteredPanelMaps() {
+  const query = document
+    .getElementById("panel-map-search")
+    .value.trim()
+    .toLowerCase();
+
+  return currentPanelMaps
+    .filter((campaign) => !panelOfficialMapsHidden || campaign.isCustom)
+    .map((campaign) => ({
+      ...campaign,
+      chapters: campaign.chapters.filter((chapter) => {
+        if (!query) return true;
+        return (
+          campaign.title.toLowerCase().includes(query) ||
+          chapter.title.toLowerCase().includes(query) ||
+          chapter.code.toLowerCase().includes(query) ||
+          campaign.vpkName.toLowerCase().includes(query) ||
+          getPanelModeSearchText(chapter.modes).includes(query)
+        );
+      }),
+    }))
+    .filter((campaign) => campaign.chapters.length > 0);
+}
+
 function renderPanelMapModes(modes) {
   const normalizedModes = normalizePanelModes(modes);
   if (normalizedModes.length === 0) return "";
@@ -769,29 +861,8 @@ function renderPanelMapModes(modes) {
 
 function renderPanelMapList() {
   const list = document.getElementById("panel-map-list");
-  const query = document
-    .getElementById("panel-map-search")
-    .value.trim()
-    .toLowerCase();
-
   updatePanelOfficialToggle();
-
-  const filtered = currentPanelMaps
-    .filter((campaign) => !panelOfficialMapsHidden || campaign.isCustom)
-    .map((campaign) => ({
-      ...campaign,
-      chapters: campaign.chapters.filter((chapter) => {
-        if (!query) return true;
-        return (
-          campaign.title.toLowerCase().includes(query) ||
-          chapter.title.toLowerCase().includes(query) ||
-          chapter.code.toLowerCase().includes(query) ||
-          campaign.vpkName.toLowerCase().includes(query) ||
-          getPanelModeSearchText(chapter.modes).includes(query)
-        );
-      }),
-    }))
-    .filter((campaign) => campaign.chapters.length > 0);
+  const filtered = getFilteredPanelMaps();
 
   if (filtered.length === 0) {
     list.innerHTML = `<div class="panel-empty-state">未找到匹配地图</div>`;
@@ -839,6 +910,46 @@ function renderPanelMapList() {
       `
     )
     .join("");
+  renderVisiblePanelMapIssueTags(filtered);
+}
+
+function renderVisiblePanelMapIssueTags(filtered = getFilteredPanelMaps()) {
+  const list = document.getElementById("panel-map-list");
+  if (!list) return;
+  const sections = list.querySelectorAll(".panel-map-campaign");
+  sections.forEach((section, index) => {
+    section.querySelector(".panel-map-risk-tags")?.remove();
+    const campaign = filtered[index];
+    if (!campaign?.isCustom) return;
+
+    const issue = currentPanelMapIssues.get(normalizePanelMapIssueKey(campaign.vpkName));
+    if (!issue) return;
+    const tags = [];
+    if (issue.dictionaryMissing > 0) {
+      tags.push(createPanelMapRiskTag(`字典缺失 ${issue.dictionaryMissing}`, "danger"));
+    }
+    if (issue.dictionaryUnreadable) {
+      tags.push(createPanelMapRiskTag("字典检测异常", "warning"));
+    }
+    if (issue.globalScripts > 0) {
+      tags.push(createPanelMapRiskTag(`存在全局脚本 ${issue.globalScripts}`, "warning"));
+    }
+    if (tags.length === 0) return;
+
+    const headerContent = section.querySelector(".panel-map-campaign-header > div");
+    if (!headerContent) return;
+    const container = document.createElement("div");
+    container.className = "panel-map-risk-tags";
+    tags.forEach((tag) => container.appendChild(tag));
+    headerContent.appendChild(container);
+  });
+}
+
+function createPanelMapRiskTag(text, level) {
+  const tag = document.createElement("span");
+  tag.className = `panel-map-risk-tag is-${level}`;
+  tag.textContent = text;
+  return tag;
 }
 
 async function handlePanelMapClick(event) {
