@@ -159,6 +159,7 @@
   height: 24px;
   border-radius: 999px;
   font-size: 0.78em;
+  line-height: 1;
   font-weight: 700;
   font-family: var(--font-mono);
 }
