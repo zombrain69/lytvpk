@@ -24,6 +24,18 @@ func TestNormalizePanelMapIssueNames(t *testing.T) {
 	}
 }
 
+func TestParsePanelMapFiles(t *testing.T) {
+	got := parsePanelMapFiles("first.vpk$$1.25GB\r\nsecond part.VPK$$unknown\nlegacy.vpk\n$$5MB\n")
+	want := []PanelMapFile{
+		{Name: "first.vpk", Size: "1.25GB"},
+		{Name: "second part.VPK", Size: "unknown"},
+		{Name: "legacy.vpk", Size: "unknown"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("parsePanelMapFiles() = %#v, want %#v", got, want)
+	}
+}
+
 func TestCompactPanelMapIssue(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -33,8 +45,9 @@ func TestCompactPanelMapIssue(t *testing.T) {
 		{
 			name: "healthy map",
 			inspection: panelMapInspection{
-				Dictionary:    panelMapDictionaryInspection{Status: "present"},
-				GlobalScripts: panelMapGlobalScripts{Status: "clean"},
+				Dictionary:      panelMapDictionaryInspection{Status: "present"},
+				GlobalScripts:   panelMapGlobalScripts{Status: "clean"},
+				ScriptOverrides: panelMapScriptOverrides{Status: "clean"},
 			},
 			want: PanelMapIssue{},
 		},
@@ -54,11 +67,16 @@ func TestCompactPanelMapIssue(t *testing.T) {
 					Status: "detected",
 					Files:  []string{"scripts/vscripts/mapspawn_addon.nut", "scripts/vscripts/scriptedmode_addon.nut"},
 				},
+				ScriptOverrides: panelMapScriptOverrides{
+					Status: "detected",
+					Files:  []string{"scripts/gamemodes.txt", "scripts/weapon_rifle.txt", "scripts/weapon_smg.txt"},
+				},
 			},
 			want: PanelMapIssue{
 				DictionaryMissing:    2,
 				DictionaryUnreadable: true,
 				GlobalScripts:        2,
+				ScriptOverrides:      3,
 			},
 		},
 		{
@@ -68,6 +86,10 @@ func TestCompactPanelMapIssue(t *testing.T) {
 				GlobalScripts: panelMapGlobalScripts{
 					Status: "clean",
 					Files:  []string{"ignored.nut"},
+				},
+				ScriptOverrides: panelMapScriptOverrides{
+					Status: "clean",
+					Files:  []string{"ignored.txt"},
 				},
 			},
 			want: PanelMapIssue{DictionaryUnreadable: true},
@@ -82,6 +104,10 @@ func TestCompactPanelMapIssue(t *testing.T) {
 				GlobalScripts: panelMapGlobalScripts{
 					Status: "not_checked",
 					Files:  []string{"ignored.nut"},
+				},
+				ScriptOverrides: panelMapScriptOverrides{
+					Status: "not_checked",
+					Files:  []string{"ignored.txt"},
 				},
 			},
 			want: PanelMapIssue{},
@@ -123,7 +149,7 @@ func TestFetchPanelMapIssues(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		wantMaps := []string{"mixed.vpk", "clean.vpk", "broken.vpk"}
+		wantMaps := []string{"mixed.vpk", "clean.vpk", "resource-only.vpk", "broken.vpk"}
 		if !reflect.DeepEqual(request.Maps, wantMaps) {
 			t.Fatalf("request maps = %#v, want %#v", request.Maps, wantMaps)
 		}
@@ -144,6 +170,10 @@ func TestFetchPanelMapIssues(t *testing.T) {
 						"global_scripts": {
 							"status": "detected",
 							"files": ["one.nut", "two.nut"]
+						},
+						"script_overrides": {
+							"status": "detected",
+							"files": ["scripts/gamemodes.txt", "scripts/weapon_rifle.txt", "scripts/weapon_smg.txt"]
 						}
 					}
 				},
@@ -151,7 +181,19 @@ func TestFetchPanelMapIssues(t *testing.T) {
 					"error": "",
 					"inspection": {
 						"dictionary": {"status": "present", "chapters": []},
-						"global_scripts": {"status": "clean", "files": []}
+						"global_scripts": {"status": "clean", "files": []},
+						"script_overrides": {"status": "clean", "files": []}
+					}
+				},
+				"resource-only.vpk": {
+					"error": "解析地图名称失败: VPK 中未找到 missions",
+					"inspection": {
+						"dictionary": {"status": "not_applicable", "chapters": []},
+						"global_scripts": {"status": "clean", "files": []},
+						"script_overrides": {
+							"status": "detected",
+							"files": ["scripts/gamemodes.txt", "scripts/weapon_rifle.txt"]
+						}
 					}
 				},
 				"broken.vpk": {"error": "地图文件不存在"}
@@ -165,6 +207,7 @@ func TestFetchPanelMapIssues(t *testing.T) {
 		" mixed.vpk ",
 		"MIXED.VPK",
 		"clean.vpk",
+		"resource-only.vpk",
 		"",
 		"broken.vpk",
 	})
@@ -178,6 +221,7 @@ func TestFetchPanelMapIssues(t *testing.T) {
 		DictionaryMissing:    1,
 		DictionaryUnreadable: true,
 		GlobalScripts:        2,
+		ScriptOverrides:      3,
 	}
 	if got := result.Items["mixed.vpk"]; !reflect.DeepEqual(got, wantMixed) {
 		t.Fatalf("mixed issue = %#v, want %#v", got, wantMixed)
@@ -185,8 +229,11 @@ func TestFetchPanelMapIssues(t *testing.T) {
 	if got, exists := result.Items["clean.vpk"]; !exists || got != (PanelMapIssue{}) {
 		t.Fatalf("clean issue = %#v, exists = %t", got, exists)
 	}
+	if got := result.Items["resource-only.vpk"]; got.ScriptOverrides != 2 {
+		t.Fatalf("resource-only issue = %#v, want 2 script overrides", got)
+	}
 	if _, exists := result.Items["broken.vpk"]; exists {
-		t.Fatal("per-map error should not produce an issue item")
+		t.Fatal("map without an inspection should not produce an issue item")
 	}
 }
 
@@ -220,6 +267,61 @@ func TestFetchPanelMapIssuesEndpointCompatibility(t *testing.T) {
 				t.Fatalf("result = %#v, want unsupported response", result)
 			}
 		})
+	}
+}
+
+func TestFetchAndDeletePanelMapFiles(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("DPAPI 加密仅在 Windows 上验证")
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer panel-secret" {
+			t.Fatalf("unexpected authorization header: %q", r.Header.Get("Authorization"))
+		}
+
+		switch r.URL.Path {
+		case "/panel/list":
+			_, _ = w.Write([]byte("campaign.vpk$$512.00MB\nresources.vpk$$128.00MB\n"))
+		case "/panel/remove":
+			if err := r.ParseForm(); err != nil {
+				t.Fatalf("parse remove form: %v", err)
+			}
+			if got := r.Form.Get("map"); got != "resources.vpk" {
+				t.Fatalf("remove map = %q, want resources.vpk", got)
+			}
+			_, _ = w.Write([]byte("删除成功！"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := newPanelIssueTestApp(t, server.URL+"/panel")
+	files, err := app.FetchPanelMapFiles("srv_panel_issues")
+	if err != nil {
+		t.Fatalf("FetchPanelMapFiles() error = %v", err)
+	}
+	wantFiles := []PanelMapFile{
+		{Name: "campaign.vpk", Size: "512.00MB"},
+		{Name: "resources.vpk", Size: "128.00MB"},
+	}
+	if !reflect.DeepEqual(files, wantFiles) {
+		t.Fatalf("FetchPanelMapFiles() = %#v, want %#v", files, wantFiles)
+	}
+
+	message, err := app.DeletePanelMapFile("srv_panel_issues", " resources.vpk ")
+	if err != nil {
+		t.Fatalf("DeletePanelMapFile() error = %v", err)
+	}
+	if message != "删除成功！" {
+		t.Fatalf("DeletePanelMapFile() = %q, want 删除成功！", message)
+	}
+}
+
+func TestDeletePanelMapFileRejectsEmptyName(t *testing.T) {
+	if _, err := (&App{}).DeletePanelMapFile("server", "  "); err == nil {
+		t.Fatal("DeletePanelMapFile() expected empty name error")
 	}
 }
 

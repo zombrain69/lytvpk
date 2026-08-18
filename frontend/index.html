@@ -1514,6 +1514,38 @@
                 <div class="panel-upload-empty-title">暂无上传任务</div>
               </div>
             </div>
+            <section class="panel-vpk-section" aria-labelledby="panel-vpk-heading">
+              <div class="panel-vpk-section-header">
+                <div>
+                  <h3 id="panel-vpk-heading">VPK 地图列表</h3>
+                  <span id="panel-vpk-count">0 个文件</span>
+                </div>
+                <button
+                  id="panel-vpk-refresh-btn"
+                  class="btn btn-outline btn-small panel-vpk-refresh-btn"
+                  type="button"
+                >
+                  <svg
+                    class="icon-svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                    <path d="M21 3v6h-6"></path>
+                  </svg>
+                  刷新
+                </button>
+              </div>
+              <div id="panel-vpk-loading" class="loading-text hidden">
+                正在读取 VPK 地图列表...
+              </div>
+              <div id="panel-vpk-list" class="panel-vpk-list"></div>
+            </section>
           </div>
         </div>
       </div>

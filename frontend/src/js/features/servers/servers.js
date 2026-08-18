@@ -31,8 +31,10 @@ let BrowserOpenURL;
 let FetchPanelServerStatus;
 let RestartPanelServer;
 let FetchPanelMapList;
+let FetchPanelMapFiles;
 let FetchPanelMapIssues;
 let ClearPanelMaps;
+let DeletePanelMapFile;
 let ChangePanelMap;
 let FetchPanelMapHotReloadStatus;
 let HotReloadPanelMaps;
@@ -62,8 +64,10 @@ export function configureServers(deps) {
     FetchPanelServerStatus,
     RestartPanelServer,
     FetchPanelMapList,
+    FetchPanelMapFiles,
     FetchPanelMapIssues,
     ClearPanelMaps,
+    DeletePanelMapFile,
     ChangePanelMap,
     FetchPanelMapHotReloadStatus,
     HotReloadPanelMaps,
@@ -106,8 +110,10 @@ export function configureServers(deps) {
     FetchPanelServerStatus,
     RestartPanelServer,
     FetchPanelMapList,
+    FetchPanelMapFiles,
     FetchPanelMapIssues,
     ClearPanelMaps,
+    DeletePanelMapFile,
     ChangePanelMap,
     FetchPanelMapHotReloadStatus,
     HotReloadPanelMaps,

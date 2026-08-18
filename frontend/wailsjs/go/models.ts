@@ -446,6 +446,20 @@ export namespace app {
 		}
 	}
 	
+	export class PanelMapFile {
+	    name: string;
+	    size: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PanelMapFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.size = source["size"];
+	    }
+	}
 	export class PanelMapHotReloadResult {
 	    status: string;
 	    message: string;
@@ -476,6 +490,7 @@ export namespace app {
 	    dictionaryMissing: number;
 	    dictionaryUnreadable: boolean;
 	    globalScripts: number;
+	    scriptOverrides: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new PanelMapIssue(source);
@@ -486,6 +501,7 @@ export namespace app {
 	        this.dictionaryMissing = source["dictionaryMissing"];
 	        this.dictionaryUnreadable = source["dictionaryUnreadable"];
 	        this.globalScripts = source["globalScripts"];
+	        this.scriptOverrides = source["scriptOverrides"];
 	    }
 	}
 	export class PanelMapIssuesResponse {

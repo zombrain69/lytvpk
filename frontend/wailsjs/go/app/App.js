@@ -50,6 +50,10 @@ export function ConnectToServer(arg1) {
   return window['go']['app']['App']['ConnectToServer'](arg1);
 }
 
+export function DeletePanelMapFile(arg1, arg2) {
+  return window['go']['app']['App']['DeletePanelMapFile'](arg1, arg2);
+}
+
 export function DeleteVPKFile(arg1) {
   return window['go']['app']['App']['DeleteVPKFile'](arg1);
 }
@@ -88,6 +92,10 @@ export function ExtractVPKFromRar(arg1, arg2) {
 
 export function ExtractVPKFromZip(arg1, arg2) {
   return window['go']['app']['App']['ExtractVPKFromZip'](arg1, arg2);
+}
+
+export function FetchPanelMapFiles(arg1) {
+  return window['go']['app']['App']['FetchPanelMapFiles'](arg1);
 }
 
 export function FetchPanelMapHotReloadStatus(arg1) {

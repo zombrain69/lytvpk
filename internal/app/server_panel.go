@@ -39,6 +39,11 @@ type PanelCampaign struct {
 	VpkName  string         `json:"vpkName"`
 }
 
+type PanelMapFile struct {
+	Name string `json:"name"`
+	Size string `json:"size"`
+}
+
 type PanelChapter struct {
 	Code  string   `json:"code"`
 	Title string   `json:"title"`
@@ -58,6 +63,7 @@ type PanelMapIssue struct {
 	DictionaryMissing    int  `json:"dictionaryMissing"`
 	DictionaryUnreadable bool `json:"dictionaryUnreadable"`
 	GlobalScripts        int  `json:"globalScripts"`
+	ScriptOverrides      int  `json:"scriptOverrides"`
 }
 
 type PanelMapIssuesResponse struct {
@@ -75,8 +81,9 @@ type panelMapSummary struct {
 }
 
 type panelMapInspection struct {
-	Dictionary    panelMapDictionaryInspection `json:"dictionary"`
-	GlobalScripts panelMapGlobalScripts        `json:"global_scripts"`
+	Dictionary      panelMapDictionaryInspection `json:"dictionary"`
+	GlobalScripts   panelMapGlobalScripts        `json:"global_scripts"`
+	ScriptOverrides panelMapScriptOverrides      `json:"script_overrides"`
 }
 
 type panelMapDictionaryInspection struct {
@@ -89,6 +96,11 @@ type panelMapChapterInspection struct {
 }
 
 type panelMapGlobalScripts struct {
+	Status string   `json:"status"`
+	Files  []string `json:"files"`
+}
+
+type panelMapScriptOverrides struct {
 	Status string   `json:"status"`
 	Files  []string `json:"files"`
 }
@@ -132,6 +144,36 @@ func (a *App) FetchPanelMapList(serverID string) ([]PanelCampaign, error) {
 	return maps, nil
 }
 
+func (a *App) FetchPanelMapFiles(serverID string) ([]PanelMapFile, error) {
+	raw, err := a.panelPost(serverID, "/list", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return parsePanelMapFiles(raw), nil
+}
+
+func parsePanelMapFiles(raw string) []PanelMapFile {
+	files := make([]PanelMapFile, 0)
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		name, size, found := strings.Cut(line, "$$")
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		size = strings.TrimSpace(size)
+		if !found || size == "" {
+			size = "unknown"
+		}
+		files = append(files, PanelMapFile{Name: name, Size: size})
+	}
+	return files
+}
+
 func (a *App) FetchPanelMapIssues(serverID string, vpkNames []string) (*PanelMapIssuesResponse, error) {
 	names := normalizePanelMapIssueNames(vpkNames)
 	result := &PanelMapIssuesResponse{
@@ -155,7 +197,7 @@ func (a *App) FetchPanelMapIssues(serverID string, vpkNames []string) (*PanelMap
 	}
 
 	for mapName, summary := range summaries.Items {
-		if strings.TrimSpace(summary.Error) != "" || summary.Inspection == nil {
+		if summary.Inspection == nil {
 			continue
 		}
 		result.Items[mapName] = compactPanelMapIssue(*summary.Inspection)
@@ -199,11 +241,22 @@ func compactPanelMapIssue(inspection panelMapInspection) PanelMapIssue {
 	if strings.EqualFold(inspection.GlobalScripts.Status, "detected") {
 		issue.GlobalScripts = len(inspection.GlobalScripts.Files)
 	}
+	if strings.EqualFold(inspection.ScriptOverrides.Status, "detected") {
+		issue.ScriptOverrides = len(inspection.ScriptOverrides.Files)
+	}
 	return issue
 }
 
 func (a *App) ClearPanelMaps(serverID string) (string, error) {
 	return a.panelPost(serverID, "/clear", nil, nil)
+}
+
+func (a *App) DeletePanelMapFile(serverID string, mapName string) (string, error) {
+	mapName = strings.TrimSpace(mapName)
+	if mapName == "" {
+		return "", fmt.Errorf("地图文件名不能为空")
+	}
+	return a.panelPost(serverID, "/remove", map[string]string{"map": mapName}, nil)
 }
 
 func (a *App) ChangePanelMap(serverID string, mapName string) (string, error) {
