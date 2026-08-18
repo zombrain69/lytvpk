@@ -293,6 +293,88 @@
   justify-content: center;
 }
 
+/* 深色模式 */
+html.dark-mode .drop-import-panel {
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.48);
+  color: var(--text-primary);
+}
+
+html.dark-mode .drop-import-title,
+html.dark-mode .drop-import-file,
+html.dark-mode .drop-import-result-body strong {
+  color: var(--text-primary);
+}
+
+html.dark-mode .drop-import-summary,
+html.dark-mode .drop-import-current,
+html.dark-mode .drop-import-result-body span {
+  color: var(--text-secondary);
+}
+
+html.dark-mode .drop-import-state-icon {
+  background: rgba(99, 102, 241, 0.16);
+  color: var(--primary-light);
+}
+
+html.dark-mode .drop-import-phase {
+  border-color: rgba(129, 140, 248, 0.35);
+  background: rgba(99, 102, 241, 0.16);
+  color: var(--primary-light);
+}
+
+html.dark-mode .drop-import-panel.is-running .drop-import-state-icon {
+  border-color: rgba(129, 140, 248, 0.25);
+  border-top-color: var(--primary-light);
+  background: var(--bg-app);
+}
+
+html.dark-mode .drop-import-active-item {
+  border-color: rgba(129, 140, 248, 0.3);
+  background: var(--bg-app);
+  color: #a5b4fc;
+}
+
+html.dark-mode .drop-import-progress-bar {
+  background: var(--bg-card);
+}
+
+html.dark-mode .drop-import-progress-meta {
+  color: var(--success-light);
+}
+
+html.dark-mode .drop-import-result {
+  border-color: var(--border-default);
+  background: var(--bg-app);
+}
+
+html.dark-mode .drop-import-result::before,
+html.dark-mode .drop-import-result-status {
+  background: rgba(16, 185, 129, 0.16);
+  color: var(--success-light);
+}
+
+html.dark-mode .drop-import-result.is-failed::before,
+html.dark-mode .drop-import-result.is-failed .drop-import-result-status {
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--danger-light);
+}
+
+html.dark-mode .drop-import-panel.is-error .drop-import-phase {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--danger-light);
+}
+
+html.dark-mode .drop-import-panel.is-error .drop-import-progress-meta {
+  color: var(--danger-light);
+}
+
+html.dark-mode .drop-import-footer {
+  border-top-color: var(--border-default);
+}
+
 @keyframes drop-import-spin {
   to {
     transform: rotate(360deg);
