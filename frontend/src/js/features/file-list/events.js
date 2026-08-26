@@ -16,6 +16,7 @@ import { openWorkshopModal, checkWorkshopUrl } from "../downloads/workshop-modal
 import { showContextMenu, hideContextMenu, showServerSubmenu, hideServerSubmenu } from "./context-menu.js";
 import { shareWorkshopFileByPath } from "./share.js";
 import { getServers } from "../servers/servers.js";
+import { showConflictDetailsForFile } from "../conflicts/conflicts.js";
 
 const DROPDOWN_EDGE_GAP = 8;
 const DROPDOWN_TRIGGER_GAP = 4;
@@ -237,6 +238,16 @@ export function setupFileListEventDelegation() {
         e.preventDefault();
         e.stopPropagation();
         toggleFile(filePath);
+      }
+    }
+
+    const conflictBtn = e.target.closest('.mod-conflict-badge[data-action="view-conflicts"]');
+    if (conflictBtn) {
+      const filePath = conflictBtn.getAttribute("data-file-path");
+      if (filePath) {
+        e.preventDefault();
+        e.stopPropagation();
+        showConflictDetailsForFile(filePath);
       }
     }
 

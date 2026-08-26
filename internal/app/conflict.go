@@ -37,6 +37,10 @@ type ConflictResult struct {
 const (
 	conflictWorkerLimit        = 4
 	conflictGroupFileListLimit = 2000
+	// Scoped conflict checks are intentionally bounded. The full diagnostics
+	// scan remains available, while the list-page switch should ask the user to
+	// narrow the current filters before parsing hundreds of VPK archives.
+	scopedConflictMaxVPKs = 300
 )
 
 type conflictGroupAccumulator struct {
@@ -152,6 +156,23 @@ func getVPKFileListSafely(filePath string) (files []string, err error) {
 
 // CheckConflicts 检测VPK文件冲突
 func (a *App) CheckConflicts() (*ConflictResult, error) {
+	return a.checkConflicts(nil)
+}
+
+// CheckConflictsForPaths checks only the VPK paths currently visible in the
+// filtered Mod list. It reuses the same severity and grouping rules as the full
+// diagnostics scan, but avoids opening unrelated archives.
+func (a *App) CheckConflictsForPaths(paths []string) (*ConflictResult, error) {
+	if len(paths) == 0 {
+		return &ConflictResult{}, nil
+	}
+	if len(paths) > scopedConflictMaxVPKs {
+		return nil, fmt.Errorf("当前筛选包含 %d 个 Mod；为避免卡顿，请缩小筛选范围至 %d 个以内", len(paths), scopedConflictMaxVPKs)
+	}
+	return a.checkConflicts(paths)
+}
+
+func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 	a.mu.RLock()
 	rootDir := a.rootDir
 	a.mu.RUnlock()
@@ -165,30 +186,9 @@ func (a *App) CheckConflicts() (*ConflictResult, error) {
 	}
 	defer a.conflictCheckMu.Unlock()
 
-	// rootDir 已经是 addons 目录
-	addonsDir := rootDir
-	workshopDir := filepath.Join(addonsDir, "workshop")
-
-	var vpkPaths []string
-
-	// 扫描 addons 目录
-	entries, err := os.ReadDir(addonsDir)
-	if err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
-				vpkPaths = append(vpkPaths, filepath.Join(addonsDir, entry.Name()))
-			}
-		}
-	}
-
-	// 扫描 workshop 目录
-	entries, err = os.ReadDir(workshopDir)
-	if err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
-				vpkPaths = append(vpkPaths, filepath.Join(workshopDir, entry.Name()))
-			}
-		}
+	vpkPaths, err := a.collectConflictVPKPaths(selectedPaths)
+	if err != nil {
+		return nil, err
 	}
 
 	totalFiles := len(vpkPaths)
@@ -358,6 +358,81 @@ func (a *App) CheckConflicts() (*ConflictResult, error) {
 		TotalConflicts: len(groups),
 		ConflictGroups: groups,
 	}, nil
+}
+
+func (a *App) collectConflictVPKPaths(selectedPaths []string) ([]string, error) {
+	a.mu.RLock()
+	rootDir := a.rootDir
+	a.mu.RUnlock()
+	if rootDir == "" {
+		return nil, fmt.Errorf("未选择L4D2目录")
+	}
+
+	addonsDir := filepath.Clean(rootDir)
+	if len(selectedPaths) == 0 {
+		var paths []string
+		for _, dir := range []string{addonsDir, filepath.Join(addonsDir, "workshop")} {
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, err
+			}
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
+					paths = append(paths, filepath.Join(dir, entry.Name()))
+				}
+			}
+		}
+		sort.Strings(paths)
+		return paths, nil
+	}
+
+	paths := make([]string, 0, len(selectedPaths))
+	seen := make(map[string]struct{}, len(selectedPaths))
+	for _, rawPath := range selectedPaths {
+		path := filepath.Clean(strings.TrimSpace(rawPath))
+		if path == "" {
+			continue
+		}
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(addonsDir, path)
+		}
+		path, err := filepath.Abs(path)
+		if err != nil {
+			return nil, fmt.Errorf("无法解析 Mod 路径 %q: %w", rawPath, err)
+		}
+		if !isPathWithin(path, addonsDir) {
+			return nil, fmt.Errorf("Mod 路径不在当前 addons 目录内: %s", rawPath)
+		}
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			if os.IsNotExist(statErr) {
+				continue
+			}
+			return nil, statErr
+		}
+		if info.IsDir() || !strings.HasSuffix(strings.ToLower(info.Name()), ".vpk") {
+			continue
+		}
+		key := strings.ToLower(path)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
+func isPathWithin(path, root string) bool {
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && !filepath.IsAbs(rel)
 }
 
 func newConflictVPKFile(name, path, title, location string) ConflictVPKFile {

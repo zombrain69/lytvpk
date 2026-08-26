@@ -34,6 +34,11 @@ export const appState = {
   ctrlClickSelectionEnabled: getConfig().ctrlClickSelectionEnabled || false,
   filterLayoutMode: getConfig().filterLayoutMode || "compact",
   workshopUpdateCheckEnabled: false,
+  // 当前筛选结果的可选冲突分析。默认关闭，避免扫描大量 VPK。
+  conflictAnalysisEnabled: false,
+  conflictAnalysisLoading: false,
+  conflictAnalysisResult: null,
+  conflictByPath: new Map(),
 };
 
 export function applyConfigToAppState(config = getConfig()) {

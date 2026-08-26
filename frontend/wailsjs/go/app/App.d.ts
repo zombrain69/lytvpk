@@ -21,6 +21,8 @@ export function ChangePanelMap(arg1:string,arg2:string):Promise<string>;
 
 export function CheckConflicts():Promise<app.ConflictResult>;
 
+export function CheckConflictsForPaths(arg1:Array<string>):Promise<app.ConflictResult>;
+
 export function CheckModUpdates():Promise<app.UpdateCheckResult>;
 
 export function CheckUpdate():Promise<app.UpdateInfo>;

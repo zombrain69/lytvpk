@@ -55,6 +55,34 @@ function getGameToggleButton(file) {
   `;
 }
 
+function getConflictSummaryBadge(file, className = "mod-conflict-badge") {
+  if (!appState.conflictAnalysisEnabled) return "";
+  if (appState.conflictAnalysisLoading) {
+    return `<span class="${className} pending" title="正在分析当前筛选结果的文件冲突">冲突分析中…</span>`;
+  }
+
+  const summary = appState.conflictByPath?.get(file.path);
+  if (!summary) {
+    return `<span class="${className} none" title="当前筛选结果中未发现与此 Mod 重叠的文件">无冲突</span>`;
+  }
+
+  const severityText =
+    summary.severity === "critical"
+      ? "严重"
+      : summary.severity === "warning"
+        ? "警告"
+        : "普通";
+  return `
+    <button class="${className} has-conflict ${summary.severity}"
+            data-action="view-conflicts"
+            data-file-path="${escapeHtml(file.path)}"
+            title="点击查看此 Mod 的冲突文件与风险分级">
+      <span class="mod-conflict-dot" aria-hidden="true"></span>
+      冲突 ${summary.groups} 组 · ${summary.files} 文件 · ${severityText}
+    </button>
+  `;
+}
+
 export function renderFileList() {
   const container = document.getElementById("file-list");
   const listHeader = document.querySelector(".file-list-header");
@@ -185,7 +213,10 @@ export function createFileItem(file) {
       </span>
     </div>
     <div class="file-game-state">${getGameStateBadge(file)}</div>
-    <div class="file-tags">${formatTags(file.primaryTag, file.secondaryTags)}</div>
+    <div class="file-tags">
+      ${formatTags(file.primaryTag, file.secondaryTags)}
+      ${getConflictSummaryBadge(file)}
+    </div>
     <div class="file-actions">
       <button class="btn-small action-btn detail-btn" data-file-path="${file.path}">
         <span class="btn-icon">${iconSvg("info")}</span>
@@ -393,6 +424,7 @@ export function createFileCard(file) {
             : ""
         }
         ${secondaryTagsHtml}
+        ${getConflictSummaryBadge(file, "card-badge mod-conflict-badge")}
       </div>
     </div>
     <div class="card-content">

@@ -58,6 +58,7 @@ import {
   showConflictModal,
   hideConflictModal,
   startConflictCheck,
+  toggleScopedConflictAnalysis,
 } from "./conflicts/conflicts.js";
 import {
   configureSettings,
@@ -179,6 +180,7 @@ import {
   GetCurrentBestIP,
   GetCurrentBestIPOption,
   CheckConflicts,
+  CheckConflictsForPaths,
   SetWorkshopPreferredIP,
   SetWorkshopFixedIP,
   SetWorkshopMetaEnabled,
@@ -315,8 +317,11 @@ configureConflicts({
   EventsOn,
   showError,
   CheckConflicts,
+  CheckConflictsForPaths,
   toggleFile,
   moveFileToAddons,
+  renderFileList,
+  showNotification,
 });
 
 configureModelStatsScan({
@@ -934,6 +939,12 @@ function setupBatchActionEvents() {
   document
     .getElementById("reset-filter-btn")
     ?.addEventListener("click", resetFilters);
+
+  document
+    .getElementById("conflict-analysis-checkbox")
+    ?.addEventListener("change", (event) => {
+      toggleScopedConflictAnalysis(event.target.checked);
+    });
 
   // 冲突检测弹窗按钮
   document

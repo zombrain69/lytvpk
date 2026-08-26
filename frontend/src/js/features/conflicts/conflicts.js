@@ -1,15 +1,30 @@
+import { appState } from "../state.js";
+
 let EventsOn;
 let showError;
 let CheckConflicts;
+let CheckConflictsForPaths;
 let toggleFile;
 let moveFileToAddons;
+let renderFileList;
+let showNotification;
 let conflictProgressRegistered = false;
 let isConflictChecking = false;
 let isConflictModalVisible = false;
 let conflictCheckRunId = 0;
+let scopedConflictTimer = null;
 
 export function configureConflicts(deps) {
-  ({ EventsOn, showError, CheckConflicts, toggleFile, moveFileToAddons } = deps);
+  ({
+    EventsOn,
+    showError,
+    CheckConflicts,
+    CheckConflictsForPaths,
+    toggleFile,
+    moveFileToAddons,
+    renderFileList,
+    showNotification,
+  } = deps);
   registerConflictProgressEvents();
 }
 
@@ -19,7 +34,7 @@ let currentConflictPage = 1;
 
 const CONFLICT_PAGE_SIZE = 20;
 
-export function showConflictModal() {
+export function showConflictModal(options = {}) {
   isConflictModalVisible = true;
   document.getElementById("conflict-modal").classList.remove("hidden");
   if (isConflictChecking) {
@@ -29,6 +44,15 @@ export function showConflictModal() {
     return;
   }
   resetConflictModal();
+  const titleEl = document.querySelector("#conflict-modal .modal-header h2");
+  if (titleEl) titleEl.textContent = options.title || "Mod冲突检测";
+  if (options.result) {
+    currentSeverityFilter = options.severityFilter || "all";
+    updateFilterButtons();
+    currentConflictResult = options.result;
+    renderConflictResults(options.result);
+    return;
+  }
   // 自动开始检测
   startConflictCheck();
 }
@@ -38,6 +62,8 @@ export function hideConflictModal() {
   document.getElementById("conflict-modal").classList.add("hidden");
   currentConflictResult = null;
   document.getElementById("conflict-list").innerHTML = "";
+  const titleEl = document.querySelector("#conflict-modal .modal-header h2");
+  if (titleEl) titleEl.textContent = "Mod冲突检测";
 }
 
 function resetConflictModal() {
@@ -67,6 +93,173 @@ function setConflictChecking(checking) {
     startButton.disabled = checking;
     startButton.textContent = checking ? "检测中..." : "开始检测";
   }
+}
+
+const SCOPED_CONFLICT_MAX_VPKS = 300;
+
+function conflictSeverityRank(severity) {
+  if (severity === "critical") return 3;
+  if (severity === "warning") return 2;
+  return 1;
+}
+
+function buildScopedConflictSummary(result) {
+  const byPath = new Map();
+  for (const group of result?.conflict_groups || []) {
+    const severity = group.severity || "info";
+    for (const vpk of group.vpk_files || []) {
+      if (!vpk?.path) continue;
+      const previous = byPath.get(vpk.path) || {
+        severity: "info",
+        groups: 0,
+        files: 0,
+      };
+      previous.groups += 1;
+      previous.files += Number(group.file_count || 0);
+      if (conflictSeverityRank(severity) > conflictSeverityRank(previous.severity)) {
+        previous.severity = severity;
+      }
+      byPath.set(vpk.path, previous);
+    }
+  }
+  return byPath;
+}
+
+function updateScopedConflictControl() {
+  const checkbox = document.getElementById("conflict-analysis-checkbox");
+  const status = document.getElementById("conflict-analysis-status");
+  if (checkbox) {
+    checkbox.checked = Boolean(appState.conflictAnalysisEnabled);
+    checkbox.disabled = Boolean(appState.conflictAnalysisLoading);
+  }
+  if (status) {
+    if (appState.conflictAnalysisLoading) {
+      status.textContent = "分析中…";
+      status.className = "conflict-analysis-status loading";
+    } else if (appState.conflictAnalysisEnabled) {
+      const count = appState.vpkFiles.length;
+      const groups = appState.conflictAnalysisResult?.total_conflicts || 0;
+      status.textContent = `已分析 ${count} 个 Mod · ${groups} 组冲突`;
+      status.className = "conflict-analysis-status active";
+    } else {
+      status.textContent = "默认关闭，按当前筛选分析";
+      status.className = "conflict-analysis-status";
+    }
+  }
+}
+
+export async function toggleScopedConflictAnalysis(enabled) {
+  if (!enabled) {
+    if (scopedConflictTimer) {
+      clearTimeout(scopedConflictTimer);
+      scopedConflictTimer = null;
+    }
+    conflictCheckRunId += 1;
+    appState.conflictAnalysisEnabled = false;
+    appState.conflictAnalysisLoading = false;
+    appState.conflictAnalysisResult = null;
+    appState.conflictByPath = new Map();
+    updateScopedConflictControl();
+    renderFileList?.();
+    return;
+  }
+
+  return runScopedConflictAnalysis();
+}
+
+export function scheduleScopedConflictAnalysis() {
+  if (!appState.conflictAnalysisEnabled) return;
+  if (scopedConflictTimer) clearTimeout(scopedConflictTimer);
+
+  // 筛选结果已经变化：立即废弃旧结果，避免防抖期间仍显示上一次
+  // 筛选范围的冲突标签。递增 run id 也会忽略尚未返回的旧请求。
+  conflictCheckRunId += 1;
+  appState.conflictAnalysisLoading = true;
+  appState.conflictAnalysisResult = null;
+  appState.conflictByPath = new Map();
+  updateScopedConflictControl();
+  renderFileList?.();
+
+  scopedConflictTimer = setTimeout(() => {
+    scopedConflictTimer = null;
+    runScopedConflictAnalysis({ silent: true });
+  }, 450);
+}
+
+export async function runScopedConflictAnalysis({ silent = false } = {}) {
+  if (typeof CheckConflictsForPaths !== "function") {
+    if (!silent) showError?.("当前后端不支持按筛选结果分析冲突，请重新构建应用");
+    return;
+  }
+
+  const files = [...(appState.vpkFiles || [])];
+  if (files.length > SCOPED_CONFLICT_MAX_VPKS) {
+    appState.conflictAnalysisEnabled = false;
+    appState.conflictAnalysisLoading = false;
+    appState.conflictAnalysisResult = null;
+    appState.conflictByPath = new Map();
+    updateScopedConflictControl();
+    renderFileList?.();
+    showError?.(`当前筛选包含 ${files.length} 个 Mod；请缩小到 ${SCOPED_CONFLICT_MAX_VPKS} 个以内再分析`);
+    return;
+  }
+
+  const runId = ++conflictCheckRunId;
+  appState.conflictAnalysisEnabled = true;
+  appState.conflictAnalysisLoading = true;
+  appState.conflictAnalysisResult = null;
+  appState.conflictByPath = new Map();
+  updateScopedConflictControl();
+  renderFileList?.();
+
+  try {
+    const result = await CheckConflictsForPaths(files.map((file) => file.path));
+    if (runId !== conflictCheckRunId || !appState.conflictAnalysisEnabled) return;
+    appState.conflictAnalysisResult = result || { total_conflicts: 0, conflict_groups: [] };
+    appState.conflictByPath = buildScopedConflictSummary(appState.conflictAnalysisResult);
+    appState.conflictAnalysisLoading = false;
+    updateScopedConflictControl();
+    renderFileList?.();
+    if (!silent) {
+      showNotification?.(
+        appState.conflictAnalysisResult.total_conflicts > 0
+          ? `已分析当前筛选的 ${files.length} 个 Mod，发现 ${appState.conflictAnalysisResult.total_conflicts} 组潜在冲突`
+          : `已分析当前筛选的 ${files.length} 个 Mod，未发现文件冲突`,
+        appState.conflictAnalysisResult.total_conflicts > 0 ? "warning" : "success",
+      );
+    }
+  } catch (error) {
+    if (runId !== conflictCheckRunId) return;
+    appState.conflictAnalysisEnabled = false;
+    appState.conflictAnalysisLoading = false;
+    appState.conflictAnalysisResult = null;
+    appState.conflictByPath = new Map();
+    updateScopedConflictControl();
+    renderFileList?.();
+    showError?.("按当前筛选分析冲突失败: " + error);
+  }
+}
+
+export function showConflictDetailsForFile(filePath) {
+  const result = appState.conflictAnalysisResult;
+  if (!appState.conflictAnalysisEnabled || appState.conflictAnalysisLoading || !result) {
+    showNotification?.("请先开启并等待当前筛选的冲突分析完成", "info");
+    return;
+  }
+
+  const groups = (result.conflict_groups || []).filter((group) =>
+    (group.vpk_files || []).some((vpk) => vpk.path === filePath),
+  );
+  if (groups.length === 0) {
+    showNotification?.("这个 Mod 与当前筛选结果没有发现文件冲突", "success");
+    return;
+  }
+
+  showConflictModal({
+    title: "Mod 冲突详情",
+    severityFilter: "all",
+    result: { total_conflicts: groups.length, conflict_groups: groups },
+  });
 }
 
 // 筛选说明文本

@@ -266,6 +266,12 @@
               <button id="reset-filter-btn" class="btn btn-small btn-outline">
                 <span class="icon">↻</span> 重置筛选
               </button>
+              <label class="toggle-switch conflict-analysis-toggle" title="只分析当前筛选出的 Mod；默认关闭以避免大量 VPK 同时解析">
+                <input type="checkbox" id="conflict-analysis-checkbox" />
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">冲突分析</span>
+                <span id="conflict-analysis-status" class="conflict-analysis-status">默认关闭，按当前筛选分析</span>
+              </label>
               <button
                 id="mod-rotation-btn"
                 class="btn btn-small btn-outline"

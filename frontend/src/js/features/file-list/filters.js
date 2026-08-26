@@ -4,6 +4,7 @@ import { renderFileList } from "./render.js";
 import { getLocationDisplayName, escapeHtml } from "../../core/utils.js";
 import { applySort, updateSortButtonUI } from "./sorting.js";
 import { resetBoxSelection } from "./box-selection.js";
+import { scheduleScopedConflictAnalysis } from "../conflicts/conflicts.js";
 import { GetPrimaryTags, GetSecondaryTags, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
 
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
@@ -1331,6 +1332,7 @@ export async function performSearch() {
     renderFileList();
     updateStatusBar();
     renderActiveFilterSummary();
+    scheduleScopedConflictAnalysis();
 
     console.log(`搜索完成，显示 ${appState.vpkFiles.length} 个文件`);
   } catch (error) {

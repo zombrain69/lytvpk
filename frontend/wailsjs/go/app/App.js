@@ -34,6 +34,10 @@ export function CheckConflicts() {
   return window['go']['app']['App']['CheckConflicts']();
 }
 
+export function CheckConflictsForPaths(arg1) {
+  return window['go']['app']['App']['CheckConflictsForPaths'](arg1);
+}
+
 export function CheckModUpdates() {
   return window['go']['app']['App']['CheckModUpdates']();
 }
