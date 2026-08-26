@@ -66,6 +66,9 @@ func TestConfigDefaultsWithoutFile(t *testing.T) {
 	if config.CtrlClickSelectionEnabled == nil || !*config.CtrlClickSelectionEnabled {
 		t.Fatalf("expected ctrl click selection to default to true")
 	}
+	if config.AddonListGuardEnabled == nil || *config.AddonListGuardEnabled {
+		t.Fatalf("expected addonlist guard to default to false, got %#v", config.AddonListGuardEnabled)
+	}
 }
 
 func TestAddonListGuardConfigurationRoundTrip(t *testing.T) {
@@ -85,6 +88,48 @@ func TestAddonListGuardConfigurationRoundTrip(t *testing.T) {
 	config := restored.GetAppConfig()
 	if config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {
 		t.Fatalf("expected addonlist guard to round trip, got %#v", config.AddonListGuardEnabled)
+	}
+}
+
+func TestAddonListGuardExplicitSelectionPersistsAndCanBeDisabled(t *testing.T) {
+	app := newConfigTestApp(t)
+	addons := filepath.Join(t.TempDir(), "left4dead2", "addons")
+	if err := os.MkdirAll(addons, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(addons), "addonlist.txt"), []byte("\"AddonList\"\n{\n}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	app.rootDir = addons
+	t.Cleanup(app.stopAddonListMonitor)
+
+	if _, err := app.SetAddonListGuardEnabled(true); err != nil {
+		t.Fatalf("explicitly enable guard: %v", err)
+	}
+	if app.addonListMonitorStop == nil {
+		t.Fatal("explicitly enabled guard did not start the monitor")
+	}
+
+	restored := newConfigTestApp(t)
+	restored.configDir = app.configDir
+	restored.configPath = app.configPath
+	restored.serversPath = app.serversPath
+	restored.workshopWatchLaterPath = app.workshopWatchLaterPath
+	restored.loadConfig()
+	if config := restored.GetAppConfig(); config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {
+		t.Fatalf("explicitly enabled guard was not persisted: %#v", config.AddonListGuardEnabled)
+	}
+
+	if _, err := app.SetAddonListGuardEnabled(false); err != nil {
+		t.Fatalf("explicitly disable guard: %v", err)
+	}
+	if app.addonListMonitorStop != nil {
+		t.Fatal("explicitly disabled guard left the monitor running")
+	}
+
+	restored.loadConfig()
+	if config := restored.GetAppConfig(); config.AddonListGuardEnabled == nil || *config.AddonListGuardEnabled {
+		t.Fatalf("explicitly disabled guard was not persisted: %#v", config.AddonListGuardEnabled)
 	}
 }
 

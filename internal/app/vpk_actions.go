@@ -209,10 +209,8 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 		return fmt.Errorf("已复制到 addons，但 addonlist.txt 同步失败: %w", err)
 	}
 	// 保留 workshop 原件意味着 Steam/游戏可能在下次启动时重新写入 1。
-	// 复制完成后自动启用 addonlist 保护，受保护快照会记住 workshop=0、root=1。
-	if _, err := a.SetAddonListGuardEnabled(true); err != nil {
-		return fmt.Errorf("已复制到 addons，但无法启用 addonlist 防覆盖保护: %w", err)
-	}
+	// 防覆盖监控是用户明确选择的功能：复制操作只同步当前状态，绝不隐式开启监控。
+	// 用户可在“设置 > addonlist.txt 生命周期管理”中按需启用监控并自动恢复。
 
 	log.Printf("文件已复制: %s -> %s（保留 workshop 原文件并显式关闭）", filePath, newPath)
 

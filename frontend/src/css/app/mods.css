@@ -1,7 +1,7 @@
 /* 加载顺序弹框样式 */
-.load-order-modal-content {
-  width: min(1180px, calc(100vw - var(--spacing-6)));
-  max-width: 1180px;
+.modal-content.load-order-modal-content {
+  width: min(1280px, calc(100vw - var(--spacing-4)));
+  max-width: 1280px;
   max-height: calc(100vh - var(--spacing-3));
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
@@ -26,8 +26,10 @@
 }
 
 .load-order-body {
-  padding: var(--spacing-6);
+  padding: clamp(var(--spacing-4), 2vw, var(--spacing-6));
   overflow-y: auto;
+  container-type: inline-size;
+  container-name: load-order-content;
 }
 
 .load-order-section {
@@ -126,6 +128,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--spacing-3);
 }
 
@@ -140,14 +143,14 @@
 
 .load-order-presets {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 172px), 1fr));
   gap: var(--spacing-3);
   margin-top: var(--spacing-3);
 }
 
 .load-order-preset {
   min-width: 0;
-  min-height: 106px;
+  min-height: 118px;
   padding: var(--spacing-4);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
@@ -195,7 +198,7 @@
 
 .load-order-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(370px, 0.9fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr));
   align-items: start;
   gap: var(--spacing-5);
 }
@@ -221,7 +224,7 @@
 
 .load-order-rule-builder {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: var(--spacing-2) var(--spacing-4);
   align-items: end;
 }
@@ -519,9 +522,10 @@
   padding: var(--spacing-2) var(--spacing-6);
 }
 
-@media (max-width: 1120px) {
+/* 以弹窗正文的实际可用宽度响应；不会受 Windows 高 DPI 或应用缩放的窗口宽度误判影响。 */
+@container load-order-content (max-width: 920px) {
   .load-order-presets {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr));
   }
 
   .load-order-workspace {
@@ -534,8 +538,22 @@
   }
 }
 
+@container load-order-content (max-width: 560px) {
+  .load-order-policy-section,
+  .load-order-control-card,
+  .load-order-preview-panel {
+    padding: var(--spacing-3);
+  }
+
+  .load-order-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--spacing-1);
+  }
+}
+
 @media (max-width: 640px) {
-  .load-order-modal-content {
+  .modal-content.load-order-modal-content {
     width: calc(100vw - var(--spacing-3));
     max-height: calc(100vh - var(--spacing-3));
   }
@@ -548,8 +566,7 @@
   }
 
   .load-order-grid,
-  .load-order-rule-builder,
-  .load-order-presets {
+  .load-order-rule-builder {
     grid-template-columns: 1fr;
   }
 

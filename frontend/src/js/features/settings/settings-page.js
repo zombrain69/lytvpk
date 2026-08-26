@@ -299,7 +299,7 @@ export async function renderSettingsPage(deps) {
               <div class="setting-row addonlist-guard-row">
                 <div class="setting-row-info">
                   <div class="setting-row-label">监控并自动恢复</div>
-                  <div class="setting-row-desc">应用运行期间，检测到游戏稳定写入或删除 addonlist.txt 后，将恢复受保护版本，并保留被覆盖内容的备份。</div>
+                  <div class="setting-row-desc">默认关闭。仅在你手动开启后，应用运行期间才会检测游戏稳定写入或删除 addonlist.txt 的情况，恢复受保护版本并保留被覆盖内容的备份。</div>
                   ${addonListInfo.lastGuardRestore ? `<div class="setting-row-status">最近自动恢复：${escapeHtml(formatAddonListTime(addonListInfo.lastGuardRestore))}</div>` : ""}
                   ${addonListInfo.lastGuardError ? `<div class="addonlist-status-error">监控状态：${escapeHtml(addonListInfo.lastGuardError)}</div>` : ""}
                 </div>

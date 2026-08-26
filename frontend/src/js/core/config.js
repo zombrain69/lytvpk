@@ -32,6 +32,8 @@ const DEFAULT_CONFIG = {
   filterLayoutMode: "compact",
   boxSelectionEnabled: true,
   ctrlClickSelectionEnabled: true,
+  // addonlist.txt 的运行时监控属于显式选择，默认绝不启动。
+  addonListGuardEnabled: false,
   theme: "",
   ignoredVersion: "",
   lastUpdateCheckTime: "",

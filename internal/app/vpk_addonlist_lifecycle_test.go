@@ -50,7 +50,7 @@ func TestToggleVPKFileRemovesDisabledEntryInCustomCollection(t *testing.T) {
 	}
 }
 
-func TestMoveWorkshopCopiesOriginalAndProtectsWorkshopDisabledState(t *testing.T) {
+func TestMoveWorkshopCopiesOriginalWithoutEnablingAddonListGuard(t *testing.T) {
 	addons := filepath.Join(t.TempDir(), "left4dead2", "addons")
 	workshop := filepath.Join(addons, "workshop")
 	if err := os.MkdirAll(workshop, 0755); err != nil {
@@ -64,8 +64,6 @@ func TestMoveWorkshopCopiesOriginalAndProtectsWorkshopDisabledState(t *testing.T
 	app.vpkCache.Store(workshopPath, &VPKFileCache{File: VPKFile{
 		Path: workshopPath, Name: "123456789.vpk", Location: "workshop", Enabled: true, WorkshopID: "123456789",
 	}})
-	defer app.stopAddonListMonitor()
-
 	if err := app.MoveWorkshopToAddons(workshopPath); err != nil {
 		t.Fatalf("copy workshop VPK: %v", err)
 	}
@@ -87,7 +85,7 @@ func TestMoveWorkshopCopiesOriginalAndProtectsWorkshopDisabledState(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !info.GuardEnabled || !info.ManagedSnapshotExists {
-		t.Fatalf("workshop protection not enabled: %#v", info)
+	if info.GuardEnabled || info.ManagedSnapshotExists {
+		t.Fatalf("copy must not enable addonlist monitoring or create a protected snapshot: %#v", info)
 	}
 }
