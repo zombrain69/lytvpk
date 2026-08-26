@@ -2,12 +2,15 @@ import { appState } from "../state.js";
 import { formatFileSize, getLocationDisplayName } from "../../core/utils.js";
 import { showError } from "../../core/toast.js";
 import {
-  GetVPKPreviewImage,
   GetWorkshopBrowserTarget,
   ParseWorkshopID,
 } from "../../../../wailsjs/go/app/App";
 import { BrowserOpenURL } from "../../../../wailsjs/runtime/runtime";
 import { handleProtocolWorkshop } from "../workshop/workshop-browser.js";
+import {
+  getCachedVPKPreview,
+  loadVPKPreview,
+} from "../shared/vpk-preview-cache.js";
 
 let currentDetailFile = null;
 
@@ -35,18 +38,12 @@ function buildWorkshopBrowserURL(workshopID, target) {
 }
 
 export function showFileDetail(filePath) {
-  console.log("=== showFileDetail 开始执行 ===");
-  console.log("文件路径:", filePath);
-  console.log("appState.vpkFiles 长度:", appState.vpkFiles.length);
-
   const file = appState.vpkFiles.find((f) => f.path === filePath);
   if (!file) {
     console.error("未找到文件:", filePath);
-    console.log("可用文件列表:", appState.vpkFiles.map((f) => f.path));
     return;
   }
 
-  console.log("找到文件:", file.name);
   currentDetailFile = file;
 
   const modal = document.getElementById("file-detail-modal");
@@ -68,12 +65,16 @@ export function showFileDetail(filePath) {
   previewSection.classList.remove("hidden");
   previewImage.style.display = "none";
 
-  if (file.previewImage) {
-    previewImage.src = file.previewImage;
+  const cachedPreview = getCachedVPKPreview(file);
+  if (cachedPreview) {
+    previewImage.src = cachedPreview;
     previewImage.style.display = "block";
+  } else if (cachedPreview === "") {
+    previewSection.classList.add("hidden");
   } else {
-    GetVPKPreviewImage(file.path)
+    loadVPKPreview(file)
       .then((imgData) => {
+        if (currentDetailFile?.path !== file.path) return;
         if (imgData) {
           previewImage.src = imgData;
           previewImage.style.display = "block";
@@ -202,7 +203,6 @@ export function showFileDetail(filePath) {
     if (modalBody) modalBody.scrollTop = 0;
   }, 0);
 
-  console.log("=== showFileDetail 执行完成 ===");
 }
 
 export function closeModal() {

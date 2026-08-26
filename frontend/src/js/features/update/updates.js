@@ -218,6 +218,9 @@ export async function manualCheckUpdate() {
       msgDiv.textContent = `当前已是最新版本 (v${info.latest_ver})`;
       msgDiv.classList.add("success");
       msgDiv.classList.remove("hidden");
+      if (info.release_note) {
+        showUpdateModal(info);
+      }
     }
   } catch (e) {
     msgDiv.textContent = "发生错误: " + e;
@@ -234,8 +237,11 @@ export async function showUpdateModal(info) {
   const modal = document.getElementById("update-modal");
   const newVer = document.getElementById("new-version-number");
   const curVer = document.getElementById("current-version-number");
+  const title = document.getElementById("update-modal-title");
+  const versionArrow = document.getElementById("update-version-arrow");
   const notes = document.getElementById("release-notes-content");
   const noteViewButtons = modal.querySelectorAll("[data-update-notes-view]");
+  const readOnly = !info.has_update;
 
   // Custom Dropdown Elements
   const mirrorSelectContainer = document.getElementById(
@@ -259,7 +265,10 @@ export async function showUpdateModal(info) {
   const progressText = document.getElementById("update-progress-text");
   const modalFooter = document.getElementById("update-modal-footer");
   const ignoreBtn = document.getElementById("ignore-update-btn");
+  const updateOptions = document.getElementById("update-download-options");
 
+  title.textContent = readOnly ? "当前已是最新版本" : "发现新版本";
+  versionArrow.textContent = readOnly ? "✓" : "→";
   newVer.textContent = info.latest_ver;
   curVer.textContent = info.current_ver;
   const releaseNote = info.release_note || "暂无更新日志";
@@ -275,6 +284,27 @@ export async function showUpdateModal(info) {
       );
     };
   });
+
+  // Manual checks may open the same dialog for the current Release notes. It
+  // is strictly read-only: do not fetch mirrors or expose update controls.
+  if (readOnly) {
+    updateOptions?.classList.add("hidden");
+    progressContainer.classList.add("hidden");
+    modalFooter.classList.remove("hidden");
+    ignoreBtn.classList.add("hidden");
+    confirmBtn.classList.add("hidden");
+    cancelBtn.textContent = "关闭";
+    const closeReadOnlyModal = () => modal.classList.add("hidden");
+    cancelBtn.onclick = closeReadOnlyModal;
+    closeBtn.onclick = closeReadOnlyModal;
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  updateOptions?.classList.remove("hidden");
+  ignoreBtn.classList.remove("hidden");
+  confirmBtn.classList.remove("hidden");
+  cancelBtn.textContent = "稍后提醒";
 
   // Helper to set selected option
   const setSelected = (value, htmlContent) => {

@@ -223,7 +223,7 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 		wg.Add(1)
 		p := path // capture loop variable
 
-		err := a.goroutinePool.Submit(func() {
+		a.submitPoolTask(func() {
 			defer wg.Done()
 			workerSlots <- struct{}{}
 			defer func() { <-workerSlots }()
@@ -276,10 +276,6 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 			}
 			mu.Unlock()
 		})
-
-		if err != nil {
-			wg.Done() // Submit failed
-		}
 	}
 
 	wg.Wait()

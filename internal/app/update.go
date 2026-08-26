@@ -22,6 +22,10 @@ import (
 // 全局变量存储下载地址，避免 DoUpdate 时再次请求 API 导致速率限制或网络错误
 var pendingUpdateURL string
 
+// fetchReleasesForUpdate keeps the GitHub boundary replaceable in focused
+// tests. Production uses fetchReleases directly.
+var fetchReleasesForUpdate = fetchReleases
+
 const (
 	unconfiguredUpdateSourceMessage = "此 Community Fork 尚未配置 GitHub 发布源；不会检查或安装 LaoYutang/lytvpk 的更新。"
 	developmentBuildVersion         = "0.0.0-dev"
@@ -207,7 +211,7 @@ func (a *App) CheckUpdate() UpdateInfo {
 
 	// 2. 仅从此 Fork 的 GitHub Releases API 读取版本与真实资产。
 	// 不从上游或镜像页面猜测资产名，避免下载错误/不可验证的 ZIP。
-	releases, err := fetchReleases(repo)
+	releases, err := fetchReleasesForUpdate(repo)
 	if err != nil {
 		return UpdateInfo{CurrentVer: AppVersion, Error: "检查 Fork 更新失败: " + err.Error()}
 	}
@@ -262,9 +266,10 @@ func (a *App) CheckUpdate() UpdateInfo {
 	}
 
 	return UpdateInfo{
-		HasUpdate:  false,
-		CurrentVer: AppVersion,
-		LatestVer:  maxVer.String(),
+		HasUpdate:   false,
+		CurrentVer:  AppVersion,
+		LatestVer:   maxVer.String(),
+		ReleaseNote: fmt.Sprintf("【%s】\n%s\n", bestRel.TagName, bestRel.Body),
 	}
 }
 

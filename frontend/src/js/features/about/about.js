@@ -153,6 +153,9 @@ async function checkAboutUpdate({ CheckUpdate, showUpdateModal } = {}) {
     } else {
       status.textContent = `当前已是最新版本 v${info.latest_ver || info.current_ver}`;
       status.classList.add("success");
+      if (info.release_note && typeof showUpdateModal === "function") {
+        showUpdateModal(info);
+      }
     }
   } catch (error) {
     status.textContent = `发生错误: ${error}`;

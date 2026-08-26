@@ -97,15 +97,20 @@ type SteamDetailResponse struct {
 // ---------------------------------------------------
 
 type WorkshopCacheItem struct {
-	Data      interface{}
-	ExpiresAt time.Time
+	Data       interface{}
+	ExpiresAt  time.Time
+	LastAccess uint64
 }
 
 var (
-	workshopClient     *resty.Client
-	workshopClientOnce sync.Once
-	workshopCache      sync.Map
+	workshopClient            *resty.Client
+	workshopClientOnce        sync.Once
+	workshopCacheMu           sync.Mutex
+	workshopCache             = make(map[string]WorkshopCacheItem)
+	workshopCacheAccessSerial uint64
 )
+
+const workshopCacheMaxEntries = 128
 
 func getWorkshopClient() *resty.Client {
 	workshopClientOnce.Do(func() {
@@ -127,23 +132,51 @@ func getWorkshopClient() *resty.Client {
 }
 
 func getWorkshopCache(key string) (interface{}, bool) {
-	val, ok := workshopCache.Load(key)
+	workshopCacheMu.Lock()
+	defer workshopCacheMu.Unlock()
+
+	item, ok := workshopCache[key]
 	if !ok {
 		return nil, false
 	}
-	item := val.(WorkshopCacheItem)
 	if time.Now().After(item.ExpiresAt) {
-		workshopCache.Delete(key)
+		delete(workshopCache, key)
 		return nil, false
 	}
+	workshopCacheAccessSerial++
+	item.LastAccess = workshopCacheAccessSerial
+	workshopCache[key] = item
 	return item.Data, true
 }
 
 func setWorkshopCache(key string, data interface{}) {
-	workshopCache.Store(key, WorkshopCacheItem{
-		Data:      data,
-		ExpiresAt: time.Now().Add(1 * time.Hour),
-	})
+	now := time.Now()
+	workshopCacheMu.Lock()
+	defer workshopCacheMu.Unlock()
+
+	for cacheKey, item := range workshopCache {
+		if now.After(item.ExpiresAt) {
+			delete(workshopCache, cacheKey)
+		}
+	}
+	workshopCacheAccessSerial++
+	workshopCache[key] = WorkshopCacheItem{
+		Data:       data,
+		ExpiresAt:  now.Add(1 * time.Hour),
+		LastAccess: workshopCacheAccessSerial,
+	}
+
+	for len(workshopCache) > workshopCacheMaxEntries {
+		var oldestKey string
+		var oldestAccess uint64
+		for cacheKey, item := range workshopCache {
+			if oldestKey == "" || item.LastAccess < oldestAccess {
+				oldestKey = cacheKey
+				oldestAccess = item.LastAccess
+			}
+		}
+		delete(workshopCache, oldestKey)
+	}
 }
 
 // FetchWorkshopList 获取创意工坊列表

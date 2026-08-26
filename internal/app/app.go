@@ -58,6 +58,20 @@ type VPKFileCache struct {
 	CachedAt     time.Time
 }
 
+// submitPoolTask uses the shared pool when it is available. A released or
+// unavailable pool must not strand WaitGroup-based callers: synchronous
+// fallback keeps scans and on-demand analysis correct during shutdown/tests.
+func (a *App) submitPoolTask(task func()) {
+	if a.goroutinePool == nil {
+		task()
+		return
+	}
+	if err := a.goroutinePool.Submit(task); err != nil {
+		log.Printf("协程池无法接收任务，回退为同步执行: %v", err)
+		task()
+	}
+}
+
 // App struct
 type App struct {
 	ctx                    context.Context

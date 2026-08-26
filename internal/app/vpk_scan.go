@@ -94,13 +94,14 @@ func (a *App) ScanVPKFiles() error {
 		return true
 	})
 
-	// 并发处理所有文件（使用智能缓存）
+	// 并发处理所有文件（使用智能缓存）。任务池不可用时同步回退，
+	// 确保 WaitGroup 不会因拒绝任务而永久等待。
 	for _, path := range vpkPaths {
 		wg.Add(1)
 		filePath := path // 捕获变量
-		a.goroutinePool.Submit(func() {
+		a.submitPoolTask(func() {
+			defer wg.Done()
 			a.processVPKFileWithCache(filePath)
-			wg.Done()
 		})
 	}
 	wg.Wait()
@@ -193,7 +194,9 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	}
 
 	// 文件不在缓存中或已变化，需要重新解析
-	vpkFile, err := parser.ParseVPKFile(filePath)
+	// List scanning intentionally avoids eager Base64 preview extraction. The
+	// frontend requests it later only for visible cards or the detail dialog.
+	vpkFile, err := parser.ParseVPKFileMetadata(filePath)
 	if err != nil {
 		a.LogError("VPK解析", err.Error(), filePath)
 		return

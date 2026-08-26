@@ -43,7 +43,7 @@ func (a *App) GetVPKModelMetrics(filePaths []string) []VPKModelMetric {
 		waitGroup.Add(1)
 		metricIndex := index
 		targetPath := file.Path
-		a.goroutinePool.Submit(func() {
+		a.submitPoolTask(func() {
 			defer waitGroup.Done()
 
 			stats, err := parser.AnalyzeVPKModelStats(targetPath)

@@ -39,11 +39,16 @@ func validateWindowsRenamePath(path string, filename string) error {
 }
 
 func (a *App) GetVPKPreviewImage(filePath string) string {
-	if cached, ok := a.vpkCache.Load(filePath); ok {
-		cache := cached.(*VPKFileCache)
-		return cache.File.PreviewImage
+	if _, ok := a.vpkCache.Load(filePath); !ok {
+		return ""
 	}
-	return ""
+
+	preview, err := parser.ExtractVPKPreviewImage(filePath)
+	if err != nil {
+		log.Printf("读取 VPK 预览图失败: %s, 错误: %v", filePath, err)
+		return ""
+	}
+	return preview
 }
 
 // ToggleVPKFile 切换VPK文件的启用状态（智能缓存版本）

@@ -765,7 +765,7 @@
       <div id="update-modal" class="modal hidden">
         <div class="modal-content modal-small">
           <div class="modal-header">
-            <h3>发现新版本</h3>
+            <h3 id="update-modal-title">发现新版本</h3>
             <button id="close-update-modal-btn" class="close-btn">
               &times;
             </button>
@@ -776,7 +776,7 @@
                 <span class="version-tag current"
                   >当前: v<span id="current-version-number"></span
                 ></span>
-                <span class="version-arrow">→</span>
+                <span id="update-version-arrow" class="version-arrow">→</span>
                 <span class="version-tag new"
                   >v<span id="new-version-number"></span
                 ></span>
@@ -805,7 +805,7 @@
                 <div id="release-notes-content" class="notes-content"></div>
               </div>
 
-              <div class="update-options">
+              <div id="update-download-options" class="update-options">
                 <label for="mirror-select-value">下载源选择:</label>
                 <div
                   class="mirror-selection-group"

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/blang/semver"
@@ -15,6 +16,17 @@ func withUpdateGlobals(t *testing.T, version, repo, pending string) {
 	AppVersion, UpdateRepo, pendingUpdateURL = version, repo, pending
 	t.Cleanup(func() {
 		AppVersion, UpdateRepo, pendingUpdateURL = oldVersion, oldRepo, oldPending
+	})
+}
+
+func withUpdateReleases(t *testing.T, releases []GithubRelease) {
+	t.Helper()
+	oldFetch := fetchReleasesForUpdate
+	fetchReleasesForUpdate = func(string) ([]GithubRelease, error) {
+		return releases, nil
+	}
+	t.Cleanup(func() {
+		fetchReleasesForUpdate = oldFetch
 	})
 }
 
@@ -97,6 +109,31 @@ func TestPublishedCommunityReleaseNamingIsUpdaterCompatible(t *testing.T) {
 	}}}
 	if got := selectWindowsAMD64ZipAsset(release); got != release.Assets[0].BrowserDownloadURL {
 		t.Fatalf("published asset was not selected: %q", got)
+	}
+}
+
+func TestCheckUpdateReturnsCurrentReleaseNotesWithoutUpdate(t *testing.T) {
+	withUpdateGlobals(t, "2.5.14-community.6", "zombrain69/lytvpk", "https://example.invalid/stale.zip")
+	withUpdateReleases(t, []GithubRelease{
+		{TagName: "v2.5.14-community.5", Body: "fix: older release"},
+		{TagName: "v2.5.14-community.6", Body: "feat: current release notes"},
+	})
+
+	info := (&App{}).CheckUpdate()
+	if info.Error != "" {
+		t.Fatalf("unexpected error: %q", info.Error)
+	}
+	if info.HasUpdate {
+		t.Fatalf("current release must not be reported as an update: %+v", info)
+	}
+	if info.CurrentVer != "2.5.14-community.6" || info.LatestVer != "2.5.14-community.6" {
+		t.Fatalf("unexpected versions: %+v", info)
+	}
+	if !strings.Contains(info.ReleaseNote, "【v2.5.14-community.6】") || !strings.Contains(info.ReleaseNote, "current release notes") {
+		t.Fatalf("current release note missing: %q", info.ReleaseNote)
+	}
+	if info.DownloadURL != "" || pendingUpdateURL != "" {
+		t.Fatalf("read-only changelog must not retain an update URL: info=%+v pending=%q", info, pendingUpdateURL)
 	}
 }
 

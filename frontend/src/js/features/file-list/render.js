@@ -8,8 +8,14 @@ import {
   escapeHtml,
 } from "../../core/utils.js";
 import { showFileDetail } from "../modals/detail.js";
-import { GetVPKPreviewImage } from "../../../../wailsjs/go/app/App";
 import { getServers } from "../servers/servers.js";
+import {
+  getCachedVPKPreview,
+  loadVPKPreview,
+} from "../shared/vpk-preview-cache.js";
+
+let cardPreviewObserver = null;
+const pendingCardPreviews = new Map();
 
 function hasPanelServers() {
   return getServers().some((s) => s.panelUrl && s.panelPasswordSet);
@@ -88,7 +94,9 @@ export function renderFileList() {
   const listHeader = document.querySelector(".file-list-header");
   const statusBar = document.querySelector(".status-bar");
 
-  container.innerHTML = "";
+  if (!container) return;
+  clearPendingCardPreviews();
+  const fragment = document.createDocumentFragment();
 
   if (appState.displayMode === "card") {
     container.classList.add("file-list-grid");
@@ -97,7 +105,7 @@ export function renderFileList() {
     if (statusBar) statusBar.style.display = "flex";
 
     appState.vpkFiles.forEach((file) => {
-      container.appendChild(createFileCard(file));
+      fragment.appendChild(createFileCard(file));
     });
   } else {
     container.classList.add("file-list");
@@ -106,9 +114,11 @@ export function renderFileList() {
     if (statusBar) statusBar.style.display = "flex";
 
     appState.vpkFiles.forEach((file) => {
-      container.appendChild(createFileItem(file));
+      fragment.appendChild(createFileItem(file));
     });
   }
+
+  container.replaceChildren(fragment);
 }
 
 export function createFileItem(file) {
@@ -295,13 +305,9 @@ export function createFileCard(file) {
       </button>`
     : "";
 
-  let previewSrc = "";
-  let showPlaceholder = true;
-
-  if (file.previewImage) {
-    previewSrc = file.previewImage;
-    showPlaceholder = false;
-  }
+  const cachedPreview = getCachedVPKPreview(file);
+  const previewSrc = cachedPreview || "";
+  const showPlaceholder = !previewSrc;
 
   let secondaryTagsHtml = "";
   const uniqueDisplayTags = getUniqueDisplayTags(file.primaryTag, file.secondaryTags);
@@ -457,16 +463,8 @@ export function createFileCard(file) {
   const img = card.querySelector(".card-preview-img");
   const placeholder = card.querySelector(".card-preview-placeholder");
 
-  if (!file.previewImage) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          loadCardPreview(file, img, placeholder);
-          observer.unobserve(entry.target);
-        }
-      });
-    });
-    observer.observe(card);
+  if (cachedPreview === undefined) {
+    observeCardPreview(card, file, img, placeholder);
   }
 
   card.addEventListener("click", function (e) {
@@ -527,14 +525,44 @@ export function getLocationSvg(location) {
 
 export async function loadCardPreview(file, imgElement, placeholderElement) {
   try {
-    const imgData = await GetVPKPreviewImage(file.path);
-    if (imgData) {
+    const imgData = await loadVPKPreview(file);
+    // A list re-render can detach this card while its preview is loading.
+    // Do not retain or mutate detached DOM nodes after the request completes.
+    if (imgData && imgElement.isConnected && placeholderElement.isConnected) {
       imgElement.src = imgData;
       imgElement.classList.remove("hidden");
       placeholderElement.classList.add("hidden");
-      file.previewImage = imgData;
     }
   } catch (err) {
     console.warn("加载预览图失败:", file.name);
   }
+}
+
+function getCardPreviewObserver() {
+  if (cardPreviewObserver) return cardPreviewObserver;
+  cardPreviewObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      const target = pendingCardPreviews.get(entry.target);
+      cardPreviewObserver.unobserve(entry.target);
+      pendingCardPreviews.delete(entry.target);
+      if (target) {
+        void loadCardPreview(target.file, target.img, target.placeholder);
+      }
+    });
+  });
+  return cardPreviewObserver;
+}
+
+function observeCardPreview(card, file, img, placeholder) {
+  pendingCardPreviews.set(card, { file, img, placeholder });
+  getCardPreviewObserver().observe(card);
+}
+
+function clearPendingCardPreviews() {
+  if (!cardPreviewObserver) return;
+  pendingCardPreviews.forEach((_, card) => {
+    cardPreviewObserver.unobserve(card);
+  });
+  pendingCardPreviews.clear();
 }

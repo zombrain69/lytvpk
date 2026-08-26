@@ -30,6 +30,31 @@ const IMAGE_PLACEHOLDER_SVG = `<svg class="icon-svg" viewBox="0 0 24 24" fill="n
 let currentWorkshopResult = null;
 const workshopCache = new Map();
 const CACHE_DURATION = 3600 * 1000;
+const MAX_WORKSHOP_CACHE_ENTRIES = 64;
+
+function getCachedWorkshopResult(url) {
+  const cached = workshopCache.get(url);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp >= CACHE_DURATION) {
+    workshopCache.delete(url);
+    return null;
+  }
+
+  // Refresh the LRU position without extending the one-hour data freshness.
+  workshopCache.delete(url);
+  workshopCache.set(url, cached);
+  return cached.data;
+}
+
+function cacheWorkshopResult(url, data) {
+  workshopCache.delete(url);
+  workshopCache.set(url, { timestamp: Date.now(), data });
+  while (workshopCache.size > MAX_WORKSHOP_CACHE_ENTRIES) {
+    const oldest = workshopCache.keys().next();
+    if (oldest.done) break;
+    workshopCache.delete(oldest.value);
+  }
+}
 
 function getCurrentGroups() {
   return Array.isArray(currentWorkshopResult?.groups)
@@ -177,20 +202,16 @@ export async function checkWorkshopUrl() {
   try {
     let groupedResult;
 
-    if (workshopCache.has(url)) {
-      const cached = workshopCache.get(url);
-      if (Date.now() - cached.timestamp < CACHE_DURATION) {
-        console.log("使用缓存的工坊解析结果");
-        groupedResult = cached.data;
-      } else {
-        workshopCache.delete(url);
-      }
+    const cachedResult = getCachedWorkshopResult(url);
+    if (cachedResult !== null) {
+      console.log("使用缓存的工坊解析结果");
+      groupedResult = cachedResult;
     }
 
     if (!groupedResult) {
       groupedResult = await GetWorkshopDetailsGrouped(url);
       if (groupedResult?.groups?.length > 0) {
-        workshopCache.set(url, { timestamp: Date.now(), data: groupedResult });
+        cacheWorkshopResult(url, groupedResult);
       }
     }
 

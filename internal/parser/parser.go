@@ -20,6 +20,17 @@ import (
 // ParseVPKFile 解析VPK文件的主入口函数
 // 输入文件路径,返回解析后的VPKFile结构
 func ParseVPKFile(filePath string) (*VPKFile, error) {
+	return parseVPKFile(filePath, true)
+}
+
+// ParseVPKFileMetadata parses all list and tagging metadata but defers image
+// decoding. Directory scans use it so large addon libraries do not retain every
+// preview as a Base64 string; callers can fetch a preview later on demand.
+func ParseVPKFileMetadata(filePath string) (*VPKFile, error) {
+	return parseVPKFile(filePath, false)
+}
+
+func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 打开VPK文件
 	opener := vpk.Single(filePath)
 	defer opener.Close()
@@ -42,8 +53,14 @@ func ParseVPKFile(filePath string) (*VPKFile, error) {
 	index := buildArchivePathIndex(archive)
 	vpkType := determineVPKType(index)
 
-	// 提取资源信息（预览图和addoninfo），为后续处理提供元数据支持。
-	ExtractVPKResources(opener, index, vpkFile, filePath)
+	// addoninfo is part of normal metadata. Preview image decoding is optional:
+	// it can allocate several MiB per VPK and is only needed when the UI displays
+	// a particular card or detail dialog.
+	if includePreview {
+		ExtractVPKResources(opener, index, vpkFile, filePath)
+	} else {
+		ExtractVPKMetadata(opener, index, vpkFile)
+	}
 
 	secondaryTags := make(map[string]bool)
 	chapters := make(map[string]ChapterInfo)
@@ -403,8 +420,28 @@ func ExtractVPKResources(opener *vpk.Opener, index archivePathIndex, vpkFile *VP
 	// 索引在 ParseVPKFile 的唯一一次 archive.Files 遍历中已收集这些条目。
 	vpkFile.PreviewImage = extractPreviewImageFromFiles(opener, index.addonImageFile, index.previewFile, vpkFilePath)
 
-	// 处理addoninfo
+	ExtractVPKMetadata(opener, index, vpkFile)
+}
+
+// ExtractVPKMetadata reads the lightweight addoninfo metadata already located
+// by the archive index. It deliberately does not open image payloads.
+func ExtractVPKMetadata(opener *vpk.Opener, index archivePathIndex, vpkFile *VPKFile) {
 	parseAddonInfoFromFile(opener, index.addonInfoFile, vpkFile)
+}
+
+// ExtractVPKPreviewImage reopens a single archive to read only the preview
+// requested by the UI. It keeps normal scans metadata-only while retaining the
+// existing three-tier preview selection behavior.
+func ExtractVPKPreviewImage(filePath string) (string, error) {
+	opener := vpk.Single(filePath)
+	defer opener.Close()
+
+	archive, err := opener.ReadArchive()
+	if err != nil {
+		return "", err
+	}
+	index := buildArchivePathIndex(archive)
+	return extractPreviewImageFromFiles(opener, index.addonImageFile, index.previewFile, filePath), nil
 }
 
 // extractPreviewImageFromFiles 从找到的文件中提取预览图
