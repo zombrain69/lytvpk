@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.14-community.6 — 2026-08-26
+
+- 修复 Release 工作流对 `gh release view` 非标准退出码的误判，改由最终发布命令处理 Release 唯一性。
+
 ## 2.5.14-community.5 — 2026-08-26
 
 - 修复 GitHub Actions 在 tag 检出环境下误判发布身份的问题，改为校验仓库、操作者和语义化 tag 事件上下文。

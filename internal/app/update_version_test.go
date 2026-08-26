@@ -10,7 +10,7 @@ func TestIsDevelopmentBuildVersion(t *testing.T) {
 	}{
 		{name: "exact development version", version: "0.0.0-dev", want: true},
 		{name: "development version with whitespace", version: " 0.0.0-dev ", want: true},
-		{name: "community release", version: "2.5.14-community.5", want: false},
+		{name: "community release", version: "2.5.14-community.6", want: false},
 		{name: "CI build", version: "0.0.0-ci", want: false},
 	}
 
