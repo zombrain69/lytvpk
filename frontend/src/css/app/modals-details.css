@@ -468,6 +468,35 @@
   text-decoration: underline;
 }
 
+.detail-workshop-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.detail-workshop-link-actions .info-link {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#detail-vpk-open-browser-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .detail-workshop-link-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #detail-vpk-open-browser-btn {
+    width: 100%;
+  }
+}
+
 /* 通知系统 */
 .error-notification,
 .success-notification,

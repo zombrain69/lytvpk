@@ -52,6 +52,7 @@ features/
 - **DOM 操作**: 优先使用 `createElement`/`textContent`，避免 `innerHTML`（历史遗留大量 `innerHTML`）
 - **事件系统**: Wails Events 推送进度，前端 `EventsOn` 监听更新 UI
 - **CSS**: 按功能拆分，复用 CSS 变量，优先使用已有命名习惯
+- **CodeGraph 优先**: 仓库有 `.codegraph/` 时，定位现有 UI、事件、状态或 Wails 调用前先用 `codegraph explore` 追踪真实调用链与影响面；确定范围后才用 `rg` 查未索引的 HTML/CSS/动态字符串，修改后再次复核链路。
 
 ## 反模式
 

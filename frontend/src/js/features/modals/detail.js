@@ -1,10 +1,38 @@
 import { appState } from "../state.js";
 import { formatFileSize, getLocationDisplayName } from "../../core/utils.js";
 import { showError } from "../../core/toast.js";
-import { GetVPKPreviewImage, ParseWorkshopID } from "../../../../wailsjs/go/app/App";
+import {
+  GetVPKPreviewImage,
+  GetWorkshopBrowserTarget,
+  ParseWorkshopID,
+} from "../../../../wailsjs/go/app/App";
+import { BrowserOpenURL } from "../../../../wailsjs/runtime/runtime";
 import { handleProtocolWorkshop } from "../workshop/workshop-browser.js";
 
 let currentDetailFile = null;
+
+async function resolveWorkshopID(file) {
+  const workshopFileNameID =
+    file.location === "workshop"
+      ? String(file.name || "").replace(/\.vpk$/i, "")
+      : "";
+  for (const candidate of [file.workshopId, workshopFileNameID, file.addonURL0]) {
+    if (!candidate) continue;
+    try {
+      return await ParseWorkshopID(candidate);
+    } catch {
+      // 没有可验证的工坊 ID 时，不显示工坊操作。
+    }
+  }
+  return "";
+}
+
+function buildWorkshopBrowserURL(workshopID, target) {
+  const id = encodeURIComponent(workshopID);
+  return target === "mirror"
+    ? `https://l4d2ws.com?workshop-id=${id}`
+    : `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
+}
 
 export function showFileDetail(filePath) {
   console.log("=== showFileDetail 开始执行 ===");
@@ -103,30 +131,33 @@ export function showFileDetail(filePath) {
 
   const urlItem = document.getElementById("detail-vpk-url-item");
   const urlLink = document.getElementById("detail-vpk-url");
+  const openBrowserButton = document.getElementById(
+    "detail-vpk-open-browser-btn",
+  );
   urlItem.style.display = "none";
+  urlLink.textContent = "";
   urlLink.onclick = null;
+  openBrowserButton.classList.add("hidden");
+  openBrowserButton.onclick = null;
 
   (async () => {
-    let workshopId = file.workshopId;
+    const workshopId = await resolveWorkshopID(file);
 
-    if (!workshopId && file.addonURL0) {
-      try {
-        workshopId = await ParseWorkshopID(file.addonURL0);
-      } catch (e) {
-        console.log("从addonURL0解析工坊ID失败:", e);
-      }
-    }
+    if (currentDetailFile?.path !== file.path || !workshopId) return;
 
-    if (workshopId) {
-      urlItem.style.display = "grid";
-      urlLink.textContent = `工坊 #${workshopId}`;
-      urlLink.href = "javascript:void(0)";
-      urlLink.removeAttribute("target");
-      urlLink.onclick = (e) => {
-        e.preventDefault();
-        handleProtocolWorkshop(workshopId);
-      };
-    }
+    urlItem.style.display = "grid";
+    urlLink.textContent = `工坊 #${workshopId}`;
+    urlLink.href = "javascript:void(0)";
+    urlLink.removeAttribute("target");
+    urlLink.onclick = (e) => {
+      e.preventDefault();
+      handleProtocolWorkshop(workshopId);
+    };
+    openBrowserButton.classList.remove("hidden");
+    openBrowserButton.onclick = async () => {
+      const target = await GetWorkshopBrowserTarget();
+      BrowserOpenURL(buildWorkshopBrowserURL(workshopId, target));
+    };
   })();
 
   const mapInfoSection = document.getElementById("map-info-section");
