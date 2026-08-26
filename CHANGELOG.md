@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.14-community.2 — 2026-08-26
+
+- 应用内更新源默认固定为 `zombrain69/lytvpk`，开发构建也不会再因漏传构建参数而回退到上游仓库。
+- “关于”页同时保留本 Fork 仓库与上游项目入口：前者用于更新、源码和反馈，后者仅用于出处与致谢。
+- Windows 程序与更新包统一使用 `LytVPK-Community-Fork.exe`，更新器拒绝包含其他 EXE 名称的 ZIP。
+
 ## 2.5.14-community.1 — 2026-08-26
 
 本版本基于上游 `LaoYutang/lytvpk` 提交 `c977064445c46ce4c69d1b88c038bb95c9240c9f`，由 `zombrain69/lytvpk` 作为非官方 Community Fork 发布。

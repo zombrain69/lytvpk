@@ -1,6 +1,11 @@
 package app
 
 const (
+	// CommunityForkExecutableName is the canonical executable shipped by this
+	// fork. Release ZIPs must contain this exact file so the updater can reject
+	// ambiguous archives.
+	CommunityForkExecutableName = "LytVPK-Community-Fork.exe"
+
 	// UpstreamGithubRepo is the original project this community fork is based on.
 	// It is attribution only and is never used as an update source.
 	UpstreamGithubRepo = "LaoYutang/lytvpk"
@@ -11,8 +16,8 @@ var (
 	// main.AppVersion continue to work.
 	AppVersion = "0.0.0-dev"
 
-	// UpdateRepo is this fork's GitHub release repository in "owner/repo" form.
-	// It is intentionally empty in source builds: an unconfigured fork must
-	// never check for or install updates from the upstream project.
-	UpdateRepo string
+	// UpdateRepo is this Community Fork's GitHub release repository in
+	// "owner/repo" form. It is deliberately separate from the upstream
+	// attribution repository and is the only allowed in-app update source.
+	UpdateRepo = "zombrain69/lytvpk"
 )

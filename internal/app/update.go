@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -469,7 +470,22 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-// installUpdate 解压 zip 并替换当前 exe
+func selectUpdateExecutable(files []*zip.File) (*zip.File, error) {
+	for _, file := range files {
+		if file.FileInfo().IsDir() {
+			continue
+		}
+		name := strings.ReplaceAll(file.Name, "\\", "/")
+		if strings.EqualFold(path.Base(name), CommunityForkExecutableName) {
+			return file, nil
+		}
+	}
+	return nil, fmt.Errorf("zip 中未找到统一更新程序 %s", CommunityForkExecutableName)
+}
+
+// installUpdate 解压 zip 中的统一程序并替换当前 exe。
+// 保留 currentExe 的文件名，因此早期版本仍能更新到新版本；全新解压安装
+// 则统一使用 CommunityForkExecutableName。
 func installUpdate(zipPath, currentExe string) error {
 	// 1. 解压 zip
 	r, err := zip.OpenReader(zipPath)
@@ -478,16 +494,9 @@ func installUpdate(zipPath, currentExe string) error {
 	}
 	defer r.Close()
 
-	// 寻找 exe 文件
-	var file *zip.File
-	for _, f := range r.File {
-		if strings.HasSuffix(f.Name, ".exe") {
-			file = f
-			break
-		}
-	}
-	if file == nil {
-		return fmt.Errorf("zip 中未找到 exe 文件")
+	file, err := selectUpdateExecutable(r.File)
+	if err != nil {
+		return err
 	}
 
 	// 2. 解压出新文件

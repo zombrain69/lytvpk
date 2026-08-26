@@ -66,13 +66,19 @@
 
 ### 从源码构建
 
-本 Fork 的正式发布包应从本仓库对应的 tag 构建。若要启用应用内更新检查，请在构建时把版本号和本 Fork 的 Release 仓库注入：
+本 Fork 的正式发布包应从本仓库对应的 tag 构建。应用内更新默认只检查本 Fork 的 [`zombrain69/lytvpk` Releases](https://github.com/zombrain69/lytvpk/releases)，不会检查或安装上游 `LaoYutang/lytvpk` 的版本。正式 Release 时只需注入版本号：
 
 ```text
-wails build -ldflags "-X main.AppVersion=2.5.14-community.1 -X main.UpdateRepo=zombrain69/lytvpk"
+wails build -ldflags "-X main.AppVersion=2.5.14-community.1"
 ```
 
-不注入 `UpdateRepo` 的源码构建会保持未配置更新源，不会误检查或安装上游 `LaoYutang/lytvpk` 的版本。
+Windows 构建与 Release ZIP 中的统一程序名为 `LytVPK-Community-Fork.exe`。请使用统一的打包脚本生成可供应用内更新的资产：
+
+```text
+pwsh -ExecutionPolicy Bypass -File .\\scripts\\build-release.ps1 -Version 2.5.14-community.2
+```
+
+如日后迁移到另一个由本 Fork 维护的仓库，可额外注入 `-X main.UpdateRepo=owner/repo`；程序会拒绝把 `LaoYutang/lytvpk` 设为更新源。
 
 ## 🙏 致谢
 

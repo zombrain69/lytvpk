@@ -24,8 +24,8 @@ export async function renderAboutPage({
         </div>
         <div class="about-hero-copy">
           <div class="about-kicker">Left 4 Dead 2 MOD Manager</div>
-          <h2>LytVpk</h2>
-          <p>轻量、清爽的 Left 4 Dead 2 MOD 管理工具，用来整理 VPK、创意工坊下载、服务器收藏和常用维护流程。</p>
+          <h2>LytVPK Community Fork</h2>
+          <p>基于 LaoYutang/lytvpk 的非官方修改版。更新、源码和反馈均由本 Fork 维护；上游链接只用于出处与致谢。</p>
         </div>
       </section>
 
@@ -34,16 +34,20 @@ export async function renderAboutPage({
           <div class="about-panel-title">项目信息</div>
           <dl class="about-meta-list">
             <div>
-              <dt>作者</dt>
+              <dt>上游作者</dt>
               <dd>LaoYutang</dd>
+            </div>
+            <div>
+              <dt>Fork 维护</dt>
+              <dd>zombrain69</dd>
             </div>
             <div>
               <dt>开源协议</dt>
               <dd>GPL-3.0-only</dd>
             </div>
             <div>
-              <dt>项目仓库</dt>
-              <dd>zombrain69/lytvpk Community Fork</dd>
+              <dt>更新与源码</dt>
+              <dd>zombrain69/lytvpk</dd>
             </div>
             <div>
               <dt>问题反馈</dt>

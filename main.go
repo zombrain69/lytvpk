@@ -14,11 +14,12 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// AppVersion 和 UpdateRepo 会在正式 Fork 发布时通过 -ldflags 注入。
-// 源码/本地构建保持开发版本且不配置更新源，避免误更新到上游项目。
+// AppVersion 会在正式 Release 时通过 -ldflags 注入。UpdateRepo 默认为
+// 本 Community Fork，且可由 -ldflags 覆盖为同一 Fork 的迁移仓库；上游
+// LaoYutang/lytvpk 永远只用于署名，不会成为更新源。
 var (
 	AppVersion = "0.0.0-dev"
-	UpdateRepo string
+	UpdateRepo = "zombrain69/lytvpk"
 )
 
 func main() {
