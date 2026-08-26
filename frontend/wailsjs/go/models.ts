@@ -97,6 +97,7 @@ export namespace app {
 	export class AddonListLoadOrderPolicy {
 	    rootFirst: boolean;
 	    groupWorkshop: boolean;
+	    stateOrder: string;
 	    constraints: AddonListLoadOrderConstraint[];
 
 	    static createFrom(source: any = {}) {
@@ -107,6 +108,7 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.rootFirst = source["rootFirst"];
 	        this.groupWorkshop = source["groupWorkshop"];
+	        this.stateOrder = source["stateOrder"];
 	        this.constraints = this.convertValues(source["constraints"], AddonListLoadOrderConstraint);
 	    }
 

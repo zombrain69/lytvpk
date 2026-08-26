@@ -673,6 +673,16 @@ function setupEventListeners() {
   document
     .getElementById("refresh-btn")
     ?.addEventListener("click", refreshFilesKeepFilter);
+  document
+    .getElementById("load-order-toolbar-btn")
+    ?.addEventListener("click", () => {
+      const selectedPaths = Array.from(appState.selectedFiles);
+      openLoadOrderModal(
+        selectedPaths.length > 0
+          ? { mode: "selection", selectedPaths }
+          : { mode: "global" }
+      );
+    });
 
   // 搜索框
   document

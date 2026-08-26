@@ -312,7 +312,7 @@ export function setupFileListEventDelegation() {
         e.preventDefault();
         e.stopPropagation();
         closeAllDropdowns();
-        openLoadOrderModal(filePath);
+        openLoadOrderModal({ mode: "single", filePath });
       }
     }
     const unpackBtn = e.target.closest('.unpack-btn[data-action="unpack"]');

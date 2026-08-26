@@ -188,6 +188,7 @@ function buildPages(container) {
   const tagFilters = document.getElementById("tag-filters");
   const sortContainer = document.querySelector(".sort-container");
   const uploadBtn = document.getElementById("upload-btn");
+  const loadOrderBtn = document.getElementById("load-order-toolbar-btn");
 
   if (directorySelector && filterRow) {
     filterRow.insertBefore(directorySelector, filterRow.firstChild);
@@ -204,6 +205,10 @@ function buildPages(container) {
   if (uploadBtn && filterActions) {
     uploadBtn.className = "btn btn-small btn-outline";
     filterActions.insertBefore(uploadBtn, filterActions.firstChild);
+    if (loadOrderBtn) {
+      loadOrderBtn.className = "btn btn-small btn-outline";
+      filterActions.insertBefore(loadOrderBtn, uploadBtn);
+    }
   }
 
   if (sortContainer && filterActions) {

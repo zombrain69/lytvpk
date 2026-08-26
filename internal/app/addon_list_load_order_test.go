@@ -62,6 +62,38 @@ func TestRootFirstDoesNotPromoteOtherSubdirectories(t *testing.T) {
 	}
 }
 
+func TestAddonListLoadOrderPolicyStableStateOrderingPreservesValues(t *testing.T) {
+	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"root-a.vpk\"\t\t\"1\"\n\t\"workshop\\100.vpk\"\t\t\"0\"\n\t\"root-b.vpk\"\t\t\"1\"\n\t\"workshop\\200.vpk\"\t\t\"1\"\n\t\"root-c.vpk\"\t\t\"0\"\n}\n")
+
+	enabledFirst, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{StateOrder: addonListStateOrderEnabledFirst})
+	if err != nil {
+		t.Fatalf("preview enabled-first: %v", err)
+	}
+	if want := []string{"root-a.vpk", "root-b.vpk", "workshop\\200.vpk", "workshop\\100.vpk", "root-c.vpk"}; !reflect.DeepEqual(loadOrderKeys(enabledFirst.Entries), want) {
+		t.Fatalf("enabled-first = %#v, want %#v", loadOrderKeys(enabledFirst.Entries), want)
+	}
+	for _, entry := range enabledFirst.Entries {
+		if entry.Key == "workshop\\100.vpk" && entry.Value != "0" {
+			t.Fatalf("disabled workshop value = %q, want 0", entry.Value)
+		}
+		if entry.Key == "workshop\\200.vpk" && entry.Value != "1" {
+			t.Fatalf("enabled workshop value = %q, want 1", entry.Value)
+		}
+	}
+
+	disabledFirst, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{StateOrder: addonListStateOrderDisabledFirst})
+	if err != nil {
+		t.Fatalf("preview disabled-first: %v", err)
+	}
+	if want := []string{"workshop\\100.vpk", "root-c.vpk", "root-a.vpk", "root-b.vpk", "workshop\\200.vpk"}; !reflect.DeepEqual(loadOrderKeys(disabledFirst.Entries), want) {
+		t.Fatalf("disabled-first = %#v, want %#v", loadOrderKeys(disabledFirst.Entries), want)
+	}
+
+	if _, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{StateOrder: "unexpected"}); err == nil {
+		t.Fatal("unexpected state order should fail")
+	}
+}
+
 func TestAddonListLoadOrderConstraintsAreStableAndRejectCycles(t *testing.T) {
 	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"root-a.vpk\"\t\t\"1\"\n\t\"workshop\\100.vpk\"\t\t\"0\"\n\t\"root-b.vpk\"\t\t\"1\"\n\t\"workshop\\200.vpk\"\t\t\"1\"\n}\n")
 	preview, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{
@@ -107,5 +139,13 @@ func TestApplyAddonListLoadOrderPolicyWritesAndSyncsProtectedSnapshot(t *testing
 	}
 	if string(snapshot) != string(content) {
 		t.Fatal("managed snapshot was not synchronized")
+	}
+	for _, entry := range preview.Entries {
+		if entry.Key == "root-a.vpk" && entry.Value != "1" {
+			t.Fatalf("root-a state = %q, want 1", entry.Value)
+		}
+		if entry.Key == "workshop\\100.vpk" && entry.Value != "0" {
+			t.Fatalf("workshop state = %q, want 0", entry.Value)
+		}
 	}
 }

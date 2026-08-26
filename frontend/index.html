@@ -241,6 +241,14 @@
             </div>
             <div class="filter-actions toolbar-actions">
               <button
+                id="load-order-toolbar-btn"
+                class="btn btn-small btn-outline"
+                title="优化或调整 addonlist.txt 的加载顺序"
+                type="button"
+              >
+                <span class="icon">☷</span> 加载顺序
+              </button>
+              <button
                 id="upload-btn"
                 class="btn btn-small btn-primary"
                 title="上传文件"
@@ -1810,90 +1818,153 @@
       <div id="load-order-modal" class="modal hidden">
         <div class="modal-content load-order-modal-content">
           <div class="load-order-header">
-            <h2>编辑加载顺序</h2>
+            <h2 id="load-order-title">加载顺序优化</h2>
             <button id="close-load-order-modal-btn" class="close-btn">
               &times;
             </button>
           </div>
           <div class="load-order-body">
             <div class="load-order-section">
-              <label class="load-order-label">当前文件</label>
+              <label class="load-order-label">当前调整范围</label>
               <div id="load-order-filename" class="load-order-filename"></div>
+              <p id="load-order-context-note" class="load-order-context-note"></p>
             </div>
 
-            <div class="load-order-grid">
-              <div class="load-order-input-wrapper">
-                <label class="load-order-label">当前序号</label>
-                <div class="load-order-current-box">
-                  <div id="load-order-current" class="load-order-current-value">
-                    未生成
+            <section id="load-order-single-section">
+              <div class="load-order-grid">
+                <div class="load-order-input-wrapper">
+                  <label class="load-order-label">当前序号</label>
+                  <div class="load-order-current-box">
+                    <div id="load-order-current" class="load-order-current-value">
+                      未生成
+                    </div>
+                  </div>
+                </div>
+
+                <div class="load-order-input-wrapper">
+                  <label for="load-order-input" class="load-order-label"
+                    >新序号</label
+                  >
+                  <div class="input-group" style="flex: 1">
+                    <input
+                      type="number"
+                      id="load-order-input"
+                      class="load-order-input no-arrow"
+                      placeholder="输入"
+                    />
                   </div>
                 </div>
               </div>
 
-              <div class="load-order-input-wrapper">
-                <label for="load-order-input" class="load-order-label"
-                  >新序号</label
-                >
-                <div class="input-group" style="flex: 1">
-                  <input
-                    type="number"
-                    id="load-order-input"
-                    class="load-order-input no-arrow"
-                    placeholder="输入"
-                  />
-                </div>
+              <div class="load-order-quick-actions" aria-label="单项优先级调整">
+                <button id="move-load-order-up-btn" type="button" class="btn btn-secondary">
+                  上移一位（优先级更高）
+                </button>
+                <button id="move-load-order-down-btn" type="button" class="btn btn-secondary">
+                  下移一位（优先级更低）
+                </button>
               </div>
-            </div>
-
-            <div class="load-order-quick-actions" aria-label="单项优先级调整">
-              <button id="move-load-order-up-btn" type="button" class="btn btn-secondary">
-                上移一位（优先级更高）
-              </button>
-              <button id="move-load-order-down-btn" type="button" class="btn btn-secondary">
-                下移一位（优先级更低）
-              </button>
-            </div>
+            </section>
 
             <section class="load-order-policy-section" aria-labelledby="load-order-policy-title">
               <div class="load-order-policy-heading">
                 <div>
-                  <label id="load-order-policy-title" class="load-order-label">选择性优化与强制约束</label>
-                  <p>先预览，再写入 addonlist.txt。未关联的 Mod 会保持当前相对顺序。</p>
+                  <label id="load-order-policy-title" class="load-order-label">选择性优化</label>
+                  <p>先预览，再写入 addonlist.txt。仅重排已有条目，所有 Mod 的游戏内开关状态保持不变。</p>
                 </div>
               </div>
 
-              <div class="load-order-policy-options">
-                <label class="load-order-check">
-                  <input id="load-order-root-first" type="checkbox" />
-                  <span>根目录 Mod 优先</span>
-                </label>
-                <label class="load-order-check">
-                  <input id="load-order-group-workshop" type="checkbox" />
-                  <span>聚集创意工坊 Mod</span>
-                </label>
-              </div>
-
-              <div class="load-order-rule-builder">
-                <label for="load-order-rule-sources" class="load-order-label">一个或多个 Mod</label>
-                <select id="load-order-rule-sources" class="load-order-select" multiple size="5" aria-label="选择需要排序的 Mod"></select>
-
-                <label for="load-order-rule-target" class="load-order-label">相对于这个 Mod</label>
-                <select id="load-order-rule-target" class="load-order-select" aria-label="选择约束目标 Mod"></select>
-
-                <div class="load-order-rule-actions">
-                  <button id="add-load-order-before-rule-btn" type="button" class="btn btn-secondary">始终排在前面</button>
-                  <button id="add-load-order-after-rule-btn" type="button" class="btn btn-secondary">始终排在后面</button>
+              <section class="load-order-presets-section" aria-labelledby="load-order-presets-title">
+                <div class="load-order-section-heading">
+                  <label id="load-order-presets-title" class="load-order-label">常用一键规则</label>
+                  <span>点击后立即重排并写入</span>
                 </div>
-              </div>
+                <div id="load-order-presets" class="load-order-presets" aria-label="加载顺序一键规则">
+                  <button type="button" class="load-order-preset preset-recommended" data-load-order-preset="recommended">
+                    <span class="load-order-preset-title">推荐：目录规整</span>
+                    <span class="load-order-preset-description">根目录在前，工坊条目连续排列</span>
+                  </button>
+                  <button type="button" class="load-order-preset" data-load-order-preset="root-first">
+                    <span class="load-order-preset-title">根目录优先</span>
+                    <span class="load-order-preset-description">手动放入 addons 根目录的 Mod 靠前</span>
+                  </button>
+                  <button type="button" class="load-order-preset" data-load-order-preset="group-workshop">
+                    <span class="load-order-preset-title">工坊聚集</span>
+                    <span class="load-order-preset-description">将 workshop Mod 整理为连续区段</span>
+                  </button>
+                  <button type="button" class="load-order-preset" data-load-order-preset="enabled-first">
+                    <span class="load-order-preset-title">开启项优先</span>
+                    <span class="load-order-preset-description">游戏内已开启的 Mod 稳定排在前面</span>
+                  </button>
+                  <button type="button" class="load-order-preset" data-load-order-preset="disabled-first">
+                    <span class="load-order-preset-title">关闭项优先</span>
+                    <span class="load-order-preset-description">游戏内已关闭的 Mod 稳定排在前面</span>
+                  </button>
+                </div>
+              </section>
 
-              <div id="load-order-rules" class="load-order-rules" aria-live="polite"></div>
+              <div class="load-order-workspace">
+                <div class="load-order-control-panel">
+                  <section class="load-order-control-card">
+                    <label class="load-order-label">自动整理规则</label>
+                    <div class="load-order-policy-options">
+                      <label class="load-order-check">
+                        <input id="load-order-root-first" type="checkbox" />
+                        <span>根目录 Mod 优先（排在 workshop 等子目录条目前）</span>
+                      </label>
+                      <label class="load-order-check">
+                        <input id="load-order-group-workshop" type="checkbox" />
+                        <span>将创意工坊 Mod 聚集在一起</span>
+                      </label>
+                    </div>
+                    <label for="load-order-state-order" class="load-order-label">游戏内开关项排序</label>
+                    <select id="load-order-state-order" class="load-order-select load-order-state-order">
+                      <option value="keep">保持当前开关项的相对顺序</option>
+                      <option value="enabled-first">已开启 Mod 优先</option>
+                      <option value="disabled-first">已关闭 Mod 优先</option>
+                    </select>
+                    <p class="load-order-control-help">同一组内始终保持原有相对顺序；这里仅改变加载优先级，不改变游戏内开关。</p>
+                  </section>
 
-              <div class="load-order-preview-header">
-                <span class="load-order-label">排序预览</span>
-                <span id="load-order-preview-summary" class="load-order-preview-summary">正在读取 addonlist.txt…</span>
+                  <section class="load-order-control-card" aria-labelledby="load-order-anchor-title">
+                    <div class="load-order-section-heading">
+                      <label id="load-order-anchor-title" class="load-order-label">按锚点精细调整</label>
+                      <span>可多选要移动的 Mod</span>
+                    </div>
+                    <div class="load-order-rule-builder">
+                      <div class="load-order-rule-column">
+                        <label for="load-order-rule-sources-search" class="load-order-label">要移动的一个或多个 Mod</label>
+                        <input id="load-order-rule-sources-search" class="load-order-search" type="search" placeholder="搜索 Mod 名称或 VPK 路径" autocomplete="off" />
+                        <select id="load-order-rule-sources" class="load-order-select" multiple size="7" aria-label="选择需要排序的 Mod"></select>
+                      </div>
+
+                      <div class="load-order-rule-column">
+                        <label for="load-order-rule-target-search" class="load-order-label">作为锚点的 Mod</label>
+                        <input id="load-order-rule-target-search" class="load-order-search" type="search" placeholder="搜索作为前后参照的 Mod" autocomplete="off" />
+                        <select id="load-order-rule-target" class="load-order-select" size="7" aria-label="选择锚点 Mod"></select>
+                      </div>
+
+                      <div class="load-order-rule-actions">
+                        <button id="add-load-order-before-rule-btn" type="button" class="btn btn-secondary">移到锚点前面</button>
+                        <button id="add-load-order-after-rule-btn" type="button" class="btn btn-secondary">移到锚点后面</button>
+                      </div>
+                    </div>
+                    <div id="load-order-rules" class="load-order-rules" aria-live="polite"></div>
+                  </section>
+                </div>
+
+                <aside class="load-order-preview-panel" aria-label="加载顺序预览">
+                  <div class="load-order-preview-header">
+                    <div>
+                      <span class="load-order-label">排序预览</span>
+                      <span id="load-order-active-policy" class="load-order-active-policy">当前策略：保持原有顺序</span>
+                    </div>
+                    <span id="load-order-preview-summary" class="load-order-preview-summary">正在读取 addonlist.txt…</span>
+                  </div>
+                  <div id="load-order-preview" class="load-order-preview" aria-live="polite"></div>
+                  <p class="load-order-preview-help">蓝色底色表示将移动的 Mod；左侧高亮线表示锚点。</p>
+                </aside>
               </div>
-              <div id="load-order-preview" class="load-order-preview" aria-live="polite"></div>
 
               <div class="load-order-policy-actions">
                 <button id="preview-load-order-policy-btn" type="button" class="btn btn-secondary">预览优化结果</button>
@@ -1913,9 +1984,9 @@
                       >，加载优先级
                       <span class="load-order-tips-highlight">越高</span>。
                     </li>
-                    <li>若文件未在列表中，将按此序号插入。</li>
-                    <li>若已存在，将移动到此位置。</li>
-                    <li>“始终在前/后”出现循环时不会写入文件。</li>
+                    <li>单项模式只能移动已经写入 addonlist.txt 的 Mod。</li>
+                    <li>批量规则仅在本次“应用优化并写入”时生效，后续可随时重新调整。</li>
+                    <li>如果前后关系出现循环，不会写入文件。</li>
                   </ul>
                 </div>
               </div>

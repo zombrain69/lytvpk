@@ -1,8 +1,8 @@
 /* 加载顺序弹框样式 */
 .load-order-modal-content {
-  width: min(880px, calc(100vw - var(--spacing-6)));
-  max-width: 880px;
-  max-height: calc(100vh - var(--spacing-6));
+  width: min(1180px, calc(100vw - var(--spacing-6)));
+  max-width: 1180px;
+  max-height: calc(100vh - var(--spacing-3));
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
   background-color: var(--bg-app);
@@ -63,6 +63,13 @@
   margin-bottom: var(--spacing-6);
 }
 
+.load-order-context-note {
+  margin: var(--spacing-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
 .load-order-quick-actions,
 .load-order-policy-actions,
 .load-order-rule-actions {
@@ -78,7 +85,7 @@
 
 .load-order-policy-section {
   margin-bottom: var(--spacing-6);
-  padding: var(--spacing-4);
+  padding: var(--spacing-5);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
@@ -92,16 +99,20 @@
 }
 
 .load-order-policy-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-4);
-  margin: var(--spacing-4) 0;
+  display: grid;
+  gap: var(--spacing-2);
+  margin: var(--spacing-3) 0 var(--spacing-4);
 }
 
 .load-order-check {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--spacing-2);
+  min-height: 44px;
+  padding: var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-app);
   color: var(--text-primary);
   font-size: var(--text-sm);
   cursor: pointer;
@@ -111,11 +122,130 @@
   accent-color: var(--primary);
 }
 
+.load-order-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.load-order-section-heading > span {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.load-order-presets-section {
+  margin: var(--spacing-5) 0;
+}
+
+.load-order-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-3);
+}
+
+.load-order-preset {
+  min-width: 0;
+  min-height: 106px;
+  padding: var(--spacing-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  background: var(--bg-app);
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  align-content: start;
+  gap: var(--spacing-2);
+  transition: border-color var(--duration-200), background-color var(--duration-200), transform var(--duration-200);
+}
+
+.load-order-preset:hover,
+.load-order-preset:focus-visible {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-app));
+  outline: none;
+}
+
+.load-order-preset:active {
+  transform: translateY(1px);
+}
+
+.load-order-preset.preset-recommended {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-default));
+  background: color-mix(in srgb, var(--primary) 7%, var(--bg-app));
+}
+
+.load-order-preset-title {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+}
+
+.load-order-preset-description,
+.load-order-control-help,
+.load-order-preview-help {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.load-order-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(370px, 0.9fr);
+  align-items: start;
+  gap: var(--spacing-5);
+}
+
+.load-order-control-panel {
+  min-width: 0;
+  display: grid;
+  gap: var(--spacing-4);
+}
+
+.load-order-control-card,
+.load-order-preview-panel {
+  min-width: 0;
+  padding: var(--spacing-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-app);
+}
+
+.load-order-state-order {
+  min-height: 42px;
+}
+
 .load-order-rule-builder {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--spacing-2) var(--spacing-4);
   align-items: end;
+}
+
+.load-order-rule-column {
+  min-width: 0;
+  display: grid;
+  gap: var(--spacing-2);
+}
+
+.load-order-search {
+  width: 100%;
+  min-width: 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  background: var(--bg-app);
+}
+
+.load-order-search:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 .load-order-select {
@@ -129,7 +259,7 @@
 }
 
 .load-order-select[multiple] {
-  min-height: 126px;
+  min-height: 164px;
 }
 
 .load-order-rule-actions {
@@ -180,7 +310,14 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--spacing-3);
-  margin-top: var(--spacing-4);
+  margin-bottom: var(--spacing-3);
+}
+
+.load-order-active-policy {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
 }
 
 .load-order-preview-summary {
@@ -190,7 +327,8 @@
 }
 
 .load-order-preview {
-  max-height: 230px;
+  min-height: 360px;
+  max-height: min(520px, calc(100vh - 380px));
   overflow: auto;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -210,6 +348,14 @@
 
 .load-order-preview-item:last-child {
   border-bottom: 0;
+}
+
+.load-order-preview-item.is-rule-source {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.load-order-preview-item.is-rule-target {
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .load-order-preview-number {
@@ -259,7 +405,9 @@
 }
 
 .load-order-policy-actions {
-  margin-top: var(--spacing-4);
+  margin-top: var(--spacing-5);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--border-light);
   justify-content: flex-end;
 }
 
@@ -371,6 +519,21 @@
   padding: var(--spacing-2) var(--spacing-6);
 }
 
+@media (max-width: 1120px) {
+  .load-order-presets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .load-order-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .load-order-preview {
+    min-height: 260px;
+    max-height: 360px;
+  }
+}
+
 @media (max-width: 640px) {
   .load-order-modal-content {
     width: calc(100vw - var(--spacing-3));
@@ -385,8 +548,19 @@
   }
 
   .load-order-grid,
-  .load-order-rule-builder {
+  .load-order-rule-builder,
+  .load-order-presets {
     grid-template-columns: 1fr;
+  }
+
+  .load-order-policy-section {
+    padding: var(--spacing-4);
+  }
+
+  .load-order-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--spacing-1);
   }
 
   .load-order-rule-actions {

@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+const (
+	addonListStateOrderKeep          = "keep"
+	addonListStateOrderEnabledFirst  = "enabled-first"
+	addonListStateOrderDisabledFirst = "disabled-first"
+)
+
 // AddonListLoadOrderEntry 是 addonlist.txt 中一个可排序的 Mod 条目。
 // Key 始终是可直接写回 addonlist.txt 的相对键，例如 workshop\\123.vpk。
 type AddonListLoadOrderEntry struct {
@@ -24,11 +30,13 @@ type AddonListLoadOrderConstraint struct {
 
 // AddonListLoadOrderPolicy 是一次可选择的加载顺序优化策略。
 // GroupWorkshop 会把工坊条目稳定聚集在原先第一个工坊条目的位置；
-// RootFirst 会把根目录条目稳定放到工坊条目之前。约束最后执行，因此
-// 明确的“前/后”规则可以覆盖自动分组的默认顺序。
+// RootFirst 会把根目录条目稳定放到工坊条目之前；StateOrder 可稳定地把
+// 游戏内开启或关闭的条目排在前面。约束最后执行，因此明确的“前/后”规则
+// 可以覆盖自动分组的默认顺序。所有策略只调整条目顺序，不会修改 Value。
 type AddonListLoadOrderPolicy struct {
 	RootFirst     bool                           `json:"rootFirst"`
 	GroupWorkshop bool                           `json:"groupWorkshop"`
+	StateOrder    string                         `json:"stateOrder"`
 	Constraints   []AddonListLoadOrderConstraint `json:"constraints"`
 }
 
@@ -116,7 +124,27 @@ func (a *App) applyAddonListLoadOrderPolicy(list []AddonListItem, policy AddonLi
 	if policy.RootFirst {
 		ordered = rootFirstAddonListItems(ordered)
 	}
+	stateOrder, err := normalizeAddonListStateOrder(policy.StateOrder)
+	if err != nil {
+		return nil, err
+	}
+	if stateOrder != addonListStateOrderKeep {
+		ordered = orderAddonListItemsByState(ordered, stateOrder)
+	}
 	return a.applyAddonListOrderConstraints(ordered, policy.Constraints)
+}
+
+func normalizeAddonListStateOrder(value string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return addonListStateOrderKeep, nil
+	}
+	switch normalized {
+	case addonListStateOrderKeep, addonListStateOrderEnabledFirst, addonListStateOrderDisabledFirst:
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("未知的游戏内开关排序规则 %q", value)
+	}
 }
 
 func validateUniqueAddonListKeys(list []AddonListItem) error {
@@ -172,6 +200,23 @@ func rootFirstAddonListItems(list []AddonListItem) []AddonListItem {
 	}
 	for _, item := range list {
 		if !isRootAddonListKey(item.Name) {
+			ordered = append(ordered, item)
+		}
+	}
+	return ordered
+}
+
+// orderAddonListItemsByState 稳定地按游戏内开关状态重排，绝不改写 Value。
+func orderAddonListItemsByState(list []AddonListItem, stateOrder string) []AddonListItem {
+	preferEnabled := stateOrder == addonListStateOrderEnabledFirst
+	ordered := make([]AddonListItem, 0, len(list))
+	for _, item := range list {
+		if (item.Value == "1") == preferEnabled {
+			ordered = append(ordered, item)
+		}
+	}
+	for _, item := range list {
+		if (item.Value == "1") != preferEnabled {
 			ordered = append(ordered, item)
 		}
 	}

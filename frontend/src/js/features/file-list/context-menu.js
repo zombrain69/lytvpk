@@ -199,7 +199,7 @@ function buildSingleMenu(menu, file) {
   }
 
   menu.appendChild(createMenuItem("重命名", iconSvg("edit"), () => renameFile(file.path)));
-  menu.appendChild(createMenuItem("加载顺序", loadOrderIconSvg, () => openLoadOrderModal(file.path)));
+  menu.appendChild(createMenuItem("调整加载顺序", loadOrderIconSvg, () => openLoadOrderModal({ mode: "single", filePath: file.path })));
   menu.appendChild(createMenuItem("解包", iconSvg("package"), () => unpackFile(file.path)));
 
   menu.appendChild(createMenuItem("打开位置", iconSvg("folderOpen"), () => openFileLocation(file.path)));
@@ -241,6 +241,11 @@ function buildBatchMenu(menu) {
   menu.appendChild(createDivider());
   menu.appendChild(createMenuItem("分享物品", iconSvg("share"), () => shareSelectedWorkshopItems()));
   menu.appendChild(createMenuItem("设置标签", iconSvg("tag"), () => openBatchSetTagsModal()));
+  menu.appendChild(
+    createMenuItem("调整加载顺序", loadOrderIconSvg, () =>
+      openLoadOrderModal({ mode: "selection", selectedPaths: Array.from(appState.selectedFiles) })
+    )
+  );
 
   const panelServers = getPanelServers();
   if (panelServers.length > 0) {
