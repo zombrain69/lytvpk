@@ -19,7 +19,7 @@ var assets embed.FS
 // UpdateRepo 默认为本 Community Fork，且可由 -ldflags 覆盖为同一 Fork 的
 // 迁移仓库；上游 LaoYutang/lytvpk 永远只用于署名，不会成为更新源。
 var (
-	AppVersion = "2.5.14-community.2"
+	AppVersion = "2.5.14-community.3"
 	UpdateRepo = "zombrain69/lytvpk"
 )
 
