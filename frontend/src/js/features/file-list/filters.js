@@ -68,6 +68,127 @@ const SECONDARY_TAG_PRESET_GROUPS = [
       { label: "镭射", allTag: "镭射", tags: ["激光瞄准盒"] },
     ],
   },
+  {
+    id: "survivors",
+    label: "八位幸存者",
+    allTag: "幸存者",
+    description: "一代四人和二代四人；按游戏角色资源路径自动识别",
+    groups: [
+      {
+        label: "一代幸存者",
+        tags: ["Bill", "Zoey", "Louis", "Francis"],
+        tagLabels: {
+          Bill: "比尔 · Bill",
+          Zoey: "佐伊 · Zoey",
+          Louis: "路易斯 · Louis",
+          Francis: "弗朗西斯 · Francis",
+        },
+      },
+      {
+        label: "二代幸存者",
+        tags: ["Nick", "Rochelle", "Coach", "Ellis"],
+        tagLabels: {
+          Nick: "尼克 · Nick",
+          Rochelle: "萝雪儿 · Rochelle",
+          Coach: "教练 · Coach",
+          Ellis: "艾利斯 · Ellis",
+        },
+      },
+    ],
+  },
+  {
+    id: "special-infected",
+    label: "特殊感染者",
+    allTag: "特殊感染者",
+    description: "八种特殊感染者；可按牵制、范围和高威胁角色细分",
+    groups: [
+      {
+        label: "牵制与突袭",
+        tags: ["smoker", "hunter", "jockey"],
+        tagLabels: {
+          smoker: "舌头 · Smoker",
+          hunter: "猎人 · Hunter",
+          jockey: "猴子 · Jockey",
+        },
+      },
+      {
+        label: "爆炸、地面与冲撞",
+        tags: ["boomer", "spitter", "charger"],
+        tagLabels: {
+          boomer: "胖子 · Boomer",
+          spitter: "口水 · Spitter",
+          charger: "牛 · Charger",
+        },
+      },
+      {
+        label: "高威胁",
+        tags: ["tank", "witch"],
+        tagLabels: {
+          tank: "坦克 · Tank",
+          witch: "女巫 · Witch",
+        },
+      },
+    ],
+  },
+  {
+    id: "common-infected",
+    label: "普通感染者",
+    allTag: "普通感染者",
+    description: "常见感染者与罕见感染者的角色资源",
+    groups: [
+      {
+        label: "感染者种类",
+        tags: ["common", "uncommon_infected"],
+        tagLabels: {
+          common: "常见感染者 · Common",
+          uncommon_infected: "罕见感染者 · Uncommon",
+        },
+      },
+    ],
+  },
+  {
+    id: "interface-and-audio",
+    label: "界面与声音",
+    description: "主菜单、HUD、提示元素，以及语音和环境音效",
+    groups: [
+      {
+        label: "游戏界面",
+        allTag: "UI",
+        tags: ["主菜单", "HUD", "准星", "血条", "伤害指示器", "人物语音表"],
+      },
+      {
+        label: "语音与声音",
+        allTag: "声音",
+        tags: ["语音包", "人物语音表", "尸潮", "警报", "唱片机"],
+      },
+      {
+        label: "资源类型",
+        tags: ["模型", "贴图", "脚本"],
+      },
+    ],
+  },
+  {
+    id: "world-and-props",
+    label: "场景与道具",
+    description: "关卡画面、交互元素和常用场景模型；可展开精确勾选",
+    groups: [
+      { label: "关卡画面", tags: ["天空", "过场画面", "载入画面"] },
+      { label: "交互与动态元素", tags: ["手电筒", "梯子", "动态箭头", "警报", "尸潮", "唱片机"] },
+      { label: "可搬运物与容器", tags: ["汽油桶", "煤气罐", "氧气罐", "烟花盒"] },
+      { label: "常用场景道具", tags: ["侏儒", "直升机", "海报", "船", "售货机", "电视", "屏幕", "货车", "面包车", "雕像"] },
+    ],
+  },
+  {
+    id: "map-game-modes",
+    label: "地图游戏模式",
+    description: "仅匹配从战役 mission 文件中解析出的模式标签；建议与主标签“地图”联用",
+    groups: [
+      {
+        label: "支持的游戏模式",
+        tags: ["战役模式", "对抗模式", "生存模式", "清道夫模式", "写实模式", "突变模式"],
+      },
+    ],
+  },
 ];
 
 function getGameStateDisplayName(state) {
@@ -358,9 +479,9 @@ function addSecondaryMatchModeControl(container) {
   container.appendChild(button);
 }
 
-function createPresetTagCheckbox(tag) {
-  const label = document.createElement("label");
-  label.className = "preset-tag-option";
+function createPresetTagCheckbox(tag, displayLabel = tag) {
+  const option = document.createElement("label");
+  option.className = "preset-tag-option";
 
   const input = document.createElement("input");
   input.type = "checkbox";
@@ -372,9 +493,10 @@ function createPresetTagCheckbox(tag) {
   });
 
   const text = document.createElement("span");
-  text.textContent = tag;
-  label.append(input, text);
-  return label;
+  text.textContent = displayLabel;
+  if (displayLabel !== tag) text.title = tag;
+  option.append(input, text);
+  return option;
 }
 
 function createPresetSubgroup(subgroup) {
@@ -394,7 +516,9 @@ function createPresetSubgroup(subgroup) {
   const items = document.createElement("div");
   items.className = "preset-tag-options";
   items.hidden = true;
-  (subgroup.tags || []).forEach((tag) => items.appendChild(createPresetTagCheckbox(tag)));
+  (subgroup.tags || []).forEach((tag) => {
+    items.appendChild(createPresetTagCheckbox(tag, subgroup.tagLabels?.[tag] || tag));
+  });
 
   expandButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -435,7 +559,9 @@ function createPresetGroup(group) {
   expandButton.type = "button";
   expandButton.className = "preset-filter-group-expand";
   expandButton.textContent = group.label;
-  expandButton.title = `展开 ${group.label} 的分类与具体项目`;
+  expandButton.title = group.description
+    ? `展开 ${group.label} 的分类与具体项目：${group.description}`
+    : `展开 ${group.label} 的分类与具体项目`;
   expandButton.setAttribute("aria-expanded", "false");
 
   const selectedCount = document.createElement("span");
@@ -508,13 +634,13 @@ function renderSecondaryTagPresets(container) {
   const dropdown = document.createElement("div");
   dropdown.className = "multi-select-dropdown secondary-preset-dropdown";
   dropdown.innerHTML = `
-    <button type="button" class="preset-filter-trigger" title="打开枪械、近战、投掷物、医疗物品和补给盒的快捷预设">预设</button>
+    <button type="button" class="preset-filter-trigger" title="打开角色、感染者、枪械、近战、物品、界面与场景的快捷预设">预设</button>
     <div class="select-menu multi-select-menu filter-flyout-menu preset-filter-menu hidden" role="dialog" aria-label="内容预设筛选"></div>
   `;
 
   const trigger = dropdown.querySelector(".preset-filter-trigger");
   const menu = dropdown.querySelector(".preset-filter-menu");
-  menu.appendChild(createFilterFlyoutHeader("内容预设", "展开分类后可查看全部或勾选具体项目"));
+  menu.appendChild(createFilterFlyoutHeader("内容预设", "角色、感染者、武器、物品、界面和场景均可展开筛选"));
   const help = document.createElement("p");
   help.className = "preset-filter-help";
   help.textContent = "点“查看全部”一键筛选；展开后可勾选具体项目，并与任一 / 全部匹配联动。";
