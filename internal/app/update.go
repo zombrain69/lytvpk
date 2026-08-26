@@ -22,7 +22,10 @@ import (
 // 全局变量存储下载地址，避免 DoUpdate 时再次请求 API 导致速率限制或网络错误
 var pendingUpdateURL string
 
-const unconfiguredUpdateSourceMessage = "此 Community Fork 尚未配置 GitHub 发布源；不会检查或安装 LaoYutang/lytvpk 的更新。"
+const (
+	unconfiguredUpdateSourceMessage = "此 Community Fork 尚未配置 GitHub 发布源；不会检查或安装 LaoYutang/lytvpk 的更新。"
+	developmentBuildVersion         = "0.0.0-dev"
+)
 
 var githubRepositoryPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]+$`)
 
@@ -75,6 +78,10 @@ func configuredUpdateRepo() (string, error) {
 		return "", fmt.Errorf("Fork GitHub 发布源不能指向上游 %s", UpstreamGithubRepo)
 	}
 	return repo, nil
+}
+
+func isDevelopmentBuildVersion(version string) bool {
+	return strings.EqualFold(strings.TrimSpace(version), developmentBuildVersion)
 }
 
 // GetForkInfo exposes release/source links for the About page without ever
@@ -180,6 +187,12 @@ func selectWindowsAMD64ZipAsset(release GithubRelease) string {
 // CheckUpdate 检查更新
 func (a *App) CheckUpdate() UpdateInfo {
 	pendingUpdateURL = ""
+	if isDevelopmentBuildVersion(AppVersion) {
+		return UpdateInfo{
+			CurrentVer: AppVersion,
+			Error:      "当前为开发构建，已跳过自动更新检查；请使用带正式版本号的发布构建。",
+		}
+	}
 
 	repo, err := configuredUpdateRepo()
 	if err != nil {

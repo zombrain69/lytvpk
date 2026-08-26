@@ -105,7 +105,7 @@ wails dev
 # 验证构建（沙箱中可能报 Access is denied，直接提权运行）
 wails build
 
-# 发布构建（CI 自动执行）
+# 发布构建（CI 自动执行；分发给用户时必须注入正式版本号）
 wails build -platform windows/amd64 -ldflags "-X main.AppVersion=<version>" -o "LytVPK MOD管理器.exe"
 
 # 运行测试（通过不代表完整集成验证）
@@ -117,7 +117,8 @@ gofmt -w <file>
 
 ## 注意事项
 
-- `main.AppVersion` 默认 `"0.0.0"`，发布时通过 `-ldflags` 注入
+- `main.AppVersion` 默认保持当前 Community Fork 正式版；发布时仍必须通过 `-ldflags` 注入对应 Release 的精确版本。
+- 不要分发 `0.0.0-dev` 构建；分发给用户的 EXE 必须使用 `-ldflags "-X main.AppVersion=<version>"` 或 `scripts/build-release.ps1 -Version <version>` 注入正式语义化版本。
 - 配置存储在 `%APPDATA%/LytVPK/config.json`，当前迁移版本 v2
 - 创意工坊、图片代理、服务器查询依赖外部网络，受限环境可能无法验证
 - 单例通过 TCP 端口 `127.0.0.1:19527` 实现，支持 URL Protocol 深度链接 (`lytvpk://`)
