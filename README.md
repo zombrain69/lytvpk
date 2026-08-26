@@ -53,7 +53,7 @@
 - 扫描时将根目录与 Workshop 中的同名 VPK 作为独立条目处理，避免不同位置的 Mod 相互覆盖。
 - 增加单实例启动辅助逻辑，减少重复启动产生的并发管理风险。
 - 应用内更新源固定为本 Fork 的 `zombrain69/lytvpk` Release，拒绝回退到上游；Windows 更新包使用统一程序名并进行内容校验。
-- 提交、推送和 Release 均使用 `zombrain69` 身份保护与 CI 校验，防止旧账号或错误远程再次发布本 Fork。
+- 发布版本会附带对应源码、许可证和修改说明，便于用户核对并按 GPLv3 重新构建。
 
 ## 🛠️ 技术架构
 
@@ -76,27 +76,13 @@
 
 ### 从源码构建
 
-本 Fork 的正式发布包应从本仓库对应的 tag 构建。应用内更新默认只检查本 Fork 的 [`zombrain69/lytvpk` Releases](https://github.com/zombrain69/lytvpk/releases)，不会检查或安装上游 `LaoYutang/lytvpk` 的版本。正式 Release 时只需注入版本号：
+本项目使用 Wails 构建。应用内更新默认只检查本 Fork 的 [Releases](https://github.com/zombrain69/lytvpk/releases)，不会安装上游项目的版本。开发者可按本仓库的构建配置执行：
 
 ```text
-wails build -ldflags "-X main.AppVersion=2.5.14-community.1"
+wails build
 ```
 
-Windows 构建与 Release ZIP 中的统一程序名为 `LytVPK-Community-Fork.exe`。请使用统一的打包脚本生成可供应用内更新的资产：
-
-```text
-pwsh -ExecutionPolicy Bypass -File .\\scripts\\build-release.ps1 -Version 2.5.14-community.2
-```
-
-本 Fork 的提交、推送和本地 Release 均有身份保护：仅允许 `zombrain69 <321279816+zombrain69@users.noreply.github.com>` 且仅能推送到 `zombrain69/lytvpk`。首次在新电脑或新 clone 中工作时，先执行：
-
-```text
-pwsh -ExecutionPolicy Bypass -File .\\scripts\\enable-identity-guard.ps1
-```
-
-该保护会拒绝旧账号身份、`upstream` 推送、轻量 Release tag，以及包含非 `zombrain69` 提交者的待推送提交。GitHub Actions 也会拒绝由其他账号触发的 Release。
-
-如日后迁移到另一个由本 Fork 维护的仓库，可额外注入 `-X main.UpdateRepo=owner/repo`；程序会拒绝把 `LaoYutang/lytvpk` 设为更新源。
+发布二进制或安装包时，请同时提供对应版本的完整源码、构建脚本、`LICENSE` 和第三方声明；具体版本信息以仓库 Release 页面为准。
 
 ## 🙏 致谢
 
