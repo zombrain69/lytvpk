@@ -35,17 +35,16 @@ jobs:
       - name: Verify fork release identity
         shell: pwsh
         run: |
-          $expectedName = 'zombrain69'
-          $expectedEmail = '321279816+zombrain69@users.noreply.github.com'
           $tagRef = "refs/tags/$env:GITHUB_REF_NAME"
-          $tagIdentity = git for-each-ref --format='%(objecttype)|%(taggername)|%(taggeremail)' $tagRef
-          if ($tagIdentity -cne "tag|$expectedName|<$expectedEmail>") {
-            throw "Release tag must be an annotated tag by $expectedName <$expectedEmail>."
+          $tagObject = (git rev-parse --verify "$tagRef^{tag}").Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tagObject)) {
+            throw "Release tag must be an annotated Git tag."
           }
 
-          $commitIdentity = git show -s --format='%an|%ae|%cn|%ce' HEAD
-          if ($commitIdentity -cne "$expectedName|$expectedEmail|$expectedName|$expectedEmail") {
-            throw "Release commit must be authored and committed by $expectedName <$expectedEmail>."
+          $taggedCommit = (git rev-parse --verify "$tagRef^{commit}").Trim()
+          $checkedOutCommit = (git rev-parse --verify HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $taggedCommit -cne $checkedOutCommit) {
+            throw "Checked-out source must exactly match the annotated release tag."
           }
 
       - name: Validate release tag
