@@ -22,7 +22,7 @@ export default defineConfig({
       { text: "功能说明", link: "/features/mod-management" },
       {
         text: "立即下载",
-        link: "https://github.com/LaoYutang/lytvpk/releases",
+        link: "https://github.com/zombrain69/lytvpk/releases",
       },
     ],
     sidebar: [
@@ -97,7 +97,7 @@ export default defineConfig({
       },
     },
     socialLinks: [
-      { icon: "github", link: "https://github.com/LaoYutang/lytvpk" },
+      { icon: "github", link: "https://github.com/zombrain69/lytvpk" },
     ],
   },
 });

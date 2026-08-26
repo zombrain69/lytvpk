@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+if command -v pwsh >/dev/null 2>&1; then
+  ps_command=pwsh
+else
+  ps_command=powershell.exe
+fi
+
+exec "$ps_command" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$repo_root/scripts/verify-publish-identity.ps1" -Mode Commit

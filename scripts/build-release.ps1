@@ -2,7 +2,11 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')]
-    [string]$Version
+    [string]$Version,
+
+    # GitHub Actions validates the tag and actor independently. Local builds
+    # must not bypass the identity guard.
+    [switch]$SkipIdentityVerification
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,10 +14,25 @@ $ErrorActionPreference = 'Stop'
 $script:ExecutableName = 'LytVPK-Community-Fork.exe'
 $script:AssetName = "LytVPK-Community-Fork_v$Version" + '_windows_amd64.zip'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$identityGuard = Join-Path $repoRoot 'scripts\verify-publish-identity.ps1'
 $releaseDir = Join-Path $repoRoot 'build\release'
 $binaryPath = Join-Path $repoRoot (Join-Path 'build\bin' $script:ExecutableName)
 $assetPath = Join-Path $releaseDir $script:AssetName
 $stagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("lytvpk-community-release-$Version-" + [guid]::NewGuid().ToString('N'))
+
+if ($SkipIdentityVerification) {
+    if ($env:GITHUB_ACTIONS -ne 'true') {
+        throw '-SkipIdentityVerification is reserved for the guarded GitHub Actions workflow.'
+    }
+}
+else {
+    # Build artifacts are only valid for this Community Fork when the repository,
+    # effective Git identity, and remotes all match the maintained zombrain69 fork.
+    & $identityGuard -Mode Release
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Publish identity verification failed.'
+    }
+}
 
 if (Test-Path -LiteralPath $assetPath) {
     throw "Release asset already exists: $assetPath"

@@ -78,6 +78,14 @@ Windows 构建与 Release ZIP 中的统一程序名为 `LytVPK-Community-Fork.ex
 pwsh -ExecutionPolicy Bypass -File .\\scripts\\build-release.ps1 -Version 2.5.14-community.2
 ```
 
+本 Fork 的提交、推送和本地 Release 均有身份保护：仅允许 `zombrain69 <321279816+zombrain69@users.noreply.github.com>` 且仅能推送到 `zombrain69/lytvpk`。首次在新电脑或新 clone 中工作时，先执行：
+
+```text
+pwsh -ExecutionPolicy Bypass -File .\\scripts\\enable-identity-guard.ps1
+```
+
+该保护会拒绝旧账号身份、`upstream` 推送、轻量 Release tag，以及包含非 `zombrain69` 提交者的待推送提交。GitHub Actions 也会拒绝由其他账号触发的 Release。
+
 如日后迁移到另一个由本 Fork 维护的仓库，可额外注入 `-X main.UpdateRepo=owner/repo`；程序会拒绝把 `LaoYutang/lytvpk` 设为更新源。
 
 ## 🙏 致谢
