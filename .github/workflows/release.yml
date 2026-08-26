@@ -18,8 +18,10 @@ concurrency:
 jobs:
   release:
     name: Build and publish Windows release
-    # Release publication is restricted to the maintained fork account.
-    if: github.repository == 'zombrain69/lytvpk' && github.actor == 'zombrain69'
+    # Tags pushed to this repository already require GitHub write permission.
+    # Do not hard-code an individual actor: OAuth tokens, future maintainers,
+    # and repository automation can all be legitimate publishers.
+    if: github.repository == 'zombrain69/lytvpk'
     runs-on: windows-latest
     timeout-minutes: 35
     env:
@@ -31,19 +33,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Verify fork release identity
-        shell: pwsh
-        run: |
-          if ($env:GITHUB_REPOSITORY -cne 'zombrain69/lytvpk') {
-            throw "Release workflow is restricted to zombrain69/lytvpk."
-          }
-          if ($env:GITHUB_ACTOR -cne 'zombrain69') {
-            throw "Release workflow is restricted to the maintained fork owner."
-          }
-          if ($env:GITHUB_REF_TYPE -cne 'tag' -or $env:GITHUB_REF_NAME -notmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
-            throw "Release workflow must run from a valid semantic-version tag."
-          }
 
       - name: Validate release tag
         id: version
@@ -86,8 +75,8 @@ jobs:
       - name: Package canonical Windows release
         shell: pwsh
         run: |
-          # The preceding step validates the pushed annotated tag, actor, and
-          # target commit. CI packages do not have a developer Git identity.
+          # CI uses the repository-scoped GitHub token; local release builds
+          # retain the stricter identity guard in build-release.ps1.
           pwsh -ExecutionPolicy Bypass -File .\scripts\build-release.ps1 -Version "${{ steps.version.outputs.version }}" -SkipIdentityVerification
 
       - name: Verify release archive contract
@@ -117,6 +106,7 @@ jobs:
             "${{ steps.checksum.outputs.asset }}" `
             "${{ steps.checksum.outputs.checksum }}" `
             --repo $env:GITHUB_REPOSITORY `
+            --verify-tag `
             --title "LytVPK Community Fork ${{ steps.version.outputs.version }}" `
             --generate-notes
           if ($LASTEXITCODE -ne 0) {
