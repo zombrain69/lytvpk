@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.14-community.5 — 2026-08-26
+
+- 修复 GitHub Actions 在 tag 检出环境下误判发布身份的问题，改为校验仓库、操作者和语义化 tag 事件上下文。
+
 ## 2.5.14-community.4 — 2026-08-26
 
 - 修复 Release 工作流对本地 Git 身份的重复、脆弱校验；CI 现在可靠地验证带注释的 tag 与实际构建提交一致。
