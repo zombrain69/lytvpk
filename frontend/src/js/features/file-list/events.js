@@ -4,6 +4,7 @@ import {
   openFileLocation,
   toggleFileVisibility,
   toggleFile,
+  toggleGameEnabled,
   moveFileToAddons,
   deleteFile,
   renameFile,
@@ -236,6 +237,17 @@ export function setupFileListEventDelegation() {
         e.preventDefault();
         e.stopPropagation();
         toggleFile(filePath);
+      }
+    }
+
+    const gameToggleBtn = e.target.closest('.game-toggle-btn[data-action="toggle-game"]');
+    if (gameToggleBtn) {
+      if (gameToggleBtn.disabled) return;
+      const filePath = gameToggleBtn.getAttribute("data-file-path");
+      if (filePath) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleGameEnabled(filePath);
       }
     }
 

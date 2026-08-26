@@ -4,6 +4,7 @@ import {
   getLocationDisplayName,
   getActionButton,
   formatTags,
+  getUniqueDisplayTags,
   escapeHtml,
 } from "../../core/utils.js";
 import { showFileDetail } from "../modals/detail.js";
@@ -12,6 +13,46 @@ import { getServers } from "../servers/servers.js";
 
 function hasPanelServers() {
   return getServers().some((s) => s.panelUrl && s.panelPasswordSet);
+}
+
+function getGameStateInfo(file) {
+  if (!file.gameStateKnown) {
+    return { className: "game-state-unknown", label: "未记录", title: "addonlist.txt 中未记录此 Mod；点击可写入并开启" };
+  }
+  if (file.gameEnabled) {
+    return { className: "game-state-enabled", label: "游戏内开启", title: "addonlist.txt：1；点击关闭游戏内 Mod" };
+  }
+  return { className: "game-state-disabled", label: "游戏内关闭", title: "addonlist.txt：0；点击开启游戏内 Mod" };
+}
+
+function applyModStateClasses(element, file, prefix) {
+  const state = getGameStateInfo(file).className.replace("game-state-", "");
+  element.classList.add(`${prefix}-state-${state}`);
+  if (file.location === "disabled") {
+    element.classList.add(`${prefix}-location-disabled`);
+  }
+}
+
+function getGameStateBadge(file, className = "game-state-badge") {
+  const state = getGameStateInfo(file);
+  return `<span class="${className} ${state.className}" title="${state.title}">${state.label}</span>`;
+}
+
+function getGameToggleButton(file) {
+  const state = getGameStateInfo(file);
+  const isFileDisabled = file.location === "disabled";
+  const label = isFileDisabled ? "游戏开关不可用" : state.label;
+  const title = isFileDisabled
+    ? "文件位于 disabled 目录，请先恢复文件后再编辑 addonlist.txt"
+    : state.title;
+  return `
+    <button class="btn-small action-btn game-toggle-btn ${state.className}"
+            data-file-path="${file.path}" data-action="toggle-game"
+            title="${title}" ${isFileDisabled ? "disabled" : ""}>
+      <span class="btn-icon">${iconSvg("power")}</span>
+      <span class="btn-text">${label}</span>
+    </button>
+  `;
 }
 
 export function renderFileList() {
@@ -46,6 +87,7 @@ export function createFileItem(file) {
   const item = document.createElement("div");
   item.className = "file-item";
   item.dataset.path = file.path;
+  applyModStateClasses(item, file, "mod-row");
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
@@ -142,12 +184,14 @@ export function createFileItem(file) {
         <span>${getLocationDisplayName(file.location)}</span>
       </span>
     </div>
+    <div class="file-game-state">${getGameStateBadge(file)}</div>
     <div class="file-tags">${formatTags(file.primaryTag, file.secondaryTags)}</div>
     <div class="file-actions">
       <button class="btn-small action-btn detail-btn" data-file-path="${file.path}">
         <span class="btn-icon">${iconSvg("info")}</span>
         <span class="btn-text">详情</span>
       </button>
+      ${getGameToggleButton(file)}
       ${getActionButton(file)}
       ${moreActionsHtml}
     </div>
@@ -195,6 +239,7 @@ export function createFileCard(file) {
   const card = document.createElement("div");
   card.className = "file-card";
   card.dataset.path = file.path;
+  applyModStateClasses(card, file, "mod-card");
 
   if (!file.enabled) {
     card.classList.add("disabled");
@@ -228,9 +273,10 @@ export function createFileCard(file) {
   }
 
   let secondaryTagsHtml = "";
-  if (file.secondaryTags && file.secondaryTags.length > 0) {
-    const displayTags = file.secondaryTags.slice(0, 2);
-    const hasMore = file.secondaryTags.length > 2;
+  const uniqueDisplayTags = getUniqueDisplayTags(file.primaryTag, file.secondaryTags);
+  if (uniqueDisplayTags.secondary.length > 0) {
+    const displayTags = uniqueDisplayTags.secondary.slice(0, 2);
+    const hasMore = uniqueDisplayTags.secondary.length > 2;
 
     secondaryTagsHtml = displayTags
       .map((tag) => {
@@ -240,19 +286,19 @@ export function createFileCard(file) {
       .join("");
 
     if (hasMore) {
-      secondaryTagsHtml += `<span class="card-badge more-tag-badge" title="${file.secondaryTags
+      secondaryTagsHtml += `<span class="card-badge more-tag-badge" title="${uniqueDisplayTags.secondary
         .slice(2)
         .map(escapeHtml)
-        .join(", ")}">+${file.secondaryTags.length - 2}</span>`;
+        .join(", ")}">+${uniqueDisplayTags.secondary.length - 2}</span>`;
     }
   }
 
   let actionBtn = "";
   if (file.location === "workshop") {
     actionBtn = `
-      <button class="btn-small action-btn move-btn" data-file-path="${file.path}" data-action="move" title="转移到addons">
+      <button class="btn-small action-btn move-btn" data-file-path="${file.path}" data-action="move" title="复制到 addons">
         <span class="btn-icon">${iconSvg("package")}</span>
-        <span class="btn-text">转移</span>
+        <span class="btn-text">复制到 addons</span>
       </button>
     `;
   } else {
@@ -340,6 +386,7 @@ export function createFileCard(file) {
       <div class="card-checkbox-container"></div>
       <div class="card-badges">
         <span class="card-badge location-badge">${getLocationDisplayName(file.location)}</span>
+        ${getGameStateBadge(file, "card-badge game-state-badge")}
         ${
           file.primaryTag
             ? `<span class="card-badge tag-badge" title="${escapeHtml(file.primaryTag)}">${escapeHtml(file.primaryTag)}</span>`
@@ -353,6 +400,7 @@ export function createFileCard(file) {
       <div class="card-filename" title="${file.name}">${file.name}</div>
       <div class="card-actions">
         <div class="card-actions-left">
+          ${getGameToggleButton(file)}
           ${actionBtn}
           ${updateBtnHtml}
         </div>

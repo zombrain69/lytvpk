@@ -65,7 +65,7 @@ export function renderModInfoPanel(file) {
   const tags = renderTags(file.primaryTag, file.secondaryTags);
   const hidden = file.name?.startsWith("_");
   const firstAction = file.location === "workshop"
-    ? `<button class="panel-action move-btn primary" data-file-path="${path}" data-action="move">移入 addons</button>`
+    ? `<button class="panel-action move-btn primary" data-file-path="${path}" data-action="move">复制到 addons</button>`
     : `<button class="panel-action toggle-btn primary" data-file-path="${path}" data-action="toggle">${file.enabled ? "禁用" : "启用"}</button>`;
 
   panel.innerHTML = `
@@ -127,9 +127,19 @@ function infoRow(label, value, variant = "") {
 
 function renderTags(primaryTag, secondaryTags = []) {
   const tags = [];
-  if (primaryTag) tags.push(`<span class="tag primary-tag">${escapeHtml(primaryTag)}</span>`);
+  const seen = new Set();
+  const addTag = (tag, className) => {
+    const raw = String(tag || "").trim();
+    if (!raw) return;
+    const canonical = raw === "榴弹" ? "榴弹发射器" : raw;
+    const key = canonical.toLocaleLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    tags.push(`<span class="tag ${className}">${escapeHtml(canonical)}</span>`);
+  };
+  addTag(primaryTag, "primary-tag");
   secondaryTags?.forEach((tag) => {
-    tags.push(`<span class="tag secondary-tag">${escapeHtml(tag)}</span>`);
+    addTag(tag, "secondary-tag");
   });
   return tags.join("");
 }

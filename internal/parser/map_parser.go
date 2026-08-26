@@ -10,7 +10,7 @@ import (
 )
 
 // ProcessMapVPK 处理地图类型VPK
-func ProcessMapVPK(opener *vpk.Opener, archive *vpk.Archive, vpkFile *VPKFile, secondaryTags map[string]bool, chapters map[string]ChapterInfo) {
+func ProcessMapVPK(opener *vpk.Opener, index archivePathIndex, vpkFile *VPKFile, secondaryTags map[string]bool, chapters map[string]ChapterInfo) {
 	vpkFile.PrimaryTag = "地图"
 
 	// 初始化 VPKFile 的 Chapters map，如果尚未初始化
@@ -23,75 +23,74 @@ func ProcessMapVPK(opener *vpk.Opener, archive *vpk.Archive, vpkFile *VPKFile, s
 	var firstMode string
 
 	// 查找mission文件并解析战役和章节信息
-	log.Printf("开始查找mission文件，总文件数: %d", len(archive.Files))
-	for _, file := range archive.Files {
-		filename := strings.ToLower(file.Name())
-		// 查找mission文件 (可能在missions/目录下，或者根目录，以.txt结尾)
-		if (strings.Contains(filename, "missions/") || strings.Contains(filename, "mission")) && strings.HasSuffix(filename, ".txt") {
-			log.Printf("找到mission文件: %s", file.Name())
-			campaign := ParseMissionFile(opener, &file)
-			if campaign != nil {
-				log.Printf("解析到战役: %s, 章节数: %d", campaign.Title, len(campaign.Chapters))
-				// 收集战役名
-				if campaign.Title != "" {
-					// 避免重复的战役名
-					isDuplicate := false
-					for _, title := range campaignTitles {
-						if title == campaign.Title {
-							isDuplicate = true
-							break
-						}
-					}
-					if !isDuplicate {
-						campaignTitles = append(campaignTitles, campaign.Title)
-						secondaryTags[campaign.Title] = true
+	log.Printf("开始解析mission文件，候选数: %d", len(index.missionFiles))
+	for _, file := range index.missionFiles {
+		log.Printf("找到mission文件: %s", file.Name())
+		campaign := ParseMissionFile(opener, file)
+		if campaign != nil {
+			log.Printf("解析到战役: %s, 章节数: %d", campaign.Title, len(campaign.Chapters))
+			// 收集战役名
+			if campaign.Title != "" {
+				// 避免重复的战役名
+				isDuplicate := false
+				for _, title := range campaignTitles {
+					if title == campaign.Title {
+						isDuplicate = true
+						break
 					}
 				}
-
-				// 合并章节信息
-				for _, chapter := range campaign.Chapters {
-					log.Printf("章节: %s (%s), 模式: %v", chapter.Title, chapter.Code, chapter.Modes)
-
-					// 检查是否已经存在该章节代码
-					existingChapter, exists := vpkFile.Chapters[chapter.Code]
-					if exists {
-						// 合并模式，去重
-						for _, mode := range chapter.Modes {
-							modeExists := false
-							for _, existingMode := range existingChapter.Modes {
-								if existingMode == mode {
-									modeExists = true
-									break
-								}
-							}
-							if !modeExists {
-								existingChapter.Modes = append(existingChapter.Modes, mode)
-							}
-						}
-						// 更新 map 中的值
-						vpkFile.Chapters[chapter.Code] = existingChapter
-						chapters[chapter.Code] = existingChapter
-					} else {
-						// 新章节，直接添加
-						chapterInfo := ChapterInfo{
-							Title: chapter.Title,
-							Modes: chapter.Modes,
-						}
-						vpkFile.Chapters[chapter.Code] = chapterInfo
-						chapters[chapter.Code] = chapterInfo
-					}
-
-					// 收集所有模式，用于设置主要游戏模式
-					for _, mode := range chapter.Modes {
-						if firstMode == "" {
-							firstMode = mode
-						}
-						modesSet[mode] = true
-					}
+				if !isDuplicate {
+					campaignTitles = append(campaignTitles, campaign.Title)
+					secondaryTags[campaign.Title] = true
 				}
-			} else {
-				log.Printf("mission文件解析失败: %s", file.Name())
 			}
+
+			// 合并章节信息
+			for _, chapter := range campaign.Chapters {
+				log.Printf("章节: %s (%s), 模式: %v", chapter.Title, chapter.Code, chapter.Modes)
+
+				// 检查是否已经存在该章节代码
+				existingChapter, exists := vpkFile.Chapters[chapter.Code]
+				if exists {
+					// 合并模式，去重
+					for _, mode := range chapter.Modes {
+						modeExists := false
+						for _, existingMode := range existingChapter.Modes {
+							if existingMode == mode {
+								modeExists = true
+								break
+							}
+						}
+						if !modeExists {
+							existingChapter.Modes = append(existingChapter.Modes, mode)
+						}
+					}
+					// 更新 map 中的值
+					vpkFile.Chapters[chapter.Code] = existingChapter
+					chapters[chapter.Code] = existingChapter
+				} else {
+					// 新章节，直接添加
+					chapterInfo := ChapterInfo{
+						Title: chapter.Title,
+						Modes: chapter.Modes,
+					}
+					vpkFile.Chapters[chapter.Code] = chapterInfo
+					chapters[chapter.Code] = chapterInfo
+				}
+
+				// 收集所有模式，用于设置主要游戏模式
+				for _, mode := range chapter.Modes {
+					if firstMode == "" {
+						firstMode = mode
+					}
+					modesSet[mode] = true
+					// 保留每种模式为可筛选的附加标签。这样地图仍以“地图”为
+					// 主分类，同时可按战役/对抗/生存等 Workshop 风格内容筛选。
+					secondaryTags[mode] = true
+				}
+			}
+		} else {
+			log.Printf("mission文件解析失败: %s", file.Name())
 		}
 	}
 

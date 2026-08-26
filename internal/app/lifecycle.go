@@ -132,6 +132,7 @@ func (a *App) ForceExit() {
 // beforeClose is called when the application is about to close
 func (a *App) beforeClose() (prevent bool) {
 	if a.forceClose {
+		a.stopAddonListMonitor()
 		// 关闭单例监听器
 		if a.singletonMgr != nil {
 			a.singletonMgr.Close()
@@ -145,6 +146,7 @@ func (a *App) beforeClose() (prevent bool) {
 	}
 
 	// 关闭单例监听器
+	a.stopAddonListMonitor()
 	if a.singletonMgr != nil {
 		a.singletonMgr.Close()
 	}

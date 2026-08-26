@@ -1,7 +1,14 @@
-# LytVPK
+# LytVPK Community Fork
 
 一个专为 Left 4 Dead 2 (L4D2) 设计的现代化 VPK 插件管理工具。
 > 该项目通篇使用AI生成，本人只在AI陷入困境时进行少量修改。仔细阅读代码你就会发现大量无用变量、不符合规范的函数定义，一个文件几千行的屎山，均不代表本人水平，谢谢！
+
+这是基于 [LaoYutang/lytvpk](https://github.com/LaoYutang/lytvpk) 的非官方 Community Fork。原项目作者、版权声明和 GPL-3.0-only 许可证均予以保留；本仓库中的后续修改由本 Fork 维护者发布，不代表原作者官方版本。
+
+- 本 Fork 仓库：[zombrain69/lytvpk](https://github.com/zombrain69/lytvpk)
+- 上游项目：[LaoYutang/lytvpk](https://github.com/LaoYutang/lytvpk)
+- 问题反馈：[本 Fork Issues](https://github.com/zombrain69/lytvpk/issues)
+- 修改记录：[CHANGELOG.md](./CHANGELOG.md)
 
 ![LytVPK](https://img.shields.io/badge/Platform-Windows-blue)
 ![Build](https://img.shields.io/badge/Build-Wails_v2-green)
@@ -19,6 +26,9 @@
 - **内容识别**: 智能识别地图、武器、角色、音频等游戏内容类型
 - **标签系统**: 自动生成标签，支持按类型、位置、内容筛选
 - **批量管理**: 支持批量启用/禁用 VPK 文件
+- **addonlist 生命周期管理**: 支持保存快照、备份、恢复、删除和运行时覆盖恢复
+- **加载顺序策略**: 支持工坊/根目录分组、约束排序预览与原子写回
+- **内容与模型分析**: 支持归档内容标签、重复扫描检测和 VPK 模型统计
 - **文件导入**: 支持拖拽或选择文件导入 VPK/压缩包 到 addons 目录
 - **创意工坊下载**: 支持解析创意工坊链接，直接下载并安装 Mod
 - **服务器浏览器**: 支持查询服务器信息、玩家列表，一键连接服务器，收藏常用服务器
@@ -53,6 +63,16 @@
 7. **下载 Mod**: 输入创意工坊链接，点击下载即可自动安装
 8. **服务器连接**: 在服务器页面添加 IP，查看状态并一键连接
 9. **版本更新**: 应用启动会自动检查更新，发现新版本会提示升级
+
+### 从源码构建
+
+本 Fork 的正式发布包应从本仓库对应的 tag 构建。若要启用应用内更新检查，请在构建时把版本号和本 Fork 的 Release 仓库注入：
+
+```text
+wails build -ldflags "-X main.AppVersion=2.5.14-community.1 -X main.UpdateRepo=zombrain69/lytvpk"
+```
+
+不注入 `UpdateRepo` 的源码构建会保持未配置更新源，不会误检查或安装上游 `LaoYutang/lytvpk` 的版本。
 
 ## 🙏 致谢
 

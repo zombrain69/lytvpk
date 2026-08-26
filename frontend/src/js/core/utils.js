@@ -18,7 +18,7 @@ export function getActionButton(file) {
             <path d="M12 22V12"></path>
           </svg>
         </span>
-        <span class="btn-text">转移</span>
+        <span class="btn-text">复制到 addons</span>
       </button>
     `;
   } else {
@@ -50,31 +50,54 @@ export function formatFileSize(bytes) {
 
 export function formatTags(primaryTag, secondaryTags = []) {
   const tags = [];
+	const uniqueTags = getUniqueDisplayTags(primaryTag, secondaryTags);
 
-  if (primaryTag) {
+  if (uniqueTags.primary) {
     tags.push(
-      `<span class="tag primary-tag" title="${escapeHtml(primaryTag)}">${escapeHtml(primaryTag)}</span>`
+      `<span class="tag primary-tag" title="${escapeHtml(uniqueTags.primary)}">${escapeHtml(uniqueTags.primary)}</span>`
     );
   }
 
-  if (secondaryTags && secondaryTags.length > 0) {
-    secondaryTags.slice(0, 2).forEach((tag) => {
+  if (uniqueTags.secondary.length > 0) {
+    uniqueTags.secondary.slice(0, 2).forEach((tag) => {
       tags.push(
         `<span class="tag secondary-tag" title="${escapeHtml(tag)}">${escapeHtml(tag)}</span>`
       );
     });
 
-    if (secondaryTags.length > 2) {
+    if (uniqueTags.secondary.length > 2) {
       tags.push(
-        `<span class="tag more-tags" title="${secondaryTags
+        `<span class="tag more-tags" title="${uniqueTags.secondary
           .slice(2)
           .map(escapeHtml)
-          .join(", ")}">+${secondaryTags.length - 2}</span>`
+          .join(", ")}">+${uniqueTags.secondary.length - 2}</span>`
       );
     }
   }
 
   return tags.join("");
+}
+
+export function getUniqueDisplayTags(primaryTag, secondaryTags = []) {
+  const canonical = (tag) => {
+    const value = String(tag || "").trim();
+    return value === "榴弹" ? "榴弹发射器" : value;
+  };
+  const seen = new Set();
+  const add = (tag) => {
+    const value = canonical(tag);
+    const key = value.toLocaleLowerCase();
+    if (!value || seen.has(key)) return "";
+    seen.add(key);
+    return value;
+  };
+  const primary = add(primaryTag);
+  const secondary = [];
+  (secondaryTags || []).forEach((tag) => {
+    const value = add(tag);
+    if (value) secondary.push(value);
+  });
+  return { primary, secondary };
 }
 
 export function escapeHtml(text) {

@@ -113,6 +113,9 @@ func (a *App) loadConfig() {
 	if config.CtrlClickSelectionEnabled != nil {
 		a.ctrlClickSelectionEnabled = *config.CtrlClickSelectionEnabled
 	}
+	if config.AddonListGuardEnabled != nil {
+		a.addonListGuardEnabled = *config.AddonListGuardEnabled
+	}
 	a.theme = config.Theme
 	a.ignoredVersion = config.IgnoredVersion
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
@@ -143,6 +146,7 @@ func (a *App) snapshotConfig() ConfigFile {
 	}
 	boxSelectionEnabled := a.boxSelectionEnabled
 	ctrlClickSelectionEnabled := a.ctrlClickSelectionEnabled
+	addonListGuardEnabled := a.addonListGuardEnabled
 
 	return ConfigFile{
 		ModRotationConfig:              a.modRotationConfig,
@@ -162,6 +166,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		FilterLayoutMode:               defaultString(a.filterLayoutMode, "compact"),
 		BoxSelectionEnabled:            &boxSelectionEnabled,
 		CtrlClickSelectionEnabled:      &ctrlClickSelectionEnabled,
+		AddonListGuardEnabled:          &addonListGuardEnabled,
 		Theme:                          a.theme,
 		IgnoredVersion:                 a.ignoredVersion,
 		LastUpdateCheckTime:            a.lastUpdateCheckTime,

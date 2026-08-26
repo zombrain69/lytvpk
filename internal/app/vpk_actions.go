@@ -50,11 +50,11 @@ func (a *App) GetVPKPreviewImage(filePath string) string {
 // 注意：workshop文件不能直接启用/禁用，需要先转移到root目录
 func (a *App) ToggleVPKFile(filePath string) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 
 	// 从缓存中获取文件信息
 	cached, ok := a.vpkCache.Load(filePath)
 	if !ok {
+		a.mu.Unlock()
 		return fmt.Errorf("文件未找到: %s", filePath)
 	}
 
@@ -63,8 +63,15 @@ func (a *App) ToggleVPKFile(filePath string) error {
 
 	// workshop文件不能直接启用/禁用
 	if vpkFile.Location == "workshop" {
+		a.mu.Unlock()
 		return fmt.Errorf("workshop文件需要先转移到插件目录才能启用/禁用")
 	}
+	managedKey, keyErr := a.addonListKeyForManagedVPKPath(vpkFile.Path)
+	if keyErr != nil {
+		a.mu.Unlock()
+		return keyErr
+	}
+	workshopKey := workshopAddonListKey(vpkFile.WorkshopID)
 
 	var newPath string
 	var err error
@@ -77,6 +84,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 		newPath = filepath.Join(disabledDir, vpkFile.Name)
 		err = os.Rename(vpkFile.Path, newPath)
 		if err != nil {
+			a.mu.Unlock()
 			return err
 		}
 		// 同步移动同名图片
@@ -92,6 +100,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 		newPath = filepath.Join(a.rootDir, vpkFile.Name)
 		err = os.Rename(vpkFile.Path, newPath)
 		if err != nil {
+			a.mu.Unlock()
 			return err
 		}
 		// 同步移动同名图片
@@ -103,6 +112,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 		vpkFile.Location = "root"
 
 	} else {
+		a.mu.Unlock()
 		return fmt.Errorf("无效的文件状态转换")
 	}
 
@@ -110,8 +120,27 @@ func (a *App) ToggleVPKFile(filePath string) error {
 	a.vpkCache.Delete(filePath)
 
 	// 在新路径下存储缓存
-	cache.File = vpkFile
-	a.vpkCache.Store(newPath, cache)
+	newCache := *cache
+	newCache.File = vpkFile
+	a.vpkCache.Store(newPath, &newCache)
+	a.mu.Unlock()
+
+	values := map[string]string{}
+	removals := []string{}
+	if vpkFile.Location == "disabled" {
+		removals = append(removals, managedKey)
+		if workshopKey != "" {
+			values[workshopKey] = "0"
+		}
+	} else {
+		values[managedKey] = "1"
+		if workshopKey != "" {
+			values[workshopKey] = "0"
+		}
+	}
+	if err := a.updateAddonListEntries(values, removals); err != nil {
+		return fmt.Errorf("文件已移动，但 addonlist.txt 同步失败: %w", err)
+	}
 
 	log.Printf("文件已移动: %s -> %s", filePath, newPath)
 
@@ -121,11 +150,11 @@ func (a *App) ToggleVPKFile(filePath string) error {
 // MoveWorkshopToAddons 将workshop中的VPK移动到addons目录（root目录）
 func (a *App) MoveWorkshopToAddons(filePath string) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 
 	// 从缓存中获取文件信息
 	cached, ok := a.vpkCache.Load(filePath)
 	if !ok {
+		a.mu.Unlock()
 		return fmt.Errorf("文件未找到: %s", filePath)
 	}
 
@@ -133,16 +162,21 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 	vpkFile := cache.File
 
 	if vpkFile.Location != "workshop" {
+		a.mu.Unlock()
 		return fmt.Errorf("只能转移workshop文件")
 	}
 
 	newPath := filepath.Join(a.rootDir, vpkFile.Name)
-	err := os.Rename(vpkFile.Path, newPath)
+	err := copyRegularFile(vpkFile.Path, newPath)
 	if err != nil {
+		a.mu.Unlock()
 		return err
 	}
-	// 同步移动同名图片
-	a.handleSidecarFile(vpkFile.Path, newPath, "move")
+	if err := copySidecarFiles(vpkFile.Path, newPath); err != nil {
+		_ = os.Remove(newPath)
+		a.mu.Unlock()
+		return fmt.Errorf("复制工坊 Mod 伴随文件失败: %w", err)
+	}
 
 	// 转移到root目录后，文件默认为启用状态
 	vpkFile.Path = newPath
@@ -153,10 +187,29 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 	a.vpkCache.Delete(filePath)
 
 	// 在新路径下存储缓存
-	cache.File = vpkFile
-	a.vpkCache.Store(newPath, cache)
+	newCache := *cache
+	newCache.File = vpkFile
+	a.vpkCache.Store(newPath, &newCache)
+	a.mu.Unlock()
 
-	log.Printf("文件已转移: %s -> %s", filePath, newPath)
+	workshopKey := normalizeAddonListKey(filepath.Join("workshop", filepath.Base(filePath)))
+	rootKey, keyErr := a.addonListKeyForManagedVPKPath(newPath)
+	if keyErr != nil {
+		return keyErr
+	}
+	if err := a.updateAddonListEntries(map[string]string{
+		rootKey:     "1",
+		workshopKey: "0",
+	}, nil); err != nil {
+		return fmt.Errorf("已复制到 addons，但 addonlist.txt 同步失败: %w", err)
+	}
+	// 保留 workshop 原件意味着 Steam/游戏可能在下次启动时重新写入 1。
+	// 复制完成后自动启用 addonlist 保护，受保护快照会记住 workshop=0、root=1。
+	if _, err := a.SetAddonListGuardEnabled(true); err != nil {
+		return fmt.Errorf("已复制到 addons，但无法启用 addonlist 防覆盖保护: %w", err)
+	}
+
+	log.Printf("文件已复制: %s -> %s（保留 workshop 原文件并显式关闭）", filePath, newPath)
 
 	return nil
 }
@@ -213,14 +266,14 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	}
 
 	// 清理特殊字符，避免破坏文件名或标签解析
-	primaryTag = parser.SanitizeTag(primaryTag)
+	primaryTag = parser.CanonicalTag(parser.SanitizeTag(primaryTag))
 	sanitizedSecondary := make([]string, 0, len(secondaryTags))
 	for _, t := range secondaryTags {
 		if cleaned := parser.SanitizeTag(t); cleaned != "" {
 			sanitizedSecondary = append(sanitizedSecondary, cleaned)
 		}
 	}
-	secondaryTags = sanitizedSecondary
+	secondaryTags = parser.UniqueTagsExcluding(sanitizedSecondary, primaryTag)
 
 	// 组合新标签
 	allTags := make([]string, 0)
@@ -228,6 +281,12 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 		allTags = append(allTags, primaryTag)
 	}
 	allTags = append(allTags, secondaryTags...)
+
+	// Steam Workshop 目录中的文件名通常就是发布 ID。给它添加 [标签] 前缀会使
+	// Steam 与游戏失去对该文件的识别，因此标签只写进同名 .meta 伴随文件。
+	if a.isWorkshopVPKPath(filePath) {
+		return a.setWorkshopVPKTagsLocked(filePath, primaryTag, secondaryTags, allTags)
+	}
 
 	var newFilename string
 	if len(allTags) == 0 {
@@ -277,6 +336,58 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	}
 
 	a.updateCompletedDownloadTaskPath(filePath, newPath)
+	return nil
+}
+
+func (a *App) isWorkshopVPKPath(filePath string) bool {
+	if a.rootDir == "" {
+		return false
+	}
+	relativePath, err := filepath.Rel(a.rootDir, filePath)
+	if err != nil {
+		return false
+	}
+	relativePath = filepath.Clean(relativePath)
+	if relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) {
+		return false
+	}
+	parts := strings.Split(relativePath, string(filepath.Separator))
+	return len(parts) > 1 && strings.EqualFold(parts[0], "workshop")
+}
+
+// setWorkshopVPKTagsLocked 保存工坊 VPK 的标签而不改动其文件名。调用方必须持有 a.mu。
+func (a *App) setWorkshopVPKTagsLocked(filePath, primaryTag string, secondaryTags, allTags []string) error {
+	meta, err := LoadWorkshopMeta(filePath)
+	if err != nil {
+		return fmt.Errorf("无法读取工坊 Mod 的 .meta 标签文件: %w", err)
+	}
+	if meta == nil {
+		meta = &WorkshopMeta{}
+	}
+	meta.Tags = append([]string(nil), allTags...)
+	meta.PrimaryTag = primaryTag
+	meta.SecondaryTags = append([]string(nil), secondaryTags...)
+	if err := saveWorkshopMeta(filePath, meta); err != nil {
+		return fmt.Errorf("无法保存工坊 Mod 的 .meta 标签文件: %w", err)
+	}
+
+	cachedVal, loaded := a.vpkCache.Load(filePath)
+	if loaded && len(allTags) > 0 {
+		cache := cachedVal.(*VPKFileCache)
+		cache.File.PrimaryTag = primaryTag
+		cache.File.SecondaryTags = append([]string(nil), secondaryTags...)
+		if metaInfo, statErr := os.Stat(GetMetaFilePath(filePath)); statErr == nil {
+			cache.MetaModTime = metaInfo.ModTime()
+		}
+		a.vpkCache.Store(filePath, cache)
+		return nil
+	}
+
+	// 清空标签时重新解析，恢复 VPK 自身可推断出的自动标签。
+	if loaded {
+		a.vpkCache.Delete(filePath)
+	}
+	a.processVPKFileWithCache(filePath)
 	return nil
 }
 

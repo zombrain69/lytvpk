@@ -27,6 +27,12 @@ export function setupSortEvents() {
     .getElementById("sort-date-btn")
     ?.addEventListener("click", () => handleSortChange("date"));
   document
+    .getElementById("sort-size-btn")
+    ?.addEventListener("click", () => handleSortChange("size"));
+  document
+    .getElementById("sort-model-complexity-btn")
+    ?.addEventListener("click", () => handleModelComplexitySort());
+  document
     .getElementById("sort-load-order-btn")
     ?.addEventListener("click", () => handleLoadOrderSort());
 
@@ -64,7 +70,7 @@ export function handleSortChange(type) {
     appState.sortOrder = appState.sortOrder === "asc" ? "desc" : "asc";
   } else {
     appState.sortType = type;
-    appState.sortOrder = type === "date" ? "desc" : "asc";
+    appState.sortOrder = type === "date" || type === "size" ? "desc" : "asc";
   }
 
   updateSortButtonUI();
@@ -74,10 +80,54 @@ export function handleSortChange(type) {
   renderFileList();
 }
 
+export async function handleModelComplexitySort() {
+  document.getElementById("sort-dropdown-content")?.classList.add("hidden");
+
+  try {
+    const method = window?.go?.app?.App?.GetVPKModelMetrics;
+    if (typeof method !== "function") {
+      throw new Error("当前应用未提供模型复杂度统计，请重新构建并启动 LytVPK");
+    }
+
+    const paths = appState.allVpkFiles.map((file) => file.path);
+    showNotification("正在分析 VPK 模型复杂度...", "info");
+    const metrics = await method(paths);
+    const metricMap = new Map(metrics.map((metric) => [metric.path, metric]));
+
+    [appState.allVpkFiles, appState.vpkFiles].forEach((files) => {
+      files.forEach((file) => {
+        const metric = metricMap.get(file.path);
+        if (!metric || metric.error) return;
+        file.modelStatsKnown = true;
+        file.modelCount = metric.modelCount || 0;
+        file.modelVertices = metric.totalVertices || 0;
+        file.modelTriangles = metric.totalTriangles || 0;
+      });
+    });
+
+    if (appState.sortType === "modelComplexity") {
+      appState.sortOrder = appState.sortOrder === "asc" ? "desc" : "asc";
+    } else {
+      appState.sortType = "modelComplexity";
+      appState.sortOrder = "desc";
+    }
+
+    updateSortButtonUI();
+    applySort(appState.vpkFiles);
+    renderFileList();
+    showNotification("已按模型复杂度排序（LOD0 总顶点）", "success");
+  } catch (error) {
+    console.error("模型复杂度排序失败:", error);
+    showError("模型复杂度排序失败: " + error);
+  }
+}
+
 export function updateSortButtonUI() {
   const btnText = document.getElementById("sort-btn-text");
   const nameBtn = document.getElementById("sort-name-btn");
   const dateBtn = document.getElementById("sort-date-btn");
+  const sizeBtn = document.getElementById("sort-size-btn");
+  const modelComplexityBtn = document.getElementById("sort-model-complexity-btn");
   const loadOrderBtn = document.getElementById("sort-load-order-btn");
 
   let text = "文件名排序";
@@ -92,6 +142,12 @@ export function updateSortButtonUI() {
   } else if (appState.sortType === "loadOrder") {
     text = "加载顺序排序";
     arrow = appState.sortOrder === "asc" ? "(顺序)" : "(倒序)";
+  } else if (appState.sortType === "size") {
+    text = "VPK 大小排序";
+    arrow = appState.sortOrder === "desc" ? "(由大到小)" : "(由小到大)";
+  } else if (appState.sortType === "modelComplexity") {
+    text = "模型复杂度排序";
+    arrow = appState.sortOrder === "desc" ? "(高到低)" : "(低到高)";
   }
 
   if (btnText) btnText.textContent = `${text} ${arrow}`;
@@ -101,6 +157,12 @@ export function updateSortButtonUI() {
   }
   if (dateBtn) {
     dateBtn.classList.toggle("active", appState.sortType === "date");
+  }
+  if (sizeBtn) {
+    sizeBtn.classList.toggle("active", appState.sortType === "size");
+  }
+  if (modelComplexityBtn) {
+    modelComplexityBtn.classList.toggle("active", appState.sortType === "modelComplexity");
   }
   if (loadOrderBtn) {
     loadOrderBtn.classList.toggle("active", appState.sortType === "loadOrder");
@@ -115,6 +177,10 @@ export function applySort(files) {
       const dateA = a.lastModified ? new Date(a.lastModified).getTime() : 0;
       const dateB = b.lastModified ? new Date(b.lastModified).getTime() : 0;
       result = dateA - dateB;
+    } else if (appState.sortType === "size") {
+      result = Number(a.size || 0) - Number(b.size || 0);
+    } else if (appState.sortType === "modelComplexity") {
+      result = Number(a.modelVertices || 0) - Number(b.modelVertices || 0);
     } else if (appState.sortType === "loadOrder") {
       const nameA = a.name.toLowerCase();
       const nameB = b.name.toLowerCase();

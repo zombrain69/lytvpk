@@ -18,7 +18,9 @@ export const appState = {
   primaryTags: [],
   selectedPrimaryTag: "",
   selectedSecondaryTags: [],
+  secondaryMatchMode: "any",
   selectedLocations: [],
+  selectedGameStates: [],
   searchQuery: "",
   selectedFiles: new Set(),
   currentDirectory: "",
@@ -55,16 +57,26 @@ export function updateStatusBar() {
   const totalFiles = appState.allVpkFiles.length;
   const enabledFiles = appState.allVpkFiles.filter((f) => f.enabled).length;
   const disabledFiles = totalFiles - enabledFiles;
+  const gameEnabledFiles = appState.allVpkFiles.filter(
+    (file) => file.gameStateKnown && file.gameEnabled
+  ).length;
+  const gameDisabledFiles = appState.allVpkFiles.filter(
+    (file) => file.gameStateKnown && !file.gameEnabled
+  ).length;
   const selectedCount = appState.selectedFiles.size;
 
   const totalEl = document.getElementById("total-files");
   const enabledEl = document.getElementById("enabled-files");
   const disabledEl = document.getElementById("disabled-files");
+  const gameEnabledEl = document.getElementById("game-enabled-files");
+  const gameDisabledEl = document.getElementById("game-disabled-files");
   const selectedEl = document.getElementById("selected-files");
 
   if (totalEl) totalEl.textContent = `总文件数: ${totalFiles}`;
   if (enabledEl) enabledEl.textContent = `已启用: ${enabledFiles}`;
   if (disabledEl) disabledEl.textContent = `已禁用: ${disabledFiles}`;
+  if (gameEnabledEl) gameEnabledEl.textContent = `游戏内开启: ${gameEnabledFiles}`;
+  if (gameDisabledEl) gameDisabledEl.textContent = `游戏内关闭: ${gameDisabledFiles}`;
   if (selectedEl) selectedEl.textContent = `已选择: ${selectedCount}`;
 }
 

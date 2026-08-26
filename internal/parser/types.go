@@ -8,18 +8,24 @@ type ChapterInfo struct {
 
 // VPKFile 表示一个VPK文件的信息
 type VPKFile struct {
-	Name          string                 `json:"name"`
-	Path          string                 `json:"path"`
-	Size          int64                  `json:"size"`
-	PrimaryTag    string                 `json:"primaryTag"`    // 一级标签: "地图", "人物", "武器", "其他"
-	SecondaryTags []string               `json:"secondaryTags"` // 二级标签: ["ellis", "ak47", "versus"] 等
-	Location      string                 `json:"location"`      // "root", "workshop", "disabled"
-	Enabled       bool                   `json:"enabled"`
-	Campaign      string                 `json:"campaign"`
-	Chapters      map[string]ChapterInfo `json:"chapters"` // key: 章节代码, value: 章节信息
-	Mode          string                 `json:"mode"`
-	PreviewImage  string                 `json:"previewImage"` // Base64编码的预览图
-	LastModified  string                 `json:"lastModified"`
+	Name            string                 `json:"name"`
+	Path            string                 `json:"path"`
+	Size            int64                  `json:"size"`
+	PrimaryTag      string                 `json:"primaryTag"`    // 一级标签: "地图", "人物", "武器", "其他"
+	SecondaryTags   []string               `json:"secondaryTags"` // 二级标签: ["ellis", "ak47", "versus"] 等
+	Location        string                 `json:"location"`      // "root", "workshop", "disabled"
+	Enabled         bool                   `json:"enabled"`
+	GameEnabled     bool                   `json:"gameEnabled"`    // addonlist.txt 中的游戏内开关
+	GameStateKnown  bool                   `json:"gameStateKnown"` // addonlist.txt 是否包含此 Mod
+	ModelStatsKnown bool                   `json:"modelStatsKnown"`
+	ModelCount      int                    `json:"modelCount"`
+	ModelVertices   int                    `json:"modelVertices"`
+	ModelTriangles  int                    `json:"modelTriangles"`
+	Campaign        string                 `json:"campaign"`
+	Chapters        map[string]ChapterInfo `json:"chapters"` // key: 章节代码, value: 章节信息
+	Mode            string                 `json:"mode"`
+	PreviewImage    string                 `json:"previewImage"` // Base64编码的预览图
+	LastModified    string                 `json:"lastModified"`
 	// addoninfo.txt 相关信息
 	Title      string `json:"title"`      // addontitle (必有)
 	Author     string `json:"author"`     // addonauthor (若有)
@@ -27,7 +33,7 @@ type VPKFile struct {
 	Desc       string `json:"desc"`       // addonDescription (若有)
 	AddonURL0  string `json:"addonURL0"`  // addonURL0 (若有)
 	WorkshopID string `json:"workshopId"` // 工坊ID (从meta文件读取)
-	HasUpdate  bool   `json:"hasUpdate"`   // 远端更新时间 > 下载时间且开启了更新检测
+	HasUpdate  bool   `json:"hasUpdate"`  // 远端更新时间 > 下载时间且开启了更新检测
 }
 
 // Campaign 战役信息

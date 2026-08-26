@@ -398,6 +398,33 @@
                     </span>
                     更新时间排序
                   </button>
+                  <button id="sort-size-btn" class="dropdown-item">
+                    <span class="btn-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 3 3 21"></path>
+                        <path d="m15 9 3 3"></path>
+                        <path d="m11 13 3 3"></path>
+                        <path d="m7 17 3 3"></path>
+                      </svg>
+                    </span>
+                    VPK 大小排序
+                  </button>
+                  <button id="sort-model-complexity-btn" class="dropdown-item">
+                    <span class="btn-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 3v3"></path>
+                        <path d="M12 18v3"></path>
+                        <path d="m5.64 5.64 2.12 2.12"></path>
+                        <path d="m16.24 16.24 2.12 2.12"></path>
+                        <path d="M3 12h3"></path>
+                        <path d="M18 12h3"></path>
+                        <path d="m5.64 18.36 2.12-2.12"></path>
+                        <path d="m16.24 7.76 2.12-2.12"></path>
+                      </svg>
+                    </span>
+                    模型复杂度排序
+                  </button>
                   <button id="sort-load-order-btn" class="dropdown-item">
                     <span class="btn-icon">
                       <svg
@@ -425,6 +452,7 @@
               </div>
             </div>
           </div>
+          <div id="active-filter-summary" class="active-filter-summary hidden" aria-live="polite"></div>
         </div>
 
         <!-- 文件列表 -->
@@ -434,6 +462,7 @@
             <div class="column-header name-column">文件名</div>
             <div class="column-header size-column">大小</div>
             <div class="column-header location-column">位置</div>
+            <div class="column-header game-state-column">游戏内开关</div>
             <div class="column-header tags-column">标签</div>
             <div class="column-header actions-column">操作</div>
           </div>
@@ -460,6 +489,8 @@
             <span id="total-files">总文件数: 0</span>
             <span id="enabled-files">已启用: 0</span>
             <span id="disabled-files">已禁用: 0</span>
+            <span id="game-enabled-files">游戏内开启: 0</span>
+            <span id="game-disabled-files">游戏内关闭: 0</span>
             <span id="selected-files">已选择: 0</span>
           </div>
           <div class="status-actions">
@@ -660,32 +691,44 @@
       <div id="info-modal" class="modal hidden">
         <div class="modal-content modal-small">
           <div class="modal-header">
-            <h3>关于LytVPK</h3>
+            <h3>关于 LytVPK Community Fork</h3>
             <button id="close-info-modal-btn" class="close-btn">&times;</button>
           </div>
           <div class="modal-body">
             <div class="info-section">
               <div class="info-item">
-                <label>作者:</label>
+                <label>上游作者:</label>
                 <span>LaoYutang</span>
               </div>
 
               <div class="info-item">
                 <label>GitHub:</label>
                 <a
+                  href="https://github.com/zombrain69/lytvpk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="info-link"
+                >
+                  https://github.com/zombrain69/lytvpk
+                </a>
+              </div>
+
+              <div class="info-item">
+                <label>上游项目:</label>
+                <a
                   href="https://github.com/LaoYutang/lytvpk"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="info-link"
                 >
-                  https://github.com/LaoYutang/lytvpk
+                  LaoYutang/lytvpk
                 </a>
               </div>
 
               <div class="info-item">
                 <label>开源协议:</label>
                 <a
-                  href="https://github.com/LaoYutang/lytvpk/blob/master/LICENSE"
+                  href="https://github.com/zombrain69/lytvpk/blob/master/LICENSE"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="info-link"
@@ -1786,6 +1829,61 @@
               </div>
             </div>
 
+            <div class="load-order-quick-actions" aria-label="单项优先级调整">
+              <button id="move-load-order-up-btn" type="button" class="btn btn-secondary">
+                上移一位（优先级更高）
+              </button>
+              <button id="move-load-order-down-btn" type="button" class="btn btn-secondary">
+                下移一位（优先级更低）
+              </button>
+            </div>
+
+            <section class="load-order-policy-section" aria-labelledby="load-order-policy-title">
+              <div class="load-order-policy-heading">
+                <div>
+                  <label id="load-order-policy-title" class="load-order-label">选择性优化与强制约束</label>
+                  <p>先预览，再写入 addonlist.txt。未关联的 Mod 会保持当前相对顺序。</p>
+                </div>
+              </div>
+
+              <div class="load-order-policy-options">
+                <label class="load-order-check">
+                  <input id="load-order-root-first" type="checkbox" />
+                  <span>根目录 Mod 优先</span>
+                </label>
+                <label class="load-order-check">
+                  <input id="load-order-group-workshop" type="checkbox" />
+                  <span>聚集创意工坊 Mod</span>
+                </label>
+              </div>
+
+              <div class="load-order-rule-builder">
+                <label for="load-order-rule-sources" class="load-order-label">一个或多个 Mod</label>
+                <select id="load-order-rule-sources" class="load-order-select" multiple size="5" aria-label="选择需要排序的 Mod"></select>
+
+                <label for="load-order-rule-target" class="load-order-label">相对于这个 Mod</label>
+                <select id="load-order-rule-target" class="load-order-select" aria-label="选择约束目标 Mod"></select>
+
+                <div class="load-order-rule-actions">
+                  <button id="add-load-order-before-rule-btn" type="button" class="btn btn-secondary">始终排在前面</button>
+                  <button id="add-load-order-after-rule-btn" type="button" class="btn btn-secondary">始终排在后面</button>
+                </div>
+              </div>
+
+              <div id="load-order-rules" class="load-order-rules" aria-live="polite"></div>
+
+              <div class="load-order-preview-header">
+                <span class="load-order-label">排序预览</span>
+                <span id="load-order-preview-summary" class="load-order-preview-summary">正在读取 addonlist.txt…</span>
+              </div>
+              <div id="load-order-preview" class="load-order-preview" aria-live="polite"></div>
+
+              <div class="load-order-policy-actions">
+                <button id="preview-load-order-policy-btn" type="button" class="btn btn-secondary">预览优化结果</button>
+                <button id="apply-load-order-policy-btn" type="button" class="btn btn-primary">应用优化并写入</button>
+              </div>
+            </section>
+
             <div class="load-order-tips">
               <div class="load-order-tips-content">
                 <div class="load-order-tips-icon">💡</div>
@@ -1800,6 +1898,7 @@
                     </li>
                     <li>若文件未在列表中，将按此序号插入。</li>
                     <li>若已存在，将移动到此位置。</li>
+                    <li>“始终在前/后”出现循环时不会写入文件。</li>
                   </ul>
                 </div>
               </div>

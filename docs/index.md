@@ -16,7 +16,7 @@ markdownStyles: false
     <div class="home-actions">
       <a class="home-action primary" href="/guide/quick-start">立即开始</a>
       <a class="home-action secondary" href="/features/mod-management">使用说明</a>
-      <a class="home-action ghost" href="https://github.com/LaoYutang/lytvpk/releases">立即下载</a>
+      <a class="home-action ghost" href="https://github.com/zombrain69/lytvpk/releases">立即下载</a>
     </div>
   </div>
 </section>

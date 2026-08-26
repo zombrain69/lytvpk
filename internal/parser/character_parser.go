@@ -2,20 +2,26 @@ package parser
 
 import (
 	"strings"
-
-	"l4d2-manager-next/pkg/valve/vpk"
 )
 
 // ProcessCharacterVPK 处理人物类型VPK
-func ProcessCharacterVPK(archive *vpk.Archive, vpkFile *VPKFile, secondaryTags map[string]bool) {
+func ProcessCharacterVPK(index archivePathIndex, vpkFile *VPKFile, secondaryTags map[string]bool) {
 	vpkFile.PrimaryTag = "人物"
+	collectCharacterTags(index, secondaryTags)
+}
 
-	// 遍历文件，检测具体角色
-	for _, file := range archive.Files {
-		filename := file.Name()
+// collectCharacterTags adds character evidence without changing the VPK's
+// primary type.  This allows a map or weapon pack that also replaces a
+// survivor/infected model to stay in its primary category while remaining
+// discoverable through Workshop-style character filters.
+func collectCharacterTags(index archivePathIndex, secondaryTags map[string]bool) {
+	// 只处理建立目录索引时确认的角色资源，避免再次遍历整个 VPK。
+	for _, entry := range index.characterFiles {
+		filename := entry.name
 
 		// 幸存者检测
 		if strings.Contains(filename, "survivor") {
+			secondaryTags["幸存者"] = true
 			DetectSurvivorType(filename, secondaryTags)
 		}
 
@@ -26,52 +32,84 @@ func ProcessCharacterVPK(archive *vpk.Archive, vpkFile *VPKFile, secondaryTags m
 	}
 }
 
+type characterMatchRule struct {
+	keyword string
+	tag     string
+}
+
+var survivorVariantRules = []characterMatchRule{
+	{"bill_death", "BillDeathPose"},
+	{"billdeath", "BillDeathPose"},
+	{"bill_corpse", "BillDeathPose"},
+	{"billcorpse", "BillDeathPose"},
+	{"francis_flashlight", "FrancisLight"},
+	{"francisflashlight", "FrancisLight"},
+	{"francis_light", "FrancisLight"},
+	{"francislight", "FrancisLight"},
+	{"zoey_flashlight", "ZoeyLight"},
+	{"zoeyflashlight", "ZoeyLight"},
+	{"zoey_light", "ZoeyLight"},
+	{"zoeylight", "ZoeyLight"},
+}
+
+var survivorRules = []characterMatchRule{
+	{"namvet", "Bill"},
+	{"bill", "Bill"},
+	{"biker", "Francis"},
+	{"francis", "Francis"},
+	{"manager", "Louis"},
+	{"louis", "Louis"},
+	{"teenangst", "Zoey"},
+	{"zoey", "Zoey"},
+	{"coach", "Coach"},
+	{"mechanic", "Ellis"},
+	{"ellis", "Ellis"},
+	{"gambler", "Nick"},
+	{"nick", "Nick"},
+	{"producer", "Rochelle"},
+	{"rochelle", "Rochelle"},
+}
+
+var specialInfectedRules = []characterMatchRule{
+	{"charger", "charger"},
+	{"jockey", "jockey"},
+	{"spitter", "spitter"},
+	{"smoker", "smoker"},
+	{"boomer", "boomer"},
+	{"hunter", "hunter"},
+	{"witch", "witch"},
+	{"hulk", "tank"},
+	{"tank", "tank"},
+}
+
+var commonInfectedRules = []characterMatchRule{
+	{"uncommon", "uncommon_infected"},
+	{"roadcrew", "uncommon_infected"},
+	{"fallen", "uncommon_infected"},
+	{"ceda", "uncommon_infected"},
+	{"clown", "uncommon_infected"},
+	{"jimmy", "uncommon_infected"},
+	{"riot", "uncommon_infected"},
+	{"mud", "uncommon_infected"},
+	{"common", "common"},
+	{"zombie", "common"},
+	{"infected", "common"},
+}
+
 // DetectSurvivorType 检测幸存者类型 - 基于NekoVpk识别模式
 func DetectSurvivorType(filename string, secondaryTags map[string]bool) {
-	// Left 4 Dead 2 角色识别（使用英文代码而非中文名）
-	survivors := map[string]string{
-		"bill":      "Bill",
-		"namvet":    "Bill",
-		"francis":   "Francis",
-		"biker":     "Francis",
-		"louis":     "Louis",
-		"manager":   "Louis",
-		"zoey":      "Zoey",
-		"teenangst": "Zoey",
-		"coach":     "Coach",
-		"ellis":     "Ellis",
-		"mechanic":  "Ellis",
-		"nick":      "Nick",
-		"gambler":   "Nick",
-		"rochelle":  "Rochelle",
-		"producer":  "Rochelle",
-	}
-
-	// 检查特殊变体
-	specialVariants := map[string]string{
-		"bill_death":         "BillDeathPose",
-		"bill_corpse":        "BillDeathPose",
-		"francis_light":      "FrancisLight",
-		"francis_flashlight": "FrancisLight",
-		"zoey_light":         "ZoeyLight",
-		"zoey_flashlight":    "ZoeyLight",
-	}
-
 	lowerFilename := strings.ToLower(filename)
 
-	// 先检查特殊变体
-	for keyword, name := range specialVariants {
-		if strings.Contains(lowerFilename, strings.Replace(keyword, "_", "", -1)) ||
-			strings.Contains(lowerFilename, keyword) {
-			secondaryTags[name] = true
+	for _, rule := range survivorVariantRules {
+		if strings.Contains(lowerFilename, rule.keyword) {
+			secondaryTags[rule.tag] = true
 			return
 		}
 	}
 
-	// 再检查普通角色
-	for keyword, name := range survivors {
-		if strings.Contains(lowerFilename, keyword) {
-			secondaryTags[name] = true
+	for _, rule := range survivorRules {
+		if strings.Contains(lowerFilename, rule.keyword) {
+			secondaryTags[rule.tag] = true
 			return
 		}
 	}
@@ -81,46 +119,18 @@ func DetectSurvivorType(filename string, secondaryTags map[string]bool) {
 func DetectInfectedType(filename string, secondaryTags map[string]bool) {
 	lowerFilename := strings.ToLower(filename)
 
-	// 特殊感染者
-	specialInfected := map[string]string{
-		"tank":    "tank",
-		"hulk":    "tank", // L4D1中Tank的内部名称
-		"witch":   "witch",
-		"hunter":  "hunter",
-		"smoker":  "smoker",
-		"boomer":  "boomer",
-		"charger": "charger",
-		"jockey":  "jockey",
-		"spitter": "spitter",
-	}
-
-	// 普通感染者
-	commonInfected := map[string]string{
-		"common":   "common",
-		"zombie":   "common",
-		"infected": "common",
-		"uncommon": "uncommon_infected",
-		"ceda":     "uncommon_infected", // CEDA工作人员
-		"clown":    "uncommon_infected", // 小丑
-		"mud":      "uncommon_infected", // 泥人
-		"roadcrew": "uncommon_infected", // 道路工人
-		"jimmy":    "uncommon_infected", // 吉米·吉布斯Jr
-		"riot":     "uncommon_infected", // 防暴警察
-		"fallen":   "uncommon_infected", // 堕落幸存者
-	}
-
-	// 检测特殊感染者
-	for keyword, infectedCode := range specialInfected {
-		if strings.Contains(lowerFilename, keyword) {
-			secondaryTags[infectedCode] = true
+	for _, rule := range specialInfectedRules {
+		if strings.Contains(lowerFilename, rule.keyword) {
+			secondaryTags[rule.tag] = true
+			secondaryTags["特殊感染者"] = true
 			return
 		}
 	}
 
-	// 检测普通感染者
-	for keyword, infectedCode := range commonInfected {
-		if strings.Contains(lowerFilename, keyword) {
-			secondaryTags[infectedCode] = true
+	for _, rule := range commonInfectedRules {
+		if strings.Contains(lowerFilename, rule.keyword) {
+			secondaryTags[rule.tag] = true
+			secondaryTags["普通感染者"] = true
 			return
 		}
 	}

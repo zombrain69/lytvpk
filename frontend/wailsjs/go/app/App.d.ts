@@ -5,6 +5,10 @@ import {network} from '../models';
 import {parser} from '../models';
 import {minidump} from '../models';
 
+export function ApplyAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
+
+export function ApplyAddonListMerge(arg1:string,arg2:Array<string>):Promise<void>;
+
 export function AutoDiscoverAddons():Promise<string>;
 
 export function CancelDownloadTask(arg1:string):Promise<void>;
@@ -28,6 +32,12 @@ export function ClearCompletedTasks():Promise<void>;
 export function ClearPanelMaps(arg1:string):Promise<string>;
 
 export function ConnectToServer(arg1:string):Promise<void>;
+
+export function CreateAddonListBackup():Promise<app.AddonListBackup>;
+
+export function DeleteAddonList():Promise<void>;
+
+export function DeleteAddonListBackup(arg1:string):Promise<void>;
 
 export function DeletePanelMapFile(arg1:string,arg2:string):Promise<string>;
 
@@ -71,6 +81,10 @@ export function FetchWorkshopList(arg1:app.WorkshopQueryOptions):Promise<app.Wor
 
 export function ForceExit():Promise<void>;
 
+export function GetAddonListInfo():Promise<app.AddonListInfo>;
+
+export function GetAddonListLoadOrderEntries():Promise<Array<app.AddonListLoadOrderEntry>>;
+
 export function GetAddonListOrder():Promise<Array<string>>;
 
 export function GetAppConfig():Promise<app.ConfigFile>;
@@ -84,6 +98,8 @@ export function GetCurrentBestIP():Promise<string>;
 export function GetCurrentBestIPOption():Promise<network.IPOption>;
 
 export function GetDownloadTasks():Promise<Array<app.DownloadTask>>;
+
+export function GetForkInfo():Promise<app.ForkInfo>;
 
 export function GetMapName(arg1:string):Promise<string>;
 
@@ -112,6 +128,8 @@ export function GetServerStorage():Promise<app.ServerStorage>;
 export function GetVPKFiles():Promise<Array<parser.VPKFile>>;
 
 export function GetVPKLoadOrder(arg1:string):Promise<number>;
+
+export function GetVPKModelMetrics(arg1:Array<string>):Promise<Array<app.VPKModelMetric>>;
 
 export function GetVPKPreviewImage(arg1:string):Promise<string>;
 
@@ -159,6 +177,8 @@ export function LaunchL4D2():Promise<void>;
 
 export function LaunchL4D2ForProblemScan():Promise<void>;
 
+export function ListAddonListBackups():Promise<Array<app.AddonListBackup>>;
+
 export function LoadSprayImportFiles(arg1:Array<string>):Promise<Array<app.SprayImportFilePayload>>;
 
 export function LogError(arg1:string,arg2:string,arg3:string):Promise<void>;
@@ -179,11 +199,17 @@ export function ParseMDMPFile(arg1:string):Promise<minidump.Report>;
 
 export function ParseWorkshopID(arg1:string):Promise<string>;
 
+export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
+
+export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
+
 export function RenameVPKFile(arg1:string,arg2:string):Promise<string>;
 
 export function RestartApplication():Promise<void>;
 
 export function RestartPanelServer(arg1:string):Promise<string>;
+
+export function RestoreAddonListBackup(arg1:string):Promise<app.AddonListInfo>;
 
 export function RestoreProblemModScan():Promise<app.ProblemModScanSession>;
 
@@ -192,6 +218,8 @@ export function RetryDownloadTask(arg1:string):Promise<void>;
 export function RetryPanelMapUpload(arg1:string):Promise<void>;
 
 export function RotateMods():Promise<void>;
+
+export function SaveAddonListManagedSnapshot():Promise<app.AddonListInfo>;
 
 export function SaveAppConfig(arg1:app.ConfigFile):Promise<void>;
 
@@ -206,6 +234,8 @@ export function SaveWorkshopWatchLaterStorage(arg1:app.WorkshopWatchLaterStorage
 export function ScanVPKFiles():Promise<void>;
 
 export function SearchVPKFiles(arg1:string,arg2:string,arg3:Array<string>):Promise<Array<parser.VPKFile>>;
+
+export function SelectAddonListMergeSource():Promise<string>;
 
 export function SelectDirectory():Promise<string>;
 
@@ -223,9 +253,13 @@ export function SelectVPKUnpackOutputDirectory():Promise<string>;
 
 export function SendPanelRconCommand(arg1:string,arg2:string):Promise<string>;
 
+export function SetAddonListGuardEnabled(arg1:boolean):Promise<app.AddonListInfo>;
+
 export function SetModRotation(arg1:app.RotationConfig):Promise<void>;
 
 export function SetRootDirectory(arg1:string):Promise<void>;
+
+export function SetVPKGameEnabled(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetVPKLoadOrder(arg1:string,arg2:number):Promise<void>;
 

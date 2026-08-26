@@ -2,7 +2,7 @@ import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
 import { unpackVPKFromPath } from "../diagnostics/vpk-unpack.js";
 import { showConfirmModal } from "../modals/confirm.js";
-import { refreshFilesKeepFilter } from "./filters.js";
+import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import {
   ToggleVPKFile,
   MoveWorkshopToAddons,
@@ -11,6 +11,48 @@ import {
   RenameVPKFile,
   ToggleVPKVisibility,
 } from "../../../../wailsjs/go/app/App";
+
+function getBackendMethod(name) {
+  const method = window?.go?.app?.App?.[name];
+  if (typeof method !== "function") {
+    throw new Error(`当前应用未提供 ${name}，请重新构建并启动 LytVPK`);
+  }
+  return method;
+}
+
+export async function toggleGameEnabled(filePath) {
+  const file =
+    appState.allVpkFiles.find((item) => item.path === filePath) ||
+    appState.vpkFiles.find((item) => item.path === filePath);
+  if (!file) {
+    showError("未找到要切换游戏内开关的 Mod，请刷新后重试");
+    return;
+  }
+  if (file.location === "disabled") {
+    showError("该 Mod 位于 disabled 目录，请先恢复文件后再编辑游戏内开关");
+    return;
+  }
+
+  const nextEnabled = !file.gameStateKnown || !file.gameEnabled;
+  try {
+    await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);
+
+    [appState.allVpkFiles, appState.vpkFiles].forEach((files) => {
+      files.forEach((item) => {
+        if (item.path === filePath) {
+          item.gameStateKnown = true;
+          item.gameEnabled = nextEnabled;
+        }
+      });
+    });
+
+    await performSearch();
+    showNotification(nextEnabled ? "已在 addonlist.txt 中开启 Mod" : "已在 addonlist.txt 中关闭 Mod", "success");
+  } catch (error) {
+    console.error("切换游戏内开关失败:", error);
+    showError("写入 addonlist.txt 失败: " + error);
+  }
+}
 
 export async function toggleFile(filePath) {
   try {
@@ -26,13 +68,13 @@ export async function toggleFile(filePath) {
 
 export async function moveFileToAddons(filePath) {
   try {
-    console.log("转移文件到插件目录:", filePath);
+    console.log("复制文件到插件目录:", filePath);
     await MoveWorkshopToAddons(filePath);
     await refreshFilesKeepFilter();
-    showNotification("文件已转移到插件目录", "success");
+    showNotification("文件已复制到 addons，workshop 原件已保留并关闭", "success");
   } catch (error) {
-    console.error("转移文件失败:", error);
-    showError("转移失败: " + error);
+    console.error("复制文件失败:", error);
+    showError("复制失败: " + error);
   }
 }
 

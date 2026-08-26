@@ -217,6 +217,17 @@ import {
   GetWorkshopWatchLaterStorage,
   SaveWorkshopWatchLaterStorage,
   GetProblemModScanSession,
+  GetAddonListInfo,
+  SaveAddonListManagedSnapshot,
+  ListAddonListBackups,
+  CreateAddonListBackup,
+  RestoreAddonListBackup,
+  DeleteAddonListBackup,
+  DeleteAddonList,
+  SetAddonListGuardEnabled,
+  SelectAddonListMergeSource,
+  PreviewAddonListMerge,
+  ApplyAddonListMerge,
 } from "../../../wailsjs/go/app/App";
 
 import {
@@ -246,6 +257,14 @@ const ChangePanelDifficulty = (serverID, difficulty) => {
     return Promise.reject(new Error("当前后端不支持修改难度"));
   }
   return method(serverID, difficulty);
+};
+
+const GetAddonListManagerState = async () => {
+  const [info, backups] = await Promise.all([
+    GetAddonListInfo(),
+    ListAddonListBackups(),
+  ]);
+  return { info, backups };
 };
 
 configureServers({
@@ -344,6 +363,16 @@ configureSettings({
   CheckModUpdates,
   EventsOn,
   switchAppPage,
+  GetAddonListManagerState,
+  SaveAddonListManagedSnapshot,
+  CreateAddonListBackup,
+  RestoreAddonListBackup,
+  DeleteAddonListBackup,
+  DeleteAddonList,
+  SetAddonListGuardEnabled,
+  SelectAddonListMergeSource,
+  PreviewAddonListMerge,
+  ApplyAddonListMerge,
 });
 
 configureWorkshopBrowser({
@@ -569,6 +598,18 @@ async function initializeApp() {
       }
     });
     window._ipEventsRegistered = true;
+  }
+
+  if (!window._addonListGuardEventsRegistered) {
+    EventsOn("addonlist_guard_restored", async () => {
+      showNotification("检测到游戏覆盖 addonlist.txt，已恢复受保护版本", "info");
+      try {
+        await refreshFilesKeepFilter();
+      } catch (error) {
+        console.error("自动恢复后刷新 Mod 状态失败:", error);
+      }
+    });
+    window._addonListGuardEventsRegistered = true;
   }
 }
 

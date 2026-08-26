@@ -1,0 +1,246 @@
+package app
+
+import (
+	"fmt"
+	"strings"
+)
+
+// AddonListLoadOrderEntry 是 addonlist.txt 中一个可排序的 Mod 条目。
+// Key 始终是可直接写回 addonlist.txt 的相对键，例如 workshop\\123.vpk。
+type AddonListLoadOrderEntry struct {
+	Key        string `json:"key"`
+	Value      string `json:"value"`
+	Order      int    `json:"order"`
+	IsWorkshop bool   `json:"isWorkshop"`
+	IsRoot     bool   `json:"isRoot"`
+}
+
+// AddonListLoadOrderConstraint 表示 Before 必须排在 After 之前。
+// 两端可使用 addonlist.txt 键或当前扫描到的 VPK 绝对路径。
+type AddonListLoadOrderConstraint struct {
+	Before string `json:"before"`
+	After  string `json:"after"`
+}
+
+// AddonListLoadOrderPolicy 是一次可选择的加载顺序优化策略。
+// GroupWorkshop 会把工坊条目稳定聚集在原先第一个工坊条目的位置；
+// RootFirst 会把根目录条目稳定放到工坊条目之前。约束最后执行，因此
+// 明确的“前/后”规则可以覆盖自动分组的默认顺序。
+type AddonListLoadOrderPolicy struct {
+	RootFirst     bool                           `json:"rootFirst"`
+	GroupWorkshop bool                           `json:"groupWorkshop"`
+	Constraints   []AddonListLoadOrderConstraint `json:"constraints"`
+}
+
+// AddonListLoadOrderPreview 既用于预览，也作为应用成功后的最终顺序返回值。
+type AddonListLoadOrderPreview struct {
+	Entries []AddonListLoadOrderEntry `json:"entries"`
+}
+
+// GetAddonListLoadOrderEntries 返回当前 addonlist.txt 的完整顺序。
+func (a *App) GetAddonListLoadOrderEntries() ([]AddonListLoadOrderEntry, error) {
+	list, _, err := a.readAddonList()
+	if err != nil {
+		return nil, err
+	}
+	return makeAddonListLoadOrderEntries(list), nil
+}
+
+// PreviewAddonListLoadOrderPolicy 仅计算排序结果，不会改写 addonlist.txt。
+func (a *App) PreviewAddonListLoadOrderPolicy(policy AddonListLoadOrderPolicy) (AddonListLoadOrderPreview, error) {
+	list, _, err := a.readAddonList()
+	if err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	ordered, err := a.applyAddonListLoadOrderPolicy(list, policy)
+	if err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered)}, nil
+}
+
+// ApplyAddonListLoadOrderPolicy 校验策略、原子写回 addonlist.txt，并同步运行时保护快照。
+func (a *App) ApplyAddonListLoadOrderPolicy(policy AddonListLoadOrderPolicy) (AddonListLoadOrderPreview, error) {
+	a.addonListGuardMu.Lock()
+	defer a.addonListGuardMu.Unlock()
+
+	list, path, err := a.readAddonList()
+	if err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	ordered, err := a.applyAddonListLoadOrderPolicy(list, policy)
+	if err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	if err := a.writeAddonList(path, ordered); err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	if err := a.syncManagedAddonListSnapshotLocked(path); err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered)}, nil
+}
+
+func makeAddonListLoadOrderEntries(list []AddonListItem) []AddonListLoadOrderEntry {
+	entries := make([]AddonListLoadOrderEntry, 0, len(list))
+	for index, item := range list {
+		key := normalizeAddonListKey(item.Name)
+		entries = append(entries, AddonListLoadOrderEntry{
+			Key:        key,
+			Value:      item.Value,
+			Order:      index + 1,
+			IsWorkshop: isWorkshopAddonListKey(key),
+			IsRoot:     isRootAddonListKey(key),
+		})
+	}
+	return entries
+}
+
+func isWorkshopAddonListKey(key string) bool {
+	return strings.HasPrefix(normalizeAddonListKey(key), "workshop\\")
+}
+
+func isRootAddonListKey(key string) bool {
+	return !strings.Contains(normalizeAddonListKey(key), "\\")
+}
+
+func (a *App) applyAddonListLoadOrderPolicy(list []AddonListItem, policy AddonListLoadOrderPolicy) ([]AddonListItem, error) {
+	if err := validateUniqueAddonListKeys(list); err != nil {
+		return nil, err
+	}
+
+	ordered := append([]AddonListItem(nil), list...)
+	if policy.GroupWorkshop {
+		ordered = groupWorkshopAddonListItems(ordered)
+	}
+	if policy.RootFirst {
+		ordered = rootFirstAddonListItems(ordered)
+	}
+	return a.applyAddonListOrderConstraints(ordered, policy.Constraints)
+}
+
+func validateUniqueAddonListKeys(list []AddonListItem) error {
+	seen := make(map[string]struct{}, len(list))
+	for _, item := range list {
+		key := normalizeAddonListKey(item.Name)
+		if key == "" {
+			return fmt.Errorf("addonlist.txt 含有空的 Mod 条目，无法排序")
+		}
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("addonlist.txt 含有重复条目 %q，无法确定约束目标，请先保留其中一个", item.Name)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+// groupWorkshopAddonListItems 保持工坊条目及其余条目的原有相对顺序，
+// 只把全部工坊条目集中到原先首个工坊条目的位置。
+func groupWorkshopAddonListItems(list []AddonListItem) []AddonListItem {
+	firstWorkshop := -1
+	workshopItems := make([]AddonListItem, 0)
+	for index, item := range list {
+		if isWorkshopAddonListKey(item.Name) {
+			if firstWorkshop == -1 {
+				firstWorkshop = index
+			}
+			workshopItems = append(workshopItems, item)
+		}
+	}
+	if firstWorkshop == -1 {
+		return append([]AddonListItem(nil), list...)
+	}
+
+	grouped := make([]AddonListItem, 0, len(list))
+	for index, item := range list {
+		if index == firstWorkshop {
+			grouped = append(grouped, workshopItems...)
+		}
+		if !isWorkshopAddonListKey(item.Name) {
+			grouped = append(grouped, item)
+		}
+	}
+	return grouped
+}
+
+func rootFirstAddonListItems(list []AddonListItem) []AddonListItem {
+	ordered := make([]AddonListItem, 0, len(list))
+	for _, item := range list {
+		if isRootAddonListKey(item.Name) {
+			ordered = append(ordered, item)
+		}
+	}
+	for _, item := range list {
+		if !isRootAddonListKey(item.Name) {
+			ordered = append(ordered, item)
+		}
+	}
+	return ordered
+}
+
+func (a *App) applyAddonListOrderConstraints(list []AddonListItem, constraints []AddonListLoadOrderConstraint) ([]AddonListItem, error) {
+	if len(constraints) == 0 {
+		return append([]AddonListItem(nil), list...), nil
+	}
+
+	indexByKey := make(map[string]int, len(list))
+	for index, item := range list {
+		indexByKey[normalizeAddonListKey(item.Name)] = index
+	}
+
+	adjacent := make([][]int, len(list))
+	inDegree := make([]int, len(list))
+	edges := make(map[[2]int]struct{})
+	for _, constraint := range constraints {
+		before, err := a.addonListKeyForReference(constraint.Before)
+		if err != nil {
+			return nil, fmt.Errorf("无效的‘始终在前’ Mod: %w", err)
+		}
+		after, err := a.addonListKeyForReference(constraint.After)
+		if err != nil {
+			return nil, fmt.Errorf("无效的‘始终在后’ Mod: %w", err)
+		}
+		if before == after {
+			return nil, fmt.Errorf("同一个 Mod 不能同时要求排在自身之前: %s", before)
+		}
+		beforeIndex, beforeExists := indexByKey[before]
+		afterIndex, afterExists := indexByKey[after]
+		if !beforeExists {
+			return nil, fmt.Errorf("约束中的 Mod 不在 addonlist.txt: %s", before)
+		}
+		if !afterExists {
+			return nil, fmt.Errorf("约束中的 Mod 不在 addonlist.txt: %s", after)
+		}
+
+		edge := [2]int{beforeIndex, afterIndex}
+		if _, exists := edges[edge]; exists {
+			continue
+		}
+		edges[edge] = struct{}{}
+		adjacent[beforeIndex] = append(adjacent[beforeIndex], afterIndex)
+		inDegree[afterIndex]++
+	}
+
+	// Kahn 拓扑排序：每轮选择当前基线中最靠前的可用条目，
+	// 因而没有约束关系的 Mod 永远保持原有相对顺序。
+	ordered := make([]AddonListItem, 0, len(list))
+	used := make([]bool, len(list))
+	for len(ordered) < len(list) {
+		next := -1
+		for index := range list {
+			if !used[index] && inDegree[index] == 0 {
+				next = index
+				break
+			}
+		}
+		if next == -1 {
+			return nil, fmt.Errorf("加载顺序约束存在循环，未写入 addonlist.txt")
+		}
+		used[next] = true
+		ordered = append(ordered, list[next])
+		for _, dependent := range adjacent[next] {
+			inDegree[dependent]--
+		}
+	}
+	return ordered, nil
+}

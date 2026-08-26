@@ -202,9 +202,9 @@ function createConflictGroupElement(group) {
       const displayName = truncateText(vpk.title || vpk.name);
       const fileName = truncateText(vpk.name);
       const isWorkshop = vpk.location === "workshop";
-      const btnText = isWorkshop ? "转移" : "禁用";
+      const btnText = isWorkshop ? "复制到 addons" : "禁用";
       const btnClass = isWorkshop ? "btn-transfer" : "btn-disable";
-      const title = isWorkshop ? "转移到插件目录后可禁用" : "禁用此Mod";
+      const title = isWorkshop ? "复制到 addons，并关闭 workshop 原件" : "禁用此Mod";
 
       return `
         <div class="conflict-vpk-item">
@@ -271,7 +271,7 @@ function createConflictGroupElement(group) {
           btn.innerHTML = '<span>处理中...</span>';
 
           if (location === "workshop") {
-            // workshop文件需要先转移到插件目录
+            // workshop 文件复制到插件目录，并保留原件作为受保护的关闭来源
             await moveFileToAddons(path);
           } else {
             // 其他位置直接禁用
@@ -284,7 +284,7 @@ function createConflictGroupElement(group) {
           showError("操作失败: " + err);
           // 恢复按钮状态
           const isWorkshop = location === "workshop";
-          btn.innerHTML = `<span>${isWorkshop ? "转移" : "禁用"}</span>`;
+          btn.innerHTML = `<span>${isWorkshop ? "复制到 addons" : "禁用"}</span>`;
           btn.disabled = false;
         }
       });

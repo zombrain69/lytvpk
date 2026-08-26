@@ -399,6 +399,241 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
   background: rgba(79, 70, 229, 0.12);
 }
 
+.addonlist-path {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 0.78rem;
+}
+
+.addonlist-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.addonlist-status-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: rgba(79, 70, 229, 0.035);
+}
+
+.addonlist-status-grid span,
+.addonlist-backup-main span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.addonlist-status-grid strong {
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.addonlist-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.addonlist-action-btn {
+  justify-content: center;
+}
+
+.addonlist-guard-row {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.addonlist-status-error {
+  margin-top: 8px;
+  color: #dc2626;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.addonlist-danger-zone {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.addonlist-danger-btn {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.28);
+}
+
+.addonlist-danger-btn:hover:not([disabled]) {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.addonlist-backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addonlist-backup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.addonlist-backup-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+
+.addonlist-backup-main strong {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+}
+
+.addonlist-backup-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.addonlist-backup-actions button {
+  padding: 5px 9px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--primary);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.addonlist-backup-actions button:hover {
+  border-color: var(--primary);
+}
+
+.addonlist-backup-delete {
+  color: #dc2626 !important;
+}
+
+.addonlist-secondary-btn {
+  color: var(--text-secondary);
+}
+
+.addonlist-merge-action-row {
+  margin-top: 14px;
+  margin-bottom: 10px;
+}
+
+.addonlist-merge-empty,
+.addonlist-merge-source {
+  margin-top: 8px;
+}
+
+.addonlist-merge-source {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 0.76rem;
+}
+
+.addonlist-merge-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.addonlist-merge-summary span {
+  padding: 5px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.addonlist-merge-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 240px;
+  margin: 12px 0;
+  overflow: auto;
+}
+
+.addonlist-merge-conflict {
+  display: grid;
+  grid-template-columns: auto minmax(130px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.addonlist-merge-conflict input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+}
+
+.addonlist-merge-conflict-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 0.78rem;
+}
+
+.addonlist-merge-state,
+.addonlist-merge-adopt {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.addonlist-merge-adopt {
+  color: var(--primary);
+}
+
+@media (max-width: 640px) {
+  .addonlist-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .addonlist-backup-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .addonlist-merge-conflict {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .addonlist-merge-state,
+  .addonlist-merge-adopt {
+    grid-column: 2;
+    white-space: normal;
+  }
+}
+
 .setting-radio-group {
   display: flex;
   flex-direction: column;

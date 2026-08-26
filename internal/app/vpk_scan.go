@@ -15,14 +15,19 @@ import (
 )
 
 func (a *App) SetRootDirectory(path string) error {
+	a.addonListGuardMu.Lock()
+	defer a.addonListGuardMu.Unlock()
+
 	a.mu.Lock()
-	defer a.mu.Unlock()
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
+		a.mu.Unlock()
 		return fmt.Errorf("目录不存在: %s", path)
 	}
 
 	a.rootDir = path
+	a.mu.Unlock()
+	a.restartAddonListMonitor()
 	return nil
 }
 
@@ -99,6 +104,10 @@ func (a *App) ScanVPKFiles() error {
 		})
 	}
 	wg.Wait()
+
+	// addonlist.txt 的 "0"/"1" 是游戏内开关；它独立于本程序将文件移入
+	// disabled 目录的整理状态。扫描完成后统一合并，避免对每个 VPK 重复读文件。
+	a.applyAddonListGameStates()
 
 	return nil
 }
@@ -198,9 +207,21 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	vpkFile.LastModified = modTime.Format(time.RFC3339)
 	vpkFile.Path = filePath
 
-	// 应用meta数据（如果开启且存在）
-	if a.workshopMetaEnabled {
-		if meta, err := LoadWorkshopMeta(filePath); meta != nil && err == nil {
+	// 自定义标签始终从 .meta 读取：它们是本程序的本地分类数据，不能依赖于工坊详情开关。
+	// 这样 workshop\123456.vpk 无需通过重命名来保存标签，Steam 仍可识别原始文件名。
+	if meta, err := LoadWorkshopMeta(filePath); meta != nil && err == nil {
+		if meta.PrimaryTag != "" || len(meta.SecondaryTags) > 0 {
+			vpkFile.PrimaryTag = parser.CanonicalTag(meta.PrimaryTag)
+			vpkFile.SecondaryTags = parser.UniqueTagsExcluding(meta.SecondaryTags, vpkFile.PrimaryTag)
+		} else if len(meta.Tags) > 0 {
+			metaTags := parser.UniqueTagsExcluding(meta.Tags)
+			if len(metaTags) > 0 {
+				vpkFile.PrimaryTag = parser.CanonicalTag(metaTags[0])
+				vpkFile.SecondaryTags = parser.UniqueTagsExcluding(metaTags[1:], vpkFile.PrimaryTag)
+			}
+		}
+
+		if a.workshopMetaEnabled {
 			if meta.Title != "" {
 				vpkFile.Title = meta.Title
 			}

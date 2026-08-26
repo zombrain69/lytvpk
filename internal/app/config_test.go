@@ -68,6 +68,26 @@ func TestConfigDefaultsWithoutFile(t *testing.T) {
 	}
 }
 
+func TestAddonListGuardConfigurationRoundTrip(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.addonListGuardEnabled = true
+	if err := app.writeConfigFile(app.snapshotConfig()); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	restored := newConfigTestApp(t)
+	restored.configDir = app.configDir
+	restored.configPath = app.configPath
+	restored.serversPath = app.serversPath
+	restored.workshopWatchLaterPath = app.workshopWatchLaterPath
+	restored.loadConfig()
+
+	config := restored.GetAppConfig()
+	if config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {
+		t.Fatalf("expected addonlist guard to round trip, got %#v", config.AddonListGuardEnabled)
+	}
+}
+
 func TestMigrateLocalStorageConfigCreatesMissingTargets(t *testing.T) {
 	app := newConfigTestApp(t)
 

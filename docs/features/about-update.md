@@ -15,8 +15,10 @@
 项目仓库地址为：
 
 ```text
-https://github.com/LaoYutang/lytvpk
+https://github.com/zombrain69/lytvpk
 ```
+
+本 Fork 基于上游项目 [LaoYutang/lytvpk](https://github.com/LaoYutang/lytvpk)。上游链接仅用于署名和追溯，不作为本 Fork 的更新源。
 
 ## 检查更新
 

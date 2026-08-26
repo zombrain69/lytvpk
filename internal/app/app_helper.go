@@ -1,12 +1,59 @@
 package app
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/hymkor/trash-go"
 )
+
+func copyRegularFile(srcPath, destPath string) error {
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	info, err := src.Stat()
+	if err != nil {
+		return err
+	}
+	dest, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(dest, src); err != nil {
+		dest.Close()
+		_ = os.Remove(destPath)
+		return err
+	}
+	if err := dest.Close(); err != nil {
+		_ = os.Remove(destPath)
+		return err
+	}
+	return nil
+}
+
+func copySidecarFiles(srcPath, destPath string) error {
+	srcExt := filepath.Ext(srcPath)
+	srcBase := strings.TrimSuffix(srcPath, srcExt)
+	destExt := filepath.Ext(destPath)
+	destBase := strings.TrimSuffix(destPath, destExt)
+	for _, ext := range []string{".jpg", ".jpeg", ".png", ".gif", ".meta"} {
+		srcSidecar := srcBase + ext
+		if _, err := os.Stat(srcSidecar); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if err := copyRegularFile(srcSidecar, destBase+ext); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // handleSidecarFile 处理伴随文件（如同名图片）的移动/重命名/删除
 // op: "move", "delete" (rename is essentially move)

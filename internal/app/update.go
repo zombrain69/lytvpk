@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -20,6 +21,10 @@ import (
 // 全局变量存储下载地址，避免 DoUpdate 时再次请求 API 导致速率限制或网络错误
 var pendingUpdateURL string
 
+const unconfiguredUpdateSourceMessage = "此 Community Fork 尚未配置 GitHub 发布源；不会检查或安装 LaoYutang/lytvpk 的更新。"
+
+var githubRepositoryPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]+$`)
+
 // UpdateInfo 返回给前端的结构体
 type UpdateInfo struct {
 	HasUpdate   bool   `json:"has_update"`
@@ -30,14 +35,66 @@ type UpdateInfo struct {
 	Error       string `json:"error,omitempty"`
 }
 
+// ForkInfo gives the frontend a single source of truth for the fork identity.
+// The upstream URL remains visible for attribution but is never a release URL.
+type ForkInfo struct {
+	Name         string `json:"name"`
+	AppVersion   string `json:"app_version"`
+	UpstreamRepo string `json:"upstream_repo"`
+	UpdateRepo   string `json:"update_repo"`
+	SourceURL    string `json:"source_url"`
+	IssuesURL    string `json:"issues_url"`
+	Configured   bool   `json:"configured"`
+	Error        string `json:"error,omitempty"`
+}
+
 // GithubRelease 简化的 GitHub Release 结构
 type GithubRelease struct {
-	TagName string `json:"tag_name"`
-	Body    string `json:"body"`
-	Assets  []struct {
-		BrowserDownloadURL string `json:"browser_download_url"`
-		Name               string `json:"name"`
-	} `json:"assets"`
+	TagName string               `json:"tag_name"`
+	Body    string               `json:"body"`
+	Assets  []GithubReleaseAsset `json:"assets"`
+}
+
+// GithubReleaseAsset is deliberately named so updater selection can be unit
+// tested without relying on a live GitHub response.
+type GithubReleaseAsset struct {
+	BrowserDownloadURL string `json:"browser_download_url"`
+	Name               string `json:"name"`
+}
+
+func configuredUpdateRepo() (string, error) {
+	repo := strings.TrimSpace(UpdateRepo)
+	if repo == "" {
+		return "", fmt.Errorf(unconfiguredUpdateSourceMessage)
+	}
+	if !githubRepositoryPattern.MatchString(repo) {
+		return "", fmt.Errorf("Fork GitHub 发布源格式无效（应为 owner/repo）")
+	}
+	if strings.EqualFold(repo, UpstreamGithubRepo) {
+		return "", fmt.Errorf("Fork GitHub 发布源不能指向上游 %s", UpstreamGithubRepo)
+	}
+	return repo, nil
+}
+
+// GetForkInfo exposes release/source links for the About page without ever
+// falling back to the upstream repository.
+func (a *App) GetForkInfo() ForkInfo {
+	info := ForkInfo{
+		Name:         "LytVPK Community Fork",
+		AppVersion:   AppVersion,
+		UpstreamRepo: UpstreamGithubRepo,
+	}
+	repo, err := configuredUpdateRepo()
+	if err != nil {
+		info.Error = err.Error()
+		return info
+	}
+
+	info.Configured = true
+	info.UpdateRepo = repo
+	info.SourceURL = "https://github.com/" + repo
+	info.IssuesURL = info.SourceURL + "/issues/new/choose"
+	return info
 }
 
 // MirrorList 镜像源列表 (与前端保持一致)
@@ -110,170 +167,82 @@ func fetchReleases(repo string) ([]GithubRelease, error) {
 	return releases, nil
 }
 
-// fetchLatestTagFromMirror 通过镜像获取最新 Tag (解析重定向)
-func fetchLatestTagFromMirror(repo, mirror string) (string, error) {
-	// 构造 URL: mirror + https://github.com/user/repo/releases/latest
-	target := fmt.Sprintf("%shttps://github.com/%s/releases/latest", mirror, repo)
-
-	client := &http.Client{
-		Timeout: 15 * time.Second,
-		// 默认会自动跟随重定向
+func selectWindowsAMD64ZipAsset(release GithubRelease) string {
+	for _, asset := range release.Assets {
+		if strings.HasSuffix(strings.ToLower(asset.Name), "windows_amd64.zip") {
+			return asset.BrowserDownloadURL
+		}
 	}
-
-	resp, err := client.Get(target)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	// 检查最终 URL
-	finalURL := resp.Request.URL.String()
-	// 预期格式: .../releases/tag/v1.0.0
-	parts := strings.Split(finalURL, "/tag/")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("无法从 URL 解析版本号: %s", finalURL)
-	}
-
-	return parts[len(parts)-1], nil
+	return ""
 }
 
 // CheckUpdate 检查更新
 func (a *App) CheckUpdate() UpdateInfo {
+	pendingUpdateURL = ""
+
+	repo, err := configuredUpdateRepo()
+	if err != nil {
+		return UpdateInfo{CurrentVer: AppVersion, Error: err.Error()}
+	}
+
 	// 1. 解析当前版本
 	vCurrent, err := semver.ParseTolerant(AppVersion)
 	if err != nil {
-		return UpdateInfo{Error: "当前版本号格式错误: " + err.Error()}
+		return UpdateInfo{CurrentVer: AppVersion, Error: "当前版本号格式错误: " + err.Error()}
 	}
 
-	var release *GithubRelease
-	var fetchErr error
-
-	// 2. 尝试直连 GitHub API 获取列表
-	releases, err := fetchReleases(GithubRepo)
-	if err == nil && len(releases) > 0 {
-		// 寻找最新版本
-		var bestRel GithubRelease
-		var maxVer semver.Version
-		found := false
-
-		for _, r := range releases {
-			v, parseErr := semver.ParseTolerant(r.TagName)
-			if parseErr != nil {
-				continue
-			}
-			if !found || v.GT(maxVer) {
-				maxVer = v
-				bestRel = r
-				found = true
-			}
-		}
-
-		if found {
-			// 如果有更新，聚合日志
-			if maxVer.GT(vCurrent) {
-				var sb strings.Builder
-				for _, r := range releases {
-					v, parseErr := semver.ParseTolerant(r.TagName)
-					if parseErr != nil {
-						continue
-					}
-					if v.GT(vCurrent) {
-						sb.WriteString(fmt.Sprintf("【%s】\n%s\n\n", r.TagName, r.Body))
-					}
-				}
-				bestRel.Body = sb.String()
-			}
-			release = &bestRel
-		} else {
-			fetchErr = fmt.Errorf("no valid versions found")
-		}
-	} else {
-		if err != nil {
-			fetchErr = err
-		} else {
-			fetchErr = fmt.Errorf("empty release list")
-		}
-	}
-
-	// 3. 如果直连失败，尝试遍历镜像源
-	if fetchErr != nil {
-		fmt.Printf("直连失败: %v，尝试使用镜像源...\n", fetchErr)
-
-		for _, mirror := range MirrorList {
-			tag, mirrorErr := fetchLatestTagFromMirror(GithubRepo, mirror)
-			if mirrorErr == nil && tag != "" {
-				fmt.Printf("通过镜像 %s 获取到版本: %s\n", mirror, tag)
-				// 构造一个伪造的 release 对象
-				release = &GithubRelease{
-					TagName: tag,
-					Body:    "由于网络原因，无法获取详细更新日志。\n(通过镜像源检测)",
-				}
-				// 构造下载地址 (假设文件名格式)
-				// LytVPK-MOD-Manager_v1.0.0_windows_amd64.zip
-				filename := fmt.Sprintf("LytVPK-MOD-Manager_%s_windows_amd64.zip", tag)
-				release.Assets = []struct {
-					BrowserDownloadURL string `json:"browser_download_url"`
-					Name               string `json:"name"`
-				}{
-					{
-						Name:               filename,
-						BrowserDownloadURL: fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", GithubRepo, tag, filename),
-					},
-				}
-				fetchErr = nil // 清除错误
-				break
-			} else {
-				fmt.Printf("镜像 %s 失败: %v\n", mirror, mirrorErr)
-			}
-		}
-	}
-
-	if fetchErr != nil {
-		return UpdateInfo{Error: "检查更新失败(所有源均不可用): " + fetchErr.Error()}
-	}
-
-	// 4. 解析最新版本号
-	vLatest, err := semver.ParseTolerant(release.TagName)
+	// 2. 仅从此 Fork 的 GitHub Releases API 读取版本与真实资产。
+	// 不从上游或镜像页面猜测资产名，避免下载错误/不可验证的 ZIP。
+	releases, err := fetchReleases(repo)
 	if err != nil {
-		return UpdateInfo{Error: "最新版本号格式错误: " + err.Error()}
+		return UpdateInfo{CurrentVer: AppVersion, Error: "检查 Fork 更新失败: " + err.Error()}
+	}
+	if len(releases) == 0 {
+		return UpdateInfo{CurrentVer: AppVersion, Error: "检查 Fork 更新失败: 未找到 Release"}
 	}
 
-	// 5. 比较版本
-	if vLatest.GT(vCurrent) {
-		// 预先解析下载地址
-		var url string
-
-		// 优先匹配精确架构 (兼容旧的命名方式和新的命名方式)
-		// 新: LytVPK-MOD-Manager_v1.0.0_windows_amd64.zip
-		// 旧: lytvpk_v1.0.0_windows_amd64.zip
-		// 通用匹配: windows_amd64.zip
-		suffix := "windows_amd64.zip"
-
-		for _, asset := range release.Assets {
-			if strings.HasSuffix(asset.Name, suffix) {
-				url = asset.BrowserDownloadURL
-				break
-			}
+	var bestRel GithubRelease
+	var maxVer semver.Version
+	found := false
+	for _, release := range releases {
+		version, parseErr := semver.ParseTolerant(release.TagName)
+		if parseErr != nil {
+			continue
 		}
+		if !found || version.GT(maxVer) {
+			maxVer = version
+			bestRel = release
+			found = true
+		}
+	}
+	if !found {
+		return UpdateInfo{CurrentVer: AppVersion, Error: "检查 Fork 更新失败: 没有有效的语义化版本标签"}
+	}
 
-		// 降级匹配任意 zip
+	if maxVer.GT(vCurrent) {
+		url := selectWindowsAMD64ZipAsset(bestRel)
 		if url == "" {
-			for _, asset := range release.Assets {
-				if strings.HasSuffix(asset.Name, ".zip") {
-					url = asset.BrowserDownloadURL
-					break
-				}
+			return UpdateInfo{
+				CurrentVer: AppVersion,
+				LatestVer:  maxVer.String(),
+				Error:      "最新 Fork Release 未提供 windows_amd64.zip 安装包",
 			}
 		}
 
-		// 存入全局变量
-		pendingUpdateURL = url
+		var notes strings.Builder
+		for _, release := range releases {
+			version, parseErr := semver.ParseTolerant(release.TagName)
+			if parseErr == nil && version.GT(vCurrent) {
+				notes.WriteString(fmt.Sprintf("【%s】\n%s\n\n", release.TagName, release.Body))
+			}
+		}
 
+		pendingUpdateURL = url
 		return UpdateInfo{
 			HasUpdate:   true,
-			LatestVer:   vLatest.String(),
+			LatestVer:   maxVer.String(),
 			CurrentVer:  AppVersion,
-			ReleaseNote: release.Body,
+			ReleaseNote: notes.String(),
 			DownloadURL: url,
 		}
 	}
@@ -281,7 +250,7 @@ func (a *App) CheckUpdate() UpdateInfo {
 	return UpdateInfo{
 		HasUpdate:  false,
 		CurrentVer: AppVersion,
-		LatestVer:  vLatest.String(),
+		LatestVer:  maxVer.String(),
 	}
 }
 
@@ -395,6 +364,10 @@ func (a *App) GetMirrorsWithLatency() []MirrorWithLatency {
 
 // DoUpdate 执行更新
 func (a *App) DoUpdate(mirror string) string {
+	if _, err := configuredUpdateRepo(); err != nil {
+		return err.Error()
+	}
+
 	downloadURL := pendingUpdateURL
 
 	// 如果缓存为空，尝试重新获取

@@ -2,41 +2,55 @@ const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
   interface: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8"/><path d="M12 18v2"/></svg>`,
   workshop: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg>`,
+  addonlist: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M16 3v4h4"/><path d="M8 11h8M8 15h8"/></svg>`,
 };
 
-export async function renderSettingsPage({
-  appState,
-  getConfig,
-  saveConfig,
-  renderFileList,
-  renderTagFilters,
-  refreshFilesKeepFilter,
-  showNotification,
-  GetWorkshopPreferredIP,
-  GetWorkshopFixedIP,
-  GetWorkshopIPOptions,
-  GetWorkshopMetaEnabled,
-  GetWorkshopUpdateCheckEnabled,
-  GetWorkshopBrowserTarget,
-  GetWorkshopTranslateProvider,
-  GetWorkshopTranslateCustomBaseURL,
-  GetWorkshopTranslateCustomModelId,
-  HasWorkshopTranslateCustomAPIKey,
-  IsSelectingIP,
-  GetCurrentBestIP,
-  GetCurrentBestIPOption,
-  SetWorkshopPreferredIP,
-  SetWorkshopFixedIP,
-  SetWorkshopMetaEnabled,
-  SetWorkshopUpdateCheckEnabled,
-  SetWorkshopBrowserTarget,
-  SetWorkshopTranslateProvider,
-  SetWorkshopTranslateCustomBaseURL,
-  SetWorkshopTranslateCustomModelId,
-  SetWorkshopTranslateCustomAPIKey,
-  CheckModUpdates,
-  EventsOn,
-}) {
+let addonListMergePreview = null;
+
+export async function renderSettingsPage(deps) {
+  const {
+    appState,
+    getConfig,
+    saveConfig,
+    renderFileList,
+    renderTagFilters,
+    refreshFilesKeepFilter,
+    showNotification,
+    GetWorkshopPreferredIP,
+    GetWorkshopFixedIP,
+    GetWorkshopIPOptions,
+    GetWorkshopMetaEnabled,
+    GetWorkshopUpdateCheckEnabled,
+    GetWorkshopBrowserTarget,
+    GetWorkshopTranslateProvider,
+    GetWorkshopTranslateCustomBaseURL,
+    GetWorkshopTranslateCustomModelId,
+    HasWorkshopTranslateCustomAPIKey,
+    IsSelectingIP,
+    GetCurrentBestIP,
+    GetCurrentBestIPOption,
+    SetWorkshopPreferredIP,
+    SetWorkshopFixedIP,
+    SetWorkshopMetaEnabled,
+    SetWorkshopUpdateCheckEnabled,
+    SetWorkshopBrowserTarget,
+    SetWorkshopTranslateProvider,
+    SetWorkshopTranslateCustomBaseURL,
+    SetWorkshopTranslateCustomModelId,
+    SetWorkshopTranslateCustomAPIKey,
+    CheckModUpdates,
+    EventsOn,
+    GetAddonListManagerState,
+    SaveAddonListManagedSnapshot,
+    CreateAddonListBackup,
+    RestoreAddonListBackup,
+    DeleteAddonListBackup,
+    DeleteAddonList,
+    SetAddonListGuardEnabled,
+    SelectAddonListMergeSource,
+    PreviewAddonListMerge,
+    ApplyAddonListMerge,
+  } = deps;
   const container = document.getElementById("settings-page-content");
   if (!container) return;
 
@@ -54,6 +68,19 @@ export async function renderSettingsPage({
   const ipOptions = [];
   const bestIPOption = enabled && !isSelecting ? await GetCurrentBestIPOption() : null;
   const bestIP = getIPOptionIP(bestIPOption) || (enabled && !isSelecting ? await GetCurrentBestIP() : "");
+  let addonListInfo = null;
+  let addonListBackups = [];
+  let addonListError = "";
+  try {
+    const addonListManagerState = parseAddonListManagerState(await GetAddonListManagerState());
+    addonListInfo = addonListManagerState.info;
+    addonListBackups = addonListManagerState.backups;
+  } catch (error) {
+    addonListError = String(error?.message || error || "无法读取 addonlist.txt 状态");
+  }
+  if (addonListMergePreview && addonListInfo?.path && addonListMergePreview.targetPath?.toLowerCase() !== addonListInfo.path.toLowerCase()) {
+    addonListMergePreview = null;
+  }
 
   let ipStatusText = "";
   if (enabled) {
@@ -73,6 +100,7 @@ export async function renderSettingsPage({
         <button class="settings-nav-item active" data-panel="network">网络设置</button>
         <button class="settings-nav-item" data-panel="interface">界面设置</button>
         <button class="settings-nav-item" data-panel="workshop">工坊设置</button>
+        <button class="settings-nav-item" data-panel="addonlist">游戏配置</button>
       </div>
       <div class="settings-content">
         <div class="settings-panels-track">
@@ -247,6 +275,75 @@ export async function renderSettingsPage({
           </div>
         </div>
 
+        <div class="settings-panel" id="settings-panel-addonlist">
+          <div class="setting-card">
+            <div class="setting-card-title">addonlist.txt 生命周期管理</div>
+            <div class="setting-row addonlist-status-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">目标文件</div>
+                <div class="setting-row-desc addonlist-path">${escapeHtml(addonListInfo?.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</div>
+                ${addonListError ? `<div class="addonlist-status-error">${escapeHtml(addonListError)}</div>` : ""}
+              </div>
+            </div>
+            ${addonListInfo ? `
+              <div class="addonlist-status-grid">
+                <div><span>文件状态</span><strong>${addonListInfo.exists ? "存在" : "不存在"}</strong></div>
+                <div><span>编码 / 大小</span><strong>${escapeHtml(addonListInfo.encoding || "—")} / ${formatAddonListBytes(addonListInfo.size)}</strong></div>
+                <div><span>最后修改</span><strong>${escapeHtml(formatAddonListTime(addonListInfo.lastModified))}</strong></div>
+                <div><span>受保护版本</span><strong>${addonListInfo.managedSnapshotExists ? "已保存" : "未保存"}</strong></div>
+              </div>
+              <div class="addonlist-action-row">
+                <button type="button" id="settings-addonlist-save-snapshot" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>保存当前配置为受保护版本</button>
+                <button type="button" id="settings-addonlist-create-backup" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>创建历史备份</button>
+              </div>
+              <div class="setting-row addonlist-guard-row">
+                <div class="setting-row-info">
+                  <div class="setting-row-label">监控并自动恢复</div>
+                  <div class="setting-row-desc">应用运行期间，检测到游戏稳定写入或删除 addonlist.txt 后，将恢复受保护版本，并保留被覆盖内容的备份。</div>
+                  ${addonListInfo.lastGuardRestore ? `<div class="setting-row-status">最近自动恢复：${escapeHtml(formatAddonListTime(addonListInfo.lastGuardRestore))}</div>` : ""}
+                  ${addonListInfo.lastGuardError ? `<div class="addonlist-status-error">监控状态：${escapeHtml(addonListInfo.lastGuardError)}</div>` : ""}
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settings-addonlist-guard" ${addonListInfo.guardEnabled ? "checked" : ""} ${addonListInfo.exists || addonListInfo.managedSnapshotExists ? "" : "disabled"}>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="addonlist-danger-zone">
+                <button type="button" id="settings-addonlist-delete" class="trigger-check-btn addonlist-danger-btn" ${addonListInfo.exists ? "" : "disabled"}>删除 addonlist.txt</button>
+                <span>删除前会自动保留一份可恢复的历史备份，同时关闭监控并移除受保护版本。</span>
+              </div>
+            ` : ""}
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">历史备份</div>
+            ${addonListInfo ? (addonListBackups.length > 0 ? `
+              <div class="addonlist-backup-list">
+                ${addonListBackups.map((backup) => `
+                  <div class="addonlist-backup-item">
+                    <div class="addonlist-backup-main">
+                      <strong>${escapeHtml(formatAddonListBackupKind(backup.kind))}</strong>
+                      <span>${escapeHtml(formatAddonListTime(backup.createdAt))} · ${formatAddonListBytes(backup.size)}</span>
+                    </div>
+                    <div class="addonlist-backup-actions">
+                      <button type="button" class="addonlist-backup-restore" data-addonlist-backup="${escapeAttr(backup.name)}">恢复</button>
+                      <button type="button" class="addonlist-backup-delete" data-addonlist-backup="${escapeAttr(backup.name)}">删除</button>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            ` : `<div class="setting-row-desc">暂无历史备份。创建备份、恢复备份、自动恢复和删除配置前都会在这里保留记录。</div>`) : ""}
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">融合其他 Mod 文件夹配置</div>
+            <div class="setting-row-desc">选择另一份 addonlist.txt。新增 Mod 会保留来源开关；相同 Mod 的冲突默认保留当前开关，可逐项勾选采用来源开关。</div>
+            <div class="addonlist-action-row addonlist-merge-action-row">
+              <button type="button" id="settings-addonlist-select-merge-source" class="trigger-check-btn addonlist-action-btn">选择其他 addonlist.txt</button>
+              ${addonListMergePreview ? `<button type="button" id="settings-addonlist-cancel-merge" class="trigger-check-btn addonlist-secondary-btn">取消本次融合</button>` : ""}
+            </div>
+            ${renderAddonListMergePreview(addonListMergePreview)}
+          </div>
+        </div>
+
         </div>
       </div>
     </div>
@@ -282,6 +379,17 @@ export async function renderSettingsPage({
     SetWorkshopTranslateCustomAPIKey,
     CheckModUpdates,
     EventsOn,
+    GetAddonListManagerState,
+    SaveAddonListManagedSnapshot,
+    CreateAddonListBackup,
+    RestoreAddonListBackup,
+    DeleteAddonListBackup,
+    DeleteAddonList,
+    SetAddonListGuardEnabled,
+    SelectAddonListMergeSource,
+    PreviewAddonListMerge,
+    ApplyAddonListMerge,
+    refreshAddonListPanel: () => renderSettingsPage(deps),
   });
 }
 
@@ -587,6 +695,150 @@ function bindSettingsPage(deps) {
     deps.showNotification("已更新自定义AI模型ID", "success");
   });
 
+  const refreshAddonListPanel = async () => {
+    await deps.refreshAddonListPanel?.();
+  };
+  const refreshAddonListFiles = async () => {
+    await deps.refreshFilesKeepFilter?.();
+  };
+
+  document.getElementById("settings-addonlist-save-snapshot")?.addEventListener("click", async () => {
+    try {
+      await deps.SaveAddonListManagedSnapshot();
+      deps.showNotification("已保存 addonlist.txt 受保护版本", "success");
+      await refreshAddonListPanel();
+    } catch (error) {
+      deps.showNotification("保存受保护版本失败: " + error, "error");
+    }
+  });
+
+  document.getElementById("settings-addonlist-create-backup")?.addEventListener("click", async () => {
+    try {
+      await deps.CreateAddonListBackup();
+      deps.showNotification("已创建 addonlist.txt 历史备份", "success");
+      await refreshAddonListPanel();
+    } catch (error) {
+      deps.showNotification("创建备份失败: " + error, "error");
+    }
+  });
+
+  document.getElementById("settings-addonlist-guard")?.addEventListener("change", async (event) => {
+    const enabled = event.target.checked;
+    try {
+      await deps.SetAddonListGuardEnabled(enabled);
+      deps.showNotification(enabled ? "已开启 addonlist.txt 自动恢复监控" : "已关闭 addonlist.txt 自动恢复监控", enabled ? "success" : "info");
+      await refreshAddonListPanel();
+    } catch (error) {
+      event.target.checked = !enabled;
+      deps.showNotification("更新监控状态失败: " + error, "error");
+    }
+  });
+
+  document.querySelectorAll(".addonlist-backup-restore").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const name = button.dataset.addonlistBackup;
+      if (!name || !window.confirm("恢复这份备份？当前 addonlist.txt 会先自动备份，然后被替换。")) return;
+      try {
+        await deps.RestoreAddonListBackup(name);
+        await refreshAddonListFiles();
+        deps.showNotification("已恢复 addonlist.txt 备份并同步受保护版本", "success");
+        await refreshAddonListPanel();
+      } catch (error) {
+        deps.showNotification("恢复备份失败: " + error, "error");
+      }
+    });
+  });
+
+  document.querySelectorAll(".addonlist-backup-delete").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const name = button.dataset.addonlistBackup;
+      if (!name || !window.confirm("删除这份历史备份？该操作不可撤销。")) return;
+      try {
+        await deps.DeleteAddonListBackup(name);
+        deps.showNotification("已删除历史备份", "info");
+        await refreshAddonListPanel();
+      } catch (error) {
+        deps.showNotification("删除备份失败: " + error, "error");
+      }
+    });
+  });
+
+  document.getElementById("settings-addonlist-delete")?.addEventListener("click", async () => {
+    if (!window.confirm("删除 addonlist.txt？程序会先创建历史备份；自动恢复监控会关闭，受保护版本也会移除。")) return;
+    try {
+      await deps.DeleteAddonList();
+      await refreshAddonListFiles();
+      deps.showNotification("已删除 addonlist.txt，并保留删除前备份", "info");
+      await refreshAddonListPanel();
+    } catch (error) {
+      deps.showNotification("删除 addonlist.txt 失败: " + error, "error");
+    }
+  });
+
+  document.getElementById("settings-addonlist-select-merge-source")?.addEventListener("click", async () => {
+    try {
+      const sourcePath = await deps.SelectAddonListMergeSource();
+      if (!sourcePath) return;
+      addonListMergePreview = await deps.PreviewAddonListMerge(sourcePath);
+      deps.showNotification("已读取融合差异，请确认冲突项的开关选择", "info");
+      await refreshAddonListPanel();
+    } catch (error) {
+      deps.showNotification("读取融合差异失败: " + error, "error");
+    }
+  });
+
+  document.getElementById("settings-addonlist-cancel-merge")?.addEventListener("click", async () => {
+    addonListMergePreview = null;
+    await refreshAddonListPanel();
+  });
+
+  document.getElementById("settings-addonlist-apply-merge")?.addEventListener("click", async () => {
+    if (!addonListMergePreview) return;
+    const sourceWinsKeys = Array.from(document.querySelectorAll(".addonlist-merge-conflict input:checked"))
+      .map((input) => input.dataset.addonlistMergeKey)
+      .filter(Boolean);
+    try {
+      await deps.ApplyAddonListMerge(addonListMergePreview.sourcePath, sourceWinsKeys);
+      addonListMergePreview = null;
+      await refreshAddonListFiles();
+      deps.showNotification("已融合 addonlist.txt 配置", "success");
+      await refreshAddonListPanel();
+    } catch (error) {
+      deps.showNotification("融合 addonlist.txt 失败: " + error, "error");
+    }
+  });
+
+}
+
+function renderAddonListMergePreview(preview) {
+  if (!preview) {
+    return `<div class="setting-row-desc addonlist-merge-empty">未选择来源配置。此功能也适用于临时维护的任意 Mod 文件夹。</div>`;
+  }
+  const added = Array.isArray(preview.added) ? preview.added : [];
+  const conflicts = Array.isArray(preview.conflicts) ? preview.conflicts : [];
+  return `
+    <div class="addonlist-merge-preview">
+      <div class="addonlist-merge-source">来源：${escapeHtml(preview.sourcePath || "")}</div>
+      <div class="addonlist-merge-summary">
+        <span>新增 ${added.length} 项（沿用来源开关）</span>
+        <span>开关冲突 ${conflicts.length} 项</span>
+      </div>
+      ${conflicts.length > 0 ? `
+        <div class="addonlist-merge-conflicts">
+          ${conflicts.map((conflict) => `
+            <label class="addonlist-merge-conflict">
+              <input type="checkbox" data-addonlist-merge-key="${escapeAttr(conflict.key || "")}">
+              <span class="addonlist-merge-conflict-name">${escapeHtml(conflict.key || "")}</span>
+              <span class="addonlist-merge-state">当前：${conflict.currentEnabled ? "开启" : "关闭"}</span>
+              <span class="addonlist-merge-state">来源：${conflict.sourceEnabled ? "开启" : "关闭"}</span>
+              <span class="addonlist-merge-adopt">勾选采用来源</span>
+            </label>
+          `).join("")}
+        </div>
+      ` : ""}
+      <button type="button" id="settings-addonlist-apply-merge" class="trigger-check-btn addonlist-action-btn" ${added.length || conflicts.length ? "" : "disabled"}>应用融合</button>
+    </div>
+  `;
 }
 
 function renderIPOptionDropdown({
@@ -861,4 +1113,36 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function formatAddonListBytes(size) {
+  const bytes = Number(size || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function formatAddonListTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function formatAddonListBackupKind(kind) {
+  const labels = {
+    manual: "手动备份",
+    external: "游戏覆盖前",
+    before: "恢复/删除前",
+  };
+  return labels[String(kind || "")] || "历史备份";
+}
+
+function parseAddonListManagerState(payload) {
+  const parsed = typeof payload === "string" ? JSON.parse(payload || "{}") : payload || {};
+  return {
+    info: parsed?.info || null,
+    backups: Array.isArray(parsed?.backups) ? parsed.backups : [],
+  };
 }

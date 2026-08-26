@@ -408,7 +408,7 @@ function updateSingleFileDisplay(file) {
       actionBtn.outerHTML = `
         <button class="btn-small action-btn move-btn" data-file-path="${file.path}" data-action="move">
           <span class="btn-icon">${iconSvg("package")}</span>
-          <span class="btn-text">转移</span>
+          <span class="btn-text">复制到 addons</span>
         </button>
       `;
     } else {

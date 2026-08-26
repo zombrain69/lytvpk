@@ -346,6 +346,12 @@ func (a *App) DeleteVPKFile(filePath string) error {
 		return fmt.Errorf("文件不存在: %s", filePath)
 	}
 
+	var cachedFile *VPKFile
+	if cached, ok := a.vpkCache.Load(filePath); ok {
+		file := cached.(*VPKFileCache).File
+		cachedFile = &file
+	}
+
 	// 使用 trash 库删除文件到回收站
 	err := trash.Throw(filePath)
 	if err != nil {
@@ -353,6 +359,9 @@ func (a *App) DeleteVPKFile(filePath string) error {
 	}
 	// 同步删除同名图片
 	a.handleSidecarFile(filePath, "", "delete")
+	if err := a.cleanupAddonListForRemovedVPK(filePath, cachedFile); err != nil {
+		return fmt.Errorf("文件已移入回收站，但 addonlist.txt 同步失败: %w", err)
+	}
 
 	return nil
 }
@@ -374,6 +383,12 @@ func (a *App) DeleteVPKFiles(filePaths []string) error {
 			continue
 		}
 
+		var cachedFile *VPKFile
+		if cached, ok := a.vpkCache.Load(filePath); ok {
+			file := cached.(*VPKFileCache).File
+			cachedFile = &file
+		}
+
 		// 使用 trash 库删除文件到回收站
 		err := trash.Throw(filePath)
 		if err != nil {
@@ -381,6 +396,9 @@ func (a *App) DeleteVPKFiles(filePaths []string) error {
 		} else {
 			// 同步删除同名图片
 			a.handleSidecarFile(filePath, "", "delete")
+			if err := a.cleanupAddonListForRemovedVPK(filePath, cachedFile); err != nil {
+				errs = append(errs, fmt.Sprintf("同步 addonlist.txt 失败 %s: %v", filePath, err))
+			}
 		}
 	}
 

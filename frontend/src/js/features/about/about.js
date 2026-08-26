@@ -1,9 +1,10 @@
 import logoUrl from "../../../assets/images/logo.png";
 
 const ABOUT_LINKS = {
-  repo: "https://github.com/LaoYutang/lytvpk",
-  license: "https://github.com/LaoYutang/lytvpk/blob/master/LICENSE",
-  issue: "https://github.com/LaoYutang/lytvpk/issues/new",
+  repo: "https://github.com/zombrain69/lytvpk",
+  license: "https://github.com/zombrain69/lytvpk/blob/master/LICENSE",
+  issue: "https://github.com/zombrain69/lytvpk/issues/new",
+  upstream: "https://github.com/LaoYutang/lytvpk",
 };
 
 export async function renderAboutPage({
@@ -42,7 +43,7 @@ export async function renderAboutPage({
             </div>
             <div>
               <dt>项目仓库</dt>
-              <dd>LaoYutang/lytvpk</dd>
+              <dd>zombrain69/lytvpk Community Fork</dd>
             </div>
             <div>
               <dt>问题反馈</dt>
@@ -60,6 +61,9 @@ export async function renderAboutPage({
           <div class="about-actions">
             <button class="about-action-btn primary" type="button" data-about-url="${ABOUT_LINKS.repo}">
               <span>打开 GitHub 仓库</span>
+            </button>
+            <button class="about-action-btn" type="button" data-about-url="${ABOUT_LINKS.upstream}">
+              <span>查看上游项目</span>
             </button>
             <button class="about-action-btn" type="button" data-about-url="${ABOUT_LINKS.license}">
               <span>查看开源协议</span>

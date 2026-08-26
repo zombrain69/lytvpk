@@ -834,12 +834,15 @@ html.dark-mode .toast-close:hover {
   .file-list-header,
   .file-item {
     grid-template-columns:
-      2.5rem minmax(11rem, 1fr) 5rem 5rem minmax(11rem, 1.25fr)
-      8rem;
+      2.5rem minmax(11rem, 1fr) 5rem 6rem minmax(11rem, 1.25fr) 12rem;
     font-size: var(--text-sm);
   }
 
   .file-location {
+    display: none;
+  }
+
+  .location-column {
     display: none;
   }
 }
@@ -889,7 +892,8 @@ html.dark-mode .toast-close:hover {
 
   .primary-tag-group,
   .secondary-tag-group,
-  .location-filter-group {
+  .location-filter-group,
+  .game-state-filter-group {
     width: 100%;
   }
 
@@ -904,13 +908,15 @@ html.dark-mode .toast-close:hover {
 
   .file-list-header,
   .file-item {
-    grid-template-columns: 2rem minmax(10rem, 1fr) 4rem 6rem;
+    grid-template-columns: 2rem minmax(10rem, 1fr) 4rem 6rem 7rem;
     gap: var(--spacing-2);
   }
 
   .file-status,
   .file-location,
-  .file-tags {
+  .file-tags,
+  .location-column,
+  .tags-column {
     display: none;
   }
 

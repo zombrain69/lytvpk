@@ -162,7 +162,7 @@ function buildSingleMenu(menu, file) {
   menu.appendChild(createMenuItem("详情", iconSvg("info"), () => showFileDetail(file.path)));
 
   if (file.location === "workshop") {
-    menu.appendChild(createMenuItem("转移", iconSvg("package"), () => moveFileToAddons(file.path)));
+    menu.appendChild(createMenuItem("复制到 addons", iconSvg("package"), () => moveFileToAddons(file.path)));
   } else {
     const isEnabled = file.enabled;
     menu.appendChild(

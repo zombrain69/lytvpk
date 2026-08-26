@@ -31,7 +31,7 @@ var officialTags = map[string]bool{
 	// 武器 - 手枪
 	"马格南": true, "小手枪": true,
 	// 武器 - 其他
-	"榴弹": true,
+	"榴弹": true, "榴弹发射器": true,
 
 	// 近战武器
 	"砍刀": true, "武士刀": true, "棒球棍": true, "匕首": true, "电锯": true,

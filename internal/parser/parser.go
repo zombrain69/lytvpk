@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"l4d2-manager-next/pkg/valve/vpk"
@@ -37,11 +38,12 @@ func ParseVPKFile(filePath string) (*VPKFile, error) {
 		Chapters:      make(map[string]ChapterInfo),
 	}
 
-	// 第一步:确定VPK的主要类型
-	vpkType := DetermineVPKType(archive)
+	// 第一步: 一次性建立目录索引；它只读取 VPK 的条目名称，不解压资源。
+	index := buildArchivePathIndex(archive)
+	vpkType := determineVPKType(index)
 
-	// 提前提取资源信息（预览图和addoninfo），为后续处理提供元数据支持
-	ExtractVPKResources(opener, archive, vpkFile, filePath)
+	// 提取资源信息（预览图和addoninfo），为后续处理提供元数据支持。
+	ExtractVPKResources(opener, index, vpkFile, filePath)
 
 	secondaryTags := make(map[string]bool)
 	chapters := make(map[string]ChapterInfo)
@@ -49,11 +51,11 @@ func ParseVPKFile(filePath string) (*VPKFile, error) {
 	// 第二步：根据类型进行专门的检测
 	switch vpkType {
 	case "地图":
-		ProcessMapVPK(opener, archive, vpkFile, secondaryTags, chapters)
+		ProcessMapVPK(opener, index, vpkFile, secondaryTags, chapters)
 	case "人物":
-		ProcessCharacterVPK(archive, vpkFile, secondaryTags)
+		ProcessCharacterVPK(index, vpkFile, secondaryTags)
 	case "武器":
-		ProcessWeaponVPK(archive, vpkFile, secondaryTags)
+		ProcessWeaponVPK(index, vpkFile, secondaryTags)
 	default:
 		// 其他类型
 		vpkFile.PrimaryTag = "其他"
@@ -62,11 +64,19 @@ func ParseVPKFile(filePath string) (*VPKFile, error) {
 		// 注意：不在这里 return，让它继续执行提取预览图的逻辑
 	}
 
+	// 主分类保持地图 > 人物 > 武器的既有优先级；但混合包仍可带有另一类
+	// 已确认资源。把这些作为附加二级标签后，前端便能筛选“人物 + AK47”、
+	// “地图 + HUD”等组合，而不会把 Mod 的主分类改错。
+	collectSupplementaryTypeTags(index, vpkType, secondaryTags)
+
+	// 一级类型表示 Mod 的主内容；额外的 UI、道具、环境等资源仍保留为
+	// 中文二级标签。纯“其他”内容无需调整前端即可按这些标签筛选；混合包
+	// 也会保留其附加内容证据。
+	mergeTagSet(secondaryTags, index.contentTags)
+	delete(secondaryTags, vpkFile.PrimaryTag)
+
 	// 设置最终的标签
-	vpkFile.SecondaryTags = []string{}
-	for tag := range secondaryTags {
-		vpkFile.SecondaryTags = append(vpkFile.SecondaryTags, tag)
-	}
+	vpkFile.SecondaryTags = sortedTagSet(secondaryTags)
 
 	vpkFile.Chapters = chapters
 
@@ -76,11 +86,63 @@ func ParseVPKFile(filePath string) (*VPKFile, error) {
 		// 允许 PrimaryTag 为空字符串（如果用户删除了）?
 		// 但通常 [Primary,Secondary] 格式意味着至少有一个为空?
 		// 如果 [] 空的，len(tagParts)==1 ("") -> primaryTag=""
-		vpkFile.PrimaryTag = pTag
-		vpkFile.SecondaryTags = sTags
+		vpkFile.PrimaryTag = strings.TrimSpace(pTag)
+		vpkFile.SecondaryTags = UniqueTagsExcluding(sTags, vpkFile.PrimaryTag)
 	}
 
 	return vpkFile, nil
+}
+
+// UniqueTagsExcluding trims and de-duplicates tags while preserving their first
+// appearance.  Comparison is case-insensitive so manually entered variants do
+// not create duplicate filter options; excluded is normally the primary tag.
+func UniqueTagsExcluding(tags []string, excluded ...string) []string {
+	excludedSet := make(map[string]struct{}, len(excluded))
+	for _, tag := range excluded {
+		if key := strings.ToLower(CanonicalTag(tag)); key != "" {
+			excludedSet[key] = struct{}{}
+		}
+	}
+	seen := make(map[string]struct{}, len(tags))
+	result := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		tag = CanonicalTag(tag)
+		if tag == "" {
+			continue
+		}
+		key := strings.ToLower(tag)
+		if _, skip := excludedSet[key]; skip {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, tag)
+	}
+	return result
+}
+
+// CanonicalTag maps historical aliases to one display/filter label.
+// "榴弹" was used by older versions while the category is "榴弹发射器";
+// keeping only the latter prevents semantically duplicate tags.
+func CanonicalTag(tag string) string {
+	tag = strings.TrimSpace(tag)
+	switch strings.ToLower(tag) {
+	case "榴弹":
+		return "榴弹发射器"
+	default:
+		return tag
+	}
+}
+
+func collectSupplementaryTypeTags(index archivePathIndex, primaryTag string, secondaryTags map[string]bool) {
+	if primaryTag != "人物" {
+		collectCharacterTags(index, secondaryTags)
+	}
+	if primaryTag != "武器" {
+		collectWeaponPathTags(index, secondaryTags)
+	}
 }
 
 var tagRegex = regexp.MustCompile(`^(_)?\[(.*?)\](.*)$`)
@@ -143,17 +205,43 @@ func GetSecondaryTags(vpkFiles []VPKFile, primaryTag string) []string {
 	for _, vpkFile := range vpkFiles {
 		if primaryTag == "" || vpkFile.PrimaryTag == primaryTag {
 			for _, tag := range vpkFile.SecondaryTags {
-				tagSet[tag] = true
+				if canonical := CanonicalTag(tag); canonical != "" && canonical != primaryTag {
+					tagSet[canonical] = true
+				}
 			}
 		}
 	}
 
-	result := make([]string, 0, len(tagSet))
+	return sortedTagSet(tagSet)
+}
+
+func sortedTagSet(tagSet map[string]bool) []string {
+	values := make([]string, 0, len(tagSet))
 	for tag := range tagSet {
+		if normalized := CanonicalTag(tag); normalized != "" {
+			values = append(values, normalized)
+		}
+	}
+	sort.Strings(values)
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, tag := range values {
+		key := strings.ToLower(tag)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
 		result = append(result, tag)
 	}
-
 	return result
+}
+
+func mergeTagSet(destination map[string]bool, source map[string]bool) {
+	for tag := range source {
+		if canonical := CanonicalTag(tag); canonical != "" {
+			destination[canonical] = true
+		}
+	}
 }
 
 // ExtractPreviewImage 从VPK中提取预览图并转换为Base64
@@ -311,61 +399,12 @@ func fileExists(filePath string) bool {
 
 // ExtractVPKResources 一次性提取VPK中的预览图和addoninfo信息
 // 优化性能：只遍历一次archive，同时查找预览图和addoninfo.txt
-func ExtractVPKResources(opener *vpk.Opener, archive *vpk.Archive, vpkFile *VPKFile, vpkFilePath string) {
-	var addonImageFile *vpk.File
-	var addonInfoFile *vpk.File
-	var previewFile *vpk.File
-
-	// 预览图匹配模式
-	previewPatterns := []string{
-		".jpg",
-		".jpeg",
-		".png",
-		"materials/vgui/maps/menu/",
-		"materials/vgui/loadingscreen",
-		"resource/overviews/",
-	}
-
-	// 只遍历一次archive，同时查找多个文件
-	for i := range archive.Files {
-		file := &archive.Files[i]
-		filename := strings.ToLower(file.Name())
-
-		// 查找 addonimage.jpg (最高优先级的预览图)
-		if addonImageFile == nil && filename == "addonimage.jpg" {
-			addonImageFile = file
-		}
-
-		// 查找 addoninfo.txt
-		if addonInfoFile == nil && filename == "addoninfo.txt" {
-			addonInfoFile = file
-		}
-
-		// 查找其他预览图（如果还没找到addonimage.jpg）
-		if previewFile == nil && addonImageFile == nil {
-			for _, pattern := range previewPatterns {
-				if strings.Contains(filename, pattern) {
-					if strings.HasSuffix(filename, ".png") ||
-						strings.HasSuffix(filename, ".jpg") ||
-						strings.HasSuffix(filename, ".jpeg") {
-						previewFile = file
-						break
-					}
-				}
-			}
-		}
-
-		// 如果所有需要的文件都找到了，提前退出循环
-		if addonImageFile != nil && addonInfoFile != nil {
-			break
-		}
-	}
-
-	// 处理预览图
-	vpkFile.PreviewImage = extractPreviewImageFromFiles(opener, addonImageFile, previewFile, vpkFilePath)
+func ExtractVPKResources(opener *vpk.Opener, index archivePathIndex, vpkFile *VPKFile, vpkFilePath string) {
+	// 索引在 ParseVPKFile 的唯一一次 archive.Files 遍历中已收集这些条目。
+	vpkFile.PreviewImage = extractPreviewImageFromFiles(opener, index.addonImageFile, index.previewFile, vpkFilePath)
 
 	// 处理addoninfo
-	parseAddonInfoFromFile(opener, addonInfoFile, vpkFile)
+	parseAddonInfoFromFile(opener, index.addonInfoFile, vpkFile)
 }
 
 // extractPreviewImageFromFiles 从找到的文件中提取预览图

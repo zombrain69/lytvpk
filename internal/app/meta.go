@@ -18,6 +18,10 @@ type WorkshopMeta struct {
 	FileURL      string `json:"file_url"`
 	DownloadedAt string `json:"downloaded_at"`
 	TimeUpdated  string `json:"time_updated"` // 远端最后更新时间（RFC3339）
+	// Tags 是完整标签列表，保留用于兼容和外部查看；PrimaryTag/SecondaryTags 保留前端的标签层级。
+	Tags          []string `json:"tags,omitempty"`
+	PrimaryTag    string   `json:"primary_tag,omitempty"`
+	SecondaryTags []string `json:"secondary_tags,omitempty"`
 }
 
 // GetMetaFilePath 根据VPK路径计算对应的.meta文件路径
@@ -28,8 +32,6 @@ func GetMetaFilePath(filePath string) string {
 
 // SaveWorkshopMeta 将工坊详情保存为.meta文件
 func SaveWorkshopMeta(filePath string, details WorkshopFileDetails) error {
-	metaPath := GetMetaFilePath(filePath)
-
 	meta := WorkshopMeta{
 		WorkshopID:   details.PublishedFileId,
 		Title:        details.Title,
@@ -39,13 +41,14 @@ func SaveWorkshopMeta(filePath string, details WorkshopFileDetails) error {
 		FileURL:      details.FileUrl,
 		DownloadedAt: time.Now().Format(time.RFC3339),
 	}
-
-	data, err := json.MarshalIndent(meta, "", "  ")
-	if err != nil {
+	if existing, err := LoadWorkshopMeta(filePath); err != nil {
 		return err
+	} else if existing != nil {
+		meta.Tags = append([]string(nil), existing.Tags...)
+		meta.PrimaryTag = existing.PrimaryTag
+		meta.SecondaryTags = append([]string(nil), existing.SecondaryTags...)
 	}
-
-	return os.WriteFile(metaPath, data, 0644)
+	return saveWorkshopMeta(filePath, &meta)
 }
 
 // LoadWorkshopMeta 读取.meta文件，不存在时返回nil
@@ -75,6 +78,13 @@ func UpdateWorkshopMetaTimeUpdated(filePath string, timeUpdated string) error {
 		return err
 	}
 	meta.TimeUpdated = timeUpdated
+	return saveWorkshopMeta(filePath, meta)
+}
+
+func saveWorkshopMeta(filePath string, meta *WorkshopMeta) error {
+	if meta == nil {
+		return nil
+	}
 	data, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
 		return err

@@ -71,6 +71,12 @@ type App struct {
 	modelStatsScanID       string
 	modelStatsScanRoot     string
 	modelStatsScanProgress ProgressInfo
+	addonListGuardMu       sync.Mutex
+	addonListMonitorMu     sync.Mutex
+	addonListMonitorStop   chan struct{}
+	addonListGuardEnabled  bool
+	addonListLastRestore   string
+	addonListLastError     string
 	forceClose             bool
 	restyClient            *resty.Client
 	proxyServer            *network.ImageProxyServer
@@ -124,6 +130,7 @@ type ConfigFile struct {
 	FilterLayoutMode               string           `json:"filterLayoutMode"`
 	BoxSelectionEnabled            *bool            `json:"boxSelectionEnabled,omitempty"`
 	CtrlClickSelectionEnabled      *bool            `json:"ctrlClickSelectionEnabled,omitempty"`
+	AddonListGuardEnabled          *bool            `json:"addonListGuardEnabled,omitempty"`
 	Theme                          string           `json:"theme"`
 	IgnoredVersion                 string           `json:"ignoredVersion"`
 	LastUpdateCheckTime            string           `json:"lastUpdateCheckTime"`
