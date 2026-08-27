@@ -64,12 +64,12 @@ function getGameToggleButton(file) {
 function getConflictSummaryBadge(file, className = "mod-conflict-badge") {
   if (!appState.conflictAnalysisEnabled) return "";
   if (appState.conflictAnalysisLoading) {
-    return `<span class="${className} pending" title="正在分析当前筛选结果的文件冲突">冲突分析中…</span>`;
+    return `<span class="${className} pending" title="正在将当前筛选目标与全部游戏内开启 Mod 对比">冲突分析中…</span>`;
   }
 
   const summary = appState.conflictByPath?.get(file.path);
   if (!summary) {
-    return `<span class="${className} none" title="当前筛选结果中未发现与此 Mod 重叠的文件">无冲突</span>`;
+    return `<span class="${className} none" title="未发现此 Mod 与任何游戏内开启 Mod 重叠的文件">无冲突</span>`;
   }
 
   const severityText =
@@ -419,7 +419,7 @@ export function createFileCard(file) {
           <polyline points="21 15 16 10 5 21"></polyline>
         </svg>
       </div>
-      <img class="card-preview-img ${showPlaceholder ? "hidden" : ""}" src="${previewSrc}" alt="${displayTitle}" loading="lazy" />
+      <img class="card-preview-img ${showPlaceholder ? "hidden" : ""}" src="${previewSrc}" alt="${displayTitle}" loading="lazy" decoding="async" />
       <div class="card-checkbox-container"></div>
       <div class="card-badges">
         <span class="card-badge location-badge">${getLocationDisplayName(file.location)}</span>

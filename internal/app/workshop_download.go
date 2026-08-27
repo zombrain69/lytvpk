@@ -89,7 +89,8 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 
 	updateStatus("downloading", "")
 
-	if a.rootDir == "" {
+	rootDir := a.rootDirectorySnapshot()
+	if rootDir == "" {
 		updateStatus("failed", "Root directory not set")
 		return
 	}
@@ -118,7 +119,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 	}
 
 	// Ensure temp directory exists
-	tempDir := filepath.Join(a.rootDir, "temp")
+	tempDir := filepath.Join(rootDir, "temp")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		updateStatus("failed", "Failed to create temp dir: "+err.Error())
 		return
@@ -159,7 +160,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 			}
 		} else {
 			// Chunked download succeeded
-			targetPath := filepath.Join(a.rootDir, filepath.Base(task.Filename))
+			targetPath := filepath.Join(rootDir, filepath.Base(task.Filename))
 
 			// For direct downloads, use timestamp for uniqueness
 			if strings.HasPrefix(task.WorkshopID, "direct-") {
@@ -169,7 +170,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 				taskManager.mu.Lock()
 				task.Filename = newFilename
 				taskManager.mu.Unlock()
-				targetPath = filepath.Join(a.rootDir, newFilename)
+				targetPath = filepath.Join(rootDir, newFilename)
 				runtime.EventsEmit(a.ctx, "task_updated", task)
 			}
 
@@ -214,7 +215,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 	tempFileName := hex.EncodeToString(hash[:])
 	tempPath := filepath.Join(tempDir, tempFileName)
 
-	targetPath := filepath.Join(a.rootDir, filepath.Base(task.Filename))
+	targetPath := filepath.Join(rootDir, filepath.Base(task.Filename))
 
 	out, err := os.Create(tempPath)
 	if err != nil {
@@ -361,7 +362,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 					}
 					taskManager.mu.Unlock()
 					// Update target path
-					targetPath = filepath.Join(a.rootDir, filename)
+					targetPath = filepath.Join(rootDir, filename)
 					runtime.EventsEmit(a.ctx, "task_updated", task)
 				}
 			}
@@ -374,7 +375,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		taskManager.mu.Lock()
 		task.Filename = newFilename
 		taskManager.mu.Unlock()
-		targetPath = filepath.Join(a.rootDir, newFilename)
+		targetPath = filepath.Join(rootDir, newFilename)
 		runtime.EventsEmit(a.ctx, "task_updated", task)
 	}
 
@@ -431,7 +432,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		// task.Title = newFilename // Keep original title for readability
 		taskManager.mu.Unlock()
 
-		targetPath = filepath.Join(a.rootDir, newFilename)
+		targetPath = filepath.Join(rootDir, newFilename)
 		runtime.EventsEmit(a.ctx, "task_updated", task)
 	}
 
@@ -506,7 +507,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 	ext := strings.ToLower(filepath.Ext(targetPath))
 	if strings.HasPrefix(task.WorkshopID, "direct-") && (ext == ".zip" || ext == ".rar" || ext == ".7z") {
 		updateStatus("downloading", "正在解压...")
-		err := a.ExtractVPKFromArchive(targetPath, a.rootDir)
+		err := a.ExtractVPKFromArchive(targetPath, rootDir)
 		if err != nil {
 			// 解压失败不影响下载成功的状态，但记录错误
 			fmt.Printf("解压压缩包失败: %v\n", err)
@@ -547,6 +548,10 @@ func (a *App) replaceExistingMod(newFilePath string, workshopID string) string {
 	if oldFilePath == "" {
 		return newFilePath
 	}
+	rootDir := a.rootDirectorySnapshot()
+	if rootDir == "" {
+		return newFilePath
+	}
 
 	log.Printf("发玏同ID旧Mod: %s (位置: %s)，准勇替换", oldFilePath, oldLocation)
 
@@ -554,11 +559,11 @@ func (a *App) replaceExistingMod(newFilePath string, workshopID string) string {
 	var targetDir string
 	switch oldLocation {
 	case "disabled":
-		targetDir = filepath.Join(a.rootDir, "disabled")
+		targetDir = filepath.Join(rootDir, "disabled")
 	case "workshop":
-		targetDir = filepath.Join(a.rootDir, "workshop")
+		targetDir = filepath.Join(rootDir, "workshop")
 	default:
-		targetDir = a.rootDir
+		targetDir = rootDir
 	}
 
 	// 删才旧文件及其关联文件（.meta, 预览图）

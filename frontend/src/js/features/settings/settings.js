@@ -41,9 +41,14 @@ let SetAddonListGuardEnabled;
 let SelectAddonListMergeSource;
 let PreviewAddonListMerge;
 let ApplyAddonListMerge;
+let GetAutoexecConfig;
+let SaveAutoexecConfig;
+let GetAutoexecCommandHelp;
+let AnalyzeAutoexecCommands;
+let OpenFileLocation;
 
 export function configureSettings(deps) {
-  ({ appState, getConfig, saveConfig, renderFileList, renderTagFilters, refreshFilesKeepFilter, showNotification, renderSettingsPage, GetWorkshopPreferredIP, GetWorkshopFixedIP, GetWorkshopIPOptions, GetWorkshopMetaEnabled, GetWorkshopUpdateCheckEnabled, GetWorkshopBrowserTarget, GetWorkshopTranslateProvider, GetWorkshopTranslateCustomBaseURL, GetWorkshopTranslateCustomModelId, HasWorkshopTranslateCustomAPIKey, IsSelectingIP, GetCurrentBestIP, GetCurrentBestIPOption, SetWorkshopPreferredIP, SetWorkshopFixedIP, SetWorkshopMetaEnabled, SetWorkshopUpdateCheckEnabled, SetWorkshopBrowserTarget, SetWorkshopTranslateProvider, SetWorkshopTranslateCustomBaseURL, SetWorkshopTranslateCustomModelId, SetWorkshopTranslateCustomAPIKey, CheckModUpdates, EventsOn, switchAppPage, GetAddonListManagerState, SaveAddonListManagedSnapshot, CreateAddonListBackup, RestoreAddonListBackup, DeleteAddonListBackup, DeleteAddonList, SetAddonListGuardEnabled, SelectAddonListMergeSource, PreviewAddonListMerge, ApplyAddonListMerge } = deps);
+  ({ appState, getConfig, saveConfig, renderFileList, renderTagFilters, refreshFilesKeepFilter, showNotification, renderSettingsPage, GetWorkshopPreferredIP, GetWorkshopFixedIP, GetWorkshopIPOptions, GetWorkshopMetaEnabled, GetWorkshopUpdateCheckEnabled, GetWorkshopBrowserTarget, GetWorkshopTranslateProvider, GetWorkshopTranslateCustomBaseURL, GetWorkshopTranslateCustomModelId, HasWorkshopTranslateCustomAPIKey, IsSelectingIP, GetCurrentBestIP, GetCurrentBestIPOption, SetWorkshopPreferredIP, SetWorkshopFixedIP, SetWorkshopMetaEnabled, SetWorkshopUpdateCheckEnabled, SetWorkshopBrowserTarget, SetWorkshopTranslateProvider, SetWorkshopTranslateCustomBaseURL, SetWorkshopTranslateCustomModelId, SetWorkshopTranslateCustomAPIKey, CheckModUpdates, EventsOn, switchAppPage, GetAddonListManagerState, SaveAddonListManagedSnapshot, CreateAddonListBackup, RestoreAddonListBackup, DeleteAddonListBackup, DeleteAddonList, SetAddonListGuardEnabled, SelectAddonListMergeSource, PreviewAddonListMerge, ApplyAddonListMerge, GetAutoexecConfig, SaveAutoexecConfig, GetAutoexecCommandHelp, AnalyzeAutoexecCommands, OpenFileLocation } = deps);
 }
 
 export async function showGlobalSettings() {
@@ -95,6 +100,11 @@ export async function renderSettingsPageWithDeps() {
       SelectAddonListMergeSource,
       PreviewAddonListMerge,
       ApplyAddonListMerge,
+      GetAutoexecConfig,
+      SaveAutoexecConfig,
+      GetAutoexecCommandHelp,
+      AnalyzeAutoexecCommands,
+      OpenFileLocation,
     });
   } catch (error) {
     console.error("设置页面渲染失败:", error);

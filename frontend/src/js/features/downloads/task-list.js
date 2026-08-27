@@ -70,8 +70,15 @@ export function createTaskElement(task) {
     cancelled: "已取消",
   };
 
+  const taskId = escapeHtml(task.id);
+  const taskTitle = escapeHtml(task.title || "");
+  const taskFilename = escapeHtml(task.filename || "");
+  const taskError = escapeHtml(task.error || "");
+  const taskStatus = escapeHtml(statusText[task.status] || task.status || "");
+  const taskFileURL = escapeHtml(task.file_url || "");
+  const progress = clampProgress(task.progress);
   const copyBtn = `
-    <button class="task-action-btn copy-link-btn" data-url="${task.file_url}" title="复制下载链接">
+    <button class="task-action-btn copy-link-btn" data-url="${taskFileURL}" title="复制下载链接">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -82,7 +89,7 @@ export function createTaskElement(task) {
   if (task.status === "downloading" || task.status === "pending" || task.status === "selecting_ip") {
     actionButtons = `
       ${copyBtn}
-      <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${task.id}" title="取消下载">
+      <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${taskId}" title="取消下载">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -91,7 +98,7 @@ export function createTaskElement(task) {
   } else if (task.status === "failed" || task.status === "cancelled") {
     actionButtons = `
       ${copyBtn}
-      <button class="task-action-btn retry-btn retry-task-btn" data-id="${task.id}" title="重试下载">
+      <button class="task-action-btn retry-btn retry-task-btn" data-id="${taskId}" title="重试下载">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M23 4v6h-6"></path>
           <path d="M1 20v-6h6"></path>
@@ -103,8 +110,9 @@ export function createTaskElement(task) {
   }
 
   let previewHtml = "";
-  if (task.preview_url) {
-    previewHtml = `<img src="${task.preview_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">`;
+  const previewURL = safeImageURL(task.preview_url);
+  if (previewURL) {
+    previewHtml = `<img src="${escapeHtml(previewURL)}" loading="lazy" decoding="async" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">`;
   } else {
     previewHtml = `
       <div style="width: 50px; height: 50px; background-color: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #888;">
@@ -120,21 +128,21 @@ export function createTaskElement(task) {
     ${previewHtml}
     <div class="task-content" style="flex: 1; min-width: 0;">
       <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <span class="task-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${task.title}</span>
+        <span class="task-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${taskTitle}</span>
         <div style="display: flex; align-items: center; gap: 5px;">
-          <span class="task-status" style="font-size: 12px; color: ${statusColors[task.status] || "#666"};">${statusText[task.status] || task.status}</span>
+          <span class="task-status" style="font-size: 12px; color: ${statusColors[task.status] || "#666"};">${taskStatus}</span>
           ${actionButtons}
         </div>
       </div>
-      <div style="font-size: 12px; color: #666; margin-bottom: 5px;">${task.filename}</div>
+      <div style="font-size: 12px; color: #666; margin-bottom: 5px;">${taskFilename}</div>
       <div class="progress-bar" style="width: 100%; height: 6px; background-color: #eee; border-radius: 3px; overflow: hidden;">
-        <div class="progress-fill" style="width: ${task.progress}%; height: 100%; background-color: ${statusColors[task.status] || "#ccc"}; transition: width 0.3s;"></div>
+        <div class="progress-fill" style="width: ${progress}%; height: 100%; background-color: ${statusColors[task.status] || "#ccc"}; transition: width 0.3s;"></div>
       </div>
       <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 2px;">
         <span class="task-size">${formatBytes(task.downloaded_size)} / ${formatBytes(task.total_size)} ${task.speed ? `(${task.speed})` : ""}</span>
-        <span class="task-percent">${task.progress}%</span>
+        <span class="task-percent">${progress}%</span>
       </div>
-      ${task.error ? `<div style="color: #f44336; font-size: 11px; margin-top: 2px;">${task.error}</div>` : ""}
+      ${taskError ? `<div style="color: #f44336; font-size: 11px; margin-top: 2px;">${taskError}</div>` : ""}
     </div>
   `;
 
@@ -335,12 +343,13 @@ export function updateTaskInList(task) {
 export function updateTaskProgress(task) {
   const el = document.getElementById(`task-${task.id}`);
   if (el) {
+    const progress = clampProgress(task.progress);
     const fill = el.querySelector(".progress-fill");
     const percentText = el.querySelector(".task-percent");
     const sizeText = el.querySelector(".task-size");
 
-    if (fill) fill.style.width = `${task.progress}%`;
-    if (percentText) percentText.textContent = `${task.progress}%`;
+    if (fill) fill.style.width = `${progress}%`;
+    if (percentText) percentText.textContent = `${progress}%`;
     if (sizeText) {
       sizeText.textContent = `${formatBytes(task.downloaded_size)} / ${formatBytes(task.total_size)} ${task.speed ? `(${task.speed})` : ""}`;
     }
@@ -357,10 +366,38 @@ export function setupClearCompletedTasks() {
 }
 
 function formatBytes(bytes, decimals = 2) {
-  if (bytes === 0) return "0 Bytes";
+  if (!Number.isFinite(Number(bytes)) || Number(bytes) <= 0) return "0 Bytes";
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+}
+
+function clampProgress(value) {
+  const progress = Number(value);
+  if (!Number.isFinite(progress)) return 0;
+  return Math.min(100, Math.max(0, Math.round(progress)));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function safeImageURL(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw, window.location.href);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
+    if (parsed.protocol === "data:" && parsed.pathname.startsWith("image/")) return raw;
+  } catch {
+    return "";
+  }
+  return "";
 }

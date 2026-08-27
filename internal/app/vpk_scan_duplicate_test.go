@@ -66,3 +66,22 @@ func TestScanVPKFilesKeepsSameNamedFilesInRootAndWorkshop(t *testing.T) {
 		t.Fatalf("expected both same-named VPK files in search results, got %d: %+v", len(searchResults), searchResults)
 	}
 }
+
+func TestGetLocationFromPathIsCaseInsensitive(t *testing.T) {
+	rootDir := filepath.Join(t.TempDir(), "addons")
+	app := &App{rootDir: rootDir}
+
+	cases := []struct {
+		path string
+		want string
+	}{
+		{filepath.Join(rootDir, "WORKSHOP", "mod.vpk"), "workshop"},
+		{filepath.Join(rootDir, "Disabled", "mod.vpk"), "disabled"},
+		{filepath.Join(rootDir, "mod.vpk"), "root"},
+	}
+	for _, tc := range cases {
+		if got := app.getLocationFromPath(tc.path); got != tc.want {
+			t.Errorf("getLocationFromPath(%q) = %q, want %q", tc.path, got, tc.want)
+		}
+	}
+}

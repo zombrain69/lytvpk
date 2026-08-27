@@ -50,6 +50,11 @@ export async function renderSettingsPage(deps) {
     SelectAddonListMergeSource,
     PreviewAddonListMerge,
     ApplyAddonListMerge,
+    GetAutoexecConfig,
+    SaveAutoexecConfig,
+    GetAutoexecCommandHelp,
+    AnalyzeAutoexecCommands,
+    OpenFileLocation,
   } = deps;
   const container = document.getElementById("settings-page-content");
   if (!container) return;
@@ -77,6 +82,19 @@ export async function renderSettingsPage(deps) {
     addonListBackups = addonListManagerState.backups;
   } catch (error) {
     addonListError = String(error?.message || error || "无法读取 addonlist.txt 状态");
+  }
+  let autoexecInfo = null;
+  let autoexecError = "";
+  let autoexecHelp = [];
+  let autoexecMatches = [];
+  try {
+    if (typeof GetAutoexecConfig === "function") {
+      autoexecInfo = await GetAutoexecConfig();
+      if (typeof GetAutoexecCommandHelp === "function") autoexecHelp = await GetAutoexecCommandHelp("");
+      if (typeof AnalyzeAutoexecCommands === "function") autoexecMatches = await AnalyzeAutoexecCommands(autoexecInfo?.content || "");
+    }
+  } catch (error) {
+    autoexecError = String(error?.message || error || "无法读取 autoexec.cfg");
   }
   if (addonListMergePreview && addonListInfo?.path && addonListMergePreview.targetPath?.toLowerCase() !== addonListInfo.path.toLowerCase()) {
     addonListMergePreview = null;
@@ -276,6 +294,36 @@ export async function renderSettingsPage(deps) {
         </div>
 
         <div class="settings-panel" id="settings-panel-addonlist">
+          <div class="setting-card autoexec-card">
+            <div class="setting-card-title">autoexec.cfg 编辑器与控制台指令小贴士</div>
+            <div class="setting-row-desc">编辑后保存会保留游戏文件原有的编码、BOM 和换行格式；内容只写入文件，不会在本程序中执行。未知指令可能来自插件或 Mod。</div>
+            <div class="autoexec-layout">
+              <div class="autoexec-editor-column">
+                <div class="autoexec-meta">
+                  <span class="autoexec-path">${escapeHtml(autoexecInfo?.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</span>
+                  <span>${autoexecInfo?.exists ? "文件存在" : "文件不存在，将在保存时创建"}</span>
+                  <span>${escapeHtml(autoexecInfo?.encoding || "UTF-8")} · ${escapeHtml(autoexecInfo?.lineEnding || "CRLF")}</span>
+                  <span>${formatAddonListBytes(autoexecInfo?.size)}</span>
+                  ${autoexecInfo?.lastModified ? `<span>修改于 ${escapeHtml(formatAddonListTime(autoexecInfo.lastModified))}</span>` : ""}
+                </div>
+                ${autoexecError ? `<div class="addonlist-status-error">${escapeHtml(autoexecError)}</div>` : ""}
+                <textarea id="settings-autoexec-content" class="autoexec-editor" spellcheck="false" aria-label="autoexec.cfg 内容">${escapeHtml(autoexecInfo?.content || "")}</textarea>
+                <div class="addonlist-action-row autoexec-action-row">
+                  <button type="button" id="settings-autoexec-save" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo ? "" : "disabled"}>保存 autoexec.cfg</button>
+                  <button type="button" id="settings-autoexec-reload" class="trigger-check-btn addonlist-action-btn">重新读取</button>
+                  <button type="button" id="settings-autoexec-open" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo?.exists ? "" : "disabled"}>打开文件位置</button>
+                </div>
+                <div class="autoexec-analysis" id="settings-autoexec-analysis">已识别 ${autoexecMatches.filter((item) => item.known).length} 个已收录指令，${autoexecMatches.filter((item) => !item.known).length} 个未知指令</div>
+              </div>
+              <aside class="autoexec-help-column">
+                <div class="autoexec-help-title">常用指令说明</div>
+                <input type="search" id="settings-autoexec-help-search" class="form-input" placeholder="搜索命令或含义">
+                <div id="settings-autoexec-help-list" class="autoexec-help-list">
+                  ${renderAutoexecHelpItems(autoexecHelp)}
+                </div>
+              </aside>
+            </div>
+          </div>
           <div class="setting-card">
             <div class="setting-card-title">addonlist.txt 生命周期管理</div>
             <div class="setting-row addonlist-status-row">
@@ -389,6 +437,13 @@ export async function renderSettingsPage(deps) {
     SelectAddonListMergeSource,
     PreviewAddonListMerge,
     ApplyAddonListMerge,
+    GetAutoexecConfig,
+    SaveAutoexecConfig,
+    GetAutoexecCommandHelp,
+    AnalyzeAutoexecCommands,
+    OpenFileLocation,
+    autoexecInfo,
+    autoexecHelp,
     refreshAddonListPanel: () => renderSettingsPage(deps),
   });
 }
@@ -693,6 +748,71 @@ function bindSettingsPage(deps) {
     config.workshopTranslateCustomModelId = modelId;
     deps.saveConfig(config);
     deps.showNotification("已更新自定义AI模型ID", "success");
+  });
+
+  const autoexecEditor = document.getElementById("settings-autoexec-content");
+  const autoexecAnalysis = document.getElementById("settings-autoexec-analysis");
+  const updateAutoexecAnalysis = async () => {
+    if (!autoexecEditor || typeof deps.AnalyzeAutoexecCommands !== "function") return;
+    try {
+      const matches = await deps.AnalyzeAutoexecCommands(autoexecEditor.value);
+      const known = matches.filter((item) => item.known).length;
+      const unknown = matches.length - known;
+      if (autoexecAnalysis) autoexecAnalysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令`;
+    } catch (error) {
+      if (autoexecAnalysis) autoexecAnalysis.textContent = `指令识别失败：${String(error?.message || error)}`;
+    }
+  };
+  autoexecEditor?.addEventListener("input", updateAutoexecAnalysis);
+  document.getElementById("settings-autoexec-save")?.addEventListener("click", async () => {
+    if (!autoexecEditor || typeof deps.SaveAutoexecConfig !== "function") return;
+    const button = document.getElementById("settings-autoexec-save");
+    if (button) button.disabled = true;
+    try {
+      await deps.SaveAutoexecConfig(autoexecEditor.value);
+      deps.showNotification("已保存 autoexec.cfg（编码与换行格式已保留）", "success");
+      await deps.refreshAddonListPanel?.();
+    } catch (error) {
+      deps.showNotification("保存 autoexec.cfg 失败: " + error, "error");
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+  document.getElementById("settings-autoexec-reload")?.addEventListener("click", async () => {
+    await deps.refreshAddonListPanel?.();
+    deps.showNotification("已重新读取 autoexec.cfg", "info");
+  });
+  document.getElementById("settings-autoexec-open")?.addEventListener("click", async () => {
+    if (!deps.autoexecInfo?.path || typeof deps.OpenFileLocation !== "function") return;
+    try {
+      await deps.OpenFileLocation(deps.autoexecInfo.path);
+    } catch (error) {
+      deps.showNotification("打开 autoexec.cfg 位置失败: " + error, "error");
+    }
+  });
+  const autoexecHelpSearch = document.getElementById("settings-autoexec-help-search");
+  const autoexecHelpList = document.getElementById("settings-autoexec-help-list");
+  const renderHelpList = (items) => {
+    if (autoexecHelpList) renderAutoexecHelpList(autoexecHelpList, items);
+  };
+  autoexecHelpSearch?.addEventListener("input", async () => {
+    if (typeof deps.GetAutoexecCommandHelp !== "function") return;
+    try {
+      renderHelpList(await deps.GetAutoexecCommandHelp(autoexecHelpSearch.value));
+    } catch (error) {
+      deps.showNotification("搜索指令说明失败: " + error, "error");
+    }
+  });
+  autoexecHelpList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-autoexec-command]");
+    if (!button || !autoexecEditor) return;
+    const command = button.dataset.autoexecCommand;
+    if (!command) return;
+    const start = autoexecEditor.selectionStart ?? autoexecEditor.value.length;
+    const end = autoexecEditor.selectionEnd ?? start;
+    autoexecEditor.setRangeText(`${command} `, start, end, "end");
+    autoexecEditor.focus();
+    updateAutoexecAnalysis();
   });
 
   const refreshAddonListPanel = async () => {
@@ -1104,6 +1224,51 @@ function updateSettingsPanelDirection(nextItem) {
 
 function escapeAttr(value) {
   return String(value || "").replace(/"/g, "&quot;");
+}
+
+function renderAutoexecHelpItems(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return `<div class="autoexec-help-empty">未找到匹配指令</div>`;
+  }
+  return items
+    .map(
+      (item) => `
+        <button type="button" class="autoexec-help-item" data-autoexec-command="${escapeAttr(item.command || "")}">
+          <span class="autoexec-help-command">${escapeHtml(item.command || "")}</span>
+          <span class="autoexec-help-summary">${escapeHtml(item.summary || "")}</span>
+          <span class="autoexec-help-meta">${escapeHtml(item.scope || "")} · ${escapeHtml(item.risk || "")} · ${escapeHtml(item.source || "")}</span>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function renderAutoexecHelpList(container, items) {
+  container.replaceChildren();
+  if (!Array.isArray(items) || items.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "autoexec-help-empty";
+    empty.textContent = "未找到匹配指令";
+    container.appendChild(empty);
+    return;
+  }
+  for (const item of items) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "autoexec-help-item";
+    button.dataset.autoexecCommand = item.command || "";
+    const command = document.createElement("span");
+    command.className = "autoexec-help-command";
+    command.textContent = item.command || "";
+    const summary = document.createElement("span");
+    summary.className = "autoexec-help-summary";
+    summary.textContent = item.summary || "";
+    const meta = document.createElement("span");
+    meta.className = "autoexec-help-meta";
+    meta.textContent = [item.scope, item.risk, item.source].filter(Boolean).join(" · ");
+    button.append(command, summary, meta);
+    container.appendChild(button);
+  }
 }
 
 function escapeHtml(value) {

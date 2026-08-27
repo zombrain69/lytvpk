@@ -62,7 +62,8 @@ func (a *App) GetProblemModScanSession() ProblemModScanSession {
 }
 
 func (a *App) StartProblemModScan() (ProblemModScanSession, error) {
-	if strings.TrimSpace(a.rootDir) == "" {
+	rootDir := a.rootDirectorySnapshot()
+	if strings.TrimSpace(rootDir) == "" {
 		return emptyProblemModScanSession(), fmt.Errorf("请先选择 addons 目录")
 	}
 
@@ -86,7 +87,7 @@ func (a *App) StartProblemModScan() (ProblemModScanSession, error) {
 	session := ProblemModScanSession{
 		Active:            true,
 		Status:            problemScanStatusActive,
-		RootDir:           a.rootDir,
+		RootDir:           rootDir,
 		Round:             1,
 		OriginalEnabled:   cloneProblemScanItems(candidates),
 		CurrentCandidates: cloneProblemScanItems(candidates),
@@ -244,8 +245,12 @@ func (a *App) restoreProblemScanOriginalState(session *ProblemModScanSession) er
 func (a *App) setProblemScanItemEnabled(item ProblemModScanItem, enabled bool) (ProblemModScanItem, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	rootDir := a.rootDir
+	if strings.TrimSpace(rootDir) == "" {
+		return item, fmt.Errorf("请先选择 addons 目录")
+	}
 
-	currentPath, currentlyEnabled, err := a.resolveProblemScanItemPath(item)
+	currentPath, currentlyEnabled, err := resolveProblemScanItemPathWithRoot(rootDir, item)
 	if err != nil {
 		return item, err
 	}
@@ -256,9 +261,9 @@ func (a *App) setProblemScanItemEnabled(item ProblemModScanItem, enabled bool) (
 
 	var newPath string
 	if enabled {
-		newPath = filepath.Join(a.rootDir, item.Name)
+		newPath = filepath.Join(rootDir, item.Name)
 	} else {
-		disabledDir := filepath.Join(a.rootDir, "disabled")
+		disabledDir := filepath.Join(rootDir, "disabled")
 		if err := os.MkdirAll(disabledDir, 0755); err != nil {
 			return item, err
 		}
@@ -319,12 +324,16 @@ func (a *App) verifyProblemScanRoundApplied(session *ProblemModScanSession) erro
 }
 
 func (a *App) resolveProblemScanItemPath(item ProblemModScanItem) (string, bool, error) {
-	if strings.TrimSpace(a.rootDir) == "" {
+	return resolveProblemScanItemPathWithRoot(a.rootDirectorySnapshot(), item)
+}
+
+func resolveProblemScanItemPathWithRoot(rootDir string, item ProblemModScanItem) (string, bool, error) {
+	if strings.TrimSpace(rootDir) == "" {
 		return "", false, fmt.Errorf("请先选择 addons 目录")
 	}
 
-	rootPath := filepath.Join(a.rootDir, item.Name)
-	disabledPath := filepath.Join(a.rootDir, "disabled", item.Name)
+	rootPath := filepath.Join(rootDir, item.Name)
+	disabledPath := filepath.Join(rootDir, "disabled", item.Name)
 
 	rootMatches, rootExists, rootErr := problemScanPathMatches(rootPath, item)
 	if rootErr != nil {
@@ -371,6 +380,10 @@ func problemScanPathMatches(path string, item ProblemModScanItem) (bool, bool, e
 }
 
 func (a *App) validateProblemScanItems(items []ProblemModScanItem) error {
+	rootDir := a.rootDirectorySnapshot()
+	if strings.TrimSpace(rootDir) == "" {
+		return fmt.Errorf("请先选择 addons 目录")
+	}
 	seen := make(map[string]bool, len(items))
 	for _, item := range items {
 		key := problemScanItemKey(item)
@@ -379,14 +392,14 @@ func (a *App) validateProblemScanItems(items []ProblemModScanItem) error {
 		}
 		seen[key] = true
 
-		rootPath := filepath.Join(a.rootDir, item.Name)
+		rootPath := filepath.Join(rootDir, item.Name)
 		if ok, exists, err := problemScanPathMatches(rootPath, item); err != nil {
 			return err
 		} else if !ok || !exists {
 			return fmt.Errorf("文件状态已变化，请刷新后重试: %s", item.Name)
 		}
 
-		disabledPath := filepath.Join(a.rootDir, "disabled", item.Name)
+		disabledPath := filepath.Join(rootDir, "disabled", item.Name)
 		if _, exists, err := problemScanPathMatches(disabledPath, item); err != nil {
 			return err
 		} else if exists {
@@ -435,6 +448,8 @@ func (a *App) ensureProblemScanRoot(session *ProblemModScanSession) error {
 	if session.RootDir == "" {
 		return fmt.Errorf("查找会话缺少 addons 目录")
 	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.rootDir == "" {
 		a.rootDir = session.RootDir
 		return nil

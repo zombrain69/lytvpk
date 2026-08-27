@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
 
@@ -129,6 +130,40 @@ func TestSetVPKGameEnabledAddsMissingEntryAndPreservesUTF8BOM(t *testing.T) {
 	}
 	if !bytes.Equal(backup, original) {
 		t.Fatal("backup does not contain the original UTF-8 BOM bytes")
+	}
+}
+
+func TestAddonListDocumentPreservesUTF16LE(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "addonlist.txt")
+	content := "\"AddonList\"\n{\n\t\"中文.vpk\"\t\t\"1\"\n}\n"
+	encoded, _, err := transform.Bytes(unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder(), []byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := append([]byte{0xFF, 0xFE}, encoded...)
+	if got := addonListEncodingName(original); got != "UTF-16 LE" {
+		t.Fatalf("UTF-16 encoding label = %q", got)
+	}
+	if err := os.WriteFile(path, original, 0644); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := readAddonListDocumentAtPath(path)
+	if err != nil {
+		t.Fatalf("read UTF-16 addonlist: %v", err)
+	}
+	if doc.encoding != addonListEncodingUTF16LE || doc.content != content {
+		t.Fatalf("UTF-16 document = encoding %d content %q", doc.encoding, doc.content)
+	}
+	updated, err := encodeAddonListDocument(doc, content+"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated) < 2 || !bytes.Equal(updated[:2], []byte{0xFF, 0xFE}) {
+		t.Fatal("UTF-16 LE BOM was not preserved")
+	}
+	decoded, _, err := transform.Bytes(unicode.UTF16(unicode.LittleEndian, unicode.ExpectBOM).NewDecoder(), updated)
+	if err != nil || string(decoded) != content+"\n" {
+		t.Fatalf("UTF-16 round trip = %q, %v", decoded, err)
 	}
 }
 

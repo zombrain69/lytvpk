@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 	"unicode/utf16"
 	"vpk-manager/internal/parser"
 )
@@ -43,12 +44,106 @@ func (a *App) GetVPKPreviewImage(filePath string) string {
 		return ""
 	}
 
+	modTime, size, imageModTime, err := previewSourceSignature(filePath)
+	if err != nil {
+		return ""
+	}
+	if preview, ok := a.getVPKPreviewCache(filePath, modTime, size, imageModTime); ok {
+		return preview
+	}
+
 	preview, err := parser.ExtractVPKPreviewImage(filePath)
 	if err != nil {
 		log.Printf("读取 VPK 预览图失败: %s, 错误: %v", filePath, err)
 		return ""
 	}
+	a.storeVPKPreviewCache(filePath, preview, modTime, size, imageModTime)
 	return preview
+}
+
+func (a *App) getVPKPreviewCache(filePath string, modTime time.Time, size int64, imageModTime time.Time) (string, bool) {
+	a.previewCacheMu.Lock()
+	defer a.previewCacheMu.Unlock()
+
+	cached, ok := a.previewCache.Load(filePath)
+	if !ok {
+		return "", false
+	}
+	entry := cached.(*VPKPreviewCache)
+	if !entry.ModTime.Equal(modTime) || entry.Size != size || !entry.ImageModTime.Equal(imageModTime) {
+		a.previewCache.Delete(filePath)
+		return "", false
+	}
+	entry.CachedAt = time.Now()
+	return entry.Data, true
+}
+
+func (a *App) storeVPKPreviewCache(filePath, preview string, modTime time.Time, size int64, imageModTime time.Time) {
+	// Go string stores Base64 bytes verbatim. A single unusually large image is
+	// still returned to the caller but is not retained by the backend cache.
+	if len(preview) > maxVPKPreviewCacheBytes {
+		a.deleteVPKPreviewCache(filePath)
+		return
+	}
+
+	a.previewCacheMu.Lock()
+	defer a.previewCacheMu.Unlock()
+	a.previewCache.Store(filePath, &VPKPreviewCache{
+		Data:         preview,
+		ModTime:      modTime,
+		Size:         size,
+		ImageModTime: imageModTime,
+		CachedAt:     time.Now(),
+	})
+
+	var totalBytes int
+	var entries int
+	for {
+		var oldestPath string
+		var oldestTime time.Time
+		totalBytes = 0
+		entries = 0
+		a.previewCache.Range(func(key, value any) bool {
+			entry := value.(*VPKPreviewCache)
+			entries++
+			totalBytes += len(entry.Data)
+			if oldestPath == "" || entry.CachedAt.Before(oldestTime) {
+				oldestPath = key.(string)
+				oldestTime = entry.CachedAt
+			}
+			return true
+		})
+		if entries <= maxVPKPreviewCacheEntries && totalBytes <= maxVPKPreviewCacheBytes {
+			return
+		}
+		if oldestPath == "" {
+			return
+		}
+		a.previewCache.Delete(oldestPath)
+	}
+}
+
+func (a *App) deleteVPKPreviewCache(filePath string) {
+	a.previewCacheMu.Lock()
+	defer a.previewCacheMu.Unlock()
+	a.previewCache.Delete(filePath)
+}
+
+func previewSourceSignature(filePath string) (time.Time, int64, time.Time, error) {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return time.Time{}, 0, time.Time{}, err
+	}
+
+	var imageModTime time.Time
+	basePath := strings.TrimSuffix(filePath, filepath.Ext(filePath))
+	for _, ext := range []string{".jpg", ".png", ".jpeg", ".gif"} {
+		if imageInfo, statErr := os.Stat(basePath + ext); statErr == nil {
+			imageModTime = imageInfo.ModTime()
+			break
+		}
+	}
+	return info.ModTime(), info.Size(), imageModTime, nil
 }
 
 // ToggleVPKFile 切换VPK文件的启用状态（智能缓存版本）
@@ -65,13 +160,18 @@ func (a *App) ToggleVPKFile(filePath string) error {
 
 	cache := cached.(*VPKFileCache)
 	vpkFile := cache.File
+	rootDir := a.rootDir
+	if strings.TrimSpace(rootDir) == "" {
+		a.mu.Unlock()
+		return fmt.Errorf("未选择L4D2目录")
+	}
 
 	// workshop文件不能直接启用/禁用
 	if vpkFile.Location == "workshop" {
 		a.mu.Unlock()
 		return fmt.Errorf("workshop文件需要先转移到插件目录才能启用/禁用")
 	}
-	managedKey, keyErr := a.addonListKeyForManagedVPKPath(vpkFile.Path)
+	managedKey, keyErr := addonListKeyForManagedVPKPathFromRoot(rootDir, vpkFile.Path)
 	if keyErr != nil {
 		a.mu.Unlock()
 		return keyErr
@@ -83,7 +183,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 
 	if vpkFile.Enabled && vpkFile.Location == "root" {
 		// 禁用文件：从root移动到disabled目录
-		disabledDir := filepath.Join(a.rootDir, "disabled")
+		disabledDir := filepath.Join(rootDir, "disabled")
 		os.MkdirAll(disabledDir, 0755)
 
 		newPath = filepath.Join(disabledDir, vpkFile.Name)
@@ -102,7 +202,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 
 	} else if !vpkFile.Enabled && vpkFile.Location == "disabled" {
 		// 启用文件：从disabled移动回root目录
-		newPath = filepath.Join(a.rootDir, vpkFile.Name)
+		newPath = filepath.Join(rootDir, vpkFile.Name)
 		err = os.Rename(vpkFile.Path, newPath)
 		if err != nil {
 			a.mu.Unlock()
@@ -123,6 +223,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 
 	// 删除旧路径的缓存
 	a.vpkCache.Delete(filePath)
+	a.deleteVPKPreviewCache(filePath)
 
 	// 在新路径下存储缓存
 	newCache := *cache
@@ -165,13 +266,18 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 
 	cache := cached.(*VPKFileCache)
 	vpkFile := cache.File
+	rootDir := a.rootDir
+	if strings.TrimSpace(rootDir) == "" {
+		a.mu.Unlock()
+		return fmt.Errorf("未选择L4D2目录")
+	}
 
 	if vpkFile.Location != "workshop" {
 		a.mu.Unlock()
 		return fmt.Errorf("只能转移workshop文件")
 	}
 
-	newPath := filepath.Join(a.rootDir, vpkFile.Name)
+	newPath := filepath.Join(rootDir, vpkFile.Name)
 	err := copyRegularFile(vpkFile.Path, newPath)
 	if err != nil {
 		a.mu.Unlock()
@@ -190,6 +296,7 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 
 	// 删除旧路径的缓存
 	a.vpkCache.Delete(filePath)
+	a.deleteVPKPreviewCache(filePath)
 
 	// 在新路径下存储缓存
 	newCache := *cache
@@ -198,7 +305,7 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 	a.mu.Unlock()
 
 	workshopKey := normalizeAddonListKey(filepath.Join("workshop", filepath.Base(filePath)))
-	rootKey, keyErr := a.addonListKeyForManagedVPKPath(newPath)
+	rootKey, keyErr := addonListKeyForManagedVPKPathFromRoot(rootDir, newPath)
 	if keyErr != nil {
 		return keyErr
 	}
@@ -323,6 +430,7 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	cachedVal, loaded := a.vpkCache.Load(filePath)
 	if loaded {
 		a.vpkCache.Delete(filePath)
+		a.deleteVPKPreviewCache(filePath)
 	}
 
 	if loaded && len(allTags) > 0 {
@@ -389,6 +497,7 @@ func (a *App) setWorkshopVPKTagsLocked(filePath, primaryTag string, secondaryTag
 	// 清空标签时重新解析，恢复 VPK 自身可推断出的自动标签。
 	if loaded {
 		a.vpkCache.Delete(filePath)
+		a.deleteVPKPreviewCache(filePath)
 	}
 	a.processVPKFileWithCache(filePath)
 	return nil
@@ -461,6 +570,7 @@ func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error)
 		// Location 应该不变，因为是在同目录下重命名
 
 		a.vpkCache.Delete(filePath)
+		a.deleteVPKPreviewCache(filePath)
 		a.vpkCache.Store(newPath, cache)
 	} else {
 		// 如果不在缓存中，重新处理

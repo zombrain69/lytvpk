@@ -2,7 +2,7 @@
 .modal-content.load-order-modal-content {
   width: min(1280px, calc(100vw - var(--spacing-4)));
   max-width: 1280px;
-  max-height: calc(100vh - var(--spacing-3));
+  max-height: min(100dvh, calc(100dvh - var(--spacing-3)));
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
   background-color: var(--bg-app);
@@ -26,8 +26,11 @@
 }
 
 .load-order-body {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: clamp(var(--spacing-4), 2vw, var(--spacing-6));
   overflow-y: auto;
+  overscroll-behavior: contain;
   container-type: inline-size;
   container-name: load-order-content;
 }
@@ -514,6 +517,12 @@
   border-bottom-right-radius: var(--radius-xl);
 }
 
+.load-order-footer .btn,
+.load-order-policy-actions .btn {
+  min-width: min(100%, 9rem);
+  max-width: 100%;
+}
+
 .load-order-btn-cancel {
   padding: var(--spacing-2) var(--spacing-6);
 }
@@ -550,12 +559,21 @@
     flex-direction: column;
     gap: var(--spacing-1);
   }
+
+  .load-order-preview-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .load-order-preview-summary {
+    text-align: left;
+  }
 }
 
 @media (max-width: 640px) {
   .modal-content.load-order-modal-content {
     width: calc(100vw - var(--spacing-3));
-    max-height: calc(100vh - var(--spacing-3));
+    max-height: calc(100dvh - var(--spacing-3));
   }
 
   .load-order-header,
@@ -600,6 +618,19 @@
   .load-order-footer .btn,
   .load-order-policy-actions .btn {
     flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .load-order-footer,
+  .load-order-policy-actions {
+    flex-direction: column;
+  }
+
+  .load-order-footer .btn,
+  .load-order-policy-actions .btn {
+    width: 100%;
+    min-width: 0;
   }
 }
 
@@ -1011,6 +1042,7 @@
 /* 已选条件独立成行，避免用户只能重新打开多个下拉框才能知道和撤销筛选。 */
 .active-filter-summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-2);
   min-width: 0;

@@ -2,7 +2,6 @@ package app
 
 import (
 	"archive/zip"
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -15,8 +14,7 @@ import (
 	"github.com/bodgit/sevenzip"
 	"github.com/nwaples/rardecode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/transform"
+	"vpk-manager/internal/parser"
 )
 
 const (
@@ -134,7 +132,8 @@ func (a *App) handleDroppedPath(current int, total int, targetPath string) DropI
 		return item
 	}
 
-	if a.rootDir == "" {
+	rootDir := a.rootDirectorySnapshot()
+	if rootDir == "" {
 		item.Message = "请先设置游戏 addons 目录"
 		a.emitDropImportProgress(current, total, item, 100, "failed", item.Message)
 		return item
@@ -164,7 +163,7 @@ func (a *App) handleDroppedPath(current int, total int, targetPath string) DropI
 		item.Success = true
 		item.Message = "VPK 安装完成"
 	case dropImportKindArchive:
-		err := a.extractVPKFromArchiveWithProgress(targetPath, a.rootDir, archiveProgress("extracting"))
+		err := a.extractVPKFromArchiveWithProgress(targetPath, rootDir, archiveProgress("extracting"))
 		if err != nil {
 			item.Message = fmt.Sprintf("解压压缩包失败: %v", err)
 			a.emitDropImportProgress(current, total, item, 100, "failed", item.Message)
@@ -173,7 +172,7 @@ func (a *App) handleDroppedPath(current int, total int, targetPath string) DropI
 		item.Success = true
 		item.Message = "压缩包导入完成"
 	case dropImportKindFolder:
-		packResult, err := a.packVPKDirectoryWithProgress(targetPath, a.rootDir, true, progress("packing"))
+		packResult, err := a.packVPKDirectoryWithProgress(targetPath, rootDir, true, progress("packing"))
 		item.OutputPath = packResult.OutputPath
 		if err != nil {
 			item.Message = fmt.Sprintf("打包文件夹失败: %v", err)
@@ -250,8 +249,12 @@ func (a *App) installVPKFile(srcPath string, progress dropImportProgressFunc) (s
 		return "", err
 	}
 
-	destPath := filepath.Join(a.rootDir, filepath.Base(srcPath))
-	dst, err := os.CreateTemp(a.rootDir, "."+filepath.Base(srcPath)+".tmp-*")
+	rootDir := a.rootDirectorySnapshot()
+	if rootDir == "" {
+		return "", fmt.Errorf("请先设置游戏 addons 目录")
+	}
+	destPath := filepath.Join(rootDir, filepath.Base(srcPath))
+	dst, err := os.CreateTemp(rootDir, "."+filepath.Base(srcPath)+".tmp-*")
 	if err != nil {
 		return "", err
 	}
@@ -404,7 +407,11 @@ func extractVPKFromRarWithProgress(rarPath string, destDir string, progress arch
 		if header.IsDir {
 			continue
 		}
-		entry, ok := selected[header.Name]
+		name := header.Name
+		if decoded, decodeErr := parser.DecodeVPKEntryName(name); decodeErr == nil {
+			name = decoded
+		}
+		entry, ok := selected[name]
 		if !ok {
 			continue
 		}
@@ -437,7 +444,11 @@ func (a *App) extractVPKFrom7zWithProgress(sevenZPath string, destDir string, pr
 		if f.FileInfo().IsDir() {
 			continue
 		}
-		allEntries = append(allEntries, drop7zEntry{file: f, name: f.Name, size: f.FileInfo().Size()})
+		name := f.Name
+		if decoded, decodeErr := parser.DecodeVPKEntryName(name); decodeErr == nil {
+			name = decoded
+		}
+		allEntries = append(allEntries, drop7zEntry{file: f, name: name, size: f.FileInfo().Size()})
 	}
 
 	vpkBases := make(map[string]bool)
@@ -470,7 +481,18 @@ func (a *App) extractVPKFrom7zWithProgress(sevenZPath string, destDir string, pr
 
 func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, progress archiveProgressFunc) error {
 	totalBytes := totalZipEntryBytes(entries)
-	progress(0, fmt.Sprintf("准备并行解压 %d 个文件", len(entries)), nil)
+	var progressMu sync.Mutex
+	emitProgress := func(percent int, message string, activeNames []string) {
+		if progress == nil {
+			return
+		}
+		// 进度回调可能更新前端状态或测试切片；并行解压时统一串行派发，
+		// 避免调用方必须自行处理多个 goroutine 同时回调。
+		progressMu.Lock()
+		defer progressMu.Unlock()
+		progress(percent, message, activeNames)
+	}
+	emitProgress(0, fmt.Sprintf("准备并行解压 %d 个文件", len(entries)), nil)
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -488,7 +510,7 @@ func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, 
 			percent := archivePercent(completedBytes, totalBytes, completedEntries, len(entries))
 			activeNames := activeArchiveNames(activeVPKs)
 			mu.Unlock()
-			progress(percent, "正在并行解压 VPK", activeNames)
+			emitProgress(percent, "正在并行解压 VPK", activeNames)
 		}
 		if err := extractZipEntryWithProgress(entry.file, entry.decodedName, destDir, func(delta int64) {
 			mu.Lock()
@@ -497,7 +519,7 @@ func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, 
 			message := parallelArchiveProgressMessage(entry.decodedName)
 			activeNames := activeArchiveNames(activeVPKs)
 			mu.Unlock()
-			progress(percent, message, activeNames)
+			emitProgress(percent, message, activeNames)
 		}); err != nil {
 			mu.Lock()
 			delete(activeVPKs, activeName)
@@ -512,7 +534,7 @@ func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, 
 		message := fmt.Sprintf("已解压: %s", filepath.Base(entry.decodedName))
 		activeNames := activeArchiveNames(activeVPKs)
 		mu.Unlock()
-		progress(percent, message, activeNames)
+		emitProgress(percent, message, activeNames)
 	}
 
 	for _, entry := range entries {
@@ -534,13 +556,22 @@ func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, 
 	if len(errs) > 0 {
 		return fmt.Errorf("部分ZIP文件解压失败:\n%s", strings.Join(errs, "\n"))
 	}
-	progress(100, fmt.Sprintf("并行解压完成，共 %d 个文件", len(entries)), nil)
+	emitProgress(100, fmt.Sprintf("并行解压完成，共 %d 个文件", len(entries)), nil)
 	return nil
 }
 
 func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, progress archiveProgressFunc) error {
 	totalBytes := total7zEntryBytes(entries)
-	progress(0, fmt.Sprintf("准备并行解压 %d 个文件", len(entries)), nil)
+	var progressMu sync.Mutex
+	emitProgress := func(percent int, message string, activeNames []string) {
+		if progress == nil {
+			return
+		}
+		progressMu.Lock()
+		defer progressMu.Unlock()
+		progress(percent, message, activeNames)
+	}
+	emitProgress(0, fmt.Sprintf("准备并行解压 %d 个文件", len(entries)), nil)
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -558,7 +589,7 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 			percent := archivePercent(completedBytes, totalBytes, completedEntries, len(entries))
 			activeNames := activeArchiveNames(activeVPKs)
 			mu.Unlock()
-			progress(percent, "正在并行解压 VPK", activeNames)
+			emitProgress(percent, "正在并行解压 VPK", activeNames)
 		}
 		if err := extract7zEntryWithProgress(entry.file, entry.name, destDir, func(delta int64) {
 			mu.Lock()
@@ -567,7 +598,7 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 			message := parallelArchiveProgressMessage(entry.name)
 			activeNames := activeArchiveNames(activeVPKs)
 			mu.Unlock()
-			progress(percent, message, activeNames)
+			emitProgress(percent, message, activeNames)
 		}); err != nil {
 			mu.Lock()
 			delete(activeVPKs, activeName)
@@ -582,7 +613,7 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 		message := fmt.Sprintf("已解压: %s", filepath.Base(entry.name))
 		activeNames := activeArchiveNames(activeVPKs)
 		mu.Unlock()
-		progress(percent, message, activeNames)
+		emitProgress(percent, message, activeNames)
 	}
 
 	for _, entry := range entries {
@@ -604,7 +635,7 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 	if len(errs) > 0 {
 		return fmt.Errorf("部分7z文件解压失败:\n%s", strings.Join(errs, "\n"))
 	}
-	progress(100, fmt.Sprintf("并行解压完成，共 %d 个文件", len(entries)), nil)
+	emitProgress(100, fmt.Sprintf("并行解压完成，共 %d 个文件", len(entries)), nil)
 	return nil
 }
 
@@ -632,7 +663,11 @@ func listRarEntries(rarPath string) ([]dropRarEntry, error) {
 		if header.IsDir {
 			continue
 		}
-		entries = append(entries, dropRarEntry{name: header.Name, size: header.UnPackedSize})
+		name := header.Name
+		if decoded, decodeErr := parser.DecodeVPKEntryName(name); decodeErr == nil {
+			name = decoded
+		}
+		entries = append(entries, dropRarEntry{name: name, size: header.UnPackedSize})
 	}
 	return entries, nil
 }
@@ -672,13 +707,8 @@ func extractReaderEntryWithProgress(reader io.Reader, name string, destDir strin
 
 func decodeZipEntryName(file *zip.File) string {
 	name := file.Name
-	if file.Flags&0x800 != 0 {
-		return name
-	}
-	decoder := transform.NewReader(bytes.NewReader([]byte(name)), simplifiedchinese.GBK.NewDecoder())
-	content, err := io.ReadAll(decoder)
-	if err == nil && len(content) > 0 {
-		return string(content)
+	if decoded, err := parser.DecodeVPKEntryName(name); err == nil {
+		return decoded
 	}
 	return name
 }

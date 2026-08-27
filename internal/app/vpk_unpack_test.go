@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"l4d2-manager-next/pkg/valve/vpk"
+	"vpk-manager/internal/parser"
 )
 
 func TestUnpackVPKFilePreservesDirectoryStructure(t *testing.T) {
@@ -44,6 +45,24 @@ func TestUnpackVPKFilePreservesDirectoryStructure(t *testing.T) {
 
 	assertFileContent(t, filepath.Join(result.OutputDir, "materials", "test", "a.txt"), "hello")
 	assertFileContent(t, filepath.Join(result.OutputDir, "scripts", "addon.txt"), "script")
+}
+
+func TestUnpackVPKFileDecodesGBKEntryNames(t *testing.T) {
+	tempDir := t.TempDir()
+	vpkPath := filepath.Join(tempDir, "gbk.vpk")
+	entryName := parser.EncodeVPKEntryName("materials/花/颈环_uv.vmt")
+	writeTestVPK(t, vpkPath, map[string][]byte{entryName: []byte("vmt")})
+
+	outputRoot := filepath.Join(tempDir, "out")
+	if err := os.Mkdir(outputRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := (&App{}).UnpackVPKFile(vpkPath, outputRoot)
+	if err != nil {
+		t.Fatalf("unpack GBK-named VPK: %v", err)
+	}
+	assertFileContent(t, filepath.Join(result.OutputDir, "materials", "花", "颈环_uv.vmt"), "vmt")
 }
 
 func TestCreateUniqueVPKOutputDirUsesNumberedSuffix(t *testing.T) {

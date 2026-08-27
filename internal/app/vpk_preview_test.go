@@ -62,3 +62,66 @@ func TestScanVPKFilesDefersPreviewImageUntilRequested(t *testing.T) {
 		t.Fatal("on-demand preview must not make the full scan cache retain Base64 data")
 	}
 }
+
+func TestGetVPKPreviewImageCachesAndInvalidatesExternalImage(t *testing.T) {
+	tempDir := t.TempDir()
+	rootDir := filepath.Join(tempDir, "addons")
+	sourceDir := filepath.Join(tempDir, "preview_cache_fixture")
+	if err := os.MkdirAll(filepath.Join(sourceDir, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(rootDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "scripts", "addon.txt"), []byte("test"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var internalImage bytes.Buffer
+	imageA := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	imageA.Set(0, 0, color.RGBA{R: 0xff, A: 0xff})
+	if err := png.Encode(&internalImage, imageA); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "addonimage.png"), internalImage.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	packer := &App{}
+	if _, err := packer.PackVPKDirectory(sourceDir, rootDir, false); err != nil {
+		t.Fatalf("pack preview VPK: %v", err)
+	}
+	vpkPath := filepath.Join(rootDir, "preview_cache_fixture.vpk")
+	app := &App{rootDir: rootDir}
+	if err := app.ScanVPKFiles(); err != nil {
+		t.Fatalf("scan VPK files: %v", err)
+	}
+
+	first := app.GetVPKPreviewImage(vpkPath)
+	if first == "" {
+		t.Fatal("initial preview was empty")
+	}
+	if cached, ok := app.previewCache.Load(vpkPath); !ok || cached.(*VPKPreviewCache).Data != first {
+		t.Fatal("initial preview was not retained in the bounded on-demand cache")
+	}
+	if second := app.GetVPKPreviewImage(vpkPath); second != first {
+		t.Fatal("unchanged preview should be served from the cache")
+	}
+
+	var externalImage bytes.Buffer
+	imageB := image.NewRGBA(image.Rect(0, 0, 2, 1))
+	imageB.Set(0, 0, color.RGBA{B: 0xff, A: 0xff})
+	imageB.Set(1, 0, color.RGBA{G: 0xff, A: 0xff})
+	if err := png.Encode(&externalImage, imageB); err != nil {
+		t.Fatal(err)
+	}
+	sidecarPath := filepath.Join(rootDir, "preview_cache_fixture.png")
+	if err := os.WriteFile(sidecarPath, externalImage.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	updated := app.GetVPKPreviewImage(vpkPath)
+	if updated == "" || updated == first {
+		t.Fatal("adding an external sidecar image must invalidate the previous preview")
+	}
+}

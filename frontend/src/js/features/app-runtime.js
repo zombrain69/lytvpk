@@ -59,6 +59,9 @@ import {
   hideConflictModal,
   startConflictCheck,
   toggleScopedConflictAnalysis,
+  openConflictScopeModal,
+  closeConflictScopeModal,
+  applyConflictScopeOptions,
 } from "./conflicts/conflicts.js";
 import {
   configureSettings,
@@ -107,6 +110,7 @@ import { showServerSubmenu } from "./file-list/context-menu.js";
 import { shareSelectedWorkshopItems } from "./file-list/share.js";
 import {
   toggleFile,
+  toggleGameEnabled,
   moveFileToAddons,
   deleteFile,
   openFileLocation,
@@ -181,6 +185,7 @@ import {
   GetCurrentBestIPOption,
   CheckConflicts,
   CheckConflictsForPaths,
+  CheckConflictsWithOptions,
   SetWorkshopPreferredIP,
   SetWorkshopFixedIP,
   SetWorkshopMetaEnabled,
@@ -230,6 +235,11 @@ import {
   SelectAddonListMergeSource,
   PreviewAddonListMerge,
   ApplyAddonListMerge,
+  GetAutoexecConfig,
+  SaveAutoexecConfig,
+  GetAutoexecCommandHelp,
+  AnalyzeAutoexecCommands,
+  OpenFileLocation,
 } from "../../../wailsjs/go/app/App";
 
 import {
@@ -252,6 +262,8 @@ let pendingSprayFileDropFallback = null;
 let sprayFileDropFallbackToken = 0;
 let lastDomSprayFallbackAt = 0;
 let lastDomSprayFallbackNames = new Set();
+let eventListenersSetup = false;
+let wailsEventsSetup = false;
 
 const ChangePanelDifficulty = (serverID, difficulty) => {
   const method = window?.go?.app?.App?.ChangePanelDifficulty;
@@ -318,8 +330,11 @@ configureConflicts({
   showError,
   CheckConflicts,
   CheckConflictsForPaths,
+  CheckConflictsWithOptions,
   toggleFile,
+  toggleGameEnabled,
   moveFileToAddons,
+  showFileDetail,
   renderFileList,
   showNotification,
 });
@@ -378,6 +393,11 @@ configureSettings({
   SelectAddonListMergeSource,
   PreviewAddonListMerge,
   ApplyAddonListMerge,
+  GetAutoexecConfig,
+  SaveAutoexecConfig,
+  GetAutoexecCommandHelp,
+  AnalyzeAutoexecCommands,
+  OpenFileLocation,
 });
 
 configureWorkshopBrowser({
@@ -649,7 +669,10 @@ function setupSettingsAndAboutListeners() {
 
 // 设置事件监听器
 function setupEventListeners() {
-  // 窗口控制
+	if (eventListenersSetup) return;
+	eventListenersSetup = true;
+
+	// 窗口控制
   const minBtn = document.getElementById("w-min-btn");
   const maxBtn = document.getElementById("w-max-btn");
   const closeBtn = document.getElementById("w-close-btn");
@@ -956,6 +979,32 @@ function setupBatchActionEvents() {
       toggleScopedConflictAnalysis(event.target.checked);
     });
 
+  document
+    .getElementById("conflict-analysis-options-btn")
+    ?.addEventListener("click", openConflictScopeModal);
+  document
+    .getElementById("close-conflict-scope-modal")
+    ?.addEventListener("click", closeConflictScopeModal);
+  document
+    .getElementById("cancel-conflict-scope-btn")
+    ?.addEventListener("click", closeConflictScopeModal);
+  document
+    .getElementById("apply-conflict-scope-btn")
+    ?.addEventListener("click", applyConflictScopeOptions);
+  document.querySelectorAll("[data-conflict-match-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("[data-conflict-match-mode]").forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    });
+  });
+  document.querySelector('[data-conflict-scope-rule="tag"]')?.addEventListener("change", (event) => {
+    const tagSelect = document.getElementById("conflict-scope-tag");
+    if (tagSelect) tagSelect.disabled = !event.target.checked;
+  });
+
   // 冲突检测弹窗按钮
   document
     .getElementById("close-conflict-modal")
@@ -1149,11 +1198,31 @@ function setupBatchActionEvents() {
       }
     });
 
+  // 冲突检测及其范围设置弹窗也支持点击遮罩关闭，避免窄窗口下只能寻找底部按钮。
+  document
+    .getElementById("conflict-modal")
+    ?.addEventListener("click", function (e) {
+      if (e.target === this) {
+        hideConflictModal();
+      }
+    });
+
+  document
+    .getElementById("conflict-scope-modal")
+    ?.addEventListener("click", function (e) {
+      if (e.target === this) {
+        closeConflictScopeModal();
+      }
+    });
+
   console.log("事件监听器已设置");
 }
 
 function setupWailsEvents() {
-  console.log("正在初始化 Wails 事件监听...");
+	if (wailsEventsSetup) return;
+	wailsEventsSetup = true;
+
+	console.log("正在初始化 Wails 事件监听...");
 
   EventsOn("error", handleError);
 

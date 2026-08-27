@@ -293,7 +293,11 @@ func ExtractPreviewImage(opener *vpk.Opener, archive *vpk.Archive, vpkFilePath s
 	// 遍历所有文件，查找预览图
 	for i := range archive.Files {
 		file := &archive.Files[i]
-		filename := strings.ToLower(file.Name())
+		filename := file.Name()
+		if decoded, err := DecodeVPKEntryName(filename); err == nil {
+			filename = decoded
+		}
+		filename = strings.ToLower(filename)
 
 		// 检查是否匹配预览图模式
 		for _, pattern := range previewPatterns {
@@ -342,7 +346,11 @@ func findFileInArchive(archive *vpk.Archive, targetName string) *vpk.File {
 	targetLower := strings.ToLower(targetName)
 	for i := range archive.Files {
 		file := &archive.Files[i]
-		if strings.ToLower(file.Name()) == targetLower {
+		name := file.Name()
+		if decoded, err := DecodeVPKEntryName(name); err == nil {
+			name = decoded
+		}
+		if strings.ToLower(name) == targetLower {
 			return file
 		}
 	}
@@ -377,8 +385,9 @@ func readExternalImageFile(filePath string) string {
 
 // encodeImageToBase64 将图片数据编码为 Base64 Data URL
 func encodeImageToBase64(data []byte) string {
-	// 尝试解码图片以验证格式
-	_, format, err := image.Decode(bytes.NewReader(data))
+	// 只读取图片头验证格式和尺寸，不完整解码像素。详情预览可能是高分辨率
+	// 图片，image.Decode 会额外分配整张像素图，导致打开详情时出现明显卡顿。
+	_, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return ""
 	}
@@ -499,8 +508,11 @@ func parseAddonInfoFromFile(opener *vpk.Opener, addonInfoFile *vpk.File, vpkFile
 		return
 	}
 
-	// 解析文件内容
-	content := string(data)
+	// VPK 文本没有独立的 charset 标记；按 BOM、UTF-8、GBK/ANSI 顺序解码。
+	content, decodeErr := DecodeVPKText(data)
+	if decodeErr != nil {
+		return
+	}
 	lines := strings.Split(content, "\n")
 
 	// 解析每一行

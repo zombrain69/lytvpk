@@ -16,7 +16,11 @@ func GetVPKFileList(filePath string) ([]string, error) {
 
 	var files []string
 	for _, file := range archive.Files {
-		files = append(files, file.Name())
+		name, err := DecodeVPKEntryName(file.Name())
+		if err != nil {
+			name = file.Name()
+		}
+		files = append(files, name)
 	}
 
 	return files, nil

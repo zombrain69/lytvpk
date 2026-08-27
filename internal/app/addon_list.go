@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 	"io"
 	"os"
@@ -25,6 +26,8 @@ type addonListEncoding uint8
 const (
 	addonListEncodingUTF8 addonListEncoding = iota
 	addonListEncodingGBK
+	addonListEncodingUTF16LE
+	addonListEncodingUTF16BE
 )
 
 type addonListDocument struct {
@@ -93,8 +96,16 @@ func (a *App) writeAddonList(path string, list []AddonListItem) error {
 	}
 	buf.WriteString("}\n")
 
-	// 写入文件 (使用 UTF-8)，同时保留首次由本程序改写前的原始文件。
-	doc := addonListDocument{path: path, encoding: addonListEncodingUTF8}
+	// 读取现有文档的编码与 BOM，排序写回时必须保持游戏原文件格式。
+	// L4D2 常见的 addonlist.txt 是 GBK/ANSI；强制改成 UTF-8 会让游戏
+	// 在启动/保存阶段重新生成文件，从而看起来像是排序被回滚。
+	doc, err := readAddonListDocumentAtPath(path)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		doc = addonListDocument{path: path, encoding: addonListEncodingUTF8}
+	}
 	return a.writeAddonListDocument(doc, buf.String())
 }
 
@@ -210,11 +221,16 @@ func (a *App) GetAddonListOrder() ([]string, error) {
 }
 
 func (a *App) addonListPath() (string, error) {
-	if a.rootDir == "" {
+	rootDir := a.rootDirectorySnapshot()
+	return addonListPathForRoot(rootDir)
+}
+
+func addonListPathForRoot(rootDir string) (string, error) {
+	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
 	}
 
-	rootDir := filepath.Clean(a.rootDir)
+	rootDir = filepath.Clean(rootDir)
 	if strings.EqualFold(filepath.Base(rootDir), "addons") && strings.EqualFold(filepath.Base(filepath.Dir(rootDir)), "left4dead2") {
 		return filepath.Join(filepath.Dir(rootDir), "addonlist.txt"), nil
 	}
@@ -248,6 +264,24 @@ func readAddonListDocumentAtPath(path string) (addonListDocument, error) {
 		doc.content = string(content)
 		return doc, nil
 	}
+	if len(content) >= 2 && content[0] == 0xFF && content[1] == 0xFE {
+		decoded, decodeErr := decodeAddonListUTF16(content, unicode.LittleEndian)
+		if decodeErr != nil {
+			return addonListDocument{}, decodeErr
+		}
+		doc.content = decoded
+		doc.encoding = addonListEncodingUTF16LE
+		return doc, nil
+	}
+	if len(content) >= 2 && content[0] == 0xFE && content[1] == 0xFF {
+		decoded, decodeErr := decodeAddonListUTF16(content, unicode.BigEndian)
+		if decodeErr != nil {
+			return addonListDocument{}, decodeErr
+		}
+		doc.content = decoded
+		doc.encoding = addonListEncodingUTF16BE
+		return doc, nil
+	}
 
 	reader := transform.NewReader(bytes.NewReader(content), simplifiedchinese.GBK.NewDecoder())
 	decoded, decodeErr := io.ReadAll(reader)
@@ -267,12 +301,33 @@ func encodeAddonListDocument(doc addonListDocument, content string) ([]byte, err
 		}
 		return encoded, nil
 	}
+	if doc.encoding == addonListEncodingUTF16LE || doc.encoding == addonListEncodingUTF16BE {
+		endian := unicode.LittleEndian
+		bom := []byte{0xFF, 0xFE}
+		if doc.encoding == addonListEncodingUTF16BE {
+			endian = unicode.BigEndian
+			bom = []byte{0xFE, 0xFF}
+		}
+		encoded, _, err := transform.Bytes(unicode.UTF16(endian, unicode.IgnoreBOM).NewEncoder(), []byte(content))
+		if err != nil {
+			return nil, fmt.Errorf("无法按 UTF-16 编码 addonlist.txt: %w", err)
+		}
+		return append(bom, encoded...), nil
+	}
 
 	encoded := []byte(content)
 	if doc.hasUTF8BOM {
 		encoded = append([]byte{0xEF, 0xBB, 0xBF}, encoded...)
 	}
 	return encoded, nil
+}
+
+func decodeAddonListUTF16(content []byte, endian unicode.Endianness) (string, error) {
+	decoded, _, err := transform.Bytes(unicode.UTF16(endian, unicode.ExpectBOM).NewDecoder(), content)
+	if err != nil {
+		return "", fmt.Errorf("无法按 UTF-16 解码 addonlist.txt: %w", err)
+	}
+	return string(decoded), nil
 }
 
 // backupAddonListDocument 在首次修改前保存原始字节，避免覆盖游戏生成的配置。
@@ -345,11 +400,16 @@ func normalizeAddonListKey(name string) string {
 }
 
 func (a *App) addonListKeyForVPKPath(filePath string) (string, error) {
-	if a.rootDir == "" {
+	rootDir := a.rootDirectorySnapshot()
+	return addonListKeyForVPKPathFromRoot(rootDir, filePath)
+}
+
+func addonListKeyForVPKPathFromRoot(rootDir, filePath string) (string, error) {
+	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
 	}
 
-	relativePath, err := filepath.Rel(a.rootDir, filePath)
+	relativePath, err := filepath.Rel(rootDir, filePath)
 	if err != nil {
 		return "", fmt.Errorf("无法计算 Mod 相对路径: %w", err)
 	}
@@ -514,10 +574,15 @@ func removeAddonListValue(content, targetKey string) (string, bool, error) {
 // while enabled.  This works for both the real game addons directory and a
 // custom collection directory.
 func (a *App) addonListKeyForManagedVPKPath(filePath string) (string, error) {
-	if a.rootDir == "" {
+	rootDir := a.rootDirectorySnapshot()
+	return addonListKeyForManagedVPKPathFromRoot(rootDir, filePath)
+}
+
+func addonListKeyForManagedVPKPathFromRoot(rootDir, filePath string) (string, error) {
+	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
 	}
-	relativePath, err := filepath.Rel(a.rootDir, filePath)
+	relativePath, err := filepath.Rel(rootDir, filePath)
 	if err != nil {
 		return "", fmt.Errorf("无法计算 Mod 相对路径: %w", err)
 	}

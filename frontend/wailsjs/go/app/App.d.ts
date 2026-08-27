@@ -5,6 +5,8 @@ import {network} from '../models';
 import {parser} from '../models';
 import {minidump} from '../models';
 
+export function AnalyzeAutoexecCommands(arg1:string):Promise<Array<app.AutoexecCommandMatch>>;
+
 export function ApplyAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
 
 export function ApplyAddonListMerge(arg1:string,arg2:Array<string>):Promise<void>;
@@ -22,6 +24,8 @@ export function ChangePanelMap(arg1:string,arg2:string):Promise<string>;
 export function CheckConflicts():Promise<app.ConflictResult>;
 
 export function CheckConflictsForPaths(arg1:Array<string>):Promise<app.ConflictResult>;
+
+export function CheckConflictsWithOptions(arg1:app.ConflictAnalysisOptions):Promise<app.ConflictResult>;
 
 export function CheckModUpdates():Promise<app.UpdateCheckResult>;
 
@@ -92,6 +96,10 @@ export function GetAddonListOrder():Promise<Array<string>>;
 export function GetAppConfig():Promise<app.ConfigFile>;
 
 export function GetAppVersion():Promise<string>;
+
+export function GetAutoexecCommandHelp(arg1:string):Promise<Array<app.AutoexecCommandHelp>>;
+
+export function GetAutoexecConfig():Promise<app.AutoexecConfig>;
 
 export function GetConfigMigrationVersion():Promise<number>;
 
@@ -224,6 +232,8 @@ export function RotateMods():Promise<void>;
 export function SaveAddonListManagedSnapshot():Promise<app.AddonListInfo>;
 
 export function SaveAppConfig(arg1:app.ConfigFile):Promise<void>;
+
+export function SaveAutoexecConfig(arg1:string):Promise<void>;
 
 export function SaveServerStorage(arg1:app.ServerStorage):Promise<void>;
 

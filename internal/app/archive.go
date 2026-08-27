@@ -2,18 +2,16 @@ package app
 
 import (
 	"archive/zip"
-	"bytes"
 	"fmt"
 	"github.com/bodgit/sevenzip"
 	"github.com/nwaples/rardecode"
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/transform"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"vpk-manager/internal/parser"
 )
 
 func extractZipFile(file *zip.File, decodedName string, destDir string) error {
@@ -54,13 +52,8 @@ func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
 			continue
 		}
 		name := f.Name
-		if f.Flags&0x800 == 0 { // 如果没有设置UTF-8标志位
-			i := bytes.NewReader([]byte(name))
-			decoder := transform.NewReader(i, simplifiedchinese.GBK.NewDecoder())
-			content, _ := io.ReadAll(decoder)
-			if len(content) > 0 {
-				name = string(content)
-			}
+		if decoded, decodeErr := parser.DecodeVPKEntryName(name); decodeErr == nil {
+			name = decoded
 		}
 		allEntries = append(allEntries, zipEntry{file: f, decodedName: name})
 	}
@@ -127,13 +120,8 @@ func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
 			if extras, ok := extraFiles[vpkBase]; ok {
 				for _, ef := range extras {
 					extraName := ef.Name
-					if ef.Flags&0x800 == 0 {
-						i := bytes.NewReader([]byte(extraName))
-						decoder := transform.NewReader(i, simplifiedchinese.GBK.NewDecoder())
-						content, _ := io.ReadAll(decoder)
-						if len(content) > 0 {
-							extraName = string(content)
-						}
+					if decoded, decodeErr := parser.DecodeVPKEntryName(extraName); decodeErr == nil {
+						extraName = decoded
 					}
 					if err := extractZipFile(ef, extraName, destDir); err != nil {
 						log.Printf("解压附加文件失败 %s: %v", extraName, err)
@@ -193,7 +181,11 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 		if header.IsDir {
 			continue
 		}
-		allNames = append(allNames, header.Name)
+		name := header.Name
+		if decoded, decodeErr := parser.DecodeVPKEntryName(name); decodeErr == nil {
+			name = decoded
+		}
+		allNames = append(allNames, name)
 	}
 	f.Close()
 
@@ -250,11 +242,15 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 			continue
 		}
 
-		if !extractSet[header.Name] {
+		name := header.Name
+		if decoded, decodeErr := parser.DecodeVPKEntryName(name); decodeErr == nil {
+			name = decoded
+		}
+		if !extractSet[name] {
 			continue
 		}
 
-		targetPath := filepath.Join(destDir, filepath.Base(header.Name))
+		targetPath := filepath.Join(destDir, filepath.Base(name))
 
 		outFile, err := os.Create(targetPath)
 		if err != nil {
@@ -266,13 +262,13 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 		outFile.Close()
 
 		if err != nil {
-			log.Printf("解压文件 %s 失败: %v", header.Name, err)
+			log.Printf("解压文件 %s 失败: %v", name, err)
 			os.Remove(targetPath)
 			continue
 		}
 
 		extractedCount++
-		log.Printf("已解压: %s -> %s", header.Name, targetPath)
+		log.Printf("已解压: %s -> %s", name, targetPath)
 	}
 
 	if extractedCount == 0 {
@@ -299,7 +295,11 @@ func (a *App) ExtractVPKFrom7z(sevenZPath string, destDir string) error {
 		if f.FileInfo().IsDir() {
 			continue
 		}
-		allEntries = append(allEntries, sevenZipEntry{file: f, name: f.Name})
+		name := f.Name
+		if decoded, decodeErr := parser.DecodeVPKEntryName(name); decodeErr == nil {
+			name = decoded
+		}
+		allEntries = append(allEntries, sevenZipEntry{file: f, name: name})
 	}
 
 	// 过滤出VPK文件
@@ -363,8 +363,12 @@ func (a *App) ExtractVPKFrom7z(sevenZPath string, destDir string) error {
 			vpkBase := strings.ToLower(strings.TrimSuffix(filepath.Base(entry.name), ".vpk"))
 			if extras, ok := extraFiles[vpkBase]; ok {
 				for _, ef := range extras {
-					if err := extract7zFile(ef, ef.Name, destDir); err != nil {
-						log.Printf("解压附加文件失败 %s: %v", ef.Name, err)
+					extraName := ef.Name
+					if decoded, decodeErr := parser.DecodeVPKEntryName(extraName); decodeErr == nil {
+						extraName = decoded
+					}
+					if err := extract7zFile(ef, extraName, destDir); err != nil {
+						log.Printf("解压附加文件失败 %s: %v", extraName, err)
 					}
 				}
 			}

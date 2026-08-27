@@ -203,6 +203,9 @@ function getGameStateDisplayName(state) {
 }
 
 function getGameState(file) {
+  // disabled 目录中的 VPK 不会被游戏实际加载，不能被残留的 addonlist=1
+  // 误判为“游戏内开启”；与后端冲突分析的 enabled 规则保持一致。
+  if (file.enabled === false) return "disabled";
   if (!file.gameStateKnown) return "unknown";
   return file.gameEnabled ? "enabled" : "disabled";
 }

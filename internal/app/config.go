@@ -446,6 +446,7 @@ func (a *App) SetWorkshopMetaEnabled(enabled bool) {
 	// 清空缓存，确保下次扫描应用新规则
 	a.vpkCache.Range(func(key, value interface{}) bool {
 		a.vpkCache.Delete(key)
+		a.deleteVPKPreviewCache(key.(string))
 		return true
 	})
 }

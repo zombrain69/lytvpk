@@ -1,0 +1,437 @@
+/*
+ * 窗口缩放安全层
+ *
+ * 本文件在所有页面样式之后加载，只处理布局的可收缩、换行与滚动边界；
+ * 不改变按钮事件、筛选状态、Mod 状态或任何业务逻辑。
+ */
+
+/* 标题栏在窄窗口中优先保留系统窗口按钮，应用标题可安全截断。 */
+#custom-title-bar,
+.title-drag-region,
+.title-brand {
+  min-width: 0;
+}
+
+.title-drag-region .app-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 中等宽度先收起侧栏文字，为主工作区和筛选条件让出空间。按钮仍保留 title/aria-label。 */
+@media (max-width: 1200px) {
+  .app-shell {
+    grid-template-columns: 4.75rem minmax(0, 1fr);
+  }
+
+  .app-sidebar {
+    align-items: center;
+    padding: var(--spacing-2) 0.625rem var(--spacing-3);
+  }
+
+  .sidebar-nav,
+  .sidebar-footer {
+    align-items: center;
+  }
+
+  .sidebar-nav-item {
+    justify-content: center;
+    width: 3rem;
+    padding: 0;
+  }
+
+  .sidebar-nav-item > span {
+    display: none;
+  }
+
+  .sidebar-footer {
+    flex-direction: column;
+  }
+
+  .sidebar-launch-wrapper,
+  .sidebar-launch-wrapper:hover,
+  .sidebar-launch-wrapper:focus-within,
+  .sidebar-quick-action,
+  .sidebar-quick-action:hover {
+    width: 2.75rem;
+    padding: 0;
+  }
+
+  .sidebar-quick-action span:not(.quick-label),
+  .sidebar-quick-action .quick-label,
+  .sidebar-quick-action:hover span:not(.quick-label),
+  .sidebar-quick-action:hover .quick-label {
+    max-width: 0;
+    opacity: 0;
+  }
+
+  .launch-server-popover {
+    left: calc(100% + 0.5rem);
+    bottom: 0;
+    width: min(17rem, calc(100vw - 6rem));
+  }
+
+  .mod-management-page .filter-bar {
+    padding-right: clamp(0.75rem, 2vw, 1.5rem);
+    padding-left: clamp(0.75rem, 2vw, 1.5rem);
+  }
+
+  .mod-management-page .filter-row-tools {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .mod-management-page .toolbar-directory {
+    flex: 1 1 25rem;
+    max-width: none;
+  }
+
+  .mod-management-page .filter-actions {
+    flex: 1 1 22rem;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .mod-management-page .conflict-analysis-toggle {
+    flex: 1 1 16rem;
+  }
+}
+
+/* 侧栏继续缩小，但保留垂直导航，避免横向导航与活动指示器在小窗下互相遮挡。 */
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: 3.75rem minmax(0, 1fr);
+  }
+
+  .app-sidebar {
+    padding-right: 0.375rem;
+    padding-left: 0.375rem;
+  }
+
+  .sidebar-nav-item,
+  .sidebar-quick-action,
+  .sidebar-quick-action:hover,
+  .sidebar-launch-wrapper,
+  .sidebar-launch-wrapper:hover,
+  .sidebar-launch-wrapper:focus-within {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .app-main {
+    padding: 0.375rem 0.375rem 0.375rem 0;
+  }
+
+  .page-container {
+    border-radius: var(--radius-md);
+  }
+
+  .title-drag-region {
+    padding-left: 0.75rem;
+  }
+
+  .title-logo {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .title-drag-region .app-title {
+    font-size: 0.875rem;
+  }
+}
+
+/* Mod 管理工具栏：目录、动作、筛选条件在可用空间不足时按功能分行，而不是压扁。 */
+@media (max-width: 860px) {
+  .mod-management-page .toolbar-directory,
+  .mod-management-page .filter-actions {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .mod-management-page .directory-selector {
+    max-width: none;
+  }
+
+  .mod-management-page .directory-dropdown-container {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mod-management-page .directory-dropdown-trigger {
+    width: 100%;
+    max-width: none;
+  }
+
+  .mod-management-page .filter-actions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .mod-management-page .filter-actions > .btn,
+  .mod-management-page .filter-actions > .batch-actions-dropdown-container {
+    flex: 1 1 8.5rem;
+    min-width: 0;
+  }
+
+  .mod-management-page .filter-actions > .batch-actions-dropdown-container > .btn {
+    width: 100%;
+  }
+
+  .mod-management-page .filter-row-filters {
+    align-items: stretch;
+  }
+
+  .mod-management-page .filter-row-filters .search-box,
+  .mod-management-page .filter-row-filters .filter-section,
+  .mod-management-page .filter-row-filters .tag-filters {
+    flex-basis: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .mod-management-page .filter-row-filters:not(.filter-layout-classic) .filter-section,
+  .mod-management-page .filter-row-filters:not(.filter-layout-classic) .tag-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .mod-management-page .filter-row-filters.filter-layout-classic .classic-secondary-search-group {
+    flex: 1 1 100%;
+    width: auto;
+    margin-left: 0;
+  }
+
+  .mod-management-page .filter-row-filters.filter-layout-classic .hidden-filter-container,
+  .mod-management-page .filter-row-filters.filter-layout-classic .sort-container {
+    margin-left: 0;
+  }
+}
+
+/* 窄窗口中的列表采用信息卡式行布局：保留名称、游戏内状态、标签和全部操作；
+ * 体积与位置由详情按钮可查看，不再把主列表挤成不可读的七列。 */
+@media (max-width: 960px) {
+  .mod-management-page .file-list-header {
+    display: none !important;
+  }
+
+  .mod-management-page .file-item {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    grid-template-areas:
+      "checkbox name"
+      "checkbox game-state"
+      "checkbox tags"
+      "checkbox actions";
+    gap: 0.45rem 0.625rem;
+    align-items: start;
+    padding: 0.75rem;
+  }
+
+  .mod-management-page .file-checkbox-container {
+    grid-area: checkbox;
+    padding-top: 0.15rem;
+  }
+
+  .mod-management-page .file-name {
+    grid-area: name;
+  }
+
+  .mod-management-page .file-size,
+  .mod-management-page .file-location {
+    display: none;
+  }
+
+  .mod-management-page .file-game-state {
+    grid-area: game-state;
+  }
+
+  .mod-management-page .file-tags {
+    grid-area: tags;
+    max-height: 3.5rem;
+    overflow: auto;
+    padding-right: 0.25rem;
+  }
+
+  .mod-management-page .file-actions {
+    grid-area: actions;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.25rem), 1fr));
+    justify-content: stretch !important;
+    width: 100%;
+    gap: 0.45rem !important;
+    padding-top: 0.25rem !important;
+  }
+
+  .mod-management-page .file-actions .action-btn {
+    width: 100%;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .mod-management-page .file-actions .action-btn .btn-text {
+    display: inline !important;
+  }
+
+  .status-bar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-2) var(--spacing-3);
+    padding: var(--spacing-3) clamp(0.75rem, 2vw, 1.5rem);
+  }
+
+  .status-info,
+  .status-actions {
+    flex-wrap: wrap;
+    gap: var(--spacing-2) var(--spacing-3);
+  }
+
+  .status-info {
+    flex-basis: 100%;
+  }
+
+  .status-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* 所有常用弹窗在较窄/较矮窗口中都以正文滚动为主，页头和确认按钮始终可见。 */
+@media (max-width: 720px), (max-height: 680px) {
+  .modal:not(.embedded-modal-source) {
+    align-items: flex-start;
+    padding: 0.5rem;
+  }
+
+  .modal-content:not(.embedded-page-content) {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - 1rem) !important;
+    border-radius: var(--radius-xl);
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: clamp(0.75rem, 3vw, 1rem);
+  }
+
+  .modal-footer {
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 8rem;
+  }
+
+  .modal-body .input-group-flex,
+  .modal-body .mirror-select-group,
+  .modal-body .update-header,
+  .modal-body .update-notes-header,
+  .modal-body .detail-workshop-link-actions {
+    flex-wrap: wrap;
+  }
+
+  .modal-body .input-group-flex > input,
+  .modal-body .input-group-flex > select,
+  .modal-body .mirror-select-group > * {
+    min-width: 0;
+  }
+
+  .update-notes-view-toggle {
+    margin-left: auto;
+  }
+
+  .update-note-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .update-note-version {
+    justify-self: start;
+  }
+
+  .modal-content.conflict-modal-content {
+    max-height: calc(100dvh - 1rem) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .mod-management-page .directory-selector {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mod-management-page .directory-selector .btn,
+  .mod-management-page .directory-dropdown-container,
+  .mod-management-page .filter-actions > .btn,
+  .mod-management-page .filter-actions > .batch-actions-dropdown-container {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .mod-management-page .directory-selector .btn {
+    min-width: 0;
+  }
+
+  .mod-management-page .conflict-analysis-toggle {
+    align-items: flex-start;
+  }
+
+  .mod-management-page .conflict-analysis-status {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .mod-management-page .file-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .status-actions,
+  .status-actions > .btn,
+  .status-actions > .batch-actions-dropdown-container,
+  .batch-disable-split-container {
+    width: 100%;
+  }
+
+  .status-actions > .btn,
+  .status-actions > .batch-actions-dropdown-container {
+    flex-basis: 100%;
+  }
+
+  .split-button-group {
+    display: flex;
+    width: 100%;
+  }
+
+  .split-button-group .split-main-btn {
+    flex: 1 1 auto;
+  }
+
+  .modal-body .input-group-flex > input,
+  .modal-body .input-group-flex > select,
+  .modal-body .input-group-flex > .btn {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+/* 服务器、工坊和下载页面使用同一批工具条；在侧栏占用空间后提前允许换行。 */
+@media (max-width: 980px) {
+  .server-toolbar,
+  .panel-map-toolbar,
+  .panel-upload-toolbar,
+  .panel-rcon-row,
+  .panel-rcon-history-row,
+  .browser-toolbar,
+  .workshop-actions {
+    flex-wrap: wrap;
+  }
+
+  .server-toolbar > .btn,
+  .panel-map-toolbar > .btn,
+  .panel-upload-toolbar > .btn,
+  .panel-rcon-row > .btn,
+  .panel-rcon-history-row > .btn,
+  .workshop-actions > .btn {
+    flex: 1 1 8rem;
+  }
+}

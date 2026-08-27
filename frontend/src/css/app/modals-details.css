@@ -9,6 +9,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: clamp(0.5rem, 1.25vw, 1rem);
+  overflow: auto;
+  overscroll-behavior: contain;
   z-index: var(--z-modal);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
@@ -22,13 +25,20 @@
   visibility: visible;
 }
 
+/* 从其他弹窗打开详情时，确保详情层位于来源弹窗之上。关闭时由 detail.js 移除。 */
+.modal.modal-overlay-top {
+  /* 详情从其他模态窗口打开时，使用独立顶层，避免被来源窗口遮挡。 */
+  z-index: 30000 !important;
+}
+
 .modal-content {
   background: var(--bg-app);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-2xl);
-  max-width: 36rem;
-  width: 90vw;
-  max-height: 80vh;
+  max-width: min(36rem, calc(100vw - 1rem));
+  width: min(90vw, calc(100vw - 1rem));
+  max-height: min(80vh, calc(100dvh - 1rem));
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--border-light);
   transform: scale(0.95) translateY(1rem);
@@ -45,6 +55,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-3);
+  flex: 0 0 auto;
+  min-width: 0;
   padding: var(--spacing-6);
   border-bottom: 1px solid var(--border-default);
   background: linear-gradient(
@@ -60,6 +73,7 @@
   color: var(--text-primary);
   margin: 0;
   word-break: break-word;
+  min-width: 0;
   margin-right: var(--spacing-4);
 }
 
@@ -88,6 +102,8 @@
 .modal-body {
   padding: var(--spacing-6);
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   flex: 1;
   min-height: 0;
 }
@@ -98,6 +114,8 @@
   padding: var(--spacing-6);
   border-top: 1px solid var(--border-default);
   justify-content: flex-end;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
   background: rgba(248, 250, 252, 0.8);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
@@ -105,7 +123,9 @@
 
 /* 模态框按钮特殊样式 - 高优先级 */
 .modal-footer .btn {
-  min-width: 7rem !important;
+  min-width: min(7rem, 100%) !important;
+  max-width: 100%;
+  flex: 0 1 13rem;
   font-weight: 600 !important;
   text-transform: none !important;
   letter-spacing: 0.025em !important;
@@ -252,6 +272,13 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   object-fit: contain;
+}
+
+.detail-preview-loading {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--spacing-4);
 }
 
 #preview-section.hidden {

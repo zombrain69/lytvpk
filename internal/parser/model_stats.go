@@ -82,7 +82,11 @@ func AnalyzeVPKModelStats(filePath string) (VPKModelStats, error) {
 	modelPaths := make([]string, 0)
 	for i := range archive.Files {
 		file := &archive.Files[i]
-		name := normalizeModelStatPath(file.Name())
+		name := file.Name()
+		if decoded, err := DecodeVPKEntryName(name); err == nil {
+			name = decoded
+		}
+		name = normalizeModelStatPath(name)
 		files[name] = file
 		if isModelMDLPath(name) {
 			modelPaths = append(modelPaths, name)

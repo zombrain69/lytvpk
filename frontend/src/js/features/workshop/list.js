@@ -231,7 +231,7 @@ function renderWorkshopGrid(items) {
                  </div>
                 <img src="${
                   escapeHtml(item.preview_url || "assets/images/no-preview.png")
-                }" loading="lazy" alt="${escapeHtml(item.title)}"
+                }" loading="lazy" decoding="async" alt="${escapeHtml(item.title)}"
                 style="opacity: 0; transition: opacity 0.3s; position: relative; z-index: 2;"
                 onload="this.style.opacity='1'; this.parentElement.classList.remove('skeleton-anim'); this.previousElementSibling.style.display='none';">
                 ${isCollection ? '<span class="collection-card-tag">合集</span>' : ""}

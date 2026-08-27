@@ -25,7 +25,11 @@ func ProcessMapVPK(opener *vpk.Opener, index archivePathIndex, vpkFile *VPKFile,
 	// 查找mission文件并解析战役和章节信息
 	log.Printf("开始解析mission文件，候选数: %d", len(index.missionFiles))
 	for _, file := range index.missionFiles {
-		log.Printf("找到mission文件: %s", file.Name())
+		name := file.Name()
+		if decoded, err := DecodeVPKEntryName(name); err == nil {
+			name = decoded
+		}
+		log.Printf("找到mission文件: %s", name)
 		campaign := ParseMissionFile(opener, file)
 		if campaign != nil {
 			log.Printf("解析到战役: %s, 章节数: %d", campaign.Title, len(campaign.Chapters))
@@ -90,7 +94,7 @@ func ProcessMapVPK(opener *vpk.Opener, index archivePathIndex, vpkFile *VPKFile,
 				}
 			}
 		} else {
-			log.Printf("mission文件解析失败: %s", file.Name())
+			log.Printf("mission文件解析失败: %s", name)
 		}
 	}
 
@@ -118,7 +122,17 @@ func ParseMissionFile(opener *vpk.Opener, file *vpk.File) *Campaign {
 
 // ParseMissionContent 解析mission文件内容
 func ParseMissionContent(reader io.Reader) *Campaign {
-	mission, err := vpkmission.ParseMission(reader)
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		log.Printf("读取mission文件失败: %v", err)
+		return nil
+	}
+	content, err := DecodeVPKText(data)
+	if err != nil {
+		log.Printf("mission文件编码解析错误: %v", err)
+		return nil
+	}
+	mission, err := vpkmission.ParseMission(strings.NewReader(content))
 	if err != nil {
 		log.Printf("mission文件解析错误: %v", err)
 		return nil

@@ -9,10 +9,87 @@ import { BrowserOpenURL } from "../../../../wailsjs/runtime/runtime";
 import { handleProtocolWorkshop } from "../workshop/workshop-browser.js";
 import {
   getCachedVPKPreview,
-  loadVPKPreview,
+  loadVPKPreviewWithOptions,
 } from "../shared/vpk-preview-cache.js";
 
 let currentDetailFile = null;
+let detailPreviousFocus = null;
+let detailUnderlayStates = [];
+
+document.addEventListener("keydown", (event) => {
+  const modal = document.getElementById("file-detail-modal");
+  if (!modal || modal.classList.contains("hidden")) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeModal();
+  }
+});
+
+// 文件详情可能从冲突、加载顺序等其他模态窗口打开。将它提升到 body
+// 直属层，避免受来源窗口的 stacking context / overflow 影响。
+function promoteDetailModal(modal) {
+  if (!modal) return;
+
+  if (modal.classList.contains("hidden")) {
+    const active = document.activeElement;
+    detailPreviousFocus = active instanceof HTMLElement ? active : null;
+  }
+
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
+  detailUnderlayStates.forEach(({ element, ariaHidden, inert }) => {
+    if (!element?.isConnected) return;
+    if (ariaHidden === null) element.removeAttribute("aria-hidden");
+    else element.setAttribute("aria-hidden", ariaHidden);
+    if (!inert) element.removeAttribute("inert");
+    element.removeAttribute("data-detail-underlay");
+  });
+  detailUnderlayStates = [];
+
+  document.querySelectorAll(".modal:not(#file-detail-modal):not(.hidden)").forEach((element) => {
+    detailUnderlayStates.push({
+      element,
+      ariaHidden: element.getAttribute("aria-hidden"),
+      inert: element.hasAttribute("inert"),
+    });
+    element.setAttribute("aria-hidden", "true");
+    element.setAttribute("inert", "");
+    element.setAttribute("data-detail-underlay", "true");
+  });
+
+  modal.classList.add("modal-overlay-top");
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-hidden", "false");
+  modal.setAttribute("tabindex", "-1");
+  modal.style.setProperty("z-index", "30000", "important");
+}
+
+function restoreDetailModalState(modal) {
+  if (!modal) return;
+  modal.classList.remove("modal-overlay-top");
+  modal.removeAttribute("aria-modal");
+  modal.setAttribute("aria-hidden", "true");
+  modal.removeAttribute("tabindex");
+  modal.style.removeProperty("z-index");
+
+  detailUnderlayStates.forEach(({ element, ariaHidden, inert }) => {
+    if (!element?.isConnected) return;
+    if (ariaHidden === null) element.removeAttribute("aria-hidden");
+    else element.setAttribute("aria-hidden", ariaHidden);
+    if (!inert) element.removeAttribute("inert");
+    element.removeAttribute("data-detail-underlay");
+  });
+  detailUnderlayStates = [];
+
+  const focusTarget = detailPreviousFocus;
+  detailPreviousFocus = null;
+  if (focusTarget?.isConnected && typeof focusTarget.focus === "function") {
+    focusTarget.focus();
+  }
+}
 
 async function resolveWorkshopID(file) {
   const workshopFileNameID =
@@ -38,7 +115,10 @@ function buildWorkshopBrowserURL(workshopID, target) {
 }
 
 export function showFileDetail(filePath) {
-  const file = appState.vpkFiles.find((f) => f.path === filePath);
+  // 冲突分析的基线可能来自当前筛选之外，详情按钮仍应能打开它。
+  const file =
+    appState.vpkFiles.find((f) => f.path === filePath) ||
+    appState.allVpkFiles.find((f) => f.path === filePath);
   if (!file) {
     console.error("未找到文件:", filePath);
     return;
@@ -61,30 +141,38 @@ export function showFileDetail(filePath) {
 
   const previewSection = document.getElementById("preview-section");
   const previewImage = document.getElementById("detail-preview-image");
+  const previewLoading = document.getElementById("detail-preview-loading");
 
   previewSection.classList.remove("hidden");
   previewImage.style.display = "none";
+  previewImage.removeAttribute("src");
+  previewLoading?.classList.remove("hidden");
 
   const cachedPreview = getCachedVPKPreview(file);
   if (cachedPreview) {
     previewImage.src = cachedPreview;
     previewImage.style.display = "block";
+    previewLoading?.classList.add("hidden");
   } else if (cachedPreview === "") {
     previewSection.classList.add("hidden");
+    previewLoading?.classList.add("hidden");
   } else {
-    loadVPKPreview(file)
+    loadVPKPreviewWithOptions(file, { priority: true })
       .then((imgData) => {
         if (currentDetailFile?.path !== file.path) return;
         if (imgData) {
           previewImage.src = imgData;
           previewImage.style.display = "block";
+          previewLoading?.classList.add("hidden");
         } else {
           previewSection.classList.add("hidden");
+          previewLoading?.classList.add("hidden");
         }
       })
       .catch((err) => {
         console.error("加载预览图失败:", err);
         previewSection.classList.add("hidden");
+        previewLoading?.classList.add("hidden");
       });
   }
 
@@ -194,6 +282,7 @@ export function showFileDetail(filePath) {
     mapInfoSection.classList.add("hidden");
   }
 
+  promoteDetailModal(modal);
   modal.classList.remove("hidden");
 
   setTimeout(() => {
@@ -201,11 +290,15 @@ export function showFileDetail(filePath) {
     const modalBody = modal.querySelector(".modal-body");
     if (modalContent) modalContent.scrollTop = 0;
     if (modalBody) modalBody.scrollTop = 0;
+    const closeButton = modal.querySelector("#close-modal-header-btn");
+    (closeButton || modal).focus?.();
   }, 0);
 
 }
 
 export function closeModal() {
-  document.getElementById("file-detail-modal").classList.add("hidden");
+  const modal = document.getElementById("file-detail-modal");
+  modal?.classList.add("hidden");
+  restoreDetailModalState(modal);
   currentDetailFile = null;
 }

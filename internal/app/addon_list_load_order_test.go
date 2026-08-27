@@ -5,6 +5,10 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"unicode/utf8"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 func newLoadOrderTestApp(t *testing.T, content string) (*App, string) {
@@ -106,7 +110,7 @@ func TestAddonListLoadOrderConstraintsAreStableAndRejectCycles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview constrained: %v", err)
 	}
-	if want := []string{"root-b.vpk", "workshop\\100.vpk", "workshop\\200.vpk", "root-a.vpk"}; !reflect.DeepEqual(loadOrderKeys(preview.Entries), want) {
+	if want := []string{"workshop\\200.vpk", "root-a.vpk", "root-b.vpk", "workshop\\100.vpk"}; !reflect.DeepEqual(loadOrderKeys(preview.Entries), want) {
 		t.Fatalf("constrained = %#v, want %#v", loadOrderKeys(preview.Entries), want)
 	}
 
@@ -116,6 +120,29 @@ func TestAddonListLoadOrderConstraintsAreStableAndRejectCycles(t *testing.T) {
 	}})
 	if err == nil {
 		t.Fatal("cycle policy unexpectedly succeeded")
+	}
+}
+
+func TestAddonListLoadOrderConstraintsMoveSourcesBeforeEarlierAnchor(t *testing.T) {
+	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"anchor.vpk\"\t\t\"1\"\n\t\"gap-a.vpk\"\t\t\"1\"\n\t\"gap-b.vpk\"\t\t\"0\"\n\t\"source-a.vpk\"\t\t\"1\"\n\t\"source-b.vpk\"\t\t\"0\"\n\t\"source-c.vpk\"\t\t\"1\"\n}\n")
+	preview, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{
+		Constraints: []AddonListLoadOrderConstraint{
+			{Before: "source-a.vpk", After: "anchor.vpk"},
+			{Before: "source-b.vpk", After: "anchor.vpk"},
+			{Before: "source-c.vpk", After: "anchor.vpk"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("preview source-before-anchor: %v", err)
+	}
+	want := []string{"source-a.vpk", "source-b.vpk", "source-c.vpk", "anchor.vpk", "gap-a.vpk", "gap-b.vpk"}
+	if got := loadOrderKeys(preview.Entries); !reflect.DeepEqual(got, want) {
+		t.Fatalf("source-before-anchor = %#v, want %#v", got, want)
+	}
+	for _, entry := range preview.Entries {
+		if entry.Key == "anchor.vpk" && entry.Order != 4 {
+			t.Fatalf("anchor order = %d, want 4", entry.Order)
+		}
 	}
 }
 
@@ -147,5 +174,40 @@ func TestApplyAddonListLoadOrderPolicyWritesAndSyncsProtectedSnapshot(t *testing
 		if entry.Key == "workshop\\100.vpk" && entry.Value != "0" {
 			t.Fatalf("workshop state = %q, want 0", entry.Value)
 		}
+	}
+}
+
+func TestApplyAddonListLoadOrderPolicyPreservesGBKEncoding(t *testing.T) {
+	content := "\"AddonList\"\r\n{\r\n\t\"workshop\\123.vpk\"\t\"1\"\r\n\t\"根目录测试.vpk\"\t\"0\"\r\n}\r\n"
+	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, path := newLoadOrderTestApp(t, "")
+	if err := os.WriteFile(path, encoded, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	preview, err := app.ApplyAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{RootFirst: true})
+	if err != nil {
+		t.Fatalf("apply GBK policy: %v", err)
+	}
+	if got, want := loadOrderKeys(preview.Entries), []string{"根目录测试.vpk", "workshop\\123.vpk"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("ordered keys = %#v, want %#v", got, want)
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if utf8.Valid(updated) {
+		t.Fatal("sorting rewrote a GBK addonlist.txt as UTF-8")
+	}
+	decoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := parseAddonListItems(string(decoded)); !reflect.DeepEqual(got[0], (AddonListItem{Name: "根目录测试.vpk", Value: "0"})) {
+		t.Fatalf("decoded first entry = %#v, want 根目录测试.vpk disabled", got[0])
 	}
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"vpk-manager/internal/parser"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -34,13 +36,38 @@ type ConflictResult struct {
 	ConflictGroups []ConflictGroup `json:"conflict_groups"`
 }
 
+// ConflictBaselineRule describes one condition used to select the Mods that
+// scoped conflict analysis compares against. TargetPaths identify the current
+// list/filter result; only targets that also satisfy the selected baseline can
+// qualify a result group. Supported types are: enabled, not_disabled, tag,
+// root, and workshop.
+type ConflictBaselineRule struct {
+	Type  string `json:"type"`
+	Value string `json:"value,omitempty"`
+}
+
+// ConflictAnalysisOptions configures a scoped conflict check. MatchMode is
+// "and" (all rules) or "or" (any rule). An empty rule list deliberately keeps
+// the historical behaviour and uses the currently game-enabled Mods.
+type ConflictAnalysisOptions struct {
+	TargetPaths   []string               `json:"targetPaths"`
+	BaselineRules []ConflictBaselineRule `json:"baselineRules"`
+	MatchMode     string                 `json:"matchMode"`
+}
+
 const (
 	conflictWorkerLimit        = 4
 	conflictGroupFileListLimit = 2000
-	// Scoped conflict checks are intentionally bounded. The full diagnostics
-	// scan remains available, while the list-page switch should ask the user to
-	// narrow the current filters before parsing hundreds of VPK archives.
-	scopedConflictMaxVPKs = 300
+	// Keep a practical working set for large addon directories. Entries are
+	// evicted individually (LRU-style) instead of clearing the whole cache.
+	conflictIndexCacheMax = 1024
+	// Scoped conflict checks are bounded to keep the list-page switch
+	// responsive while allowing large, practical mod collections. The limit
+	// applies to selected targets only; the chosen baseline may be larger.
+	// 5,000 targets covers large custom collections while retaining a hard
+	// guard against accidental unbounded scans. The baseline may still be
+	// larger than this target limit.
+	scopedConflictMaxVPKs = 5000
 )
 
 type conflictGroupAccumulator struct {
@@ -154,28 +181,54 @@ func getVPKFileListSafely(filePath string) (files []string, err error) {
 	return parser.GetVPKFileList(filePath)
 }
 
-// CheckConflicts 检测VPK文件冲突
-func (a *App) CheckConflicts() (*ConflictResult, error) {
-	return a.checkConflicts(nil)
+// emitConflictProgress keeps conflict checks usable in tests and headless
+// callers where Wails has not assigned an application context yet.
+func (a *App) emitConflictProgress(progress ProgressInfo) {
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "conflict_check_progress", progress)
+	}
 }
 
-// CheckConflictsForPaths checks only the VPK paths currently visible in the
-// filtered Mod list. It reuses the same severity and grouping rules as the full
-// diagnostics scan, but avoids opening unrelated archives.
+// CheckConflicts 检测VPK文件冲突
+func (a *App) CheckConflicts() (*ConflictResult, error) {
+	return a.checkConflicts(nil, nil, "or")
+}
+
+// CheckConflictsForPaths treats the supplied paths as analysis targets. Targets
+// that satisfy the default game-enabled baseline are compared with every
+// currently game-enabled Mod, including Mods outside the current filter. This
+// keeps the list badge useful when a filter narrows the targets without hiding
+// conflicts against the active load set, while ignoring disabled targets.
 func (a *App) CheckConflictsForPaths(paths []string) (*ConflictResult, error) {
 	if len(paths) == 0 {
 		return &ConflictResult{}, nil
 	}
 	if len(paths) > scopedConflictMaxVPKs {
-		return nil, fmt.Errorf("当前筛选包含 %d 个 Mod；为避免卡顿，请缩小筛选范围至 %d 个以内", len(paths), scopedConflictMaxVPKs)
+		return nil, fmt.Errorf("当前筛选包含 %d 个 Mod；当前最多支持 %d 个目标，请缩小筛选范围后再分析", len(paths), scopedConflictMaxVPKs)
 	}
-	return a.checkConflicts(paths)
+	return a.checkConflicts(paths, defaultConflictBaselineRules(), "or")
 }
 
-func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
-	a.mu.RLock()
-	rootDir := a.rootDir
-	a.mu.RUnlock()
+// CheckConflictsWithOptions checks the selected target Mods against a baseline
+// chosen by the caller. It reuses the VPK metadata and archive file-list
+// caches, so changing a range normally avoids reparsing unchanged archives.
+func (a *App) CheckConflictsWithOptions(options ConflictAnalysisOptions) (*ConflictResult, error) {
+	if len(options.TargetPaths) == 0 {
+		return &ConflictResult{}, nil
+	}
+	if len(options.TargetPaths) > scopedConflictMaxVPKs {
+		return nil, fmt.Errorf("当前筛选包含 %d 个 Mod；当前最多支持 %d 个目标，请缩小筛选范围后再分析", len(options.TargetPaths), scopedConflictMaxVPKs)
+	}
+
+	rules, matchMode, err := normalizeConflictBaselineRules(options.BaselineRules, options.MatchMode)
+	if err != nil {
+		return nil, err
+	}
+	return a.checkConflicts(options.TargetPaths, rules, matchMode)
+}
+
+func (a *App) checkConflicts(selectedPaths []string, baselineRules []ConflictBaselineRule, matchMode string) (*ConflictResult, error) {
+	rootDir := a.rootDirectorySnapshot()
 
 	if rootDir == "" {
 		return nil, fmt.Errorf("未选择L4D2目录")
@@ -186,9 +239,24 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 	}
 	defer a.conflictCheckMu.Unlock()
 
-	vpkPaths, err := a.collectConflictVPKPaths(selectedPaths)
-	if err != nil {
-		return nil, err
+	var vpkPaths []string
+	var targetSet map[string]struct{}
+	var baselineSet map[string]struct{}
+	if selectedPaths != nil {
+		targetPaths, err := a.collectConflictVPKPaths(selectedPaths)
+		if err != nil {
+			return nil, err
+		}
+		baselinePaths := a.collectConflictBaselineVPKPaths(baselineRules, matchMode)
+		targetSet = pathSet(targetPaths)
+		baselineSet = pathSet(baselinePaths)
+		vpkPaths = mergeConflictPaths(targetPaths, baselinePaths)
+	} else {
+		var err error
+		vpkPaths, err = a.collectConflictVPKPaths(nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	totalFiles := len(vpkPaths)
@@ -197,7 +265,7 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 	}
 
 	// 发送开始事件
-	runtime.EventsEmit(a.ctx, "conflict_check_progress", ProgressInfo{
+	a.emitConflictProgress(ProgressInfo{
 		Current: 0,
 		Total:   totalFiles,
 		Message: "开始扫描冲突...",
@@ -228,7 +296,7 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 			workerSlots <- struct{}{}
 			defer func() { <-workerSlots }()
 
-			files, err := getVPKFileListSafely(p)
+			files, err := a.getConflictFileList(p)
 
 			countMu.Lock()
 			processedCount++
@@ -237,7 +305,7 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 
 			// 每5个文件或者最后一个文件发送一次进度，避免事件过多
 			if current%5 == 0 || current == totalFiles {
-				runtime.EventsEmit(a.ctx, "conflict_check_progress", ProgressInfo{
+				a.emitConflictProgress(ProgressInfo{
 					Current: current,
 					Total:   totalFiles,
 					Message: fmt.Sprintf("正在分析: %s", filepath.Base(p)),
@@ -281,7 +349,7 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 	wg.Wait()
 
 	// 分析冲突
-	runtime.EventsEmit(a.ctx, "conflict_check_progress", ProgressInfo{
+	a.emitConflictProgress(ProgressInfo{
 		Current: totalFiles,
 		Total:   totalFiles,
 		Message: "正在整理冲突结果...",
@@ -292,6 +360,12 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 	conflictMap := make(map[string]*conflictGroupAccumulator)
 
 	for f, vpks := range conflictOwners {
+		if selectedPaths != nil {
+			vpks = scopedConflictOwners(vpks, targetSet, baselineSet)
+			if len(vpks) < 2 {
+				continue
+			}
+		}
 		sort.Strings(vpks)
 		key := strings.Join(vpks, "|")
 		acc, ok := conflictMap[key]
@@ -354,6 +428,380 @@ func (a *App) checkConflicts(selectedPaths []string) (*ConflictResult, error) {
 		TotalConflicts: len(groups),
 		ConflictGroups: groups,
 	}, nil
+}
+
+func defaultConflictBaselineRules() []ConflictBaselineRule {
+	return []ConflictBaselineRule{{Type: "enabled"}}
+}
+
+func normalizeConflictBaselineRules(rules []ConflictBaselineRule, matchMode string) ([]ConflictBaselineRule, string, error) {
+	mode := strings.ToLower(strings.TrimSpace(matchMode))
+	if mode == "" {
+		mode = "or"
+	}
+	if mode != "and" && mode != "or" {
+		return nil, "", fmt.Errorf("不支持的冲突分析条件组合方式: %s", matchMode)
+	}
+
+	if len(rules) == 0 {
+		return defaultConflictBaselineRules(), mode, nil
+	}
+
+	result := make([]ConflictBaselineRule, 0, len(rules))
+	seen := make(map[string]struct{}, len(rules))
+	for _, rule := range rules {
+		typeName := strings.ToLower(strings.TrimSpace(rule.Type))
+		typeName = strings.ReplaceAll(typeName, "-", "_")
+		switch typeName {
+		case "enabled", "not_disabled", "root", "workshop":
+			// no extra value required
+		case "tag":
+			rule.Value = strings.TrimSpace(rule.Value)
+			if rule.Value == "" {
+				return nil, "", fmt.Errorf("“拥有标签”条件需要选择一个标签")
+			}
+		default:
+			return nil, "", fmt.Errorf("不支持的冲突分析条件: %s", rule.Type)
+		}
+
+		key := typeName + "\x00" + strings.ToLower(rule.Value)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, ConflictBaselineRule{Type: typeName, Value: rule.Value})
+	}
+	if len(result) == 0 {
+		return defaultConflictBaselineRules(), mode, nil
+	}
+	return result, mode, nil
+}
+
+// collectEnabledConflictVPKPaths is retained for package callers and tests.
+// It returns the historical baseline: only archives currently game-enabled and
+// physically outside disabled.
+func (a *App) collectEnabledConflictVPKPaths() []string {
+	return a.collectConflictBaselineVPKPaths(defaultConflictBaselineRules(), "or")
+}
+
+func (a *App) collectConflictBaselineVPKPaths(rules []ConflictBaselineRule, matchMode string) []string {
+	// Do not rely solely on vpkCache here. A user can click conflict analysis
+	// while the initial directory scan is still running; in that case the old
+	// implementation silently produced an incomplete baseline. Enumerate the
+	// filesystem first, then enrich entries from cache (or a minimal metadata
+	// parse for tag rules).
+	rootDir := a.rootDirectorySnapshot()
+	if rootDir == "" {
+		// Package tests and headless callers may provide only the metadata cache.
+		// Preserve that supported fallback when no directory has been selected.
+		paths := make([]string, 0)
+		a.vpkCache.Range(func(key, value interface{}) bool {
+			cache, ok := value.(*VPKFileCache)
+			if ok && cache != nil && strings.HasSuffix(strings.ToLower(cache.File.Path), ".vpk") && conflictBaselineMatches(cache.File, rules, matchMode) {
+				paths = append(paths, cache.File.Path)
+			}
+			return true
+		})
+		return dedupeConflictPaths(paths)
+	}
+	allPaths := collectConflictFilesystemPaths(rootDir)
+	stateMap := a.conflictAddonListStateMap()
+	needsTags := false
+	for _, rule := range rules {
+		if strings.EqualFold(rule.Type, "tag") {
+			needsTags = true
+			break
+		}
+	}
+
+	paths := make([]string, 0, len(allPaths))
+	for _, path := range allPaths {
+		file := a.conflictBaselineFile(path, rootDir, stateMap, needsTags)
+		if conflictBaselineMatches(file, rules, matchMode) {
+			paths = append(paths, path)
+		}
+	}
+	return dedupeConflictPaths(paths)
+}
+
+func collectConflictFilesystemPaths(rootDir string) []string {
+	paths := make([]string, 0)
+	dirs := []struct {
+		path      string
+		recursive bool
+	}{
+		{path: rootDir, recursive: false},
+		{path: filepath.Join(rootDir, "workshop"), recursive: true},
+		{path: filepath.Join(rootDir, "disabled"), recursive: true},
+	}
+	for _, item := range dirs {
+		dir := item.path
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		if !item.recursive {
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
+					paths = append(paths, filepath.Join(dir, entry.Name()))
+				}
+			}
+			continue
+		}
+		_ = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
+				paths = append(paths, path)
+			}
+			return nil
+		})
+	}
+	return dedupeConflictPaths(paths)
+}
+
+func (a *App) conflictAddonListStateMap() map[string]bool {
+	list, _, err := a.readAddonList()
+	if err != nil {
+		return map[string]bool{}
+	}
+	return addonListStateMap(list)
+}
+
+func (a *App) conflictBaselineFile(path, rootDir string, stateMap map[string]bool, needsTags bool) VPKFile {
+	location := "root"
+	if rel, err := filepath.Rel(rootDir, path); err == nil {
+		parts := strings.Split(rel, string(filepath.Separator))
+		if len(parts) > 0 {
+			switch strings.ToLower(parts[0]) {
+			case "workshop":
+				location = "workshop"
+			case "disabled":
+				location = "disabled"
+			}
+		}
+	}
+	file := VPKFile{Name: filepath.Base(path), Path: path, Location: location, Enabled: location != "disabled"}
+	if key, err := addonListKeyForRootAndPath(rootDir, path); err == nil {
+		if enabled, ok := stateMap[key]; ok {
+			file.GameEnabled = enabled
+			file.GameStateKnown = true
+		}
+	}
+	if cached, ok := a.vpkCache.Load(path); ok {
+		if cache, valid := cached.(*VPKFileCache); valid && cache != nil {
+			file = cache.File
+			file.Path = path
+			file.Location = location
+			file.Enabled = location != "disabled"
+			if key, err := addonListKeyForRootAndPath(rootDir, path); err == nil {
+				if enabled, ok := stateMap[key]; ok {
+					file.GameEnabled = enabled
+					file.GameStateKnown = true
+				} else {
+					file.GameEnabled = false
+					file.GameStateKnown = false
+				}
+			}
+			return file
+		}
+	}
+	if needsTags {
+		if parsed, err := parser.ParseVPKFileMetadata(path); err == nil && parsed != nil {
+			file.PrimaryTag = parsed.PrimaryTag
+			file.SecondaryTags = parsed.SecondaryTags
+		}
+		if meta, err := LoadWorkshopMeta(path); err == nil && meta != nil {
+			if meta.PrimaryTag != "" {
+				file.PrimaryTag = meta.PrimaryTag
+			}
+			if len(meta.SecondaryTags) > 0 {
+				file.SecondaryTags = meta.SecondaryTags
+			}
+			if len(meta.Tags) > 0 && file.PrimaryTag == "" && len(file.SecondaryTags) == 0 {
+				file.PrimaryTag = meta.Tags[0]
+				file.SecondaryTags = meta.Tags[1:]
+			}
+		}
+	}
+	return file
+}
+
+func addonListKeyForRootAndPath(rootDir, filePath string) (string, error) {
+	if rootDir == "" {
+		return "", fmt.Errorf("未选择L4D2目录")
+	}
+	relativePath, err := filepath.Rel(rootDir, filePath)
+	if err != nil {
+		return "", err
+	}
+	key := normalizeAddonListKey(relativePath)
+	if strings.HasPrefix(key, "disabled\\") {
+		key = strings.TrimPrefix(key, "disabled\\")
+	}
+	if key == ".." || strings.HasPrefix(key, "..\\") {
+		return "", fmt.Errorf("Mod 不在 addons 目录中: %s", filePath)
+	}
+	return key, nil
+}
+
+func conflictBaselineMatches(file VPKFile, rules []ConflictBaselineRule, matchMode string) bool {
+	if len(rules) == 0 {
+		rules = defaultConflictBaselineRules()
+	}
+
+	matchAll := strings.EqualFold(matchMode, "and")
+	for _, rule := range rules {
+		matched := false
+		switch rule.Type {
+		case "enabled":
+			matched = file.GameStateKnown && file.GameEnabled && file.Location != "disabled"
+		case "not_disabled":
+			matched = file.Location != "disabled"
+		case "root":
+			matched = file.Location == "root"
+		case "workshop":
+			matched = file.Location == "workshop"
+		case "tag":
+			matched = conflictFileHasTag(file, rule.Value)
+		}
+
+		if matchAll && !matched {
+			return false
+		}
+		if !matchAll && matched {
+			return true
+		}
+	}
+	return matchAll
+}
+
+func conflictFileHasTag(file VPKFile, wanted string) bool {
+	wanted = strings.TrimSpace(wanted)
+	if wanted == "" {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(file.PrimaryTag), wanted) {
+		return true
+	}
+	for _, tag := range file.SecondaryTags {
+		if strings.EqualFold(strings.TrimSpace(tag), wanted) {
+			return true
+		}
+	}
+	return false
+}
+
+func pathSet(paths []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		set[strings.ToLower(filepath.Clean(path))] = struct{}{}
+	}
+	return set
+}
+
+func mergeConflictPaths(groups ...[]string) []string {
+	paths := make([]string, 0)
+	for _, group := range groups {
+		paths = append(paths, group...)
+	}
+	return dedupeConflictPaths(paths)
+}
+
+func dedupeConflictPaths(paths []string) []string {
+	seen := make(map[string]struct{}, len(paths))
+	result := make([]string, 0, len(paths))
+	for _, path := range paths {
+		clean := filepath.Clean(path)
+		key := strings.ToLower(clean)
+		if clean == "." || key == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, clean)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// scopedConflictOwners keeps only owners that satisfy the selected baseline
+// rules. A scoped result is useful only when at least one of those matching
+// owners is also a selected target; this prevents conflicts between unrelated
+// baseline Mods from appearing when the current filter contains no matching
+// Mod. Because target membership alone is not enough, a disabled/otherwise
+// non-matching target is never shown or used to qualify a conflict group.
+func scopedConflictOwners(owners []string, targets, baseline map[string]struct{}) []string {
+	result := make([]string, 0, len(owners))
+	seen := make(map[string]struct{}, len(owners))
+	hasMatchingTarget := false
+	for _, owner := range owners {
+		key := strings.ToLower(filepath.Clean(owner))
+		if _, isBaseline := baseline[key]; !isBaseline {
+			continue
+		}
+		if _, duplicate := seen[key]; duplicate {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, owner)
+		if _, isTarget := targets[key]; isTarget {
+			hasMatchingTarget = true
+		}
+	}
+	if !hasMatchingTarget || len(result) < 2 {
+		return nil
+	}
+	return result
+}
+
+func (a *App) getConflictFileList(filePath string) ([]string, error) {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, err
+	}
+	a.conflictIndexMu.Lock()
+	if a.conflictIndexCache != nil {
+		if cached, ok := a.conflictIndexCache[filePath]; ok && cached.Size == info.Size() && cached.ModTime.Equal(info.ModTime()) {
+			files := append([]string(nil), cached.Files...)
+			cached.LastUsed = time.Now()
+			a.conflictIndexCache[filePath] = cached
+			a.conflictIndexMu.Unlock()
+			return files, nil
+		}
+	}
+	a.conflictIndexMu.Unlock()
+
+	files, err := getVPKFileListSafely(filePath)
+	if err != nil {
+		return nil, err
+	}
+	entry := conflictIndexCacheEntry{ModTime: info.ModTime(), Size: info.Size(), Files: append([]string(nil), files...), LastUsed: time.Now()}
+	a.conflictIndexMu.Lock()
+	if a.conflictIndexCache == nil {
+		a.conflictIndexCache = make(map[string]conflictIndexCacheEntry)
+	}
+	if len(a.conflictIndexCache) >= conflictIndexCacheMax {
+		// Evict only the least recently used entry. A full reset caused cache
+		// thrashing whenever a collection exceeded the old 512-entry limit.
+		var oldestKey string
+		var oldest time.Time
+		for key, cached := range a.conflictIndexCache {
+			if oldestKey == "" || cached.LastUsed.Before(oldest) {
+				oldestKey = key
+				oldest = cached.LastUsed
+			}
+		}
+		if oldestKey != "" {
+			delete(a.conflictIndexCache, oldestKey)
+		}
+	}
+	a.conflictIndexCache[filePath] = entry
+	a.conflictIndexMu.Unlock()
+	return files, nil
 }
 
 func (a *App) collectConflictVPKPaths(selectedPaths []string) ([]string, error) {

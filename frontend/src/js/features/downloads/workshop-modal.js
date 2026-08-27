@@ -321,7 +321,7 @@ function renderWorkshopItem(details, groupIndex, itemIndex) {
       <div class="skeleton-image-placeholder">
         ${IMAGE_PLACEHOLDER_SVG}
       </div>
-      <img ${previewUrl ? `src="${escapeHtml(previewUrl)}"` : ""} alt="${escapeHtml(title)}" class="workshop-preview" loading="lazy" />
+      <img ${previewUrl ? `src="${escapeHtml(previewUrl)}"` : ""} alt="${escapeHtml(title)}" class="workshop-preview" loading="lazy" decoding="async" />
     </div>
     <div class="workshop-details">
       <div class="workshop-item-heading">

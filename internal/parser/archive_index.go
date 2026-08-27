@@ -72,6 +72,9 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 
 func normalizeArchivePath(name string) string {
 	name = strings.TrimSpace(name)
+	if decoded, err := DecodeVPKEntryName(name); err == nil {
+		name = decoded
+	}
 	name = strings.ReplaceAll(name, "\\", "/")
 	name = strings.TrimPrefix(name, "./")
 	return strings.ToLower(name)

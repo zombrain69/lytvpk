@@ -43,13 +43,8 @@ export async function handleLoadOrderSort() {
   document.getElementById("sort-dropdown-content")?.classList.add("hidden");
 
   try {
-    const orderList = await GetAddonListOrder();
+    const orderList = await refreshLoadOrderMap();
     console.log("获取到加载顺序:", orderList.length, "个条目");
-
-    appState.loadOrderMap.clear();
-    orderList.forEach((name, index) => {
-      appState.loadOrderMap.set(name.toLowerCase(), index);
-    });
 
     appState.sortType = "loadOrder";
     appState.sortOrder = "asc";
@@ -122,6 +117,65 @@ export async function handleModelComplexitySort() {
   }
 }
 
+/**
+ * 重新读取 addonlist.txt 的顺序映射。
+ *
+ * 列表排序使用的是 addonlist.txt 的相对键（例如
+ * workshop\\123456.vpk），不能只按文件名建立映射，否则根目录与工坊中
+ * 同名 VPK 会互相覆盖。该函数单独导出，供加载顺序写入后先同步映射，
+ * 再触发完整文件列表刷新。
+ */
+export async function refreshLoadOrderMap() {
+  const orderList = await GetAddonListOrder();
+  appState.loadOrderMap.clear();
+  (orderList || []).forEach((name, index) => {
+    const key = normalizeLoadOrderKey(name);
+    if (key) {
+      appState.loadOrderMap.set(key, index);
+    }
+  });
+  return orderList || [];
+}
+
+function normalizeLoadOrderKey(value) {
+  return String(value || "")
+    .trim()
+    .replaceAll("/", "\\")
+    .replace(/^\.\\/, "")
+    .toLowerCase();
+}
+
+function getFileLoadOrderKeys(file) {
+  const keys = [];
+  const name = normalizeLoadOrderKey(file?.name);
+  const path = normalizeLoadOrderKey(file?.path);
+  const root = normalizeLoadOrderKey(appState.currentDirectory);
+
+  if (root && path.startsWith(`${root}\\`)) {
+    keys.push(path.slice(root.length + 1));
+  }
+  if (file?.location === "disabled" && name) {
+    // disabled 目录中的文件在受管理的 addonlist 中仍对应其启用前的键。
+    keys.push(`disabled\\${name}`);
+    keys.push(name);
+  } else if (file?.location === "workshop" && name) {
+    keys.push(`workshop\\${name}`);
+    keys.push(name);
+  } else if (name) {
+    keys.push(name);
+  }
+
+  return [...new Set(keys.filter(Boolean))];
+}
+
+function getFileLoadOrderIndex(file) {
+  for (const key of getFileLoadOrderKeys(file)) {
+    const index = appState.loadOrderMap.get(key);
+    if (index !== undefined) return index;
+  }
+  return undefined;
+}
+
 export function updateSortButtonUI() {
   const btnText = document.getElementById("sort-btn-text");
   const nameBtn = document.getElementById("sort-name-btn");
@@ -182,15 +236,16 @@ export function applySort(files) {
     } else if (appState.sortType === "modelComplexity") {
       result = Number(a.modelVertices || 0) - Number(b.modelVertices || 0);
     } else if (appState.sortType === "loadOrder") {
-      const nameA = a.name.toLowerCase();
-      const nameB = b.name.toLowerCase();
-
-      const inListA = appState.loadOrderMap.has(nameA);
-      const inListB = appState.loadOrderMap.has(nameB);
+      const orderA = getFileLoadOrderIndex(a);
+      const orderB = getFileLoadOrderIndex(b);
+      const inListA = orderA !== undefined;
+      const inListB = orderB !== undefined;
 
       if (inListA && inListB) {
-        result = appState.loadOrderMap.get(nameA) - appState.loadOrderMap.get(nameB);
+        result = orderA - orderB;
       } else if (!inListA && !inListB) {
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
         result = nameA.localeCompare(nameB, "zh-CN", {
           numeric: true,
           sensitivity: "accent",

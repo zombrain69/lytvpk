@@ -18,13 +18,22 @@ func (a *App) SetRootDirectory(path string) error {
 	a.addonListGuardMu.Lock()
 	defer a.addonListGuardMu.Unlock()
 
-	a.mu.Lock()
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		a.mu.Unlock()
-		return fmt.Errorf("目录不存在: %s", path)
+	path = filepath.Clean(strings.TrimSpace(path))
+	if path == "." || path == "" {
+		return fmt.Errorf("目录路径不能为空")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("目录不存在: %s", path)
+		}
+		return fmt.Errorf("无法访问目录 %s: %w", path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("目标不是目录: %s", path)
 	}
 
+	a.mu.Lock()
 	a.rootDir = path
 	a.mu.Unlock()
 	a.restartAddonListMonitor()
@@ -45,7 +54,10 @@ func (a *App) GetAppVersion() string {
 
 // ScanVPKFiles 扫描所有VPK文件（智能缓存版本）
 func (a *App) ScanVPKFiles() error {
-	if a.rootDir == "" {
+	a.mu.RLock()
+	rootDir := a.rootDir
+	a.mu.RUnlock()
+	if rootDir == "" {
 		return fmt.Errorf("请先设置根目录")
 	}
 
@@ -55,13 +67,13 @@ func (a *App) ScanVPKFiles() error {
 	vpkPaths := make([]string, 0)
 
 	// 扫描根目录（仅扫描根目录本身的VPK文件，不包含子目录）
-	err := a.scanRootDirectory(a.rootDir, &vpkPaths)
+	err := a.scanRootDirectory(rootDir, &vpkPaths)
 	if err != nil {
 		return err
 	}
 
 	// 扫描workshop目录
-	workshopDir := filepath.Join(a.rootDir, "workshop")
+	workshopDir := filepath.Join(rootDir, "workshop")
 	if _, err := os.Stat(workshopDir); err == nil {
 		err = a.scanDirectory(workshopDir, &vpkPaths)
 		if err != nil {
@@ -70,7 +82,7 @@ func (a *App) ScanVPKFiles() error {
 	}
 
 	// 扫描disabled目录
-	disabledDir := filepath.Join(a.rootDir, "disabled")
+	disabledDir := filepath.Join(rootDir, "disabled")
 	if _, err := os.Stat(disabledDir); err == nil {
 		err = a.scanDirectory(disabledDir, &vpkPaths)
 		if err != nil {
@@ -89,6 +101,7 @@ func (a *App) ScanVPKFiles() error {
 		path := key.(string)
 		if !currentPaths[path] {
 			a.vpkCache.Delete(path)
+			a.deleteVPKPreviewCache(path)
 			log.Printf("清理缓存: 文件已删除 %s", path)
 		}
 		return true
@@ -212,6 +225,7 @@ func (a *App) processVPKFileWithCache(filePath string) {
 
 	// 自定义标签始终从 .meta 读取：它们是本程序的本地分类数据，不能依赖于工坊详情开关。
 	// 这样 workshop\123456.vpk 无需通过重命名来保存标签，Steam 仍可识别原始文件名。
+	metaEnabled, updateCheckEnabled := a.workshopOptionsSnapshot()
 	if meta, err := LoadWorkshopMeta(filePath); meta != nil && err == nil {
 		if meta.PrimaryTag != "" || len(meta.SecondaryTags) > 0 {
 			vpkFile.PrimaryTag = parser.CanonicalTag(meta.PrimaryTag)
@@ -224,7 +238,7 @@ func (a *App) processVPKFileWithCache(filePath string) {
 			}
 		}
 
-		if a.workshopMetaEnabled {
+		if metaEnabled {
 			if meta.Title != "" {
 				vpkFile.Title = meta.Title
 			}
@@ -237,7 +251,7 @@ func (a *App) processVPKFileWithCache(filePath string) {
 			if meta.WorkshopID != "" && !strings.HasPrefix(meta.WorkshopID, "direct-") && protocol.IsValidWorkshopID(meta.WorkshopID) {
 				vpkFile.WorkshopID = meta.WorkshopID
 			}
-			if a.workshopUpdateCheckEnabled && meta.TimeUpdated != "" && meta.DownloadedAt != "" {
+			if updateCheckEnabled && meta.TimeUpdated != "" && meta.DownloadedAt != "" {
 				timeUpdated, tErr := time.Parse(time.RFC3339, meta.TimeUpdated)
 				downloadedAt, dErr := time.Parse(time.RFC3339, meta.DownloadedAt)
 				if tErr == nil && dErr == nil && timeUpdated.After(downloadedAt) {
@@ -263,14 +277,15 @@ func (a *App) processVPKFileWithCache(filePath string) {
 
 // getLocationFromPath 根据文件路径判断位置
 func (a *App) getLocationFromPath(filePath string) string {
-	rel, _ := filepath.Rel(a.rootDir, filePath)
+	rootDir := a.rootDirectorySnapshot()
+	rel, _ := filepath.Rel(rootDir, filePath)
 	parts := strings.Split(rel, string(filepath.Separator))
 
 	if len(parts) > 0 {
-		switch parts[0] {
-		case "workshop":
+		switch {
+		case strings.EqualFold(parts[0], "workshop"):
 			return "workshop"
-		case "disabled":
+		case strings.EqualFold(parts[0], "disabled"):
 			return "disabled"
 		default:
 			return "root"

@@ -8,11 +8,147 @@
 
 /* 冲突检测弹窗样式 */
 .modal-content.conflict-modal-content {
-  max-width: 1000px;
-  width: 95%;
-  max-height: 80vh;
+  max-width: min(1100px, calc(100vw - 1rem));
+  width: min(95vw, calc(100vw - 1rem));
+  max-height: min(86vh, calc(100dvh - 1rem));
   display: flex;
   flex-direction: column;
+}
+
+/* 冲突分析范围设置：卡片式布局，窄窗口自动单列并保持按钮可点击。 */
+.modal-content.conflict-scope-modal-content {
+  width: min(760px, calc(100vw - 2rem));
+  max-width: 760px;
+  max-height: min(760px, calc(100dvh - 2rem));
+}
+
+.conflict-scope-body {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.conflict-scope-intro {
+  display: grid;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  color: var(--text-secondary);
+}
+
+.conflict-scope-preview {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+
+.conflict-scope-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: var(--spacing-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.conflict-scope-fieldset legend {
+  padding: 0 var(--spacing-2);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+
+.conflict-scope-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--spacing-3);
+}
+
+.conflict-scope-rule-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--spacing-3);
+  align-items: start;
+  min-width: 0;
+  padding: var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: border-color var(--duration-150) var(--ease-out), background var(--duration-150) var(--ease-out);
+}
+
+.conflict-scope-rule-card:hover {
+  border-color: rgba(79, 70, 229, 0.35);
+  background: var(--bg-hover);
+}
+
+.conflict-scope-rule-card input {
+  margin-top: 0.2rem;
+}
+
+.conflict-scope-rule-card span {
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.conflict-scope-rule-card small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.conflict-scope-tag-card {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.conflict-scope-tag-card select {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+}
+
+.conflict-scope-mode-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.conflict-scope-mode-btn {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.conflict-scope-mode-btn.active {
+  border-color: rgba(79, 70, 229, 0.35);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.14), rgba(59, 130, 246, 0.09));
+  color: var(--primary);
+}
+
+.conflict-scope-hint {
+  margin: var(--spacing-3) 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.conflict-scope-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+}
+
+.conflict-scope-footer .btn {
+  min-width: min(100%, 9rem);
+  max-width: 100%;
 }
 
 .conflict-modal-content .modal-body {
@@ -115,10 +251,10 @@
 .conflict-toolbar {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(12rem, 1fr) minmax(0, 1fr) auto;
   grid-template-areas:
-    "summary desc desc"
-    "filters filters pagination";
+    "summary scope desc pagination"
+    "filters filters filters pagination";
   align-items: center;
   column-gap: var(--spacing-4);
   row-gap: var(--spacing-3);
@@ -138,6 +274,17 @@
   font-size: var(--text-lg);
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.conflict-scope-summary {
+  grid-area: scope;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--primary);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conflict-summary-icon {
@@ -195,6 +342,7 @@
   font-size: var(--text-sm);
   margin-top: 0;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .conflict-list {
@@ -248,13 +396,15 @@
 }
 
 .conflict-vpk-item {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--spacing-2);
   padding: var(--spacing-1) var(--spacing-2);
   border-radius: var(--radius-md);
   background: transparent;
   min-width: 0;
+  width: min(100%, 52rem);
   max-width: 100%;
 }
 
@@ -264,6 +414,7 @@
   gap: var(--spacing-2);
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .conflict-vpk-title {
@@ -283,6 +434,24 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 15ch;
+}
+
+/* 长标题/路径在窄窗口中允许断行，避免把右侧操作按钮挤出可视区域。 */
+.conflict-vpk-title,
+.conflict-vpk-filename,
+.conflict-scope-rule-card small,
+.conflict-scope-preview {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.conflict-vpk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-1);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .btn-conflict-action {
@@ -565,6 +734,74 @@
   align-items: center;
   justify-content: center;
   margin-bottom: var(--spacing-3);
+}
+
+@media (max-width: 980px) {
+  .conflict-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "summary pagination"
+      "scope scope"
+      "desc desc"
+      "filters filters";
+  }
+
+  .conflict-pagination {
+    justify-self: end;
+  }
+
+  .conflict-scope-summary {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 760px) {
+  .conflict-toolbar {
+    column-gap: var(--spacing-2);
+  }
+
+  .conflict-vpk-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .conflict-vpk-info {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .conflict-vpk-title,
+  .conflict-vpk-filename {
+    max-width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .conflict-vpk-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .conflict-scope-rule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .conflict-scope-footer .btn {
+    flex: 1 1 9rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .conflict-scope-footer {
+    flex-direction: column;
+  }
+
+  .conflict-scope-footer .btn {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 /* 详情页多图预览样式 */

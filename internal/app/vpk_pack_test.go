@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"l4d2-manager-next/pkg/valve/vpk"
+	"vpk-manager/internal/parser"
 )
 
 func TestPackVPKDirectoryProducesValidArchive(t *testing.T) {
@@ -73,6 +74,43 @@ func TestPackVPKDirectoryProducesValidArchive(t *testing.T) {
 	}
 	if string(contentByName["scripts/addon.txt"]) != "script" {
 		t.Fatalf("unexpected content for scripts/addon.txt: %q", contentByName["scripts/addon.txt"])
+	}
+}
+
+func TestPackVPKDirectoryEncodesChineseEntryNamesForGame(t *testing.T) {
+	tempDir := t.TempDir()
+	sourceDir := filepath.Join(tempDir, "中文_mod")
+	if err := os.MkdirAll(filepath.Join(sourceDir, "materials", "花"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "materials", "花", "颈环_uv.vmt"), []byte("vmt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	outputDir := filepath.Join(tempDir, "out")
+	if err := os.Mkdir(outputDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := (&App{}).PackVPKDirectory(sourceDir, outputDir, false)
+	if err != nil {
+		t.Fatalf("pack Chinese VPK: %v", err)
+	}
+	opener := vpk.Single(result.OutputPath)
+	defer opener.Close()
+	archive, err := opener.ReadArchive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for i := range archive.Files {
+		name, decodeErr := parser.DecodeVPKEntryName(archive.Files[i].Name())
+		if decodeErr == nil && name == "materials/花/颈环_uv.vmt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("packed VPK did not preserve the Chinese entry name")
 	}
 }
 

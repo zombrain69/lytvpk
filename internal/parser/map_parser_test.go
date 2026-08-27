@@ -3,6 +3,9 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 func TestParseMissionContentHandlesInlineModeBrace(t *testing.T) {
@@ -41,5 +44,27 @@ func TestParseMissionContentHandlesInlineModeBrace(t *testing.T) {
 	}
 	if len(chapter.Modes) != 1 || chapter.Modes[0] != "战役模式" {
 		t.Fatalf("expected translated coop mode, got %#v", chapter.Modes)
+	}
+}
+
+func TestParseMissionContentDecodesGBK(t *testing.T) {
+	mission := `"mission"
+{
+	"DisplayTitle" "中文战役"
+	"modes"
+	{
+		"coop" { "1" { "Map" "c1m1_test" "DisplayName" "第一关" } }
+	}
+}`
+	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(mission))
+	if err != nil {
+		t.Fatalf("encode mission fixture: %v", err)
+	}
+	campaign := ParseMissionContent(strings.NewReader(string(encoded)))
+	if campaign == nil {
+		t.Fatal("expected GBK mission campaign")
+	}
+	if campaign.Title != "中文战役" || len(campaign.Chapters) != 1 || campaign.Chapters[0].Title != "第一关" {
+		t.Fatalf("GBK mission parsed as %#v", campaign)
 	}
 }

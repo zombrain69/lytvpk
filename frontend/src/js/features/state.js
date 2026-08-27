@@ -39,6 +39,11 @@ export const appState = {
   conflictAnalysisLoading: false,
   conflictAnalysisResult: null,
   conflictByPath: new Map(),
+  conflictAnalysisOptions: {
+    matchMode: "or",
+    baselineRules: [{ type: "enabled" }],
+  },
+  conflictAnalysisScopeLabel: "游戏内开启",
 };
 
 export function applyConfigToAppState(config = getConfig()) {
@@ -63,10 +68,11 @@ export function updateStatusBar() {
   const enabledFiles = appState.allVpkFiles.filter((f) => f.enabled).length;
   const disabledFiles = totalFiles - enabledFiles;
   const gameEnabledFiles = appState.allVpkFiles.filter(
-    (file) => file.gameStateKnown && file.gameEnabled
+    // disabled 目录中的文件即使 addonlist.txt 仍残留 1，也不会被游戏加载。
+    (file) => file.enabled !== false && file.gameStateKnown && file.gameEnabled
   ).length;
   const gameDisabledFiles = appState.allVpkFiles.filter(
-    (file) => file.gameStateKnown && !file.gameEnabled
+    (file) => file.enabled !== false && file.gameStateKnown && !file.gameEnabled
   ).length;
   const selectedCount = appState.selectedFiles.size;
 

@@ -136,7 +136,7 @@ function renderDetailPreview(detail) {
                      <polyline points="21 15 16 10 5 21"></polyline>
                  </svg>
              </div>
-             <img src="${escapeHtml(previewUrl)}" class="detail-preview-img-large" id="main-preview-img"
+             <img src="${escapeHtml(previewUrl)}" class="detail-preview-img-large" id="main-preview-img" decoding="async"
              style="opacity: 0; transition: opacity 0.3s; position: relative; z-index: 2;"
              onclick="window.openFullImage(this.src)"
              onload="this.style.opacity='1'; this.parentElement.classList.remove('skeleton-anim'); this.previousElementSibling.style.display='none';">
@@ -253,7 +253,7 @@ function renderCollectionItems(detail) {
             return `
               <div class="collection-child-card" role="button" tabindex="0" data-workshop-id="${escapeHtml(childId)}">
                 <div class="collection-child-thumb">
-                  <img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(title)}" loading="lazy">
+                  <img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async">
                 </div>
                 <div class="collection-child-info">
                   <div class="collection-child-title">${escapeHtml(title)}</div>
@@ -582,7 +582,7 @@ function formatDescription(text) {
 
   html = html.replace(
     /\[img\](.*?)\[\/img\]/gi,
-    '<img src="$1" class="bbcode-img" loading="lazy" />'
+    '<img src="$1" class="bbcode-img" loading="lazy" decoding="async" />'
   );
 
   html = html.replace(/\[list\](.*?)\[\/list\]/gis, (match, content) => {

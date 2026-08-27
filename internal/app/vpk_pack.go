@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"l4d2-manager-next/pkg/valve/vpk"
+	"vpk-manager/internal/parser"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -125,6 +126,11 @@ func (a *App) packVPKDirectoryWithOptions(sourceDir string, outputDir string, ou
 			return fmt.Errorf("无法读取文件信息 %s: %v", p, infoErr)
 		}
 		dir, base, ext := splitVPKPackPath(rel)
+		// VPK 目录沿用游戏常见的 GBK/ANSI；不可表示的字符由
+		// EncodeVPKEntryName 保留 UTF-8，避免静默改名。
+		dir = parser.EncodeVPKEntryName(dir)
+		base = parser.EncodeVPKEntryName(base)
+		ext = parser.EncodeVPKEntryName(ext)
 		sourceFiles = append(sourceFiles, sourceFile{
 			fullPath: p,
 			dir:      dir,

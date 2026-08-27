@@ -194,8 +194,12 @@ func (a *App) downloadPreviewImage(task *DownloadTask, targetPath string) {
 func (a *App) handleArchiveExtraction(task *DownloadTask, targetPath string, updateStatus func(string, string)) {
 	ext := strings.ToLower(filepath.Ext(targetPath))
 	if strings.HasPrefix(task.WorkshopID, "direct-") && (ext == ".zip" || ext == ".rar" || ext == ".7z") {
+		rootDir := a.rootDirectorySnapshot()
+		if rootDir == "" {
+			return
+		}
 		updateStatus("downloading", "正在解压...")
-		err := a.ExtractVPKFromArchive(targetPath, a.rootDir)
+		err := a.ExtractVPKFromArchive(targetPath, rootDir)
 		if err != nil {
 			fmt.Printf("解压压缩包失败: %v\n", err)
 		} else {

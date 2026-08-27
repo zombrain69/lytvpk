@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"l4d2-manager-next/pkg/valve/vpk"
+	"vpk-manager/internal/parser"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -110,7 +111,11 @@ func (a *App) UnpackVPKFile(vpkPath string, targetRoot string) (VPKUnpackResult,
 
 	for i := range archive.Files {
 		file := &archive.Files[i]
-		targetPath, err := safeVPKOutputPath(outputDir, file.Name())
+		entryName, decodeErr := parser.DecodeVPKEntryName(file.Name())
+		if decodeErr != nil {
+			return result, fmt.Errorf("解码 VPK 文件名失败 %s: %v", file.Name(), decodeErr)
+		}
+		targetPath, err := safeVPKOutputPath(outputDir, entryName)
 		if err != nil {
 			return result, err
 		}
@@ -120,7 +125,7 @@ func (a *App) UnpackVPKFile(vpkPath string, targetRoot string) (VPKUnpackResult,
 		}
 
 		if err := extractVPKEntry(opener, file, targetPath); err != nil {
-			return result, fmt.Errorf("解包 %s 失败: %v", file.Name(), err)
+			return result, fmt.Errorf("解包 %s 失败: %v", entryName, err)
 		}
 		result.ExtractedFiles++
 	}

@@ -175,6 +175,7 @@ export function renderWatchLaterDrawer() {
       img.src = imageUrl;
       img.alt = item.title;
       img.loading = "lazy";
+      img.decoding = "async";
       img.onload = () => {
         thumb.classList.add("is-loaded");
       };

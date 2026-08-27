@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -234,6 +235,7 @@ func (a *App) applyAddonListOrderConstraints(list []AddonListItem, constraints [
 	}
 
 	adjacent := make([][]int, len(list))
+	predecessors := make([][]int, len(list))
 	inDegree := make([]int, len(list))
 	edges := make(map[[2]int]struct{})
 	for _, constraint := range constraints {
@@ -263,28 +265,58 @@ func (a *App) applyAddonListOrderConstraints(list []AddonListItem, constraints [
 		}
 		edges[edge] = struct{}{}
 		adjacent[beforeIndex] = append(adjacent[beforeIndex], afterIndex)
+		predecessors[afterIndex] = append(predecessors[afterIndex], beforeIndex)
 		inDegree[afterIndex]++
 	}
 
-	// Kahn 拓扑排序：每轮选择当前基线中最靠前的可用条目，
-	// 因而没有约束关系的 Mod 永远保持原有相对顺序。
+	// 保持每个锚点的“前置 Mod”整体搬到锚点前面，而不是让锚点
+	// 被原列表中所有可用条目一路推迟到末尾。例如：锚点原在第 2 位，
+	// 来源 Mod 原在第 249~251 位，要求来源排在锚点前时，结果应为
+	// 来源进入第 2~4 位、锚点顺延，而不是锚点变成第 254 位。
+	// 仍使用拓扑约束保证所有前后关系成立；递归展开依赖时按原始顺序
+	// 处理兄弟节点，未涉及约束的条目继续保持原有相对顺序。
+	for index := range predecessors {
+		sort.SliceStable(predecessors[index], func(i, j int) bool {
+			return predecessors[index][i] < predecessors[index][j]
+		})
+	}
+
 	ordered := make([]AddonListItem, 0, len(list))
 	used := make([]bool, len(list))
-	for len(ordered) < len(list) {
-		next := -1
-		for index := range list {
-			if !used[index] && inDegree[index] == 0 {
-				next = index
-				break
+	visiting := make([]bool, len(list))
+	var emit func(int) error
+	emit = func(index int) error {
+		if used[index] {
+			return nil
+		}
+		if visiting[index] {
+			return fmt.Errorf("加载顺序约束存在循环，未写入 addonlist.txt")
+		}
+		visiting[index] = true
+		for _, predecessor := range predecessors[index] {
+			if err := emit(predecessor); err != nil {
+				return err
 			}
 		}
-		if next == -1 {
-			return nil, fmt.Errorf("加载顺序约束存在循环，未写入 addonlist.txt")
+		if inDegree[index] != 0 {
+			// 所有前置节点都应已输出；不满足时说明约束图存在异常。
+			return fmt.Errorf("加载顺序约束无法满足，未写入 addonlist.txt")
 		}
-		used[next] = true
-		ordered = append(ordered, list[next])
-		for _, dependent := range adjacent[next] {
+		visiting[index] = false
+		used[index] = true
+		ordered = append(ordered, list[index])
+		for _, dependent := range adjacent[index] {
 			inDegree[dependent]--
+		}
+		return nil
+	}
+
+	for index := range list {
+		if used[index] {
+			continue
+		}
+		if err := emit(index); err != nil {
+			return nil, err
 		}
 	}
 	return ordered, nil

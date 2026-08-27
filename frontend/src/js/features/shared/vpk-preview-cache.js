@@ -59,6 +59,12 @@ export function getCachedVPKPreview(file) {
 }
 
 export async function loadVPKPreview(file) {
+  return loadVPKPreviewWithOptions(file);
+}
+
+// priority=true 用于详情页等用户主动请求，避免它排在列表卡片的预览请求之后。
+// 相同 VPK 的并发请求仍共享同一个 Promise，不会重复读取归档。
+export async function loadVPKPreviewWithOptions(file, { priority = false } = {}) {
   const key = getPreviewKey(file);
   const cached = getCachedVPKPreview(file);
   if (cached !== undefined) return cached;
@@ -66,10 +72,20 @@ export async function loadVPKPreview(file) {
   let request = previewRequests.get(key);
   if (!request) {
     request = new Promise((resolve, reject) => {
-      previewQueue.push({ file, key, resolve, reject });
+      const task = { file, key, resolve, reject };
+      if (priority) previewQueue.unshift(task);
+      else previewQueue.push(task);
       runNextPreviewLoad();
     });
     previewRequests.set(key, request);
+  } else if (priority) {
+    // 卡片请求可能已经排队；详情是用户主动操作，应把同一任务提升到队首。
+    const queuedIndex = previewQueue.findIndex((task) => task.key === key);
+    if (queuedIndex > 0) {
+      const [queuedTask] = previewQueue.splice(queuedIndex, 1);
+      previewQueue.unshift(queuedTask);
+      runNextPreviewLoad();
+    }
   }
   return request;
 }

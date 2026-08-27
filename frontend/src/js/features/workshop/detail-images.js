@@ -173,7 +173,7 @@ export function renderThumbnails(detail) {
             <div class="thumbnail-item skeleton-anim ${
               index === 0 ? "active" : ""
             }" onclick="window.switchPreview('${img}', this)">
-                <img src="${img}" loading="lazy" style="opacity: 0; transition: opacity 0.3s;"
+                <img src="${img}" loading="lazy" decoding="async" style="opacity: 0; transition: opacity 0.3s;"
                 onload="this.style.opacity='1'; this.parentElement.classList.remove('skeleton-anim')">
             </div>
         `

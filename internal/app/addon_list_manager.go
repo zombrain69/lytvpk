@@ -53,6 +53,12 @@ func addonListEncodingName(content []byte) string {
 	if len(content) >= 3 && bytes.Equal(content[:3], []byte{0xEF, 0xBB, 0xBF}) {
 		return "UTF-8 BOM"
 	}
+	if len(content) >= 2 && bytes.Equal(content[:2], []byte{0xFF, 0xFE}) {
+		return "UTF-16 LE"
+	}
+	if len(content) >= 2 && bytes.Equal(content[:2], []byte{0xFE, 0xFF}) {
+		return "UTF-16 BE"
+	}
 	if isValidUTF8(content) {
 		return "UTF-8"
 	}

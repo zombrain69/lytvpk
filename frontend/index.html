@@ -274,12 +274,15 @@
               <button id="reset-filter-btn" class="btn btn-small btn-outline">
                 <span class="icon">↻</span> 重置筛选
               </button>
-              <label class="toggle-switch conflict-analysis-toggle" title="只分析当前筛选出的 Mod；默认关闭以避免大量 VPK 同时解析">
+              <label class="toggle-switch conflict-analysis-toggle" title="只分析当前筛选出的 Mod；默认关闭，最多支持 5000 个筛选目标">
                 <input type="checkbox" id="conflict-analysis-checkbox" />
                 <span class="toggle-slider"></span>
                 <span class="toggle-label">冲突分析</span>
                 <span id="conflict-analysis-status" class="conflict-analysis-status">默认关闭，按当前筛选分析</span>
               </label>
+              <button id="conflict-analysis-options-btn" class="btn btn-small btn-outline conflict-analysis-options-btn" type="button" title="选择冲突分析的对比范围和条件组合方式">
+                <span class="icon">⚙</span> 对比范围
+              </button>
               <button
                 id="mod-rotation-btn"
                 class="btn btn-small btn-outline"
@@ -921,7 +924,11 @@
                   id="detail-preview-image"
                   class="preview-image"
                   alt="预览图"
+                  decoding="async"
                 />
+                <div id="detail-preview-loading" class="detail-preview-loading" role="status">
+                  正在读取 VPK 预览图…
+                </div>
               </div>
             </div>
             <div class="detail-section" id="vpk-info-section">
@@ -2014,7 +2021,7 @@
       <div class="modal-content conflict-modal-content">
         <div class="modal-header">
           <h2>Mod冲突检测</h2>
-          <button class="close-btn" id="close-conflict-modal">&times;</button>
+          <button class="close-btn" id="close-conflict-modal" type="button">&times;</button>
         </div>
         <div class="modal-body">
           <div
@@ -2043,20 +2050,22 @@
                 发现
                 <span id="conflict-count">0</span> 组冲突
               </div>
+              <div id="conflict-scope-summary" class="conflict-scope-summary" aria-live="polite"></div>
               <div class="conflict-filters">
                 <button
+                  type="button"
                   class="btn btn-small filter-btn active"
                   data-filter="critical"
                 >
                   严重
                 </button>
-                <button class="btn btn-small filter-btn" data-filter="warning">
+                <button type="button" class="btn btn-small filter-btn" data-filter="warning">
                   警告
                 </button>
-                <button class="btn btn-small filter-btn" data-filter="info">
+                <button type="button" class="btn btn-small filter-btn" data-filter="info">
                   普通
                 </button>
-                <button class="btn btn-small filter-btn" data-filter="all">
+                <button type="button" class="btn btn-small filter-btn" data-filter="all">
                   全部
                 </button>
               </div>
@@ -2083,12 +2092,65 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-primary" id="start-conflict-check-btn">
+          <button class="btn btn-primary" id="start-conflict-check-btn" type="button">
             开始检测
           </button>
-          <button class="btn btn-secondary" id="close-conflict-btn">
+          <button class="btn btn-secondary" id="close-conflict-btn" type="button">
             关闭
           </button>
+        </div>
+      </div>
+    </div>
+    <!-- 冲突分析范围设置 -->
+    <div id="conflict-scope-modal" class="modal hidden" aria-labelledby="conflict-scope-title">
+      <div class="modal-content conflict-scope-modal-content">
+        <div class="modal-header">
+          <h2 id="conflict-scope-title">冲突分析对比范围</h2>
+          <button class="close-btn" id="close-conflict-scope-modal" type="button">&times;</button>
+        </div>
+        <div class="modal-body conflict-scope-body">
+          <div class="conflict-scope-intro">
+            <div><strong>分析目标：</strong><span id="conflict-scope-target-count">0 个当前筛选目标</span></div>
+            <div id="conflict-scope-preview" class="conflict-scope-preview">当前：游戏内开启</div>
+          </div>
+          <fieldset class="conflict-scope-fieldset">
+            <legend>选择对比范围（可多选）</legend>
+            <div class="conflict-scope-rule-grid">
+              <label class="conflict-scope-rule-card">
+                <input type="checkbox" data-conflict-scope-rule="enabled" />
+                <span><strong>游戏内开启</strong><small>addonlist.txt 为 1 且不在 disabled</small></span>
+              </label>
+              <label class="conflict-scope-rule-card">
+                <input type="checkbox" data-conflict-scope-rule="not_disabled" />
+                <span><strong>未禁用</strong><small>文件不在 disabled 目录</small></span>
+              </label>
+              <label class="conflict-scope-rule-card">
+                <input type="checkbox" data-conflict-scope-rule="root" />
+                <span><strong>根目录 Mod</strong><small>当前 addons 目录下的文件</small></span>
+              </label>
+              <label class="conflict-scope-rule-card">
+                <input type="checkbox" data-conflict-scope-rule="workshop" />
+                <span><strong>创意工坊 Mod</strong><small>workshop 子目录下的文件</small></span>
+              </label>
+              <label class="conflict-scope-rule-card conflict-scope-tag-card">
+                <input type="checkbox" data-conflict-scope-rule="tag" />
+                <span><strong>拥有指定标签</strong><small>匹配主标签或附加标签</small></span>
+                <select id="conflict-scope-tag" aria-label="选择冲突对比标签"></select>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset class="conflict-scope-fieldset">
+            <legend>多个条件如何组合</legend>
+            <div class="conflict-scope-mode-switch" role="group" aria-label="条件组合方式">
+              <button type="button" class="btn btn-small conflict-scope-mode-btn" data-conflict-match-mode="and" aria-pressed="false">满足全部（AND）</button>
+              <button type="button" class="btn btn-small conflict-scope-mode-btn" data-conflict-match-mode="or" aria-pressed="false">满足任一（OR）</button>
+            </div>
+            <p class="conflict-scope-hint">例如“游戏内开启 + 创意工坊”可只比较已开启的工坊 Mod；“根目录或创意工坊”可覆盖两类来源。</p>
+          </fieldset>
+        </div>
+        <div class="modal-footer conflict-scope-footer">
+          <button class="btn btn-secondary" id="cancel-conflict-scope-btn" type="button">取消</button>
+          <button class="btn btn-primary" id="apply-conflict-scope-btn" type="button">应用并分析</button>
         </div>
       </div>
     </div>
@@ -2598,7 +2660,7 @@
           <path d="M15 6l-6 6 6 6"></path>
         </svg>
       </button>
-      <img class="image-modal-content" id="full-image" />
+      <img class="image-modal-content" id="full-image" decoding="async" />
       <button
         type="button"
         id="image-modal-next"

@@ -1,5 +1,7 @@
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { refreshFilesKeepFilter } from "../file-list/filters.js";
+import { refreshLoadOrderMap } from "../file-list/sorting.js";
 import {
   ApplyAddonListLoadOrderPolicy,
   GetAddonListLoadOrderEntries,
@@ -49,8 +51,9 @@ function createEmptyPolicy() {
 
 export async function openEnhancedLoadOrderModal(context = {}) {
   const normalizedContext = normalizeLoadOrderContext(context);
+  const vpkFiles = appState.vpkFiles || [];
   const file = normalizedContext.filePath
-    ? appState.vpkFiles.find((item) => item.path === normalizedContext.filePath)
+    ? vpkFiles.find((item) => item.path === normalizedContext.filePath)
     : null;
   if (normalizedContext.mode === "single" && !file) return;
 
@@ -62,24 +65,30 @@ export async function openEnhancedLoadOrderModal(context = {}) {
   selectedSourceKeys = new Set();
   selectedPaths = normalizedContext.selectedPaths;
   selectedPathNames = selectedPaths
-    .map((path) => appState.vpkFiles.find((item) => item.path === path)?.name)
+    .map((path) => vpkFiles.find((item) => item.path === path)?.name)
     .filter(Boolean);
   setupLoadOrderControls();
 
   renderModalMode(file);
   syncPolicyControls();
-  document.getElementById("load-order-current").textContent = "正在获取...";
-  document.getElementById("load-order-input").value = "";
-  document.getElementById("load-order-rule-sources-search").value = "";
-  document.getElementById("load-order-rule-target-search").value = "";
-  document.getElementById("load-order-modal").classList.remove("hidden");
+  const modal = document.getElementById("load-order-modal");
+  if (!modal) return;
+  const currentEl = document.getElementById("load-order-current");
+  const input = document.getElementById("load-order-input");
+  const sourceSearch = document.getElementById("load-order-rule-sources-search");
+  const targetSearch = document.getElementById("load-order-rule-target-search");
+  if (currentEl) currentEl.textContent = "正在获取...";
+  if (input) input.value = "";
+  if (sourceSearch) sourceSearch.value = "";
+  if (targetSearch) targetSearch.value = "";
+  modal.classList.remove("hidden");
 
   try {
     await refreshLoadOrderModal();
     if (currentMode === "single") {
-      document.getElementById("load-order-input").focus();
+      input?.focus();
     } else {
-      document.getElementById("load-order-rule-sources-search").focus();
+      sourceSearch?.focus();
     }
   } catch (err) {
     console.error("获取加载顺序失败:", err);
@@ -93,7 +102,7 @@ export async function openEnhancedLoadOrderModal(context = {}) {
 }
 
 export function closeEnhancedLoadOrderModal() {
-  document.getElementById("load-order-modal").classList.add("hidden");
+  document.getElementById("load-order-modal")?.classList.add("hidden");
   currentLoadOrderFile = null;
   selectedSourceKeys = new Set();
   selectedPaths = [];
@@ -106,7 +115,12 @@ export async function saveEnhancedLoadOrder() {
     showError("该 Mod 尚未写入 addonlist.txt；加载顺序只会重排已有条目，不会改变游戏内开关状态");
     return;
   }
-  const order = Number.parseInt(document.getElementById("load-order-input").value.trim(), 10);
+  const input = document.getElementById("load-order-input");
+  if (!input) {
+    showError("加载顺序输入框不可用，请重新打开窗口");
+    return;
+  }
+  const order = Number.parseInt(input.value.trim(), 10);
   if (!Number.isInteger(order)) {
     showError("请输入有效的序号");
     return;
@@ -114,6 +128,7 @@ export async function saveEnhancedLoadOrder() {
   try {
     await SetVPKLoadOrder(currentLoadOrderFile, order);
     await refreshLoadOrderModal();
+    await refreshModListAfterLoadOrderChange();
     showNotification("单项加载顺序已保存", "success");
   } catch (err) {
     console.error("保存加载顺序失败:", err);
@@ -173,7 +188,7 @@ async function refreshLoadOrderModal() {
   currentEntries = entries || [];
   prepareEntryMetadata();
   preselectContextEntries();
-  renderModalMode(currentLoadOrderFile ? appState.vpkFiles.find((item) => item.path === currentLoadOrderFile) : null);
+  renderModalMode(currentLoadOrderFile ? (appState.vpkFiles || []).find((item) => item.path === currentLoadOrderFile) : null);
   renderCurrentOrder();
   renderRuleSelectors();
   renderRules();
@@ -188,6 +203,7 @@ function renderCurrentOrder() {
   const input = document.getElementById("load-order-input");
   const upButton = document.getElementById("move-load-order-up-btn");
   const downButton = document.getElementById("move-load-order-down-btn");
+  if (!currentOrderEl || !input || !upButton || !downButton) return;
   if (currentOrder > 0) {
     currentOrderEl.textContent = currentOrder;
     input.placeholder = String(currentOrder);
@@ -209,6 +225,7 @@ async function moveCurrentFileBy(delta) {
   try {
     await SetVPKLoadOrder(currentLoadOrderFile, destination);
     await refreshLoadOrderModal();
+    await refreshModListAfterLoadOrderChange();
     showNotification(delta < 0 ? "Mod 已上移一位" : "Mod 已下移一位", "success");
   } catch (err) {
     showError("调整优先级失败: " + err);
@@ -221,8 +238,8 @@ function renderRuleSelectors() {
   if (!sources || !target) return;
   const selectedSources = new Set(selectedSourceKeys);
   const selectedTarget = target.value;
-  const sourceQuery = document.getElementById("load-order-rule-sources-search").value;
-  const targetQuery = document.getElementById("load-order-rule-target-search").value;
+  const sourceQuery = document.getElementById("load-order-rule-sources-search")?.value || "";
+  const targetQuery = document.getElementById("load-order-rule-target-search")?.value || "";
   sources.replaceChildren();
   target.replaceChildren();
   currentEntries.filter((entry) => entryMatchesSearch(entry, sourceQuery)).forEach((entry) => {
@@ -236,8 +253,14 @@ function renderRuleSelectors() {
 }
 
 function addConstraints(direction) {
-  const sources = Array.from(document.getElementById("load-order-rule-sources").selectedOptions).map((option) => option.value);
-  const target = document.getElementById("load-order-rule-target").value;
+  const sourceSelect = document.getElementById("load-order-rule-sources");
+  const targetSelect = document.getElementById("load-order-rule-target");
+  if (!sourceSelect || !targetSelect) {
+    showError("加载顺序规则选择器不可用，请重新打开窗口");
+    return;
+  }
+  const sources = Array.from(sourceSelect.selectedOptions).map((option) => option.value);
+  const target = targetSelect.value;
   if (!target || sources.length === 0) {
     showError("请至少选择一个 Mod，并选择相对目标");
     return;
@@ -262,6 +285,7 @@ function addConstraints(direction) {
 
 function renderRules() {
   const container = document.getElementById("load-order-rules");
+  if (!container) return;
   container.replaceChildren();
   if (currentPolicy.constraints.length === 0) {
     const empty = document.createElement("div");
@@ -309,6 +333,7 @@ async function applyLoadOrderPolicy(options = {}) {
     currentOrder = currentLoadOrderFile ? await GetVPKLoadOrder(currentLoadOrderFile) : -1;
     renderCurrentOrder();
     renderActivePolicy();
+    await refreshModListAfterLoadOrderChange();
     showNotification(
       options.successMessage || "加载顺序已写入 addonlist.txt，所有 Mod 开关状态保持不变",
       "success"
@@ -319,9 +344,26 @@ async function applyLoadOrderPolicy(options = {}) {
   }
 }
 
+// 只有用户当前正在按加载顺序查看列表时才重新扫描，避免普通排序场景产生不必要的
+// VPK 扫描开销；筛选条件、排序方向和选中项由 refreshFilesKeepFilter 负责保留。
+async function refreshModListAfterLoadOrderChange() {
+  if (appState.sortType !== "loadOrder") return;
+
+  try {
+    await refreshLoadOrderMap();
+    await refreshFilesKeepFilter();
+  } catch (error) {
+    // 写入已经成功，刷新失败不应被误报为“写入失败”；记录日志并给出可操作提示。
+    console.error("加载顺序已写入，但 Mod 列表刷新失败:", error);
+    showNotification("加载顺序已保存，但列表刷新失败，请点击刷新按钮重试", "warning");
+  }
+}
+
 function renderPreview(entries, summary) {
   const container = document.getElementById("load-order-preview");
-  document.getElementById("load-order-preview-summary").textContent = `${summary} · ${entries.length} 个条目`;
+  const summaryEl = document.getElementById("load-order-preview-summary");
+  if (!container) return;
+  if (summaryEl) summaryEl.textContent = `${summary} · ${entries.length} 个条目`;
   container.replaceChildren();
   if (entries.length === 0) {
     const empty = document.createElement("div");
@@ -381,26 +423,27 @@ function normalizeLoadOrderContext(context) {
 function renderModalMode(file) {
   const isSingle = currentMode === "single";
   const isSelection = currentMode === "selection";
-  document.getElementById("load-order-title").textContent = isSingle ? "调整单个 Mod 加载顺序" : isSelection ? "批量调整 Mod 加载顺序" : "加载顺序优化";
+  const title = document.getElementById("load-order-title");
   const filename = document.getElementById("load-order-filename");
   const contextNote = document.getElementById("load-order-context-note");
   const singleSection = document.getElementById("load-order-single-section");
   const confirmButton = document.getElementById("confirm-load-order-btn");
+  if (title) title.textContent = isSingle ? "调整单个 Mod 加载顺序" : isSelection ? "批量调整 Mod 加载顺序" : "加载顺序优化";
   singleSection?.classList.toggle("hidden", !isSingle);
   confirmButton?.classList.toggle("hidden", !isSingle);
 
   if (isSingle) {
-    filename.textContent = file?.name || "当前 Mod";
-    contextNote.textContent = "单项模式：可上移、下移或指定现有条目的新序号。";
+    if (filename) filename.textContent = file?.name || "当前 Mod";
+    if (contextNote) contextNote.textContent = "单项模式：可上移、下移或指定现有条目的新序号。";
     return;
   }
   if (isSelection) {
-    filename.textContent = `已选择 ${selectedPathNames.length} 个 Mod`;
-    contextNote.textContent = "批量模式：已选 Mod 会预填到“要移动的 Mod”；再搜索并选择一个锚点即可调整到其前面或后面。";
+    if (filename) filename.textContent = `已选择 ${selectedPathNames.length} 个 Mod`;
+    if (contextNote) contextNote.textContent = "批量模式：左侧是要实际移动的来源 Mod，右侧是位置参照锚点；点击“移到锚点前面/后面”后，来源会搬到锚点相应一侧，锚点不会被错误推到列表末尾。";
     return;
   }
-  filename.textContent = "全部 addonlist.txt 条目";
-  contextNote.textContent = "全局模式：可一键按规则重排全部条目；不会新增条目，也不会修改任何 Mod 的游戏内开关。";
+  if (filename) filename.textContent = "全部 addonlist.txt 条目";
+  if (contextNote) contextNote.textContent = "全局模式：可一键按规则重排全部条目；不会新增条目，也不会修改任何 Mod 的游戏内开关。";
 }
 
 function preselectContextEntries() {
@@ -408,7 +451,7 @@ function preselectContextEntries() {
   const entryKeys = new Set(currentEntries.map((entry) => entry.key));
   const unmatchedNames = [];
   selectedPaths
-    .map((path) => appState.vpkFiles.find((file) => file.path === path))
+    .map((path) => (appState.vpkFiles || []).find((file) => file.path === path))
     .filter(Boolean)
     .forEach((file) => {
       const key = addonListKeyForFile(file);
@@ -420,7 +463,7 @@ function preselectContextEntries() {
     });
   if (unmatchedNames.length > 0) {
     const contextNote = document.getElementById("load-order-context-note");
-    contextNote.textContent += ` ${unmatchedNames.join("、")} 尚未写入 addonlist.txt，不能仅通过重排改变其状态。`;
+    if (contextNote) contextNote.textContent += ` ${unmatchedNames.join("、")} 尚未写入 addonlist.txt，不能仅通过重排改变其状态。`;
   }
 }
 
@@ -483,7 +526,7 @@ function entryDisplayName(key) {
 function prepareEntryMetadata() {
   entryFileByKey = new Map();
   entrySearchTextByKey = new Map();
-  appState.vpkFiles.forEach((file) => {
+  (appState.vpkFiles || []).forEach((file) => {
     const key = addonListKeyForFile(file);
     if (key && !entryFileByKey.has(key)) {
       entryFileByKey.set(key, file);

@@ -58,6 +58,32 @@ type VPKFileCache struct {
 	CachedAt     time.Time
 }
 
+// VPKPreviewCache 缓存按需读取的预览图。普通目录扫描不填充 VPKFile.PreviewImage，
+// 只有用户看到卡片或打开详情时才会写入这里，并通过文件签名自动失效。
+type VPKPreviewCache struct {
+	Data         string
+	ModTime      time.Time
+	Size         int64
+	ImageModTime time.Time
+	CachedAt     time.Time
+}
+
+// conflictIndexCacheEntry caches the directory entries used by conflict
+// analysis.  VPK archives are immutable for the duration of a scan in normal
+// use, so a size/modtime signature lets repeated filter changes reuse the
+// expensive archive directory read without retaining preview or file content.
+type conflictIndexCacheEntry struct {
+	ModTime  time.Time
+	Size     int64
+	Files    []string
+	LastUsed time.Time
+}
+
+const (
+	maxVPKPreviewCacheEntries = 24
+	maxVPKPreviewCacheBytes   = 24 * 1024 * 1024
+)
+
 // submitPoolTask uses the shared pool when it is available. A released or
 // unavailable pool must not strand WaitGroup-based callers: synchronous
 // fallback keeps scans and on-demand analysis correct during shutdown/tests.
@@ -76,6 +102,10 @@ func (a *App) submitPoolTask(task func()) {
 type App struct {
 	ctx                    context.Context
 	vpkCache               sync.Map // map[string]*VPKFileCache, key是文件路径
+	previewCache           sync.Map // map[string]*VPKPreviewCache, key是文件路径
+	previewCacheMu         sync.Mutex
+	conflictIndexMu        sync.Mutex
+	conflictIndexCache     map[string]conflictIndexCacheEntry
 	mu                     sync.RWMutex
 	rootDir                string
 	goroutinePool          *ants.Pool
@@ -123,6 +153,23 @@ type App struct {
 	serversPath                    string
 	workshopWatchLaterPath         string
 	problemScanPath                string
+}
+
+// rootDirectorySnapshot returns a consistent directory value for background
+// work. Directory selection can happen while scans/downloads are running, so
+// callers should never read rootDir directly unless they already hold a.mu.
+func (a *App) rootDirectorySnapshot() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.rootDir
+}
+
+// workshopOptionsSnapshot captures the two workshop flags atomically. A scan
+// must use one coherent pair instead of observing a mid-update combination.
+func (a *App) workshopOptionsSnapshot() (metaEnabled, updateCheckEnabled bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.workshopMetaEnabled, a.workshopUpdateCheckEnabled
 }
 
 // ConfigFile 定义配置文件结构

@@ -405,6 +405,123 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
   font-size: 0.78rem;
 }
 
+.autoexec-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(250px, 0.85fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.autoexec-editor-column,
+.autoexec-help-column {
+  min-width: 0;
+}
+
+.autoexec-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.autoexec-path {
+  flex: 1 1 100%;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+}
+
+.autoexec-editor {
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: 0.8rem/1.5 var(--font-mono, ui-monospace, Consolas, monospace);
+  tab-size: 2;
+}
+
+.autoexec-editor:focus {
+  outline: 2px solid rgba(79, 70, 229, 0.25);
+  border-color: var(--primary);
+}
+
+.autoexec-action-row {
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+
+.autoexec-analysis {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.autoexec-help-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 430px;
+}
+
+.autoexec-help-title {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.autoexec-help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.autoexec-help-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.autoexec-help-item:hover {
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.autoexec-help-command {
+  color: var(--primary);
+  font: 600 0.78rem var(--font-mono, ui-monospace, Consolas, monospace);
+}
+
+.autoexec-help-summary {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.autoexec-help-meta,
+.autoexec-help-empty {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
 .addonlist-status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -614,6 +731,14 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
 }
 
 @media (max-width: 640px) {
+  .autoexec-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .autoexec-help-column {
+    max-height: 300px;
+  }
+
   .addonlist-status-grid {
     grid-template-columns: 1fr;
   }
