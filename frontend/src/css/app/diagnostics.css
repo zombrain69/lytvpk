@@ -196,6 +196,79 @@
   background: rgba(14, 165, 233, 0.1);
 }
 
+.diagnostics-tool-icon.is-config {
+  color: var(--primary-dark);
+  background: rgba(79, 70, 229, 0.1);
+}
+
+.autoexec-tool-modal-content {
+  width: min(94vw, 70rem);
+  max-width: min(94vw, 70rem);
+}
+
+.autoexec-tool-body {
+  overflow-y: auto;
+}
+
+.autoexec-tool-intro,
+.autoexec-tool-loading,
+.autoexec-tool-error {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.autoexec-tool-error {
+  color: var(--danger);
+}
+
+.autoexec-tool-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.85fr);
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.autoexec-tool-matches,
+.autoexec-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 11rem;
+  margin-top: 0.6rem;
+  overflow-y: auto;
+}
+
+.autoexec-match {
+  padding: 0.48rem 0.6rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+}
+
+.autoexec-match.is-unknown {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.autoexec-match-title {
+  color: var(--text-primary);
+  font: 600 0.74rem var(--font-mono, ui-monospace, Consolas, monospace);
+  overflow-wrap: anywhere;
+}
+
+.autoexec-match-detail {
+  margin-top: 0.18rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .autoexec-tool-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .vpk-unpack-result {
   display: grid;
   gap: var(--spacing-3);

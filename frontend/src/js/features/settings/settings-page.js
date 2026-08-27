@@ -314,6 +314,7 @@ export async function renderSettingsPage(deps) {
                   <button type="button" id="settings-autoexec-open" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo?.exists ? "" : "disabled"}>打开文件位置</button>
                 </div>
                 <div class="autoexec-analysis" id="settings-autoexec-analysis">已识别 ${autoexecMatches.filter((item) => item.known).length} 个已收录指令，${autoexecMatches.filter((item) => !item.known).length} 个未知指令</div>
+                <div class="autoexec-matches" id="settings-autoexec-matches"></div>
               </div>
               <aside class="autoexec-help-column">
                 <div class="autoexec-help-title">常用指令说明</div>
@@ -752,6 +753,7 @@ function bindSettingsPage(deps) {
 
   const autoexecEditor = document.getElementById("settings-autoexec-content");
   const autoexecAnalysis = document.getElementById("settings-autoexec-analysis");
+  const autoexecMatchesEl = document.getElementById("settings-autoexec-matches");
   const updateAutoexecAnalysis = async () => {
     if (!autoexecEditor || typeof deps.AnalyzeAutoexecCommands !== "function") return;
     try {
@@ -759,11 +761,20 @@ function bindSettingsPage(deps) {
       const known = matches.filter((item) => item.known).length;
       const unknown = matches.length - known;
       if (autoexecAnalysis) autoexecAnalysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令`;
+      renderAutoexecMatches(autoexecMatchesEl, matches);
     } catch (error) {
       if (autoexecAnalysis) autoexecAnalysis.textContent = `指令识别失败：${String(error?.message || error)}`;
     }
   };
   autoexecEditor?.addEventListener("input", updateAutoexecAnalysis);
+  updateAutoexecAnalysis();
+  const reloadAutoexecEditor = async () => {
+    if (!autoexecEditor || typeof deps.GetAutoexecConfig !== "function") return;
+    const next = await deps.GetAutoexecConfig();
+    autoexecInfo = next || autoexecInfo;
+    autoexecEditor.value = next?.content || "";
+    await updateAutoexecAnalysis();
+  };
   document.getElementById("settings-autoexec-save")?.addEventListener("click", async () => {
     if (!autoexecEditor || typeof deps.SaveAutoexecConfig !== "function") return;
     const button = document.getElementById("settings-autoexec-save");
@@ -771,7 +782,7 @@ function bindSettingsPage(deps) {
     try {
       await deps.SaveAutoexecConfig(autoexecEditor.value);
       deps.showNotification("已保存 autoexec.cfg（编码与换行格式已保留）", "success");
-      await deps.refreshAddonListPanel?.();
+      await reloadAutoexecEditor();
     } catch (error) {
       deps.showNotification("保存 autoexec.cfg 失败: " + error, "error");
     } finally {
@@ -779,13 +790,17 @@ function bindSettingsPage(deps) {
     }
   });
   document.getElementById("settings-autoexec-reload")?.addEventListener("click", async () => {
-    await deps.refreshAddonListPanel?.();
-    deps.showNotification("已重新读取 autoexec.cfg", "info");
+    try {
+      await reloadAutoexecEditor();
+      deps.showNotification("已重新读取 autoexec.cfg", "info");
+    } catch (error) {
+      deps.showNotification("重新读取 autoexec.cfg 失败: " + error, "error");
+    }
   });
   document.getElementById("settings-autoexec-open")?.addEventListener("click", async () => {
-    if (!deps.autoexecInfo?.path || typeof deps.OpenFileLocation !== "function") return;
+    if (!autoexecInfo?.path || typeof deps.OpenFileLocation !== "function") return;
     try {
-      await deps.OpenFileLocation(deps.autoexecInfo.path);
+      await deps.OpenFileLocation(autoexecInfo.path);
     } catch (error) {
       deps.showNotification("打开 autoexec.cfg 位置失败: " + error, "error");
     }
@@ -1269,6 +1284,27 @@ function renderAutoexecHelpList(container, items) {
     button.append(command, summary, meta);
     container.appendChild(button);
   }
+}
+
+function renderAutoexecMatches(container, items) {
+  if (!container) return;
+  container.replaceChildren();
+  if (!Array.isArray(items) || items.length === 0) return;
+  items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = `autoexec-match ${item.known ? "is-known" : "is-unknown"}`;
+    const title = document.createElement("div");
+    title.className = "autoexec-match-title";
+    title.textContent = `第 ${item.line} 行 · ${item.command}${item.known ? "" : "（未知指令）"}`;
+    row.appendChild(title);
+    const detail = document.createElement("div");
+    detail.className = "autoexec-match-detail";
+    detail.textContent = item.known && item.help
+      ? `${item.help.summary} · ${item.help.scope} · ${item.help.risk} · ${item.help.source}`
+      : "可能来自插件或 Mod，建议确认来源后再保存。";
+    row.appendChild(detail);
+    container.appendChild(row);
+  });
 }
 
 function escapeHtml(value) {

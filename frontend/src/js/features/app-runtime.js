@@ -15,6 +15,7 @@ import { renderDiagnosticsPage } from "./diagnostics/diagnostics-page.js";
 import { openVPKUnpackTool } from "./diagnostics/vpk-unpack.js";
 import { openMDMPReportTool } from "./diagnostics/mdmp-report.js";
 import { openVPKPackTool } from "./diagnostics/vpk-pack.js";
+import { openAutoexecTool } from "./diagnostics/autoexec-tool.js";
 import {
   importSprayFiles,
   importSprayPaths,
@@ -653,6 +654,7 @@ function setupSettingsAndAboutListeners() {
         openVPKUnpackTool,
         openMDMPReportTool,
         openVPKPackTool,
+        openAutoexecTool,
         openSprayTool,
         refreshFilesKeepFilter,
       });

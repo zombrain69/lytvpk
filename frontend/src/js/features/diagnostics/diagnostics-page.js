@@ -7,6 +7,7 @@ export async function renderDiagnosticsPage({
   openMDMPReportTool,
   openVPKPackTool,
   openSprayTool,
+  openAutoexecTool,
   refreshFilesKeepFilter,
 } = {}) {
   const container = document.getElementById("diagnostics-page-content");
@@ -91,6 +92,28 @@ export async function renderDiagnosticsPage({
 
       <section class="toolbox-section">
         <div class="toolbox-section-header">
+          <h3>游戏配置</h3>
+          <p>检查并维护游戏启动时读取的配置文件。</p>
+        </div>
+        <div class="diagnostics-tool-grid">
+          <section class="diagnostics-tool-card">
+            <div class="diagnostics-tool-icon is-config">${configIcon()}</div>
+            <div class="diagnostics-tool-main">
+              <div class="diagnostics-tool-title-row">
+                <h3>autoexec.cfg 编辑器</h3>
+                <span class="diagnostics-status">支持编码保留</span>
+              </div>
+              <p>识别已使用的控制台命令，显示含义、风险和来源，并保留原文件编码、BOM 与换行格式。</p>
+            </div>
+            <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-autoexec-btn">
+              打开编辑器
+            </button>
+          </section>
+        </div>
+      </section>
+
+      <section class="toolbox-section">
+        <div class="toolbox-section-header">
           <h3>通用工具</h3>
           <p>用于处理单个 VPK 文件和常见文件维护操作。</p>
         </div>
@@ -129,6 +152,10 @@ export async function renderDiagnosticsPage({
 
   appendMDMPReportTool(container, openMDMPReportTool);
   appendSprayTool(container, openSprayTool, refreshFilesKeepFilter);
+
+  document
+    .getElementById("toolbox-autoexec-btn")
+    ?.addEventListener("click", () => openAutoexecTool?.());
 
   document
     .getElementById("diagnostics-problem-scan-btn")
@@ -307,4 +334,8 @@ function createSprayIcon() {
 
 function packIcon() {
   return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="m9 7 3 3 3-3"/><path d="M3 14h18"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>`;
+}
+
+function configIcon() {
+  return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5"/><path d="M8 12h8M8 16h6"/></svg>`;
 }

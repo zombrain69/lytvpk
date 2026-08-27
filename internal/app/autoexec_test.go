@@ -42,6 +42,25 @@ func TestAutoexecPathUsesSelectedGameConfig(t *testing.T) {
 	}
 }
 
+func TestAutoexecPathAcceptsLeft4Dead2OrSteamGameRoot(t *testing.T) {
+	base := t.TempDir()
+	gameRoot := filepath.Join(base, "Left 4 Dead 2")
+	gameDir := filepath.Join(gameRoot, "left4dead2")
+	if err := os.MkdirAll(filepath.Join(gameDir, "addons"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(gameDir, "cfg", "autoexec.cfg")
+	for _, input := range []string{gameDir, gameRoot} {
+		got, err := autoexecPathForRoot(input)
+		if err != nil {
+			t.Fatalf("autoexec path for %q: %v", input, err)
+		}
+		if got != want {
+			t.Fatalf("autoexec path for %q = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestAutoexecGBKRoundTripPreservesEncodingAndCRLF(t *testing.T) {
 	app, path := newAutoexecTestApp(t)
 	original := "// 测试\r\nbind F1 \"l4n_menu\"\r\n"
@@ -140,6 +159,26 @@ func TestAnalyzeAutoexecCommandsIncludesUnknownAndSkipsComments(t *testing.T) {
 	}
 }
 
+func TestAnalyzeAutoexecCommandsRecognizesSlotsAndLaunchOptions(t *testing.T) {
+	app := &App{}
+	matches := app.AnalyzeAutoexecCommands("l4n_scripted_hud_allow_slot1 1\nl4n_scripted_hud_allow_slot15 0\nl4n_scripted_hud_allow_slot16 1\n-l4n_use_neko_engine_post\n")
+	if len(matches) != 4 {
+		t.Fatalf("matches = %#v", matches)
+	}
+	if !matches[0].Known || matches[0].Help == nil || matches[0].Help.Command != "l4n_scripted_hud_allow_slot" {
+		t.Fatalf("slot1 match = %#v", matches[0])
+	}
+	if !matches[1].Known || matches[1].Help == nil {
+		t.Fatalf("slot15 match = %#v", matches[1])
+	}
+	if matches[2].Known {
+		t.Fatalf("slot16 should remain unknown: %#v", matches[2])
+	}
+	if !matches[3].Known || matches[3].Help == nil || matches[3].Help.Scope != "启动项" {
+		t.Fatalf("launch option match = %#v", matches[3])
+	}
+}
+
 func TestAutoexecCommandHelpFiltersL4N(t *testing.T) {
 	app := &App{}
 	items := app.GetAutoexecCommandHelp("l4n_game_usage")
@@ -165,7 +204,20 @@ func TestAutoexecCommandHelpCoversAdvancedReadmeEntries(t *testing.T) {
 	for _, item := range all {
 		seen[item.Command] = item
 	}
-	for _, command := range []string{"l4n_vm_sway", "l4n_placelight", "+l4n_lookat", "l4n_print_launch_options", "mat_nekosky_overlay_lf"} {
+	for _, command := range []string{
+		"l4n_vm_sway", "l4n_placelight", "+l4n_lookat", "l4n_print_launch_options", "mat_nekosky_overlay_lf",
+		"l4n_allow_draw_sprite", "l4n_allow_hud_team_player_display", "l4n_flashlight_r", "l4n_flashlight_g", "l4n_flashlight_b",
+		"l4n_force_dummy_addoninfo", "l4n_max_background_bik", "l4n_survivor", "l4n_thirdpersion_crosshair_alpha",
+		"l4n_thirdpersion_crosshair_dynamic", "l4n_thirdpersion_crosshair_scale", "l4n_vm_allow_camera_animation", "l4n_vm_pin",
+		"mat_nekosky_overlay_strength", "mat_neko_allow_invert_tonemap", "mat_nekorefract_color_invert_exponent",
+		"mat_nekotoon_allow_lightwarp", "mat_nekotoon_lambert_factor", "mat_nekotoon_lighting_scale",
+		"mat_nekotoon_rimlight_boost", "mat_nekotoon_rimlight_viewmodel_boost", "mat_nekotoon_brightness_limit",
+		"mat_nekotoon_darkness_limit", "mat_nekotoon_lazy_texture_load", "mat_nekotoon_ignore_flat_normal",
+		"mat_nekotoon_normalized_lightwarp", "mat_neko_tonemapping_algorithm", "mat_neko_tonemapping_force_linear",
+		"mat_neko_gamma", "mat_neko_engine_post_after", "mat_nekobloom_luminance_threshold", "mat_nekobloom_scale",
+		"mat_nekobloom_max_brightness", "mat_nekobloom_radius", "mat_nekobloom_maptex_strength", "mat_nekobloom_maptex_weight",
+		"mat_nekobloom_blend_mode", "mat_neko_pre_tonemapping", "-l4n_use_neko_engine_post",
+	} {
 		item, ok := seen[command]
 		if !ok || item.Source != "readme_l4n.txt" {
 			t.Fatalf("missing README command %q: %#v", command, item)

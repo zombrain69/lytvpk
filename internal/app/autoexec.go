@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -119,7 +120,10 @@ var autoexecCommandCatalog = []AutoexecCommandHelp{
 	{Command: "l4n_vm_inspect_mode", Summary: "进入手模展示/调整模式，可用数字键和滚轮调整参数", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_vm_addon_fix", Summary: "强制手模匹配玩家模型，修复一代图使用二代角色时的不匹配", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_patch_team_player_display", Summary: "接管 HUD 队友头像、倒地图标和 Bot 名字显示", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_allow_hud_team_player_display", Summary: "允许 HUD 显示队友状态", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_allow_draw_sprite", Summary: "允许渲染 Sprite；关闭后可能影响关卡机关提示", Scope: "L4N 插件", Risk: "中：可能影响关卡提示", Source: "readme_l4n.txt"},
 	{Command: "l4nsurvivor", Summary: "启用 L4N 扩展幸存者模型功能；值 2 可不替换队友模型", Scope: "L4N 插件", Risk: "中：与传统角色 Mod 可能冲突", Source: "readme_l4n.txt"},
+	{Command: "l4n_survivor", Summary: "L4N 扩展幸存者模型功能的兼容开关", Scope: "L4N 插件", Risk: "中：与传统角色 Mod 可能冲突", Source: "readme_l4n.txt"},
 	{Command: "l4n_allow_lobby_cheats", Summary: "控制大厅中作弊相关行为；启用后仍需自行建立 listen server", Scope: "L4N 插件", Risk: "高：可能影响联机规则", Source: "readme_l4n.txt"},
 	{Command: "l4n_allow_consistency_check", Summary: "控制 L4N 是否允许一致性检查", Scope: "L4N 插件", Risk: "中：可能影响 Mod 校验", Source: "readme_l4n.txt"},
 	{Command: "l4n_commoninfected_noragdoll", Summary: "禁用普通感染者死亡时的布娃娃效果", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
@@ -127,6 +131,9 @@ var autoexecCommandCatalog = []AutoexecCommandHelp{
 	{Command: "l4n_force_skyname", Summary: "覆盖天空盒材质；传入空字符串可还原", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_mat_specular", Summary: "控制环境反射效果", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_flashlight_factor", Summary: "设置手电筒亮度倍率", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_flashlight_r", Summary: "设置手电筒颜色 R 通道倍率", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_flashlight_g", Summary: "设置手电筒颜色 G 通道倍率", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_flashlight_b", Summary: "设置手电筒颜色 B 通道倍率", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_dlight_muzzleflash", Summary: "控制第一人称枪火动态光源", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_server_filter", Summary: "启用 L4N 服务器过滤", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_buildcubemaps", Summary: "配置环境并编译 cubemaps；可附加 allow_specular", Scope: "L4N 插件", Risk: "高：修改地图/渲染缓存", Source: "readme_l4n.txt"},
@@ -135,6 +142,8 @@ var autoexecCommandCatalog = []AutoexecCommandHelp{
 	{Command: "l4n_reload_config", Summary: "重新加载 L4N 配置", Scope: "L4N 插件", Risk: "中：会应用配置文件中的设置", Source: "readme_l4n.txt"},
 	{Command: "l4n_allow_flashlightmuzzleflash", Summary: "允许第一人称手电筒火光", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_game_hud_visible", Summary: "控制 L4N 游戏 HUD 的显示与隐藏", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_force_dummy_addoninfo", Summary: "强制使用虚拟 addoninfo，绕过部分 Mod 检查限制", Scope: "L4N 插件", Risk: "中：会改变 Mod 检查行为", Source: "readme_l4n.txt"},
+	{Command: "l4n_max_background_bik", Summary: "设置大厅背景视频数量，减少重复视频占用或扩展随机范围", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_specialinfected_randommodel", Summary: "控制特殊感染者随机使用一代或二代模型", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4nsurvivor_allocation_algorithm", Summary: "设置为队友分配 l4nsurvivor 模型的算法（userid/SteamID/随机数）", Scope: "L4N 插件", Risk: "中：影响联机模型分配", Source: "readme_l4n.txt"},
 	{Command: "l4nsurvivor_allow_bot", Summary: "允许 Bot 使用 l4nsurvivor 模型", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
@@ -145,6 +154,8 @@ var autoexecCommandCatalog = []AutoexecCommandHelp{
 	{Command: "l4n_vm_offset_x", Summary: "全局调整第一人称手模 X 轴位置", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_vm_offset_y", Summary: "全局调整第一人称手模 Y 轴位置", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_vm_offset_z", Summary: "全局调整第一人称手模 Z 轴位置", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_vm_allow_camera_animation", Summary: "允许手模动画驱动摄像机", Scope: "L4N 插件", Risk: "中：会改变视角动画", Source: "readme_l4n.txt"},
+	{Command: "l4n_vm_pin", Summary: "固定 viewmodel 实体", Scope: "L4N 插件", Risk: "中：可能影响手模更新", Source: "readme_l4n.txt"},
 	{Command: "l4n_menu_offset_x", Summary: "调整 l4n_menu 的水平位置", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_menu_offset_y", Summary: "调整 l4n_menu 的垂直位置", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_menu_font_size", Summary: "设置 l4n_menu 字体大小", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
@@ -189,6 +200,9 @@ var autoexecCommandCatalog = []AutoexecCommandHelp{
 	{Command: "l4n_hudmenu_offset_y", Summary: "调整 HUD 菜单垂直位置", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_view_punch_scale", Summary: "调整受击视角晃动强度", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_screen_shake_scale", Summary: "调整屏幕震动强度", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_thirdpersion_crosshair_alpha", Summary: "设置精确第三人称准星透明度", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_thirdpersion_crosshair_scale", Summary: "设置精确第三人称准星缩放", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_thirdpersion_crosshair_dynamic", Summary: "控制精确第三人称准星动态缩放", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_hudscope_draw_override", Summary: "控制是否接管开镜 HUD 渲染", Scope: "L4N 插件", Risk: "中：关闭会影响相关 HUD 功能", Source: "readme_l4n.txt"},
 	{Command: "l4n_hudscope_draw_padding_block", Summary: "控制开镜 HUD 黑边填充", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_hudscope_draw", Summary: "控制开镜 HUD 渲染", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
@@ -221,6 +235,32 @@ var autoexecCommandCatalog = []AutoexecCommandHelp{
 	{Command: "mat_outline_thickness_scale", Summary: "设置 NekoToon 描边粗细倍率；0 可关闭", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "mat_pbr_where", Summary: "高亮显示使用 PBR 着色器的材质", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "mat_nekosky_overlay_", Summary: "设置 NekoSky 六个面的叠加纹理路径（rt/bk/lf/ft/up/dn）", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekosky_overlay_strength", Summary: "设置 NekoSky 叠加纹理强度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_neko_allow_invert_tonemap", Summary: "控制色调映射曲线对颜色的抑制；值 2 可配合 NekoBloom", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekorefract_color_invert_exponent", Summary: "设置 NekoRefract 颜色反转指数", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_allow_lightwarp", Summary: "控制 NekoToon 是否使用非平展光照渲染", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_lambert_factor", Summary: "设置 NekoToon 环境光或手电筒光照阴影强度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_lighting_scale", Summary: "设置 NekoToon 光照倍率", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_rimlight_boost", Summary: "设置 NekoToon $rimlightboost 倍率", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_rimlight_viewmodel_boost", Summary: "设置 NekoToon viewmodel 的 rimlight 倍率", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_brightness_limit", Summary: "限制 NekoToon 渲染结果亮度，避免模型过曝", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_darkness_limit", Summary: "限制 NekoToon 渲染结果暗度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_lazy_texture_load", Summary: "控制 NekoToon 是否在渲染时才加载材质贴图", Scope: "NekoShaders/材质", Risk: "中：可能改变加载时机", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_ignore_flat_normal", Summary: "控制是否禁止使用 flat_normal 以提升性能；值 2 更严格", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekotoon_normalized_lightwarp", Summary: "统一 NekoToon lightwarp 最大亮度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_neko_tonemapping_algorithm", Summary: "选择 Neko 引擎后处理 ToneMapping 曲线（需 -l4n_use_neko_engine_post）", Scope: "NekoShaders/材质", Risk: "中：改变整体曝光和颜色", Source: "readme_l4n.txt"},
+	{Command: "mat_neko_tonemapping_force_linear", Summary: "强制使用 linear tonemapping，主要用于调试", Scope: "NekoShaders/材质", Risk: "中：改变整体颜色", Source: "readme_l4n.txt"},
+	{Command: "mat_neko_gamma", Summary: "设置 Neko 引擎后处理 gamma", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_neko_engine_post_after", Summary: "设置相对原始画面的后处理混合比例", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekobloom_luminance_threshold", Summary: "设置 NekoBloom 激发亮度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekobloom_scale", Summary: "设置 NekoBloom 强度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekobloom_max_brightness", Summary: "限制 NekoBloom 亮度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekobloom_radius", Summary: "设置 NekoBloom 模糊半径", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekobloom_maptex_strength", Summary: "设置 NekoBloom 蒙版强度", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekobloom_maptex_weight", Summary: "设置 NekoBloom 蒙版权重", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_nekobloom_blend_mode", Summary: "设置 NekoBloom 混合模式（1 add、2 screen、3 softlight、4 replace）", Scope: "NekoShaders/材质", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "mat_neko_pre_tonemapping", Summary: "在更早时机应用 tonemapping 曲线；可能与部分 ReShade 配置不兼容", Scope: "NekoShaders/材质", Risk: "中：可能影响 ReShade", Source: "readme_l4n.txt"},
+	{Command: "-l4n_use_neko_engine_post", Summary: "启用 Neko 引擎后处理；这是启动项，不是 autoexec 控制台命令", Scope: "启动项", Risk: "中：需写入启动参数，不能放入 autoexec", Source: "readme_l4n.txt"},
 }
 
 var autoexecCommandByName = func() map[string]AutoexecCommandHelp {
@@ -236,8 +276,23 @@ func autoexecPathForRoot(rootDir string) (string, error) {
 	if rootDir == "" || rootDir == "." {
 		return "", fmt.Errorf("未选择L4D2目录")
 	}
-	if strings.EqualFold(filepath.Base(rootDir), "addons") && strings.EqualFold(filepath.Base(filepath.Dir(rootDir)), "left4dead2") {
-		rootDir = filepath.Dir(rootDir)
+	base := filepath.Base(rootDir)
+	if strings.EqualFold(base, "addons") {
+		// Normally rootDir is the selected left4dead2\addons directory. Keep
+		// custom test/addons roots working, while recognizing the real game tree.
+		parent := filepath.Dir(rootDir)
+		if strings.EqualFold(filepath.Base(parent), "left4dead2") {
+			rootDir = parent
+		}
+	} else if strings.EqualFold(base, "left4dead2") {
+		// Already a game directory.
+	} else {
+		// If the user selected the Steam game root ("Left 4 Dead 2"), prefer
+		// its real left4dead2 child when present.
+		candidate := filepath.Join(rootDir, "left4dead2")
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			rootDir = candidate
+		}
 	}
 	return filepath.Join(rootDir, "cfg", "autoexec.cfg"), nil
 }
@@ -476,6 +531,15 @@ func (a *App) AnalyzeAutoexecCommands(content string) []AutoexecCommandMatch {
 		if match := autoexecCommandToken.FindStringSubmatch(trimmed); len(match) == 2 {
 			command := match[1]
 			key := strings.ToLower(command)
+			// The README documents l4n_scripted_hud_allow_slot[1~15] as
+			// concrete convars (slot1 through slot15), not a literal command
+			// containing brackets. Match only that bounded legal range.
+			if strings.HasPrefix(key, "l4n_scripted_hud_allow_slot") {
+				suffix := strings.TrimPrefix(key, "l4n_scripted_hud_allow_slot")
+				if slot, parseErr := strconv.Atoi(suffix); parseErr == nil && slot >= 1 && slot <= 15 {
+					key = "l4n_scripted_hud_allow_slot"
+				}
+			}
 			if help, ok := autoexecCommandByName[key]; ok {
 				helpCopy := help
 				result = append(result, AutoexecCommandMatch{Line: lineNumber + 1, Raw: raw, Command: command, Known: true, Help: &helpCopy})
