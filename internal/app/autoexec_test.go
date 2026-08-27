@@ -143,7 +143,32 @@ func TestAnalyzeAutoexecCommandsIncludesUnknownAndSkipsComments(t *testing.T) {
 func TestAutoexecCommandHelpFiltersL4N(t *testing.T) {
 	app := &App{}
 	items := app.GetAutoexecCommandHelp("l4n_game_usage")
-	if len(items) != 1 || items[0].Source != "readme_l4n.txt" {
+	var exact *AutoexecCommandHelp
+	for i := range items {
+		if items[i].Command == "l4n_game_usage" {
+			exact = &items[i]
+			break
+		}
+	}
+	if exact == nil || exact.Source != "readme_l4n.txt" {
 		t.Fatalf("L4N help = %#v", items)
+	}
+}
+
+func TestAutoexecCommandHelpCoversAdvancedReadmeEntries(t *testing.T) {
+	app := &App{}
+	all := app.GetAutoexecCommandHelp("")
+	if len(all) < 90 {
+		t.Fatalf("expected comprehensive command catalog, got %d entries", len(all))
+	}
+	seen := make(map[string]AutoexecCommandHelp, len(all))
+	for _, item := range all {
+		seen[item.Command] = item
+	}
+	for _, command := range []string{"l4n_vm_sway", "l4n_placelight", "+l4n_lookat", "l4n_print_launch_options", "mat_nekosky_overlay_lf"} {
+		item, ok := seen[command]
+		if !ok || item.Source != "readme_l4n.txt" {
+			t.Fatalf("missing README command %q: %#v", command, item)
+		}
 	}
 }
