@@ -218,6 +218,14 @@
   line-height: 1.5;
 }
 
+.autoexec-analysis.is-warning {
+  color: #b45309;
+}
+
+html.dark-mode .autoexec-analysis.is-warning {
+  color: #fbbf24;
+}
+
 .autoexec-tool-error {
   color: var(--danger);
 }

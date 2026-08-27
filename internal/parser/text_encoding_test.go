@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -18,6 +19,15 @@ func gbkBytes(t *testing.T, value string) []byte {
 	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(value))
 	if err != nil {
 		t.Fatalf("encode GBK fixture: %v", err)
+	}
+	return encoded
+}
+
+func windows1252Bytes(t *testing.T, value string) []byte {
+	t.Helper()
+	encoded, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(value))
+	if err != nil {
+		t.Fatalf("encode Windows-1252 fixture: %v", err)
 	}
 	return encoded
 }
@@ -39,6 +49,17 @@ func TestDecodeVPKTextSupportsGBKAndUTF8BOM(t *testing.T) {
 	}
 	if got != want {
 		t.Fatalf("UTF-8 BOM decoded as %q, want %q", got, want)
+	}
+}
+
+func TestDecodeVPKTextSupportsWindows1252ANSI(t *testing.T) {
+	want := "The Footsteps – Café Ê"
+	got, err := DecodeVPKText(windows1252Bytes(t, want))
+	if err != nil {
+		t.Fatalf("decode Windows-1252: %v", err)
+	}
+	if got != want {
+		t.Fatalf("Windows-1252 decoded as %q, want %q", got, want)
 	}
 }
 
@@ -78,6 +99,18 @@ func TestVPKEntryNameGBKRoundTrip(t *testing.T) {
 	}
 	if got != want {
 		t.Fatalf("VPK name decoded as %q, want %q", got, want)
+	}
+}
+
+func TestDecodeVPKEntryNameWindows1252(t *testing.T) {
+	want := "sound/café.vpk"
+	encoded := windows1252Bytes(t, want)
+	got, err := DecodeVPKEntryName(string(encoded))
+	if err != nil {
+		t.Fatalf("decode Windows-1252 VPK name: %v", err)
+	}
+	if got != want {
+		t.Fatalf("Windows-1252 VPK name decoded as %q, want %q", got, want)
 	}
 }
 

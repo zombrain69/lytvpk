@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.14-community.13 — 2026-08-27
+
+- 新增 `autoexec.cfg` 工具箱：可从当前游戏路径推断并编辑配置，实时识别已使用的控制台指令、别名、风险和来源，并提供 L4D2/L4N 指令手册。
+- 根据实机文件编码保留 `autoexec.cfg` 与 `addonlist.txt` 的 UTF-8、GBK/ANSI、Windows-1252、UTF-16、BOM 和换行格式；写入前保留原始字节备份。
+- 修复 VPK 中 GBK 文件名及 GBK/Windows-1252 `addoninfo.txt`、`missions/*.txt` 的解析；VPK 打包和解包也统一处理非 UTF-8 名称。
+- 改善 `addonlist.txt` 生命周期管理界面，并修复 Windows 下替换已有配置文件的可靠性。
+
 ## 2.5.14-community.9 — 2026-08-26
 
 - `addonlist.txt` 的“监控并自动恢复”现在默认关闭；仅在用户手动开启后才会持续监视、持久化该选择并在下次启动时恢复监控。创意工坊 Mod 复制到根目录不再擅自开启监控。

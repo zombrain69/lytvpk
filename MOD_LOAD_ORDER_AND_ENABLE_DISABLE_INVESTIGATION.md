@@ -1,8 +1,8 @@
 # LytVPK：`addonlist.txt` 加载顺序与 Mod 启用/禁用调查
 
-调查日期：2026-08-25
+调查日期：2026-08-27（编码兼容性补充复核）
 调查对象：`LaoYutang/lytvpk`，提交 `c977064445c46ce4c69d1b88c038bb95c9240c9f`
-调查方式：已为该仓库建立并使用 CodeGraph 索引（148 files / 3,943 nodes / 10,959 edges），并只读核对本机的 L4D2 `addonlist.txt`。
+调查方式：使用仓库 `.codegraph` 做调用链调查，并只读核对本机 L4D2 游戏目录、VPK 目录树和文本载荷编码。
 
 ## 结论摘要
 
@@ -11,8 +11,9 @@
 1. **加载顺序排序**：当前选定的 `addons` 目录的父目录与 `addonlist.txt` 拼接，读取 `"AddonList"` 块中条目的**物理出现顺序**，在前端按这个顺序重排列表。
 2. **物理禁用（原有能力）**：程序将 `.vpk` 在 `addons` 根目录和 `addons\\disabled` 之间移动；它的 `Enabled` 字段只表示这一物理位置状态。
 3. **游戏内开关（本次实现）**：扫描完成后，程序把 `addonlist.txt` 中各键的 `"1"` / `"0"` 合并为 `GameEnabled` / `GameStateKnown`，支持根目录 VPK 以及 `workshop\\*.vpk`。前端会显示绿/红/灰状态、可直接切换、可按状态筛选。
-4. **安全写入范围**：游戏内开关只原位更新对应值或在 `AddonList` 块末尾插入新条目；它保留 UTF-8 BOM 或 GBK 编码、注释、缩进、行尾和原始键名，并在首次写入前创建 `addonlist.txt.lytvpk.bak` 原始字节备份。它不会移动 VPK。
-5. **遗留加载顺序编辑风险**：旧 `SetVPKLoadOrder()` 仍会重建整个文件，可能改变编码、注释和 `workshop\\` 前缀；本次没有把它误作游戏内开关写入路径。
+4. **安全写入范围**：游戏内开关经过保真文档路径，会保留 UTF-8（含 BOM）、UTF-16 LE/BE、GBK 或 Windows-1252/ANSI 编码、注释、缩进、行尾和原始键名，并在首次写入前创建 `addonlist.txt.lytvpk.bak` 原始字节备份。加载顺序写回现在也会识别并保留原编码/BOM 及 `workshop\\` 键前缀，但仍重建条目文本，不承诺保留注释、缩进和行尾。两者都不会移动 VPK。
+5. **VPK 文本兼容性**：`addoninfo.txt`/`missions/*.txt` 载荷现在按 UTF-8 BOM、UTF-16 BOM、UTF-8、GBK、Windows-1252 顺序解码；VPK 条目名按 UTF-8、GBK、Windows-1252 解码。打包时优先 GBK，无法表示的名称保留 UTF-8，避免静默改名。
+6. **Windows 写回可靠性**：配置写回统一通过 `replaceFile`；Windows 使用 `MoveFileEx(MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)` 替换已有目标，避免 `os.Rename` 在目标已存在时失败。
 
 因此，界面现在会明确区分“文件位置状态”和“游戏内开关”：不要把旧的 `Enabled` 字段或 VPK 所在目录误读为 `addonlist.txt` 的 `"1"`。
 
@@ -39,18 +40,33 @@ ScanVPKFiles()
 
 | 项目 | 结果 |
 | --- | --- |
-| `addons` 目录 | `E:\\SteamLibrary\\steamapps\\common\\Left 4 Dead 2\\left4dead2\\addons`，存在 |
-| `addonlist.txt` | `E:\\SteamLibrary\\steamapps\\common\\Left 4 Dead 2\\left4dead2\\addonlist.txt`，存在 |
-| 文件大小 | 28,108 B |
-| 最后写入时间 | 2026-08-25 16:16:41 +08:00 |
+| `addons` 目录 | 本机 L4D2 `left4dead2/addons`，存在 |
+| `addonlist.txt` | 本机 L4D2 `left4dead2/addonlist.txt`，存在 |
+| 文件大小 | 32,445 B |
+| 最后写入时间 | 本次探针未将文件时间作为结论依据 |
 | UTF-8 BOM | 无 |
 | 编码实测 | 原始字节不是有效 UTF-8；按 GBK（CP936）解码可正确解析 |
-| 条目数 / 文件名去重数 | 862 / 862 |
-| 值为 `"1"` 的条目 | 363 |
-| 值为 `"0"` 的条目 | 499 |
-| SHA-256 快照 | `409ED81EB20D7860EAD99515F356EDFC97E10A258D8DB83CC8932774910DF287` |
+| 条目数 / 文件名去重数 | 1,024 / 1,024 |
+| 值为 `"1"` 的条目 | 366 |
+| 值为 `"0"` 的条目 | 658 |
+| SHA-256 快照 | `A60D25AE177563DBA0A9D6ABEED2B1DB957C38E3D67C2B3EA2A24C4DD9D5FB04` |
 
-这验证了 `internal/app/addon_list.go` 的 GBK 回退分支在当前游戏文件上确实会被使用。
+这验证了 `internal/app/addon_list.go` 的 GBK 分支在当前游戏文件上确实会被使用。
+
+### VPK 与游戏文本编码探针（2026-08-27）
+
+按 `ScanVPKFiles()` 的真实范围扫描：`addons` 根目录直下，以及 `workshop`/`disabled` 递归目录。
+
+| 项目 | 结果 |
+| --- | --- |
+| VPK 文件 | 1,040 |
+| VPK 条目 | 118,994 |
+| VPK 条目名 | UTF-8 118,650；GBK 344 |
+| `addoninfo.txt` / `missions/*.txt` | 941 |
+| 文本载荷 | UTF-8 917；UTF-8 BOM 18；GBK 5；Windows-1252 1 |
+| 代表性 ANSI 样本 | `addons\\7hours_later_l4d2.vpk` 内 `missions/7_hours_later.txt` |
+
+该 ANSI mission 文件此前按 GBK 解码会产生替换字符；新增 Windows-1252 回退后，`ParseVPKFileMetadata()` 实测成功得到战役 `7 Hours Later II` 和 5 个章节。当前实际 `addonlist.txt` 为 GBK（32,445 B），`cfg\\autoexec.cfg` 为 UTF-8（2,183 B）。
 
 ## 1. 从所选 `addons` 目录到 `addonlist.txt` 的路径链
 
@@ -74,7 +90,7 @@ ScanVPKFiles()
 - `internal/app/vpk_scan.go:17` 的 `SetRootDirectory()` 仅将路径保存到运行时字段 `a.rootDir`；前端才负责持久化最近使用目录。
 - `internal/app/addon_list.go:22` 的 `readAddonList()` 和 `:195` 的 `GetAddonListOrder()` 都使用 `filepath.Dir(a.rootDir)` 与 `filepath.Join(..., "addonlist.txt")` 得到目标文件。
 
-`AutoDiscoverAddons()` 还明确包含 `SteamLibrary/steamapps/common/Left 4 Dead 2/left4dead2/addons` 这一候选相对路径（`internal/app/filesystem.go:30`）。
+`AutoDiscoverAddons()` 还明确包含 Steam 安装目录下 `left4dead2/addons` 这一候选相对路径（`internal/app/filesystem.go:30`）。
 
 ## 2. “加载顺序排序”的完整调用链
 
@@ -96,11 +112,11 @@ ScanVPKFiles()
 
 1. 检查 `a.rootDir` 已设置，计算 `<a.rootDir 的父目录>\\addonlist.txt`。
 2. 读取原始字节；若有 UTF-8 BOM 则去除。
-3. 若字节不是有效 UTF-8，则用 GBK 解码；否则直接按 UTF-8 转字符串。
+3. 文档读取按 BOM、UTF-8、GBK、Windows-1252 顺序解码；游戏内开关写回使用原编码，加载顺序写回也使用原编码但会重建条目文本。
 4. 逐行扫描 `"AddonList"` 块，用正则 `"([^"]+)"\s+"([^"]+)"` 捕获键值对。
 5. 将每个**文件名键**按出现次序追加到 `[]string order` 后返回。
 
-注意：该方法忽略第二列的值，`"0"` 与 `"1"` 都会进入 `order`。因此，本机文件中的全部 862 条记录都会参与“加载顺序排序”，而不是仅 363 条值为 `"1"` 的记录。
+注意：该方法忽略第二列的值，`"0"` 与 `"1"` 都会进入 `order`。因此，本机文件中的全部 1,024 条记录都会参与“加载顺序排序”，而不是仅 366 条值为 `"1"` 的记录。
 
 ### 前端排序规则
 
@@ -249,11 +265,10 @@ LaunchL4D2() / ConnectToServer()
 
 ### 遗留风险
 
-1. **旧的加载顺序写入仍会改变编码**：实机 `addonlist.txt` 为 GBK，但旧 `writeAddonList()` 固定以 UTF-8 无 BOM 重写。一次手动调整顺序就会转换整个文件编码。
-2. **旧的加载顺序写入仍会丢失注释与格式**：它重新生成标准 `AddonList` 块，原有注释、空行、缩进与行尾风格无法保留。
-3. **旧的加载顺序写入仍可能丢失 `workshop\\` 前缀**：它统一使用 `filepath.Base(item.Name)`；实机键 `workshop\\3128595987.vpk` 会被写成 `3128595987.vpk`。
-4. **条目顺序不等于已证明的引擎加载规则**：前端的“加载顺序”仅根据文本出现次序，而非本调查对 Source 引擎最终覆盖规则的证明。
-5. **解析逻辑仍重复**：`readAddonList()`、`GetAddonListOrder()` 与保真编辑路径尚未完全合并。游戏内开关的实际写入已使用保真路径；旧加载顺序功能仍使用重建路径。
+1. **条目顺序不等于已证明的引擎加载规则**：前端的“加载顺序”仅根据文本出现次序，而非本调查对 Source 引擎最终覆盖规则的证明。
+2. **加载顺序写回仍会重建格式**：`SetVPKLoadOrder()` 已不再强制改成 UTF-8，也保留 `workshop\\` 前缀，但仍会丢失原有注释、空白布局和行尾风格；如需完全原位排序，仍应实现条目级移动。
+3. **解析逻辑仍有轻微重复**：`readAddonList()`、`GetAddonListOrder()` 与保真编辑路径仍分层调用，但编码识别已统一落到文档读取函数。
+4. **无 charset 标记的文本存在歧义**：VPK 文本只能按启发式顺序识别；极少数同时可被 GBK 与 Windows-1252 解码的字节序列仍可能需要人工确认。
 
 ## 8. 后续可决定的产品规则
 
@@ -264,6 +279,13 @@ LaunchL4D2() / ConnectToServer()
 3. 是否将旧的 `SetVPKLoadOrder()` 也迁移到同一套保真、带备份的行级编辑器？
 4. 是否需要在游戏内开关写入前显示差异预览，或提供“恢复 `.lytvpk.bak`”按钮？
 5. 是否将“游戏引擎的真实加载/覆盖规则”作为独立验证项？当前代码把文件文本顺序当作 UI 排序依据，但源码本身并未证明这就是引擎最终的覆盖顺序。
+
+## 9. autoexec 工具箱与命令来源
+
+- `autoexec.cfg` 编辑器把文件内容统一以 UTF-8 传到 Wails 边界，保存时恢复原编码、BOM 和换行；GBK、Windows-1252、UTF-16 和 UTF-8 BOM 均有测试覆盖。
+- 编辑器对每次输入立即分析首个命令 token，列出行号、含义、作用域、风险和来源；异步分析带序列号保护，快速输入时不会用旧结果覆盖新内容。未知命令保留为警告，因为它们可能来自插件或 Mod。
+- 内置命令目录对照本机 `readme_l4n.txt`（当前版本记录至 2.44.2）维护，并将已移除的旧命令标为高风险旧版提示；基础 L4D2/Source 命令以 Valve Developer Community 的 L4D2 控制台命令列表及 Source 命令说明为在线核对依据。
+- `addonlist.txt` 页面增加保存→备份→监控→删除的生命周期提示、目标文件打开入口，并在监控/未知命令等状态下用警示色强化反馈。
 
 ## 关键文件索引
 
@@ -284,8 +306,8 @@ LaunchL4D2() / ConnectToServer()
 ## 验证记录
 
 - CodeGraph 已成功建立索引并在本次改动后同步；新增 `SetVPKGameEnabled`、`applyAddonListGameStates` 和 `GetVPKModelMetrics` 均可被查询到。
-- 已通过 CodeGraph 复核上述关键函数、扫描调用链、前端按钮委托和模型统计入口。
-- 已只读检查本机 `E:\\SteamLibrary\\steamapps\\common\\Left 4 Dead 2\\left4dead2\\addonlist.txt` 的存在性、字节编码特征、解析条目数和开关值分布。
-- 已新增 `internal/app/addon_list_test.go`，覆盖根目录/`workshop\\` 键映射、GBK + CRLF + 注释/行尾注释保真更新、原始字节备份、UTF-8 BOM 保留和缺失条目插入。
-- 本地已运行 `go test ./...`，7 个包共 162 项测试通过；已运行 `npm --prefix frontend run build` 和带 fork 版本参数的 `wails build`，Windows/amd64 生产构建成功。浏览器视觉验证未在本次发布流程中执行；发布前的暂存区已通过 `git diff --cached --check`。
-- 本调查及实现过程未修改 L4D2 游戏目录、实际 `addonlist.txt` 或任何 VPK 文件；所有写入行为只在临时测试目录的将来测试中发生。
+- 已通过 CodeGraph 复核上述关键函数、扫描调用链、前端按钮委托和模型统计入口，并在编码改动后重新同步索引。
+- 已只读检查本机 L4D2 `left4dead2/addonlist.txt`、`cfg/autoexec.cfg`、1,040 个 VPK 及其文本载荷编码。
+- 已新增测试覆盖 GBK、Windows-1252、UTF-8 BOM、UTF-16、VPK 条目名和 mission/addoninfo 解码，以及 `addonlist.txt`/`autoexec.cfg` 原编码保真写回。
+- 本地已运行 `go test -count=1 ./...`、`go vet ./...`、`npm run build` 和 `wails build -clean -platform windows/amd64`，均成功。GUI accessibility 点击因系统未提供坐标几何而未完成；尚未实际启动 L4D2 游戏本体验证。
+- 本调查及实现过程未修改 L4D2 游戏目录、实际 `addonlist.txt` 或任何 VPK 文件；所有写入行为只在临时测试目录中验证。已尝试启动本地 EXE 做真实 GUI 检查，但桌面自动化 helper 在窗口状态捕获阶段返回 `SetIsBorderRequired failed: 不支持此接口 (0x80004002)`，因此未执行点击操作。

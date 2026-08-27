@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
@@ -66,5 +67,27 @@ func TestParseMissionContentDecodesGBK(t *testing.T) {
 	}
 	if campaign.Title != "中文战役" || len(campaign.Chapters) != 1 || campaign.Chapters[0].Title != "第一关" {
 		t.Fatalf("GBK mission parsed as %#v", campaign)
+	}
+}
+
+func TestParseMissionContentDecodesWindows1252(t *testing.T) {
+	mission := `"mission"
+{
+	"DisplayTitle" "Café – Ê"
+	"modes"
+	{
+		"coop" { "1" { "Map" "c1m1_test" "DisplayName" "The Café" } }
+	}
+}`
+	encoded, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(mission))
+	if err != nil {
+		t.Fatalf("encode Windows-1252 mission fixture: %v", err)
+	}
+	campaign := ParseMissionContent(strings.NewReader(string(encoded)))
+	if campaign == nil {
+		t.Fatal("expected Windows-1252 mission campaign")
+	}
+	if campaign.Title != "Café – Ê" || len(campaign.Chapters) != 1 || campaign.Chapters[0].Title != "The Café" {
+		t.Fatalf("Windows-1252 mission parsed as %#v", campaign)
 	}
 }

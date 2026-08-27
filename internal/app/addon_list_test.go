@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -164,6 +165,39 @@ func TestAddonListDocumentPreservesUTF16LE(t *testing.T) {
 	decoded, _, err := transform.Bytes(unicode.UTF16(unicode.LittleEndian, unicode.ExpectBOM).NewDecoder(), updated)
 	if err != nil || string(decoded) != content+"\n" {
 		t.Fatalf("UTF-16 round trip = %q, %v", decoded, err)
+	}
+}
+
+func TestAddonListDocumentPreservesWindows1252ANSI(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "addonlist.txt")
+	content := "\"AddonList\"\r\n{\r\n\t\"café.vpk\"\t\t\"1\" // Ê\r\n}\r\n"
+	original, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, original, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := addonListEncodingName(original); got != "Windows-1252/ANSI" {
+		t.Fatalf("Windows-1252 encoding label = %q", got)
+	}
+	doc, err := readAddonListDocumentAtPath(path)
+	if err != nil {
+		t.Fatalf("read Windows-1252 addonlist: %v", err)
+	}
+	if doc.encoding != addonListEncodingWindows1252 || doc.content != content {
+		t.Fatalf("Windows-1252 document = encoding %d content %q", doc.encoding, doc.content)
+	}
+	updated, err := encodeAddonListDocument(doc, content+"\r\n")
+	if err != nil {
+		t.Fatalf("encode Windows-1252 addonlist: %v", err)
+	}
+	want, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(content+"\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(updated, want) {
+		t.Fatalf("Windows-1252 round trip = %x, want %x", updated, want)
 	}
 }
 

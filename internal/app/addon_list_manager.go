@@ -12,6 +12,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -61,6 +64,12 @@ func addonListEncodingName(content []byte) string {
 	}
 	if isValidUTF8(content) {
 		return "UTF-8"
+	}
+	if decoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), content); err == nil && !strings.ContainsRune(string(decoded), '\uFFFD') {
+		return "GBK/ANSI"
+	}
+	if decoded, _, err := transform.Bytes(charmap.Windows1252.NewDecoder(), content); err == nil && !strings.ContainsRune(string(decoded), '\uFFFD') {
+		return "Windows-1252/ANSI"
 	}
 	return "GBK/ANSI"
 }
@@ -428,7 +437,7 @@ func writeAddonListBytesAtomically(path string, content []byte) error {
 	if err := temporary.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(temporaryPath, path); err != nil {
+	if err := replaceFile(temporaryPath, path); err != nil {
 		return err
 	}
 	return nil

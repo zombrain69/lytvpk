@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -23,6 +24,7 @@ type autoexecEncoding uint8
 const (
 	autoexecEncodingUTF8 autoexecEncoding = iota
 	autoexecEncodingGBK
+	autoexecEncodingWindows1252
 	autoexecEncodingUTF16LE
 	autoexecEncodingUTF16BE
 )
@@ -64,6 +66,7 @@ type AutoexecCommandMatch struct {
 }
 
 var autoexecCommandToken = regexp.MustCompile(`^\s*([A-Za-z0-9_+.-]+)`)
+var autoexecAliasDefinition = regexp.MustCompile(`^\s*alias\s+"?([A-Za-z0-9_+.-]+)"?`)
 
 // The built-in entries are intentionally concise and conservative. Plugin
 // commands are marked as such so a user can distinguish them from Source
@@ -182,7 +185,8 @@ var autoexecCommandCatalog = []AutoexecCommandHelp{
 	{Command: "l4n_ambient_darkness_limit", Summary: "限制环境光的暗度", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_lightmap_darkness_limit", Summary: "限制光照贴图的暗度", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_charactor_model_random_scale", Summary: "启用角色模型随机缩放并设置缩放范围", Scope: "L4N 插件", Risk: "中：改变模型表现", Source: "readme_l4n.txt"},
-	{Command: "l4n_to_nekotoon_allow_outline", Summary: "控制模型转换为 NekoToon 时是否启用描边", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
+	{Command: "l4n_to_nekotoon_allow_outline", Summary: "旧版 NekoToon 描边开关；L4N 2.42.0 起已移除，请改用 l4n_to_nekotoon_outline_type", Scope: "L4N 插件（旧版）", Risk: "高：当前版本可能无效", Source: "readme_l4n.txt"},
+	{Command: "l4n_to_nekotoon_outline_type", Summary: "设置模型转换为 NekoToon 时的描边类型（L4N 2.42.0+）", Scope: "L4N 插件", Risk: "中：改变模型渲染", Source: "readme_l4n.txt"},
 	{Command: "l4n_dlight_muzzleflash_brightness", Summary: "设置第一人称枪火动态光源亮度", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_dlight_muzzleflash_distance", Summary: "设置第一人称枪火动态光源距离", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
 	{Command: "l4n_dlight_muzzleflash_prevent_tonemapscale", Summary: "抑制曝光对枪火动态光源亮度的影响", Scope: "L4N 插件", Risk: "低", Source: "readme_l4n.txt"},
@@ -305,6 +309,8 @@ func autoexecEncodingName(doc autoexecDocument) string {
 	switch doc.encoding {
 	case autoexecEncodingGBK:
 		return "GBK/ANSI"
+	case autoexecEncodingWindows1252:
+		return "Windows-1252/ANSI"
 	case autoexecEncodingUTF16LE:
 		return "UTF-16 LE"
 	case autoexecEncodingUTF16BE:
@@ -357,11 +363,19 @@ func readAutoexecDocumentAtPath(path string) (autoexecDocument, error) {
 	} else if utf8.Valid(raw) {
 		doc.content = string(raw)
 	} else {
-		decoded, _, decodeErr := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), raw)
-		if decodeErr != nil {
-			return autoexecDocument{}, fmt.Errorf("无法按 GBK/ANSI 解码 autoexec.cfg: %w", decodeErr)
+		decoded, _, gbkErr := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), raw)
+		if gbkErr == nil && !strings.ContainsRune(string(decoded), '\uFFFD') {
+			doc.content, doc.encoding = string(decoded), autoexecEncodingGBK
+		} else {
+			decoded, _, ansiErr := transform.Bytes(charmap.Windows1252.NewDecoder(), raw)
+			if ansiErr != nil {
+				return autoexecDocument{}, fmt.Errorf("无法按 GBK/ANSI 解码 autoexec.cfg（GBK: %v；Windows-1252: %w）", gbkErr, ansiErr)
+			}
+			if strings.ContainsRune(string(decoded), '\uFFFD') {
+				return autoexecDocument{}, fmt.Errorf("无法按 GBK/ANSI 解码 autoexec.cfg：Windows-1252 结果包含替换字符（GBK: %v）", gbkErr)
+			}
+			doc.content, doc.encoding = string(decoded), autoexecEncodingWindows1252
 		}
-		doc.content, doc.encoding = string(decoded), autoexecEncodingGBK
 	}
 	doc.lineEnding = detectLineEnding(doc.content)
 	return doc, nil
@@ -386,6 +400,12 @@ func encodeAutoexecDocument(doc autoexecDocument, content string) ([]byte, error
 		encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(content))
 		if err != nil {
 			return nil, fmt.Errorf("autoexec.cfg 内容无法按 GBK/ANSI 保存（可能包含 GBK 不支持的字符）: %w", err)
+		}
+		return encoded, nil
+	case autoexecEncodingWindows1252:
+		encoded, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(content))
+		if err != nil {
+			return nil, fmt.Errorf("autoexec.cfg 内容无法按 Windows-1252/ANSI 保存: %w", err)
 		}
 		return encoded, nil
 	case autoexecEncodingUTF16LE, autoexecEncodingUTF16BE:
@@ -459,7 +479,7 @@ func writeAutoexecDocument(doc autoexecDocument, content string) error {
 	if err := tempFile.Close(); err != nil {
 		return fmt.Errorf("无法关闭 autoexec.cfg 临时文件: %w", err)
 	}
-	if err := os.Rename(tempPath, doc.path); err != nil {
+	if err := replaceFile(tempPath, doc.path); err != nil {
 		return fmt.Errorf("无法替换 autoexec.cfg: %w", err)
 	}
 	return nil
@@ -522,6 +542,16 @@ func (a *App) GetAutoexecCommandHelp(query string) []AutoexecCommandHelp {
 // plugin/Mod-specific commands are not silently dropped.
 func (a *App) AnalyzeAutoexecCommands(content string) []AutoexecCommandMatch {
 	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	localAliases := make(map[string]struct{})
+	for _, raw := range lines {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, ";") {
+			continue
+		}
+		if match := autoexecAliasDefinition.FindStringSubmatch(trimmed); len(match) == 2 {
+			localAliases[strings.ToLower(match[1])] = struct{}{}
+		}
+	}
 	result := make([]AutoexecCommandMatch, 0)
 	for lineNumber, raw := range lines {
 		trimmed := strings.TrimSpace(raw)
@@ -543,6 +573,15 @@ func (a *App) AnalyzeAutoexecCommands(content string) []AutoexecCommandMatch {
 			if help, ok := autoexecCommandByName[key]; ok {
 				helpCopy := help
 				result = append(result, AutoexecCommandMatch{Line: lineNumber + 1, Raw: raw, Command: command, Known: true, Help: &helpCopy})
+			} else if _, ok := localAliases[key]; ok {
+				help := AutoexecCommandHelp{
+					Command: command,
+					Summary: "当前 autoexec.cfg 中定义的本地别名",
+					Scope:   "本地配置",
+					Risk:    "取决于别名展开内容",
+					Source:  "当前 autoexec.cfg",
+				}
+				result = append(result, AutoexecCommandMatch{Line: lineNumber + 1, Raw: raw, Command: command, Known: true, Help: &help})
 			} else {
 				result = append(result, AutoexecCommandMatch{Line: lineNumber + 1, Raw: raw, Command: command})
 			}

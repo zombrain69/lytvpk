@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -16,6 +17,15 @@ func encodeGBKAutoexecFixture(t *testing.T, content string) []byte {
 	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(content))
 	if err != nil {
 		t.Fatalf("encode GBK fixture: %v", err)
+	}
+	return encoded
+}
+
+func encodeWindows1252AutoexecFixture(t *testing.T, content string) []byte {
+	t.Helper()
+	encoded, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(content))
+	if err != nil {
+		t.Fatalf("encode Windows-1252 fixture: %v", err)
 	}
 	return encoded
 }
@@ -91,6 +101,32 @@ func TestAutoexecGBKRoundTripPreservesEncodingAndCRLF(t *testing.T) {
 	}
 }
 
+func TestAutoexecWindows1252RoundTripPreservesEncoding(t *testing.T) {
+	app, path := newAutoexecTestApp(t)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	original := "// Café – Ê\r\nfps_max 144\r\n"
+	if err := os.WriteFile(path, encodeWindows1252AutoexecFixture(t, original), 0644); err != nil {
+		t.Fatal(err)
+	}
+	config, err := app.GetAutoexecConfig()
+	if err != nil || config.Encoding != "Windows-1252/ANSI" || config.Content != original {
+		t.Fatalf("read Windows-1252 autoexec = %#v, err=%v", config, err)
+	}
+	if err := app.SaveAutoexecConfig("// Révision\nfps_max 240\n"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := encodeWindows1252AutoexecFixture(t, "// Révision\r\nfps_max 240\r\n")
+	if !bytes.Equal(raw, want) {
+		t.Fatalf("Windows-1252 bytes changed unexpectedly: %x, want %x", raw, want)
+	}
+}
+
 func TestAutoexecUTF8NoBOMPreservesCRLF(t *testing.T) {
 	app, path := newAutoexecTestApp(t)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -147,15 +183,21 @@ func TestAutoexecUTF16BOMRoundTrip(t *testing.T) {
 
 func TestAnalyzeAutoexecCommandsIncludesUnknownAndSkipsComments(t *testing.T) {
 	app := &App{}
-	matches := app.AnalyzeAutoexecCommands("// comment\n; comment\nbind F1 \\\"l4n_menu\\\"\nmy_plugin_command 1\n")
-	if len(matches) != 2 {
+	matches := app.AnalyzeAutoexecCommands("// comment\n; comment\nalias local_toggle fps_max\nbind F1 \\\"l4n_menu\\\"\nlocal_toggle 144\nmy_plugin_command 1\n")
+	if len(matches) != 4 {
 		t.Fatalf("matches = %#v", matches)
 	}
-	if !matches[0].Known || matches[0].Command != "bind" || matches[0].Line != 3 {
-		t.Fatalf("known match = %#v", matches[0])
+	if !matches[0].Known || matches[0].Command != "alias" || matches[0].Line != 3 {
+		t.Fatalf("alias match = %#v", matches[0])
 	}
-	if matches[1].Known || matches[1].Command != "my_plugin_command" || matches[1].Line != 4 {
-		t.Fatalf("unknown match = %#v", matches[1])
+	if !matches[1].Known || matches[1].Command != "bind" || matches[1].Line != 4 {
+		t.Fatalf("known match = %#v", matches[1])
+	}
+	if !matches[2].Known || matches[2].Command != "local_toggle" || matches[2].Help == nil || matches[2].Help.Scope != "本地配置" {
+		t.Fatalf("local alias match = %#v", matches[2])
+	}
+	if matches[3].Known || matches[3].Command != "my_plugin_command" || matches[3].Line != 6 {
+		t.Fatalf("unknown match = %#v", matches[3])
 	}
 }
 
@@ -216,7 +258,7 @@ func TestAutoexecCommandHelpCoversAdvancedReadmeEntries(t *testing.T) {
 		"mat_nekotoon_normalized_lightwarp", "mat_neko_tonemapping_algorithm", "mat_neko_tonemapping_force_linear",
 		"mat_neko_gamma", "mat_neko_engine_post_after", "mat_nekobloom_luminance_threshold", "mat_nekobloom_scale",
 		"mat_nekobloom_max_brightness", "mat_nekobloom_radius", "mat_nekobloom_maptex_strength", "mat_nekobloom_maptex_weight",
-		"mat_nekobloom_blend_mode", "mat_neko_pre_tonemapping", "-l4n_use_neko_engine_post",
+		"mat_nekobloom_blend_mode", "mat_neko_pre_tonemapping", "l4n_to_nekotoon_outline_type", "-l4n_use_neko_engine_post",
 	} {
 		item, ok := seen[command]
 		if !ok || item.Source != "readme_l4n.txt" {

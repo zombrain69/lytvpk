@@ -405,6 +405,34 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
   font-size: 0.78rem;
 }
 
+.addonlist-lifecycle-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+
+.addonlist-lifecycle-step {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: rgba(79, 70, 229, 0.035);
+}
+
+.addonlist-lifecycle-step strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.addonlist-lifecycle-step span {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
 .autoexec-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(250px, 0.85fr);
@@ -463,6 +491,14 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
   font-size: 0.76rem;
 }
 
+.autoexec-analysis.is-warning {
+  color: #b45309;
+}
+
+html.dark-mode .autoexec-analysis.is-warning {
+  color: #fbbf24;
+}
+
 .autoexec-help-column {
   display: flex;
   flex-direction: column;
@@ -503,6 +539,14 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
 .autoexec-help-item:hover {
   border-color: var(--primary);
   background: rgba(79, 70, 229, 0.06);
+}
+
+.autoexec-help-item[data-autoexec-risk^="高"] {
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.autoexec-help-item[data-autoexec-risk^="中"] {
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
 .autoexec-help-command {
@@ -741,6 +785,10 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
 
   .addonlist-status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .addonlist-lifecycle-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .addonlist-backup-item {

@@ -327,6 +327,13 @@ export async function renderSettingsPage(deps) {
           </div>
           <div class="setting-card">
             <div class="setting-card-title">addonlist.txt 生命周期管理</div>
+            <div class="setting-row-desc">这里管理游戏实际读取的配置文件：先保存受保护版本，再按需创建历史备份；开启监控后，检测到游戏覆盖或删除时会自动恢复并保留外部内容。</div>
+            <div class="addonlist-lifecycle-steps" aria-label="addonlist.txt 生命周期">
+              <div class="addonlist-lifecycle-step"><strong>1. 保存</strong><span>记录当前字节和编码</span></div>
+              <div class="addonlist-lifecycle-step"><strong>2. 备份</strong><span>保留手动/恢复前版本</span></div>
+              <div class="addonlist-lifecycle-step"><strong>3. 监控</strong><span>覆盖后自动恢复</span></div>
+              <div class="addonlist-lifecycle-step"><strong>4. 删除</strong><span>删除前仍可恢复</span></div>
+            </div>
             <div class="setting-row addonlist-status-row">
               <div class="setting-row-info">
                 <div class="setting-row-label">目标文件</div>
@@ -344,6 +351,7 @@ export async function renderSettingsPage(deps) {
               <div class="addonlist-action-row">
                 <button type="button" id="settings-addonlist-save-snapshot" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>保存当前配置为受保护版本</button>
                 <button type="button" id="settings-addonlist-create-backup" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>创建历史备份</button>
+                <button type="button" id="settings-addonlist-open" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>打开文件位置</button>
               </div>
               <div class="setting-row addonlist-guard-row">
                 <div class="setting-row-info">
@@ -754,15 +762,24 @@ function bindSettingsPage(deps) {
   const autoexecEditor = document.getElementById("settings-autoexec-content");
   const autoexecAnalysis = document.getElementById("settings-autoexec-analysis");
   const autoexecMatchesEl = document.getElementById("settings-autoexec-matches");
+  let autoexecAnalysisRequest = 0;
   const updateAutoexecAnalysis = async () => {
     if (!autoexecEditor || typeof deps.AnalyzeAutoexecCommands !== "function") return;
+    const requestId = ++autoexecAnalysisRequest;
     try {
       const matches = await deps.AnalyzeAutoexecCommands(autoexecEditor.value);
+      if (requestId !== autoexecAnalysisRequest) return;
       const known = matches.filter((item) => item.known).length;
       const unknown = matches.length - known;
-      if (autoexecAnalysis) autoexecAnalysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令`;
+      const highRisk = matches.filter((item) => item.known && item.help?.risk?.startsWith("高")).length;
+      const mediumRisk = matches.filter((item) => item.known && item.help?.risk?.startsWith("中")).length;
+      if (autoexecAnalysis) {
+        autoexecAnalysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令${highRisk ? `；高风险 ${highRisk}` : ""}${mediumRisk ? `；中风险 ${mediumRisk}` : ""}`;
+        autoexecAnalysis.classList.toggle("is-warning", unknown > 0 || highRisk > 0);
+      }
       renderAutoexecMatches(autoexecMatchesEl, matches);
     } catch (error) {
+      if (requestId !== autoexecAnalysisRequest) return;
       if (autoexecAnalysis) autoexecAnalysis.textContent = `指令识别失败：${String(error?.message || error)}`;
     }
   };
@@ -854,6 +871,16 @@ function bindSettingsPage(deps) {
       await refreshAddonListPanel();
     } catch (error) {
       deps.showNotification("创建备份失败: " + error, "error");
+    }
+  });
+
+  document.getElementById("settings-addonlist-open")?.addEventListener("click", async () => {
+    const path = document.querySelector("#settings-panel-addonlist .addonlist-path")?.textContent?.trim();
+    if (!path || typeof deps.OpenFileLocation !== "function") return;
+    try {
+      await deps.OpenFileLocation(path);
+    } catch (error) {
+      deps.showNotification("打开 addonlist.txt 位置失败: " + error, "error");
     }
   });
 
@@ -1248,7 +1275,7 @@ function renderAutoexecHelpItems(items) {
   return items
     .map(
       (item) => `
-        <button type="button" class="autoexec-help-item" data-autoexec-command="${escapeAttr(item.command || "")}">
+        <button type="button" class="autoexec-help-item" data-autoexec-command="${escapeAttr(item.command || "")}" data-autoexec-risk="${escapeAttr(item.risk || "")}">
           <span class="autoexec-help-command">${escapeHtml(item.command || "")}</span>
           <span class="autoexec-help-summary">${escapeHtml(item.summary || "")}</span>
           <span class="autoexec-help-meta">${escapeHtml(item.scope || "")} · ${escapeHtml(item.risk || "")} · ${escapeHtml(item.source || "")}</span>
@@ -1272,6 +1299,7 @@ function renderAutoexecHelpList(container, items) {
     button.type = "button";
     button.className = "autoexec-help-item";
     button.dataset.autoexecCommand = item.command || "";
+    button.dataset.autoexecRisk = item.risk || "";
     const command = document.createElement("span");
     command.className = "autoexec-help-command";
     command.textContent = item.command || "";

@@ -87,16 +87,25 @@ function renderEditor(modal, config, help) {
   const editor = body.querySelector("[data-autoexec-tool-editor]");
   const analysis = body.querySelector("[data-autoexec-tool-analysis]");
   const matches = body.querySelector("[data-autoexec-tool-matches]");
+  let analysisRequest = 0;
   const analyze = async () => {
     if (!editor || typeof window?.go?.app?.App?.AnalyzeAutoexecCommands !== "function") return;
+    const requestId = ++analysisRequest;
     try {
       const result = await callApp("AnalyzeAutoexecCommands", editor.value);
+      if (requestId !== analysisRequest) return;
       const items = Array.isArray(result) ? result : [];
       const known = items.filter((item) => item.known).length;
       const unknown = items.length - known;
-      if (analysis) analysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令`;
+      const highRisk = items.filter((item) => item.known && item.help?.risk?.startsWith("高")).length;
+      const mediumRisk = items.filter((item) => item.known && item.help?.risk?.startsWith("中")).length;
+      if (analysis) {
+        analysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令${highRisk ? `；高风险 ${highRisk}` : ""}${mediumRisk ? `；中风险 ${mediumRisk}` : ""}`;
+        analysis.classList.toggle("is-warning", unknown > 0 || highRisk > 0);
+      }
       renderMatches(matches, items);
     } catch (error) {
+      if (requestId !== analysisRequest) return;
       if (analysis) analysis.textContent = `指令识别失败：${formatError(error)}`;
     }
   };
@@ -154,7 +163,7 @@ function renderHelpItems(items) {
     return `<div class="autoexec-help-empty">未找到匹配指令</div>`;
   }
   return items.map((item) => `
-    <button type="button" class="autoexec-help-item" data-autoexec-command="${escapeAttr(item.command)}">
+    <button type="button" class="autoexec-help-item" data-autoexec-command="${escapeAttr(item.command)}" data-autoexec-risk="${escapeAttr(item.risk || "")}">
       <span class="autoexec-help-command">${escapeHtml(item.command)}</span>
       <span class="autoexec-help-summary">${escapeHtml(item.summary)}</span>
       <span class="autoexec-help-meta">${escapeHtml([item.scope, item.risk, item.source].filter(Boolean).join(" · "))}</span>

@@ -36,6 +36,24 @@ func TestAddonListPathUsesGameParentOnlyForRealGameAddonsDirectory(t *testing.T)
 	}
 }
 
+func TestAddonListPathAcceptsSteamGameRoot(t *testing.T) {
+	base := t.TempDir()
+	gameRoot := filepath.Join(base, "Left 4 Dead 2")
+	gameDir := filepath.Join(gameRoot, "left4dead2")
+	if err := os.MkdirAll(filepath.Join(gameDir, "addons"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	app := &App{rootDir: gameRoot}
+	got, err := app.addonListPath()
+	if err != nil {
+		t.Fatalf("addonlist path for Steam root: %v", err)
+	}
+	want := filepath.Join(gameDir, "addonlist.txt")
+	if got != want {
+		t.Fatalf("addonlist path for Steam root = %q, want %q", got, want)
+	}
+}
+
 func TestAddonListMergeKeepsCurrentByDefaultAndCreatesCustomFolderConfig(t *testing.T) {
 	customRoot := filepath.Join(t.TempDir(), "my-mod-collection")
 	sourceRoot := filepath.Join(t.TempDir(), "other-mod-collection")

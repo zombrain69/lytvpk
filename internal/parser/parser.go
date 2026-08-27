@@ -508,7 +508,7 @@ func parseAddonInfoFromFile(opener *vpk.Opener, addonInfoFile *vpk.File, vpkFile
 		return
 	}
 
-	// VPK 文本没有独立的 charset 标记；按 BOM、UTF-8、GBK/ANSI 顺序解码。
+	// VPK 文本没有独立的 charset 标记；按 BOM、UTF-8、GBK、Windows-1252 顺序解码。
 	content, decodeErr := DecodeVPKText(data)
 	if decodeErr != nil {
 		return

@@ -288,19 +288,6 @@ func (a *App) installVPKFile(srcPath string, progress dropImportProgressFunc) (s
 	return destPath, nil
 }
 
-func replaceFile(srcPath string, destPath string) error {
-	if err := os.Rename(srcPath, destPath); err == nil {
-		return nil
-	} else if _, statErr := os.Stat(destPath); statErr != nil {
-		return err
-	}
-
-	if err := os.Remove(destPath); err != nil {
-		return err
-	}
-	return os.Rename(srcPath, destPath)
-}
-
 func (a *App) extractVPKFromArchiveWithProgress(archivePath string, destDir string, progress archiveProgressFunc) error {
 	switch strings.ToLower(filepath.Ext(archivePath)) {
 	case ".zip":

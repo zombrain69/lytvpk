@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 )
 
 type AddonListItem struct {
@@ -26,6 +27,7 @@ type addonListEncoding uint8
 const (
 	addonListEncodingUTF8 addonListEncoding = iota
 	addonListEncodingGBK
+	addonListEncodingWindows1252
 	addonListEncodingUTF16LE
 	addonListEncodingUTF16BE
 )
@@ -97,7 +99,8 @@ func (a *App) writeAddonList(path string, list []AddonListItem) error {
 	buf.WriteString("}\n")
 
 	// 读取现有文档的编码与 BOM，排序写回时必须保持游戏原文件格式。
-	// L4D2 常见的 addonlist.txt 是 GBK/ANSI；强制改成 UTF-8 会让游戏
+	// L4D2 常见的 addonlist.txt 是 GBK/ANSI；少数环境可能使用
+	// Windows-1252。强制改成 UTF-8 会让游戏
 	// 在启动/保存阶段重新生成文件，从而看起来像是排序被回滚。
 	doc, err := readAddonListDocumentAtPath(path)
 	if err != nil {
@@ -226,13 +229,23 @@ func (a *App) addonListPath() (string, error) {
 }
 
 func addonListPathForRoot(rootDir string) (string, error) {
-	if rootDir == "" {
+	rootDir = filepath.Clean(strings.TrimSpace(rootDir))
+	if rootDir == "" || rootDir == "." {
 		return "", fmt.Errorf("未选择L4D2目录")
 	}
 
-	rootDir = filepath.Clean(rootDir)
-	if strings.EqualFold(filepath.Base(rootDir), "addons") && strings.EqualFold(filepath.Base(filepath.Dir(rootDir)), "left4dead2") {
-		return filepath.Join(filepath.Dir(rootDir), "addonlist.txt"), nil
+	if strings.EqualFold(filepath.Base(rootDir), "addons") {
+		if strings.EqualFold(filepath.Base(filepath.Dir(rootDir)), "left4dead2") {
+			rootDir = filepath.Dir(rootDir)
+		}
+	} else if !strings.EqualFold(filepath.Base(rootDir), "left4dead2") {
+		// The picker normally returns left4dead2\addons, but accepting the
+		// Steam game root keeps the path tied to the real game files when a
+		// user selects E:\\...\\Left 4 Dead 2 instead.
+		candidate := filepath.Join(rootDir, "left4dead2")
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			rootDir = candidate
+		}
 	}
 	return filepath.Join(rootDir, "addonlist.txt"), nil
 }
@@ -283,13 +296,21 @@ func readAddonListDocumentAtPath(path string) (addonListDocument, error) {
 		return doc, nil
 	}
 
-	reader := transform.NewReader(bytes.NewReader(content), simplifiedchinese.GBK.NewDecoder())
-	decoded, decodeErr := io.ReadAll(reader)
-	if decodeErr != nil {
-		return addonListDocument{}, fmt.Errorf("无法按 GBK 解码 addonlist.txt: %w", decodeErr)
+	decoded, _, gbkErr := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), content)
+	if gbkErr == nil && !strings.ContainsRune(string(decoded), '\uFFFD') {
+		doc.content = string(decoded)
+		doc.encoding = addonListEncodingGBK
+		return doc, nil
+	}
+	decoded, _, ansiErr := transform.Bytes(charmap.Windows1252.NewDecoder(), content)
+	if ansiErr != nil {
+		return addonListDocument{}, fmt.Errorf("无法按 GBK/ANSI 解码 addonlist.txt（GBK: %v；Windows-1252: %w）", gbkErr, ansiErr)
+	}
+	if strings.ContainsRune(string(decoded), '\uFFFD') {
+		return addonListDocument{}, fmt.Errorf("无法按 GBK/ANSI 解码 addonlist.txt：Windows-1252 结果包含替换字符（GBK: %v）", gbkErr)
 	}
 	doc.content = string(decoded)
-	doc.encoding = addonListEncodingGBK
+	doc.encoding = addonListEncodingWindows1252
 	return doc, nil
 }
 
@@ -298,6 +319,13 @@ func encodeAddonListDocument(doc addonListDocument, content string) ([]byte, err
 		encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(content))
 		if err != nil {
 			return nil, fmt.Errorf("无法按 GBK 编码 addonlist.txt: %w", err)
+		}
+		return encoded, nil
+	}
+	if doc.encoding == addonListEncodingWindows1252 {
+		encoded, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(content))
+		if err != nil {
+			return nil, fmt.Errorf("无法按 Windows-1252/ANSI 编码 addonlist.txt: %w", err)
 		}
 		return encoded, nil
 	}
@@ -384,7 +412,7 @@ func (a *App) writeAddonListDocument(doc addonListDocument, content string) erro
 	if err := tempFile.Close(); err != nil {
 		return fmt.Errorf("无法关闭 addonlist.txt 临时文件: %w", err)
 	}
-	if err := os.Rename(tempPath, doc.path); err != nil {
+	if err := replaceFile(tempPath, doc.path); err != nil {
 		return fmt.Errorf("无法替换 addonlist.txt: %w", err)
 	}
 	return nil
