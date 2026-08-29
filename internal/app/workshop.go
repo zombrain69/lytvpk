@@ -115,19 +115,19 @@ func (a *App) CancelDownloadTask(taskID string) {
 func (a *App) RetryDownloadTask(taskID string) {
 	taskManager.mu.Lock()
 	task, exists := taskManager.tasks[taskID]
-	taskManager.mu.Unlock()
-
 	if !exists {
+		taskManager.mu.Unlock()
 		return
 	}
 
-	// Only retry if failed or cancelled
+	// 状态检查与重置必须在同一把锁内完成。否则快速双击“重试”时，
+	// 两个调用都可能先读到 failed/cancelled，进而为同一个任务启动两条下载协程。
 	if task.Status != "failed" && task.Status != "cancelled" {
+		taskManager.mu.Unlock()
 		return
 	}
 
-	// Reset task state
-	taskManager.mu.Lock()
+	// Reset task state while holding the lock acquired above.
 	task.Status = "pending"
 	task.Progress = 0
 	task.DownloadedSize = 0

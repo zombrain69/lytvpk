@@ -1,4 +1,8 @@
 import { appState } from "../state.js";
+import {
+  GetAddonListLoadOrderEntries,
+  SetVPKLoadOrder,
+} from "../../../../wailsjs/go/app/App";
 
 let EventsOn;
 let showError;
@@ -14,11 +18,80 @@ let showNotification;
 let conflictProgressRegistered = false;
 let isConflictChecking = false;
 let isConflictModalVisible = false;
+// 模态框全量扫描与列表级 scoped 扫描生命周期彼此独立。
+// 关闭模态框不应让列表扫描变成“过期”状态，否则其 loading 标记可能永远不清理。
 let conflictCheckRunId = 0;
+let scopedConflictRunId = 0;
 let scopedConflictTimer = null;
 let scopedConflictInFlight = null;
 let scopedConflictQueued = false;
 let scopedConflictQueuedSilent = true;
+let conflictOrderByPath = new Map();
+let conflictOrderByKey = new Map();
+let conflictOrderEntryCount = 0;
+
+function normalizeConflictOrderKey(value) {
+  return String(value || "")
+    .trim()
+    .replaceAll("/", "\\")
+    .replace(/^\.\\/, "")
+    .toLowerCase();
+}
+
+function conflictOrderKeys(vpk, file) {
+  const keys = [];
+  const name = normalizeConflictOrderKey(file?.name || vpk?.name);
+  const path = normalizeConflictOrderKey(file?.path || vpk?.path);
+  const root = normalizeConflictOrderKey(appState.currentDirectory);
+  if (root && path.startsWith(`${root}\\`)) keys.push(path.slice(root.length + 1));
+  const location = file?.location || vpk?.location;
+  if (location === "workshop" && name) keys.push(`workshop\\${name}`);
+  if (location === "disabled" && name) keys.push(`disabled\\${name}`);
+  if (name) keys.push(name);
+  return [...new Set(keys.filter(Boolean))];
+}
+
+async function refreshConflictOrderMap() {
+  try {
+    const entries = await GetAddonListLoadOrderEntries();
+    const byKey = new Map((entries || []).map((entry) => [normalizeConflictOrderKey(entry.key), Number(entry.order)]));
+    conflictOrderByKey = byKey;
+    appState.loadOrderMap.clear();
+    byKey.forEach((order, key) => {
+      if (Number.isInteger(order) && order > 0) appState.loadOrderMap.set(key, order - 1);
+    });
+    conflictOrderEntryCount = entries?.length || 0;
+    conflictOrderByPath = new Map();
+    for (const vpk of appState.allVpkFiles || []) {
+      const order = conflictOrderKeys(vpk, vpk).map((key) => byKey.get(key)).find((value) => Number.isInteger(value));
+      if (order) conflictOrderByPath.set(vpk.path, order);
+    }
+    return conflictOrderByPath;
+  } catch (error) {
+    console.warn("读取冲突 Mod 加载顺序失败:", error);
+    conflictOrderEntryCount = 0;
+    conflictOrderByPath = new Map();
+    conflictOrderByKey = new Map();
+    return conflictOrderByPath;
+  }
+}
+
+function getConflictPriority(vpk) {
+  const file = (appState.allVpkFiles || []).find((item) => item.path === vpk.path);
+  if (conflictOrderByPath.has(vpk.path)) return conflictOrderByPath.get(vpk.path);
+  return conflictOrderKeys(vpk, file).map((key) => conflictOrderByKey.get(key)).find((value) => Number.isInteger(value)) || null;
+}
+
+function sortConflictVPKs(vpkFiles) {
+  return [...vpkFiles].sort((a, b) => {
+    const orderA = getConflictPriority(a);
+    const orderB = getConflictPriority(b);
+    if (orderA !== null && orderB !== null && orderA !== orderB) return orderA - orderB;
+    if (orderA !== null && orderB === null) return -1;
+    if (orderA === null && orderB !== null) return 1;
+    return String(a.title || a.name || "").localeCompare(String(b.title || b.name || ""), "zh-CN", { numeric: true });
+  });
+}
 
 export function configureConflicts(deps) {
   ({
@@ -171,6 +244,12 @@ export function showConflictModal(options = {}) {
     updateFilterButtons();
     currentConflictResult = options.result;
     renderConflictResults(options.result);
+    // 先用已有缓存立即显示，再异步补齐真实 addonlist.txt 优先级并按优先级重排。
+    void refreshConflictOrderMap().then(() => {
+      if (currentConflictResult === options.result && isConflictModalVisible) {
+        renderConflictResults(options.result);
+      }
+    });
     return;
   }
   // 自动开始检测
@@ -296,7 +375,7 @@ export async function toggleScopedConflictAnalysis(enabled) {
     }
     scopedConflictQueued = false;
     scopedConflictQueuedSilent = true;
-    conflictCheckRunId += 1;
+    scopedConflictRunId += 1;
     appState.conflictAnalysisEnabled = false;
     appState.conflictAnalysisLoading = false;
     appState.conflictAnalysisResult = null;
@@ -315,7 +394,7 @@ export function scheduleScopedConflictAnalysis() {
 
   // 筛选结果已经变化：立即废弃旧结果，避免防抖期间仍显示上一次
   // 筛选范围的冲突标签。递增 run id 也会忽略尚未返回的旧请求。
-  conflictCheckRunId += 1;
+  scopedConflictRunId += 1;
   appState.conflictAnalysisLoading = true;
   appState.conflictAnalysisResult = null;
   appState.conflictByPath = new Map();
@@ -329,7 +408,12 @@ export function scheduleScopedConflictAnalysis() {
 }
 
 async function executeScopedConflictAnalysis({ silent = false } = {}) {
+  const runId = ++scopedConflictRunId;
+
   if (typeof CheckConflictsWithOptions !== "function" && typeof CheckConflictsForPaths !== "function") {
+    appState.conflictAnalysisLoading = false;
+    updateScopedConflictControl();
+    renderFileList?.();
     if (!silent) showError?.("当前后端不支持按筛选结果分析冲突，请重新构建应用");
     return;
   }
@@ -346,7 +430,6 @@ async function executeScopedConflictAnalysis({ silent = false } = {}) {
     return;
   }
 
-  const runId = ++conflictCheckRunId;
   appState.conflictAnalysisEnabled = true;
   appState.conflictAnalysisLoading = true;
   appState.conflictAnalysisResult = null;
@@ -364,7 +447,7 @@ async function executeScopedConflictAnalysis({ silent = false } = {}) {
           matchMode: configured.matchMode,
         })
       : await CheckConflictsForPaths(files.map((file) => file.path));
-    if (runId !== conflictCheckRunId || !appState.conflictAnalysisEnabled) return;
+    if (runId !== scopedConflictRunId || !appState.conflictAnalysisEnabled) return;
     appState.conflictAnalysisResult = result || { total_conflicts: 0, conflict_groups: [] };
     appState.conflictByPath = buildScopedConflictSummary(appState.conflictAnalysisResult);
     appState.conflictAnalysisLoading = false;
@@ -379,7 +462,7 @@ async function executeScopedConflictAnalysis({ silent = false } = {}) {
       );
     }
   } catch (error) {
-    if (runId !== conflictCheckRunId) return;
+    if (runId !== scopedConflictRunId) return;
     const errorMessage = String(error?.message || error || "");
     if (errorMessage.includes("冲突检测正在进行中")) {
       appState.conflictAnalysisLoading = false;
@@ -395,6 +478,14 @@ async function executeScopedConflictAnalysis({ silent = false } = {}) {
     updateScopedConflictControl();
     renderFileList?.();
     showError?.("分析当前筛选目标与所选对比范围的冲突失败: " + error);
+  } finally {
+    // 任何异常、过期或组件卸载路径都不能把列表永久留在 pending 状态。
+    // 只有当前代次负责清理；更新后的代次由自己的分析或防抖定时器负责。
+    if (runId === scopedConflictRunId && appState.conflictAnalysisLoading) {
+      appState.conflictAnalysisLoading = false;
+      updateScopedConflictControl();
+      renderFileList?.();
+    }
   }
 }
 
@@ -427,7 +518,7 @@ export function runScopedConflictAnalysis(options = {}) {
   return scopedConflictInFlight;
 }
 
-export function showConflictDetailsForFile(filePath) {
+export async function showConflictDetailsForFile(filePath) {
   const result = appState.conflictAnalysisResult;
   if (!appState.conflictAnalysisEnabled || appState.conflictAnalysisLoading || !result) {
     showNotification?.(`请先开启并等待当前筛选目标与“${appState.conflictAnalysisScopeLabel || "游戏内开启"}”的冲突分析完成`, "info");
@@ -442,6 +533,7 @@ export function showConflictDetailsForFile(filePath) {
     return;
   }
 
+  await refreshConflictOrderMap();
   showConflictModal({
     title: "Mod 冲突详情",
     severityFilter: "all",
@@ -509,6 +601,7 @@ export async function startConflictCheck() {
 
     currentConflictResult = result;
     currentConflictPage = 1;
+    await refreshConflictOrderMap();
     renderConflictResults(result);
   } catch (err) {
     if (runId === conflictCheckRunId && isConflictModalVisible) {
@@ -571,9 +664,18 @@ function renderConflictResults(result) {
 }
 
 function getFilteredConflictGroups(result) {
-  return (result.conflict_groups || []).filter((group) => {
+  const groups = (result.conflict_groups || []).filter((group) => {
     const severity = group.severity || "info";
     return currentSeverityFilter === "all" || severity === currentSeverityFilter;
+  });
+  return groups.sort((a, b) => {
+    const priorityA = Math.min(...(a.vpk_files || []).map(getConflictPriority).filter(Number.isInteger));
+    const priorityB = Math.min(...(b.vpk_files || []).map(getConflictPriority).filter(Number.isInteger));
+    const knownA = Number.isFinite(priorityA);
+    const knownB = Number.isFinite(priorityB);
+    if (knownA && knownB && priorityA !== priorityB) return priorityA - priorityB;
+    if (knownA !== knownB) return knownA ? -1 : 1;
+    return Number(b.file_count || 0) - Number(a.file_count || 0);
   });
 }
 
@@ -584,13 +686,18 @@ function createConflictGroupElement(group) {
   const groupEl = document.createElement("div");
   groupEl.className = `conflict-group ${severity}`;
 
-  const vpkListHtml = (group.vpk_files || [])
+  const orderedVpkFiles = sortConflictVPKs(group.vpk_files || []);
+  const vpkListHtml = orderedVpkFiles
     .map((vpk) => {
       const displayName = truncateText(vpk.title || vpk.name);
       const fileName = truncateText(vpk.name);
       const isWorkshop = vpk.location === "workshop";
       const file = (appState.allVpkFiles || []).find((item) => item.path === vpk.path);
       const isDisabled = vpk.location === "disabled";
+      const priority = getConflictPriority(vpk);
+      const hasPriority = Number.isInteger(priority);
+      const canMoveUp = hasPriority && priority > 1;
+      const canMoveDown = hasPriority && priority < conflictOrderEntryCount;
       const btnText = isWorkshop ? "复制到 addons" : isDisabled ? "启用" : "禁用";
       const btnClass = isWorkshop ? "btn-transfer" : isDisabled ? "btn-enable" : "btn-disable";
       const title = isWorkshop ? "复制到 addons，并关闭 workshop 原件" : isDisabled ? "启用此 Mod" : "禁用此 Mod";
@@ -601,8 +708,11 @@ function createConflictGroupElement(group) {
           <div class="conflict-vpk-info">
             <span class="conflict-vpk-title" title="${escapeHtml(vpk.title || vpk.name)}">${escapeHtml(displayName)}</span>
             <span class="conflict-vpk-filename" title="${escapeHtml(vpk.name)}">${escapeHtml(fileName)}</span>
+            <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? "编号来自 addonlist.txt 加载顺序；数字越大通常越靠后加载，覆盖同一资源时更可能生效" : "该 Mod 尚未写入 addonlist.txt"}">${hasPriority ? `优先级 #${priority}` : "优先级：未写入"}</span>
           </div>
           <div class="conflict-vpk-actions" role="group" aria-label="Mod操作">
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-order-delta="-1" ${canMoveUp ? "" : "disabled"} title="${hasPriority ? "将此 Mod 提前加载一位" : "该 Mod 尚未写入 addonlist.txt"}">↑ 提前</button>
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-order-delta="1" ${canMoveDown ? "" : "disabled"} title="${hasPriority ? "将此 Mod 延后加载一位；通常提高其覆盖优先级" : "该 Mod 尚未写入 addonlist.txt"}">↓ 延后</button>
             <button type="button" class="btn btn-small btn-conflict-action btn-conflict-detail" data-path="${escapeHtml(vpk.path)}" title="查看 Mod 详情">详情</button>
             <button type="button" class="btn btn-small btn-conflict-action btn-conflict-game" data-path="${escapeHtml(vpk.path)}" ${isDisabled || !file ? "disabled" : ""} title="${isDisabled ? "文件位于 disabled 目录，无法编辑游戏开关" : "编辑 addonlist.txt 中的游戏开关"}">${gameStateText}</button>
             <button type="button" class="btn btn-small btn-conflict-action ${btnClass}" data-path="${escapeHtml(vpk.path)}" data-location="${escapeHtml(vpk.location)}" data-default-label="${escapeHtml(btnText)}" title="${title}">${btnText}</button>
@@ -659,6 +769,8 @@ function createConflictGroupElement(group) {
             ? "detail"
             : btn.classList.contains("btn-conflict-game")
               ? "game"
+              : btn.classList.contains("btn-conflict-order")
+                ? "order"
               : "file";
 
           if (action === "detail") {
@@ -670,6 +782,22 @@ function createConflictGroupElement(group) {
             await toggleGameEnabled?.(path);
             btn.disabled = false;
             if (appState.conflictAnalysisEnabled) await runScopedConflictAnalysis({ silent: true });
+            return;
+          }
+          if (action === "order") {
+            const currentPriority = getConflictPriority({ path });
+            const delta = Number.parseInt(btn.dataset.orderDelta, 10);
+            if (!Number.isInteger(currentPriority) || !Number.isInteger(delta)) {
+              throw new Error("该 Mod 尚未取得有效的 addonlist.txt 优先级");
+            }
+            const nextPriority = Math.max(1, Math.min(conflictOrderEntryCount, currentPriority + delta));
+            if (nextPriority !== currentPriority) {
+              await SetVPKLoadOrder(path, nextPriority);
+              await refreshConflictOrderMap();
+              renderFileList?.();
+              renderConflictResults(currentConflictResult);
+              showNotification?.(delta < 0 ? "Mod 已提前加载" : "Mod 已延后加载，覆盖优先级通常更高", "success");
+            }
             return;
           }
 

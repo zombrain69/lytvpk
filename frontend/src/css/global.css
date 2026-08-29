@@ -436,6 +436,42 @@
   max-width: 15ch;
 }
 
+.conflict-vpk-priority {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.conflict-vpk-priority.known {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.conflict-vpk-priority.unknown {
+  color: var(--text-tertiary);
+  background: var(--bg-muted);
+}
+
+.load-order-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--spacing-1);
+  padding: 0.12rem 0.38rem;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* 长标题/路径在窄窗口中允许断行，避免把右侧操作按钮挤出可视区域。 */
 .conflict-vpk-title,
 .conflict-vpk-filename,

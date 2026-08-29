@@ -145,6 +145,7 @@ type App struct {
 	filterLayoutMode               string
 	boxSelectionEnabled            bool
 	ctrlClickSelectionEnabled      bool
+	uiScale                        float64
 	theme                          string
 	ignoredVersion                 string
 	lastUpdateCheckTime            string
@@ -191,6 +192,7 @@ type ConfigFile struct {
 	FilterLayoutMode               string           `json:"filterLayoutMode"`
 	BoxSelectionEnabled            *bool            `json:"boxSelectionEnabled,omitempty"`
 	CtrlClickSelectionEnabled      *bool            `json:"ctrlClickSelectionEnabled,omitempty"`
+	UIScale                        float64          `json:"uiScale,omitempty"`
 	AddonListGuardEnabled          *bool            `json:"addonListGuardEnabled,omitempty"`
 	Theme                          string           `json:"theme"`
 	IgnoredVersion                 string           `json:"ignoredVersion"`
@@ -312,6 +314,7 @@ func NewApp() *App {
 		filterLayoutMode:          "compact",
 		boxSelectionEnabled:       true,
 		ctrlClickSelectionEnabled: true,
+		uiScale:                   defaultUIScale,
 		savedDirectories:          []SavedDirectory{},
 	}
 

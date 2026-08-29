@@ -9,6 +9,8 @@ import {
   migrateLegacyLocalStorageIfNeeded,
   saveConfig,
 } from "../core/config.js";
+import { applyUIScale, setupUIScaleShortcuts } from "../core/ui-scale.js";
+import { setupModalResizers } from "../core/modal-resizer.js";
 import { initTheme, setupThemeToggle } from "../core/theme.js";
 import { renderAboutPage } from "./about/about.js";
 import { renderDiagnosticsPage } from "./diagnostics/diagnostics-page.js";
@@ -579,12 +581,15 @@ async function initializeApp() {
   }
 
   await initConfig();
+  applyUIScale(getConfig().uiScale);
+  setupUIScaleShortcuts({ getConfig, saveConfig });
   applyConfigToAppState();
   await initServerStorage();
   await initWatchLaterStorage();
 
   initTheme();
   initAppShell();
+  setupModalResizers();
   setupThemeToggle();
   setupPageChangeListeners();
   setupSettingsAndAboutListeners();

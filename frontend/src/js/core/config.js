@@ -4,6 +4,7 @@ import {
   MigrateLocalStorageConfig,
   SaveAppConfig,
 } from "../../../wailsjs/go/app/App";
+import { DEFAULT_UI_SCALE, normalizeUIScale } from "./ui-scale.js";
 
 const LEGACY_STORAGE_KEYS = {
   config: "vpk-manager-config",
@@ -32,6 +33,7 @@ const DEFAULT_CONFIG = {
   filterLayoutMode: "compact",
   boxSelectionEnabled: true,
   ctrlClickSelectionEnabled: true,
+  uiScale: DEFAULT_UI_SCALE,
   // addonlist.txt 的运行时监控属于显式选择，默认绝不启动。
   addonListGuardEnabled: false,
   theme: "",
@@ -126,6 +128,7 @@ function normalizeConfig(config = {}) {
     next.workshopTranslateProvider === "yandex" || next.workshopTranslateProvider === "custom"
       ? next.workshopTranslateProvider
       : DEFAULT_CONFIG.workshopTranslateProvider;
+  next.uiScale = normalizeUIScale(next.uiScale);
   next.migrationVersion = Number(next.migrationVersion) || 0;
 
   return cloneConfig(next);

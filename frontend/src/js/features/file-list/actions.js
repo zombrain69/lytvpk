@@ -319,6 +319,7 @@ export async function batchToggleVisibility(hide) {
       showLoadingScreen();
 
       let successCount = 0;
+      let skippedCount = 0;
       let failCount = 0;
 
       for (const filePath of selectedFiles) {
@@ -328,8 +329,10 @@ export async function batchToggleVisibility(hide) {
 
           if ((!hide && !isHidden) || (hide && isHidden)) {
             await ToggleVPKVisibility(filePath);
+            successCount++;
+          } else {
+            skippedCount++;
           }
-          successCount++;
         } catch (err) {
           console.error(`处理文件 ${filePath} 失败:`, err);
           failCount++;
@@ -339,8 +342,9 @@ export async function batchToggleVisibility(hide) {
       await refreshFilesKeepFilter();
       showMainScreen();
 
-      if (failCount > 0) {
-        showNotification(`操作完成: 成功 ${successCount} 个, 失败 ${failCount} 个`, "warning");
+      if (failCount > 0 || skippedCount > 0) {
+        const skippedText = skippedCount > 0 ? `，${skippedCount} 个已处于目标状态未变更` : "";
+        showNotification(`操作完成: 成功 ${successCount} 个, 失败 ${failCount} 个${skippedText}`, "warning");
       } else {
         showNotification(`成功${actionName} ${successCount} 个文件`, "success");
       }
@@ -385,10 +389,41 @@ function updateSingleFileDisplay(file) {
   const item = document.querySelector(`.file-item[data-path="${CSS.escape(file.path)}"], .file-card[data-path="${CSS.escape(file.path)}"]`);
   if (!item) return;
 
-  const statusEl = item.querySelector(".file-status");
-  if (statusEl) {
-    const statusIcon = file.enabled ? iconSvg("check") : iconSvg("x");
-    statusEl.innerHTML = `${statusIcon} ${file.enabled ? "启用" : "禁用"}`;
+  const rowPrefix = item.classList.contains("file-card") ? "mod-card" : "mod-row";
+  item.classList.remove(
+    `${rowPrefix}-state-enabled`,
+    `${rowPrefix}-state-disabled`,
+    `${rowPrefix}-state-unknown`,
+    `${rowPrefix}-location-disabled`,
+    "disabled",
+  );
+  const stateClass = !file.gameStateKnown
+    ? "unknown"
+    : file.gameEnabled
+      ? "enabled"
+      : "disabled";
+  item.classList.add(`${rowPrefix}-state-${stateClass}`);
+  if (file.location === "disabled") item.classList.add(`${rowPrefix}-location-disabled`);
+  if (item.classList.contains("file-card") && file.enabled === false) {
+    item.classList.add("disabled");
+  }
+
+  const stateBadge = item.querySelector(".game-state-badge");
+  if (stateBadge) {
+    const stateLabels = {
+      enabled: "游戏内开启",
+      disabled: "游戏内关闭",
+      unknown: "未记录",
+    };
+    const stateTitles = {
+      enabled: "addonlist.txt：1；点击关闭游戏内 Mod",
+      disabled: "addonlist.txt：0；点击开启游戏内 Mod",
+      unknown: "addonlist.txt 中未记录此 Mod；点击可写入并开启",
+    };
+    stateBadge.classList.remove("game-state-enabled", "game-state-disabled", "game-state-unknown");
+    stateBadge.classList.add(`game-state-${stateClass}`);
+    stateBadge.textContent = stateLabels[stateClass];
+    stateBadge.title = stateTitles[stateClass];
   }
 
   const locationEl = item.querySelector(".file-location");
@@ -421,6 +456,30 @@ function updateSingleFileDisplay(file) {
       `;
     }
   }
+
+  const gameToggleBtn = item.querySelector(".game-toggle-btn");
+  if (gameToggleBtn) {
+    const gameStateLabel = stateClass === "enabled"
+      ? "游戏内开启"
+      : stateClass === "disabled"
+        ? "游戏内关闭"
+        : "未记录";
+    gameToggleBtn.disabled = file.location === "disabled";
+    gameToggleBtn.classList.remove("game-state-enabled", "game-state-disabled", "game-state-unknown");
+    gameToggleBtn.classList.add(`game-state-${stateClass}`);
+    gameToggleBtn.querySelector(".btn-text")?.replaceChildren(document.createTextNode(
+      file.location === "disabled" ? "游戏开关不可用" : gameStateLabel,
+    ));
+    gameToggleBtn.title = file.location === "disabled"
+      ? "文件位于 disabled 目录，请先恢复文件后再编辑 addonlist.txt"
+      : stateTitlesForDisplay(stateClass);
+  }
+}
+
+function stateTitlesForDisplay(stateClass) {
+  if (stateClass === "enabled") return "addonlist.txt：1；点击关闭游戏内 Mod";
+  if (stateClass === "disabled") return "addonlist.txt：0；点击开启游戏内 Mod";
+  return "addonlist.txt 中未记录此 Mod；点击可写入并开启";
 }
 
 export function syncSelectedFiles() {

@@ -44,6 +44,22 @@ function getGameStateBadge(file, className = "game-state-badge") {
   return `<span class="${className} ${state.className}" title="${state.title}">${state.label}</span>`;
 }
 
+function getLoadOrderBadge(file, className = "load-order-badge") {
+  if (!appState.loadOrderMap?.size) return "";
+  const name = String(file?.name || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
+  const path = String(file?.path || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
+  const root = String(appState.currentDirectory || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
+  const keys = [];
+  if (root && path.startsWith(`${root}\\`)) keys.push(path.slice(root.length + 1));
+  if (file?.location === "workshop" && name) keys.push(`workshop\\${name}`);
+  if (file?.location === "disabled" && name) keys.push(`disabled\\${name}`);
+  if (name) keys.push(name);
+  const order = [...new Set(keys)].map((key) => appState.loadOrderMap.get(key)).find((value) => Number.isInteger(value));
+  return Number.isInteger(order)
+    ? `<span class="${className}" title="编号来自 addonlist.txt 加载顺序；数字越大通常越靠后加载，覆盖同一资源时更可能生效">优先级 #${order + 1}</span>`
+    : "";
+}
+
 function getGameToggleButton(file) {
   const state = getGameStateInfo(file);
   const isFileDisabled = file.location === "disabled";
@@ -222,7 +238,7 @@ export function createFileItem(file) {
         <span>${getLocationDisplayName(file.location)}</span>
       </span>
     </div>
-    <div class="file-game-state">${getGameStateBadge(file)}</div>
+      <div class="file-game-state">${getGameStateBadge(file)}${getLoadOrderBadge(file)}</div>
     <div class="file-tags">
       ${formatTags(file.primaryTag, file.secondaryTags)}
       ${getConflictSummaryBadge(file)}
@@ -424,6 +440,7 @@ export function createFileCard(file) {
       <div class="card-badges">
         <span class="card-badge location-badge">${getLocationDisplayName(file.location)}</span>
         ${getGameStateBadge(file, "card-badge game-state-badge")}
+        ${getLoadOrderBadge(file, "card-badge load-order-badge")}
         ${
           file.primaryTag
             ? `<span class="card-badge tag-badge" title="${escapeHtml(file.primaryTag)}">${escapeHtml(file.primaryTag)}</span>`

@@ -344,6 +344,7 @@ export namespace app {
 	    filterLayoutMode: string;
 	    boxSelectionEnabled?: boolean;
 	    ctrlClickSelectionEnabled?: boolean;
+	    uiScale?: number;
 	    addonListGuardEnabled?: boolean;
 	    theme: string;
 	    ignoredVersion: string;
@@ -373,6 +374,7 @@ export namespace app {
 	        this.filterLayoutMode = source["filterLayoutMode"];
 	        this.boxSelectionEnabled = source["boxSelectionEnabled"];
 	        this.ctrlClickSelectionEnabled = source["ctrlClickSelectionEnabled"];
+	        this.uiScale = source["uiScale"];
 	        this.addonListGuardEnabled = source["addonListGuardEnabled"];
 	        this.theme = source["theme"];
 	        this.ignoredVersion = source["ignoredVersion"];

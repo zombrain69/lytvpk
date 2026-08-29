@@ -45,6 +45,91 @@
   transition: transform var(--duration-300) var(--ease-out);
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* 由 modal-resizer.js 提供四边八角拖拽，避免浏览器原生 resize 只能操作右下角。 */
+.modal-content:not(.embedded-page-content) {
+  resize: none;
+}
+
+.modal-resize-handle {
+  position: absolute;
+  z-index: 20;
+  touch-action: none;
+}
+
+.modal-resize-handle-n,
+.modal-resize-handle-s {
+  right: 12px;
+  left: 12px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.modal-resize-handle-n { top: 0; }
+.modal-resize-handle-s { bottom: 0; }
+
+.modal-resize-handle-e,
+.modal-resize-handle-w {
+  top: 12px;
+  bottom: 12px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.modal-resize-handle-e { right: 0; }
+.modal-resize-handle-w { left: 0; }
+
+.modal-resize-handle-ne,
+.modal-resize-handle-se,
+.modal-resize-handle-sw,
+.modal-resize-handle-nw {
+  width: 14px;
+  height: 14px;
+}
+
+.modal-resize-handle-ne { top: 0; right: 0; cursor: nesw-resize; }
+.modal-resize-handle-se { right: 0; bottom: 0; cursor: nwse-resize; }
+.modal-resize-handle-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.modal-resize-handle-nw { top: 0; left: 0; cursor: nwse-resize; }
+
+body.is-modal-resizing,
+body.is-modal-resizing * {
+  user-select: none !important;
+}
+
+body.is-modal-resizing-n,
+body.is-modal-resizing-n *,
+body.is-modal-resizing-s,
+body.is-modal-resizing-s * { cursor: ns-resize !important; }
+
+body.is-modal-resizing-e,
+body.is-modal-resizing-e *,
+body.is-modal-resizing-w,
+body.is-modal-resizing-w * { cursor: ew-resize !important; }
+
+body.is-modal-resizing-ne,
+body.is-modal-resizing-sw,
+body.is-modal-resizing-ne *,
+body.is-modal-resizing-sw * { cursor: nesw-resize !important; }
+
+body.is-modal-resizing-se,
+body.is-modal-resizing-nw,
+body.is-modal-resizing-se *,
+body.is-modal-resizing-nw * { cursor: nwse-resize !important; }
+
+.modal-header .close-btn {
+  position: relative;
+  z-index: 30;
+}
+
+#file-detail-modal .modal-content {
+  width: min(820px, 92vw);
+  max-width: min(820px, 92vw);
+  height: min(78vh, 760px);
+  min-height: min(20rem, calc(100dvh - 1rem));
+  max-height: min(86vh, calc(100dvh - 1rem));
 }
 
 .modal:not(.hidden) .modal-content {

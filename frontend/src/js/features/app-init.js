@@ -17,7 +17,7 @@ import {
   enableActionButtons,
 } from "./state.js";
 import { renderTagFilters, performSearch } from "./file-list/filters.js";
-import { applySort } from "./file-list/sorting.js";
+import { applySort, refreshLoadOrderMap } from "./file-list/sorting.js";
 import { refreshTaskList } from "./downloads/task-list.js";
 import { renderServers, refreshAllServers } from "./servers/servers.js";
 import { renderWorkshopSidebar, browserState, loadWorkshopList } from "./workshop/workshop-browser.js";
@@ -176,6 +176,7 @@ export async function loadFiles() {
 
   try {
     await ScanVPKFiles();
+    await refreshLoadOrderMap({ silent: true });
 
     const [files, primaryTags] = await Promise.all([
       GetVPKFiles(),

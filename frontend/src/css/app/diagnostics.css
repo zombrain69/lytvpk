@@ -202,12 +202,25 @@
 }
 
 .autoexec-tool-modal-content {
-  width: min(94vw, 70rem);
-  max-width: min(94vw, 70rem);
+  width: min(94vw, 92rem);
+  min-width: min(50rem, 94vw);
+  height: min(90dvh, 60rem);
+  min-height: min(38rem, calc(100dvh - 1rem));
+  max-width: min(94vw, 92rem);
+  max-height: calc(100dvh - 1rem);
 }
 
 .autoexec-tool-body {
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.autoexec-resize-hint {
+  margin-right: auto;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
 }
 
 .autoexec-tool-intro,
@@ -235,6 +248,42 @@ html.dark-mode .autoexec-analysis.is-warning {
   grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.85fr);
   gap: 1rem;
   margin-top: 0.75rem;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.autoexec-tool-layout .autoexec-editor-column,
+.autoexec-tool-layout .autoexec-help-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.autoexec-tool-layout .autoexec-editor-column {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(5rem, 11rem) auto;
+  gap: 0.5rem;
+}
+
+.autoexec-tool-layout .autoexec-editor-shell {
+  height: auto;
+  min-height: 0;
+  flex: none;
+  resize: none;
+}
+
+.autoexec-tool-layout .autoexec-help-column {
+  max-height: none;
+}
+
+.autoexec-tool-layout .autoexec-help-list {
+  flex: 1 1 auto;
+}
+
+.autoexec-tool-layout .autoexec-tool-matches {
+  min-height: 5rem;
+  max-height: none;
+  margin-top: 0;
 }
 
 .autoexec-tool-matches,
@@ -272,8 +321,18 @@ html.dark-mode .autoexec-analysis.is-warning {
 }
 
 @media (max-width: 760px) {
+  .autoexec-tool-body {
+    overflow-y: auto;
+  }
+
   .autoexec-tool-layout {
     grid-template-columns: 1fr;
+    flex: none;
+  }
+
+  .autoexec-tool-layout .autoexec-editor-shell {
+    height: 28rem;
+    min-height: 18rem;
   }
 }
 

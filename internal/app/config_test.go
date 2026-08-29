@@ -27,6 +27,7 @@ func newConfigTestApp(t *testing.T) *App {
 		filterLayoutMode:          "compact",
 		boxSelectionEnabled:       true,
 		ctrlClickSelectionEnabled: true,
+		uiScale:                   defaultUIScale,
 		savedDirectories:          []SavedDirectory{},
 	}
 }
@@ -66,8 +67,36 @@ func TestConfigDefaultsWithoutFile(t *testing.T) {
 	if config.CtrlClickSelectionEnabled == nil || !*config.CtrlClickSelectionEnabled {
 		t.Fatalf("expected ctrl click selection to default to true")
 	}
+	if config.UIScale != defaultUIScale {
+		t.Fatalf("expected UI scale to default to %v, got %v", defaultUIScale, config.UIScale)
+	}
 	if config.AddonListGuardEnabled == nil || *config.AddonListGuardEnabled {
 		t.Fatalf("expected addonlist guard to default to false, got %#v", config.AddonListGuardEnabled)
+	}
+}
+
+func TestUIScaleConfigurationRoundTrip(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.uiScale = 1.25
+	if err := app.writeConfigFile(app.snapshotConfig()); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	restored := newConfigTestApp(t)
+	restored.configDir = app.configDir
+	restored.configPath = app.configPath
+	restored.serversPath = app.serversPath
+	restored.workshopWatchLaterPath = app.workshopWatchLaterPath
+	restored.loadConfig()
+	if config := restored.GetAppConfig(); config.UIScale != 1.25 {
+		t.Fatalf("expected UI scale to round trip, got %v", config.UIScale)
+	}
+
+	if err := restored.SaveAppConfig(ConfigFile{UIScale: 3}); err != nil {
+		t.Fatalf("save invalid UI scale: %v", err)
+	}
+	if config := restored.GetAppConfig(); config.UIScale != defaultUIScale {
+		t.Fatalf("expected invalid UI scale to reset to %v, got %v", defaultUIScale, config.UIScale)
 	}
 }
 

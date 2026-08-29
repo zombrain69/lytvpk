@@ -125,16 +125,25 @@ export async function handleModelComplexitySort() {
  * 同名 VPK 会互相覆盖。该函数单独导出，供加载顺序写入后先同步映射，
  * 再触发完整文件列表刷新。
  */
-export async function refreshLoadOrderMap() {
-  const orderList = await GetAddonListOrder();
-  appState.loadOrderMap.clear();
-  (orderList || []).forEach((name, index) => {
-    const key = normalizeLoadOrderKey(name);
-    if (key) {
-      appState.loadOrderMap.set(key, index);
-    }
-  });
-  return orderList || [];
+export async function refreshLoadOrderMap({ silent = false } = {}) {
+  try {
+    const orderList = await GetAddonListOrder();
+    appState.loadOrderMap.clear();
+    (orderList || []).forEach((name, index) => {
+      const key = normalizeLoadOrderKey(name);
+      if (key) {
+        appState.loadOrderMap.set(key, index);
+      }
+    });
+    return orderList || [];
+  } catch (error) {
+    // 刷新文件列表时 addonlist.txt 可能尚未生成；不能继续沿用旧映射，
+    // 否则新扫描到的 Mod 会显示过期的优先级，且新条目永远没有编号。
+    appState.loadOrderMap.clear();
+    if (!silent) throw error;
+    console.warn("刷新加载顺序映射失败，暂不显示优先级:", error);
+    return [];
+  }
 }
 
 function normalizeLoadOrderKey(value) {

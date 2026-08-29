@@ -31,6 +31,9 @@ let currentWorkshopResult = null;
 const workshopCache = new Map();
 const CACHE_DURATION = 3600 * 1000;
 const MAX_WORKSHOP_CACHE_ENTRIES = 64;
+const activeDownloadKeys = new Set();
+let downloadRequestInFlight = false;
+let ipSelectionPollTimer = null;
 
 function getCachedWorkshopResult(url) {
   const cached = workshopCache.get(url);
@@ -164,6 +167,11 @@ export function openWorkshopModal() {
 }
 
 export function closeWorkshopModal() {
+  if (ipSelectionPollTimer) {
+    clearInterval(ipSelectionPollTimer);
+    ipSelectionPollTimer = null;
+  }
+  downloadRequestInFlight = false;
   switchAppPage("mods");
   resetWorkshopParseState();
 }
@@ -381,19 +389,21 @@ function bindWorkshopResultEvents(result) {
 
   result.querySelectorAll(".download-group-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
+      if (btn.disabled) return;
       const groupIndex = Number.parseInt(btn.dataset.groupIndex, 10);
       const group = getCurrentGroups()[groupIndex];
       const items = getGroupDownloadableItems(group);
-      await startDownloadItems(items, "已添加本组任务到下载队列");
+      await startDownloadItems(items, "已添加本组任务到下载队列", btn);
     });
   });
 
   result.querySelectorAll(".download-item-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
+      if (btn.disabled) return;
       const groupIndex = Number.parseInt(btn.dataset.groupIndex, 10);
       const itemIndex = Number.parseInt(btn.dataset.itemIndex, 10);
       const item = getGroupItems(getCurrentGroups()[groupIndex])[itemIndex];
-      await startDownloadItems([item], "已添加到下载队列");
+      await startDownloadItems([item], "已添加到下载队列", btn);
     });
   });
 
@@ -416,79 +426,138 @@ function bindWorkshopResultEvents(result) {
   });
 }
 
-async function startDownloadItems(items, successMessage) {
+function getDownloadItemKey(details) {
+  return String(details?.publishedfileid || details?.file_url || "").trim().toLowerCase();
+}
+
+async function startDownloadItems(items, successMessage, sourceButton = null) {
   const downloadableItems = items.filter(isDownloadableDetail);
   if (downloadableItems.length === 0) {
     showError("没有可下载的文件");
     return 0;
   }
 
+  const pendingItems = downloadableItems.filter((details) => {
+    const key = getDownloadItemKey(details);
+    return key && !activeDownloadKeys.has(key);
+  });
+  if (pendingItems.length === 0) {
+    showInfo("这些文件已在添加到下载队列，请勿重复点击");
+    return 0;
+  }
+
+  const originalButtonHTML = sourceButton?.innerHTML;
+  sourceButton?.setAttribute("disabled", "true");
+  pendingItems.forEach((details) => activeDownloadKeys.add(getDownloadItemKey(details)));
+
   const config = getConfig();
   const useOptimizedIP = config.workshopPreferredIP || false;
   let successCount = 0;
 
-  for (const details of downloadableItems) {
-    try {
-      await StartDownloadTask(details, useOptimizedIP);
-      successCount++;
-    } catch (err) {
-      console.error("Failed to start task for", details.title, err);
+  try {
+    for (const details of pendingItems) {
+      try {
+        await StartDownloadTask(details, useOptimizedIP);
+        successCount++;
+      } catch (err) {
+        console.error("Failed to start task for", details.title, err);
+      } finally {
+        activeDownloadKeys.delete(getDownloadItemKey(details));
+      }
     }
-  }
 
-  if (successCount > 0) {
-    showInfo(
-      downloadableItems.length === 1
-        ? successMessage
-        : `已添加 ${successCount} 个任务到下载队列`
-    );
-    refreshTaskList();
-  } else {
-    showError("添加任务失败");
+    if (successCount > 0) {
+      showInfo(
+        pendingItems.length === 1
+          ? successMessage
+          : `已添加 ${successCount} 个任务到下载队列`
+      );
+      refreshTaskList();
+    } else {
+      showError("添加任务失败");
+    }
+  } finally {
+    if (sourceButton?.isConnected) {
+      sourceButton.removeAttribute("disabled");
+      if (originalButtonHTML != null) sourceButton.innerHTML = originalButtonHTML;
+    }
   }
 
   return successCount;
 }
 
 export async function downloadWorkshopFile() {
-  const isSelecting = await IsSelectingIP();
+  if (downloadRequestInFlight) return;
+  downloadRequestInFlight = true;
+
+  let isSelecting = false;
+  try {
+    isSelecting = await IsSelectingIP();
+  } catch (error) {
+    downloadRequestInFlight = false;
+    showError("无法获取优选线路状态: " + error);
+    return;
+  }
   if (isSelecting) {
     const btn = document.getElementById("download-workshop-btn");
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<span class="btn-spinner"></span> 正在优选线路...`;
+    if (ipSelectionPollTimer) {
+      downloadRequestInFlight = false;
+      return;
+    }
+    const originalText = btn?.innerHTML || "";
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="btn-spinner"></span> 正在优选线路...`;
+    }
     showNotification("正在优选最佳线路，完成后自动开始下载", "info");
 
-    const checkInterval = setInterval(async () => {
-      const stillSelecting = await IsSelectingIP();
-      if (!stillSelecting) {
-        clearInterval(checkInterval);
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        downloadWorkshopFile();
+    ipSelectionPollTimer = setInterval(async () => {
+      try {
+        const stillSelecting = await IsSelectingIP();
+        if (stillSelecting) return;
+        clearInterval(ipSelectionPollTimer);
+        ipSelectionPollTimer = null;
+        if (btn?.isConnected) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+        downloadRequestInFlight = false;
+        await downloadWorkshopFile();
+      } catch (error) {
+        clearInterval(ipSelectionPollTimer);
+        ipSelectionPollTimer = null;
+        if (btn?.isConnected) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+        downloadRequestInFlight = false;
+        showError("优选线路状态检查失败: " + error);
       }
     }, 1000);
 
     return;
   }
 
-  const groupedItems = getAllDownloadableItems();
-  if (groupedItems.length > 0) {
-    const successCount = await startDownloadItems(groupedItems, "已添加到下载队列");
-    if (successCount > 0) {
-      resetWorkshopParseState();
+  const btn = document.getElementById("download-workshop-btn");
+  if (btn) btn.disabled = true;
+  try {
+    const groupedItems = getAllDownloadableItems();
+    if (groupedItems.length > 0) {
+      const successCount = await startDownloadItems(groupedItems, "已添加到下载队列", btn);
+      if (successCount > 0) {
+        resetWorkshopParseState();
+      }
+      return;
     }
-    return;
-  }
 
-  const downloadUrl = document.getElementById("download-url").value.trim();
-  const config = getConfig();
-  const useOptimizedIP = config.workshopPreferredIP || false;
+    const downloadUrl = document.getElementById("download-url").value.trim();
+    const config = getConfig();
+    const useOptimizedIP = config.workshopPreferredIP || false;
 
-  if (!downloadUrl) {
-    showError("请输入或解析下载链接");
-    return;
-  }
+    if (!downloadUrl) {
+      showError("请输入或解析下载链接");
+      return;
+    }
 
   let filename = "unknown.vpk";
   try {
@@ -514,13 +583,17 @@ export async function downloadWorkshopFile() {
     result: 1,
   };
 
-  try {
-    await StartDownloadTask(taskDetails, useOptimizedIP);
-    showInfo("已添加到后台下载队列");
-    resetWorkshopParseState();
-    refreshTaskList();
-  } catch (err) {
-    showError("添加任务失败: " + err);
+    try {
+      await StartDownloadTask(taskDetails, useOptimizedIP);
+      showInfo("已添加到后台下载队列");
+      resetWorkshopParseState();
+      refreshTaskList();
+    } catch (err) {
+      showError("添加任务失败: " + err);
+    }
+  } finally {
+    downloadRequestInFlight = false;
+    if (btn?.isConnected) btn.disabled = false;
   }
 }
 

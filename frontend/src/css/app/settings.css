@@ -445,6 +445,41 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
   min-width: 0;
 }
 
+.autoexec-editor-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  height: 320px;
+  min-height: 320px;
+  overflow: hidden;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.autoexec-editor-shell:focus-within {
+  outline: 2px solid rgba(79, 70, 229, 0.25);
+  border-color: var(--primary);
+}
+
+.autoexec-line-numbers {
+  min-width: 3.75em;
+  height: 100%;
+  margin: 0;
+  padding: 12px 10px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-right: 1px solid var(--border-light);
+  background: color-mix(in srgb, var(--bg-surface) 84%, transparent);
+  color: var(--text-tertiary);
+  font: 0.875rem/1.5 var(--font-mono, ui-monospace, Consolas, monospace);
+  text-align: right;
+  white-space: pre;
+  user-select: none;
+  pointer-events: none;
+}
+
 .autoexec-meta {
   display: flex;
   flex-wrap: wrap;
@@ -464,21 +499,57 @@ html.dark-mode .trigger-check-btn:hover:not([disabled]) {
 .autoexec-editor {
   display: block;
   width: 100%;
-  min-height: 320px;
-  resize: vertical;
+  min-height: 0;
+  height: 100%;
+  resize: none;
   box-sizing: border-box;
   padding: 12px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text-primary);
-  font: 0.8rem/1.5 var(--font-mono, ui-monospace, Consolas, monospace);
+  font: 0.875rem/1.5 var(--font-mono, ui-monospace, Consolas, monospace);
+  white-space: pre;
   tab-size: 2;
 }
 
 .autoexec-editor:focus {
-  outline: 2px solid rgba(79, 70, 229, 0.25);
+  outline: none;
+}
+
+.ui-scale-control {
+  display: inline-grid;
+  grid-template-columns: auto minmax(8rem, 12rem) auto auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.ui-scale-control input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.ui-scale-button {
+  min-width: 2.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ui-scale-button:hover {
   border-color: var(--primary);
+  color: var(--primary);
+}
+
+.ui-scale-value {
+  min-width: 3.25rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .autoexec-action-row {

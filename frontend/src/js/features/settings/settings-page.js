@@ -1,3 +1,6 @@
+import { attachLineNumberGutter } from "../../core/line-number-editor.js";
+import { applyUIScale, MAX_UI_SCALE, MIN_UI_SCALE, normalizeUIScale, UI_SCALE_STEP } from "../../core/ui-scale.js";
+
 const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
   interface: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8"/><path d="M12 18v2"/></svg>`,
@@ -180,6 +183,18 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
+                <div class="setting-row-label">界面缩放</div>
+                <div class="setting-row-desc">调整整个应用的文字和间距；也可使用 Ctrl +、Ctrl -、Ctrl 0</div>
+              </div>
+              <div class="ui-scale-control" aria-label="界面缩放">
+                <button type="button" class="ui-scale-button" id="settings-ui-scale-decrease" aria-label="减小界面缩放">A−</button>
+                <input type="range" id="settings-ui-scale" data-ui-scale-input min="80" max="140" step="5" value="${Math.round(normalizeUIScale(getConfig().uiScale) * 100)}" aria-label="界面缩放百分比">
+                <output class="ui-scale-value" data-ui-scale-value for="settings-ui-scale">${Math.round(normalizeUIScale(getConfig().uiScale) * 100)}%</output>
+                <button type="button" class="ui-scale-button" id="settings-ui-scale-increase" aria-label="增大界面缩放">A+</button>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
                 <div class="setting-row-label">框选模式</div>
                 <div class="setting-row-desc">拖拽绘制选择框，批量选择 VPK 文件</div>
               </div>
@@ -307,7 +322,10 @@ export async function renderSettingsPage(deps) {
                   ${autoexecInfo?.lastModified ? `<span>修改于 ${escapeHtml(formatAddonListTime(autoexecInfo.lastModified))}</span>` : ""}
                 </div>
                 ${autoexecError ? `<div class="addonlist-status-error">${escapeHtml(autoexecError)}</div>` : ""}
-                <textarea id="settings-autoexec-content" class="autoexec-editor" spellcheck="false" aria-label="autoexec.cfg 内容">${escapeHtml(autoexecInfo?.content || "")}</textarea>
+                <div class="autoexec-editor-shell">
+                  <pre class="autoexec-line-numbers" id="settings-autoexec-line-numbers" aria-hidden="true"></pre>
+                  <textarea id="settings-autoexec-content" class="autoexec-editor" spellcheck="false" wrap="off" aria-label="autoexec.cfg 内容">${escapeHtml(autoexecInfo?.content || "")}</textarea>
+                </div>
                 <div class="addonlist-action-row autoexec-action-row">
                   <button type="button" id="settings-autoexec-save" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo ? "" : "disabled"}>保存 autoexec.cfg</button>
                   <button type="button" id="settings-autoexec-reload" class="trigger-check-btn addonlist-action-btn">重新读取</button>
@@ -566,6 +584,30 @@ function bindSettingsPage(deps) {
     deps.showNotification("已更新固定 IP 设置", "success");
   });
 
+  const uiScaleInput = document.getElementById("settings-ui-scale");
+  const updateUIScale = (value, persist = false) => {
+    const scale = applyUIScale(Number(value) / 100);
+    if (!persist) return scale;
+    const config = deps.getConfig();
+    config.uiScale = scale;
+    deps.saveConfig(config);
+    return scale;
+  };
+  uiScaleInput?.addEventListener("input", () => {
+    updateUIScale(uiScaleInput.value);
+  });
+  uiScaleInput?.addEventListener("change", () => {
+    updateUIScale(uiScaleInput.value, true);
+  });
+  document.getElementById("settings-ui-scale-decrease")?.addEventListener("click", () => {
+    const current = normalizeUIScale(deps.getConfig().uiScale);
+    updateUIScale(Math.round(Math.max(MIN_UI_SCALE, current - UI_SCALE_STEP) * 100), true);
+  });
+  document.getElementById("settings-ui-scale-increase")?.addEventListener("click", () => {
+    const current = normalizeUIScale(deps.getConfig().uiScale);
+    updateUIScale(Math.round(Math.min(MAX_UI_SCALE, current + UI_SCALE_STEP) * 100), true);
+  });
+
   document.querySelectorAll('input[name="settings-display-mode"]').forEach((radio) => {
     radio.addEventListener("change", () => {
       deps.appState.displayMode = radio.value;
@@ -760,8 +802,10 @@ function bindSettingsPage(deps) {
   });
 
   const autoexecEditor = document.getElementById("settings-autoexec-content");
+  const autoexecLineNumbers = document.getElementById("settings-autoexec-line-numbers");
   const autoexecAnalysis = document.getElementById("settings-autoexec-analysis");
   const autoexecMatchesEl = document.getElementById("settings-autoexec-matches");
+  const autoexecLineNumberEditor = attachLineNumberGutter(autoexecEditor, autoexecLineNumbers);
   let autoexecAnalysisRequest = 0;
   const updateAutoexecAnalysis = async () => {
     if (!autoexecEditor || typeof deps.AnalyzeAutoexecCommands !== "function") return;
@@ -790,6 +834,7 @@ function bindSettingsPage(deps) {
     const next = await deps.GetAutoexecConfig();
     autoexecInfo = next || autoexecInfo;
     autoexecEditor.value = next?.content || "";
+    autoexecLineNumberEditor.refresh();
     await updateAutoexecAnalysis();
   };
   document.getElementById("settings-autoexec-save")?.addEventListener("click", async () => {
@@ -844,6 +889,7 @@ function bindSettingsPage(deps) {
     const end = autoexecEditor.selectionEnd ?? start;
     autoexecEditor.setRangeText(`${command} `, start, end, "end");
     autoexecEditor.focus();
+    autoexecLineNumberEditor.refresh();
     updateAutoexecAnalysis();
   });
 

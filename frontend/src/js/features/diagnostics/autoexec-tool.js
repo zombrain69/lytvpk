@@ -1,4 +1,6 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { attachLineNumberGutter } from "../../core/line-number-editor.js";
+import { makeModalResizable } from "../../core/modal-resizer.js";
 
 const MODAL_ID = "autoexec-tool-modal";
 
@@ -37,12 +39,14 @@ function ensureModal() {
       </div>
       <div class="modal-body autoexec-tool-body" data-autoexec-tool-body></div>
       <div class="modal-footer">
+        <span class="autoexec-resize-hint" aria-hidden="true">可拖动右下角调整窗口大小</span>
         <button type="button" class="btn btn-secondary" data-autoexec-tool-close>关闭</button>
         <button type="button" class="btn btn-primary" data-autoexec-tool-save disabled>保存 autoexec.cfg</button>
       </div>
     </div>
   `;
   document.body.appendChild(modal);
+  makeModalResizable(modal.querySelector(".modal-content"));
   modal.querySelectorAll("[data-autoexec-tool-close]").forEach((button) => {
     button.addEventListener("click", () => closeModal(modal));
   });
@@ -68,7 +72,10 @@ function renderEditor(modal, config, help) {
     </div>
     <div class="autoexec-tool-layout">
       <div class="autoexec-editor-column">
-        <textarea class="autoexec-editor" data-autoexec-tool-editor spellcheck="false" aria-label="autoexec.cfg 内容">${escapeHtml(content)}</textarea>
+        <div class="autoexec-editor-shell">
+          <pre class="autoexec-line-numbers" data-autoexec-tool-line-numbers aria-hidden="true"></pre>
+          <textarea class="autoexec-editor" data-autoexec-tool-editor spellcheck="false" wrap="off" aria-label="autoexec.cfg 内容">${escapeHtml(content)}</textarea>
+        </div>
         <div class="autoexec-analysis" data-autoexec-tool-analysis>正在分析命令...</div>
         <div class="autoexec-tool-matches" data-autoexec-tool-matches></div>
         <div class="autoexec-action-row">
@@ -85,8 +92,10 @@ function renderEditor(modal, config, help) {
   `;
 
   const editor = body.querySelector("[data-autoexec-tool-editor]");
+  const lineNumbers = body.querySelector("[data-autoexec-tool-line-numbers]");
   const analysis = body.querySelector("[data-autoexec-tool-analysis]");
   const matches = body.querySelector("[data-autoexec-tool-matches]");
+  const lineNumberEditor = attachLineNumberGutter(editor, lineNumbers);
   let analysisRequest = 0;
   const analyze = async () => {
     if (!editor || typeof window?.go?.app?.App?.AnalyzeAutoexecCommands !== "function") return;
@@ -129,6 +138,7 @@ function renderEditor(modal, config, help) {
     const end = editor.selectionEnd ?? start;
     editor.setRangeText(`${command} `, start, end, "end");
     editor.focus();
+    lineNumberEditor.refresh();
     analyze();
   });
   body.querySelector("[data-autoexec-tool-reload]")?.addEventListener("click", () => {

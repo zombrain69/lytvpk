@@ -19,6 +19,12 @@ import (
 
 const configMigrationVersion = 2
 
+const (
+	defaultUIScale = 1.0
+	minUIScale     = 0.8
+	maxUIScale     = 1.4
+)
+
 type legacyFrontendConfig struct {
 	DefaultDirectory          *string          `json:"defaultDirectory"`
 	SavedDirectories          []SavedDirectory `json:"savedDirectories"`
@@ -113,6 +119,7 @@ func (a *App) loadConfig() {
 	if config.CtrlClickSelectionEnabled != nil {
 		a.ctrlClickSelectionEnabled = *config.CtrlClickSelectionEnabled
 	}
+	a.uiScale = normalizeUIScale(config.UIScale)
 	if config.AddonListGuardEnabled != nil {
 		a.addonListGuardEnabled = *config.AddonListGuardEnabled
 	}
@@ -166,6 +173,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		FilterLayoutMode:               defaultString(a.filterLayoutMode, "compact"),
 		BoxSelectionEnabled:            &boxSelectionEnabled,
 		CtrlClickSelectionEnabled:      &ctrlClickSelectionEnabled,
+		UIScale:                        normalizeUIScale(a.uiScale),
 		AddonListGuardEnabled:          &addonListGuardEnabled,
 		Theme:                          a.theme,
 		IgnoredVersion:                 a.ignoredVersion,
@@ -212,6 +220,7 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	if config.CtrlClickSelectionEnabled != nil {
 		a.ctrlClickSelectionEnabled = *config.CtrlClickSelectionEnabled
 	}
+	a.uiScale = normalizeUIScale(config.UIScale)
 	a.theme = config.Theme
 	a.ignoredVersion = config.IgnoredVersion
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
@@ -231,6 +240,13 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	a.mu.Unlock()
 
 	return a.writeConfigFile(a.snapshotConfig())
+}
+
+func normalizeUIScale(value float64) float64 {
+	if value < minUIScale || value > maxUIScale {
+		return defaultUIScale
+	}
+	return value
 }
 
 func (a *App) MigrateLocalStorageConfig(payload LocalStorageMigrationPayload) error {

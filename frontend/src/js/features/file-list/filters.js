@@ -2,7 +2,7 @@ import { appState, updateStatusBar, showFileListLoading, hideFileListLoading } f
 import { showError } from "../../core/toast.js";
 import { renderFileList } from "./render.js";
 import { getLocationDisplayName, escapeHtml } from "../../core/utils.js";
-import { applySort, updateSortButtonUI } from "./sorting.js";
+import { applySort, updateSortButtonUI, refreshLoadOrderMap } from "./sorting.js";
 import { resetBoxSelection } from "./box-selection.js";
 import { scheduleScopedConflictAnalysis } from "../conflicts/conflicts.js";
 import { GetPrimaryTags, GetSecondaryTags, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
@@ -1553,6 +1553,7 @@ export async function refreshFilesKeepFilter() {
 
   try {
     await ScanVPKFiles();
+    await refreshLoadOrderMap({ silent: true });
 
     const [files, primaryTags] = await Promise.all([
       GetVPKFiles(),
