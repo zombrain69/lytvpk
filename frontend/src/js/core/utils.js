@@ -48,9 +48,12 @@ export function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
-export function formatTags(primaryTag, secondaryTags = []) {
-  const tags = [];
+export function formatTags(primaryTag, secondaryTags = [], voiceCharacters = [], subjectSummary = "", xdrSummary = "") {
+	const tags = [];
 	const uniqueTags = getUniqueDisplayTags(primaryTag, secondaryTags);
+	const voiceLabels = [...new Set((voiceCharacters || []).map((tag) => String(tag || "").trim()).filter(Boolean))];
+	const subjectText = String(subjectSummary || "").trim();
+	const xdrText = String(xdrSummary || "").trim();
 
   if (uniqueTags.primary) {
     tags.push(
@@ -58,19 +61,39 @@ export function formatTags(primaryTag, secondaryTags = []) {
     );
   }
 
+	if (subjectText) {
+    tags.push(
+      `<span class="tag subject-tag" title="${escapeHtml(subjectText)}">${escapeHtml(subjectText)}</span>`,
+    );
+	}
+
+	if (xdrText) {
+		tags.push(
+			`<span class="tag xdr-tag" title="${escapeHtml(xdrText)}">${escapeHtml(xdrText)}</span>`,
+		);
+	}
+
+  if (voiceLabels.length > 0) {
+    const voiceText = `语音替换：${voiceLabels.join("、")}`;
+    tags.push(
+      `<span class="tag voice-replacement-tag" title="${escapeHtml(voiceText)}">${escapeHtml(voiceText)}</span>`,
+    );
+  }
+
   if (uniqueTags.secondary.length > 0) {
-    uniqueTags.secondary.slice(0, 2).forEach((tag) => {
+    const visibleSecondaryCount = voiceLabels.length > 0 ? 1 : 2;
+    uniqueTags.secondary.slice(0, visibleSecondaryCount).forEach((tag) => {
       tags.push(
         `<span class="tag secondary-tag" title="${escapeHtml(tag)}">${escapeHtml(tag)}</span>`
       );
     });
 
-    if (uniqueTags.secondary.length > 2) {
+    if (uniqueTags.secondary.length > visibleSecondaryCount) {
       tags.push(
         `<span class="tag more-tags" title="${uniqueTags.secondary
-          .slice(2)
+          .slice(visibleSecondaryCount)
           .map(escapeHtml)
-          .join(", ")}">+${uniqueTags.secondary.length - 2}</span>`
+          .join(", ")}">+${uniqueTags.secondary.length - visibleSecondaryCount}</span>`
       );
     }
   }

@@ -1587,6 +1587,9 @@ export async function refreshFilesKeepFilter() {
         appState.selectedFiles.delete(path);
       }
     }
+    if (!currentFilePaths.has(appState.selectionAnchorPath)) {
+      appState.selectionAnchorPath = "";
+    }
 
     updateStatusBar();
 

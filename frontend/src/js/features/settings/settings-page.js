@@ -206,7 +206,7 @@ export async function renderSettingsPage(deps) {
             <div class="setting-row">
               <div class="setting-row-info">
                 <div class="setting-row-label">Ctrl+单击选择</div>
-                <div class="setting-row-desc">按住 Ctrl 键并单击 Mod，可快速选中或取消选中</div>
+                <div class="setting-row-desc">按住 Ctrl 键并单击 Mod，可快速选中或取消选中；Shift+单击可按当前排序选择连续范围</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="settings-ctrl-click-selection" ${appState.ctrlClickSelectionEnabled ? "checked" : ""}>

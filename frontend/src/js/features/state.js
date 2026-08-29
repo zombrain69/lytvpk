@@ -23,6 +23,7 @@ export const appState = {
   selectedGameStates: [],
   searchQuery: "",
   selectedFiles: new Set(),
+  selectionAnchorPath: "",
   currentDirectory: "",
   isLoading: false,
   showHidden: false,
@@ -60,6 +61,43 @@ export function toggleFileSelection(filePath, selected) {
   } else {
     appState.selectedFiles.delete(filePath);
   }
+  updateStatusBar();
+}
+
+// 应用常见桌面文件选择手势：普通点击单选/取消，Ctrl（或 macOS 的
+// Command）保留其它选择并切换当前项，Shift 按当前排序后的列表选择范围。
+// selected 只用于普通点击；Shift 选择始终把范围加入选择集。
+export function applyFileSelectionGesture(
+  filePath,
+  { shiftKey = false, ctrlKey = false, metaKey = false, selected = true } = {},
+) {
+  const orderedPaths = (appState.vpkFiles || []).map((file) => file.path);
+  const targetIndex = orderedPaths.indexOf(filePath);
+  const additive = ctrlKey || metaKey;
+
+  if (shiftKey && targetIndex >= 0) {
+    const anchorIndex = orderedPaths.indexOf(appState.selectionAnchorPath);
+    const start = anchorIndex >= 0 ? Math.min(anchorIndex, targetIndex) : targetIndex;
+    const end = anchorIndex >= 0 ? Math.max(anchorIndex, targetIndex) : targetIndex;
+    if (!additive) {
+      appState.selectedFiles.clear();
+    }
+    for (let index = start; index <= end; index += 1) {
+      appState.selectedFiles.add(orderedPaths[index]);
+    }
+  } else if (additive) {
+    if (appState.selectedFiles.has(filePath)) {
+      appState.selectedFiles.delete(filePath);
+    } else {
+      appState.selectedFiles.add(filePath);
+    }
+  } else if (selected) {
+    appState.selectedFiles.add(filePath);
+  } else {
+    appState.selectedFiles.delete(filePath);
+  }
+
+  appState.selectionAnchorPath = filePath;
   updateStatusBar();
 }
 

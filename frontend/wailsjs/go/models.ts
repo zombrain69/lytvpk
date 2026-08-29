@@ -63,6 +63,7 @@ export namespace app {
 	export class AddonListLoadOrderConstraint {
 	    before: string;
 	    after: string;
+	    anchorMove?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AddonListLoadOrderConstraint(source);
@@ -72,6 +73,7 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.before = source["before"];
 	        this.after = source["after"];
+	        this.anchorMove = source["anchorMove"];
 	    }
 	}
 	export class AddonListLoadOrderEntry {
@@ -2751,12 +2753,44 @@ export namespace parser {
 	        this.modes = source["modes"];
 	    }
 	}
+	export class XDRSlotInfo {
+	    character: string;
+	    model: string;
+	    scope: string;
+	    slot: number;
+	    slotLabel: string;
+	    actions: string[];
+	    evidence: string[];
+	    confidence: string;
+
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.character = source["character"];
+	        this.model = source["model"];
+	        this.scope = source["scope"];
+	        this.slot = source["slot"];
+	        this.slotLabel = source["slotLabel"];
+	        this.actions = source["actions"];
+	        this.evidence = source["evidence"];
+	        this.confidence = source["confidence"];
+	    }
+	}
 	export class VPKFile {
 	    name: string;
 	    path: string;
 	    size: number;
 	    primaryTag: string;
 	    secondaryTags: string[];
+	    voiceCharacters: string[];
+	    contentSubjects: string[];
+	    subjectSummary: string;
+	    subjectConfidence: string;
+	    xdrSlots: XDRSlotInfo[];
+	    xdrSummary: string;
 	    location: string;
 	    enabled: boolean;
 	    gameEnabled: boolean;
@@ -2789,6 +2823,12 @@ export namespace parser {
 	        this.size = source["size"];
 	        this.primaryTag = source["primaryTag"];
 	        this.secondaryTags = source["secondaryTags"];
+	        this.voiceCharacters = source["voiceCharacters"];
+	        this.contentSubjects = source["contentSubjects"];
+	        this.subjectSummary = source["subjectSummary"];
+	        this.subjectConfidence = source["subjectConfidence"];
+	        this.xdrSlots = this.convertValues(source["xdrSlots"], XDRSlotInfo);
+	        this.xdrSummary = source["xdrSummary"];
 	        this.location = source["location"];
 	        this.enabled = source["enabled"];
 	        this.gameEnabled = source["gameEnabled"];
@@ -2831,4 +2871,3 @@ export namespace parser {
 	}
 
 }
-

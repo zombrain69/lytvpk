@@ -93,6 +93,28 @@ function sortConflictVPKs(vpkFiles) {
   });
 }
 
+function getConflictRelativeTarget(orderedVpkFiles, index, direction) {
+  const targetIndex = direction === "before" ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= orderedVpkFiles.length) return null;
+  return orderedVpkFiles[targetIndex] || null;
+}
+
+function getConflictRelativeDestination(currentPath, targetVpk, direction) {
+  const targetPriority = getConflictPriority(targetVpk);
+  if (!Number.isInteger(targetPriority)) return null;
+
+  const currentPriority = getConflictPriority({ path: currentPath });
+  const currentIsBeforeTarget = Number.isInteger(currentPriority) && currentPriority < targetPriority;
+  let destination = direction === "before" ? targetPriority : targetPriority + 1;
+
+  // SetVPKLoadOrder 会先移除当前条目，再按 1-based 序号插入。
+  // 当前条目原本位于目标之前时，目标会在移除后前移一位。
+  if (currentIsBeforeTarget) destination -= 1;
+
+  const maxOrder = conflictOrderEntryCount + (Number.isInteger(currentPriority) ? 0 : 1);
+  return Math.max(1, Math.min(maxOrder, destination));
+}
+
 export function configureConflicts(deps) {
   ({
     EventsOn,
@@ -688,7 +710,7 @@ function createConflictGroupElement(group) {
 
   const orderedVpkFiles = sortConflictVPKs(group.vpk_files || []);
   const vpkListHtml = orderedVpkFiles
-    .map((vpk) => {
+    .map((vpk, index) => {
       const displayName = truncateText(vpk.title || vpk.name);
       const fileName = truncateText(vpk.name);
       const isWorkshop = vpk.location === "workshop";
@@ -696,8 +718,12 @@ function createConflictGroupElement(group) {
       const isDisabled = vpk.location === "disabled";
       const priority = getConflictPriority(vpk);
       const hasPriority = Number.isInteger(priority);
-      const canMoveUp = hasPriority && priority > 1;
-      const canMoveDown = hasPriority && priority < conflictOrderEntryCount;
+      const previousConflict = getConflictRelativeTarget(orderedVpkFiles, index, "before");
+      const nextConflict = getConflictRelativeTarget(orderedVpkFiles, index, "after");
+      const canMoveUp = !isDisabled && Boolean(previousConflict && Number.isInteger(getConflictPriority(previousConflict)));
+      const canMoveDown = !isDisabled && Boolean(nextConflict && Number.isInteger(getConflictPriority(nextConflict)));
+      const previousLabel = previousConflict?.title || previousConflict?.name || "上方冲突 Mod";
+      const nextLabel = nextConflict?.title || nextConflict?.name || "下方冲突 Mod";
       const btnText = isWorkshop ? "复制到 addons" : isDisabled ? "启用" : "禁用";
       const btnClass = isWorkshop ? "btn-transfer" : isDisabled ? "btn-enable" : "btn-disable";
       const title = isWorkshop ? "复制到 addons，并关闭 workshop 原件" : isDisabled ? "启用此 Mod" : "禁用此 Mod";
@@ -711,8 +737,8 @@ function createConflictGroupElement(group) {
             <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? "编号来自 addonlist.txt 加载顺序；数字越大通常越靠后加载，覆盖同一资源时更可能生效" : "该 Mod 尚未写入 addonlist.txt"}">${hasPriority ? `优先级 #${priority}` : "优先级：未写入"}</span>
           </div>
           <div class="conflict-vpk-actions" role="group" aria-label="Mod操作">
-            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-order-delta="-1" ${canMoveUp ? "" : "disabled"} title="${hasPriority ? "将此 Mod 提前加载一位" : "该 Mod 尚未写入 addonlist.txt"}">↑ 提前</button>
-            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-order-delta="1" ${canMoveDown ? "" : "disabled"} title="${hasPriority ? "将此 Mod 延后加载一位；通常提高其覆盖优先级" : "该 Mod 尚未写入 addonlist.txt"}">↓ 延后</button>
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-target-path="${escapeHtml(previousConflict?.path || "")}" data-order-direction="before" data-default-label="↑ 提前" ${canMoveUp ? "" : "disabled"} title="${canMoveUp ? `提前到“${escapeHtml(previousLabel)}”之前` : isDisabled ? "disabled 目录中的 Mod 需先启用后调整优先级" : previousConflict ? "上方冲突 Mod 尚未取得有效优先级" : "已经是当前冲突列表最上方"}">↑ 提前</button>
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-target-path="${escapeHtml(nextConflict?.path || "")}" data-order-direction="after" data-default-label="↓ 延后" ${canMoveDown ? "" : "disabled"} title="${canMoveDown ? `延后到“${escapeHtml(nextLabel)}”之后；通常提高其覆盖优先级` : isDisabled ? "disabled 目录中的 Mod 需先启用后调整优先级" : nextConflict ? "下方冲突 Mod 尚未取得有效优先级" : "已经是当前冲突列表最下方"}">↓ 延后</button>
             <button type="button" class="btn btn-small btn-conflict-action btn-conflict-detail" data-path="${escapeHtml(vpk.path)}" title="查看 Mod 详情">详情</button>
             <button type="button" class="btn btn-small btn-conflict-action btn-conflict-game" data-path="${escapeHtml(vpk.path)}" ${isDisabled || !file ? "disabled" : ""} title="${isDisabled ? "文件位于 disabled 目录，无法编辑游戏开关" : "编辑 addonlist.txt 中的游戏开关"}">${gameStateText}</button>
             <button type="button" class="btn btn-small btn-conflict-action ${btnClass}" data-path="${escapeHtml(vpk.path)}" data-location="${escapeHtml(vpk.location)}" data-default-label="${escapeHtml(btnText)}" title="${title}">${btnText}</button>
@@ -785,19 +811,28 @@ function createConflictGroupElement(group) {
             return;
           }
           if (action === "order") {
-            const currentPriority = getConflictPriority({ path });
-            const delta = Number.parseInt(btn.dataset.orderDelta, 10);
-            if (!Number.isInteger(currentPriority) || !Number.isInteger(delta)) {
-              throw new Error("该 Mod 尚未取得有效的 addonlist.txt 优先级");
+            const direction = btn.dataset.orderDirection;
+            const targetPath = btn.dataset.targetPath;
+            const targetVpk = (currentConflictResult?.conflict_groups || [])
+              .flatMap((item) => item.vpk_files || [])
+              .find((item) => item.path === targetPath);
+            if (!targetVpk || (direction !== "before" && direction !== "after")) {
+              throw new Error("未找到对应的冲突目标 Mod，请刷新冲突分析后重试");
             }
-            const nextPriority = Math.max(1, Math.min(conflictOrderEntryCount, currentPriority + delta));
-            if (nextPriority !== currentPriority) {
-              await SetVPKLoadOrder(path, nextPriority);
-              await refreshConflictOrderMap();
-              renderFileList?.();
-              renderConflictResults(currentConflictResult);
-              showNotification?.(delta < 0 ? "Mod 已提前加载" : "Mod 已延后加载，覆盖优先级通常更高", "success");
+            const nextPriority = getConflictRelativeDestination(path, targetVpk, direction);
+            if (!Number.isInteger(nextPriority)) {
+              throw new Error("冲突目标 Mod 尚未取得有效的 addonlist.txt 优先级");
             }
+            await SetVPKLoadOrder(path, nextPriority);
+            await refreshConflictOrderMap();
+            renderFileList?.();
+            renderConflictResults(currentConflictResult);
+            showNotification?.(
+              direction === "before"
+                ? "Mod 已提前到上方冲突 Mod 之前"
+                : "Mod 已延后到下方冲突 Mod 之后，覆盖优先级通常更高",
+              "success",
+            );
             return;
           }
 

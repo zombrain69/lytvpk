@@ -146,6 +146,40 @@ func TestAddonListLoadOrderConstraintsMoveSourcesBeforeEarlierAnchor(t *testing.
 	}
 }
 
+func TestAddonListLoadOrderAnchorMoveAfterKeepsSourcesAdjacent(t *testing.T) {
+	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"source-a.vpk\"\t\t\"1\"\n\t\"anchor.vpk\"\t\t\"1\"\n\t\"gap-a.vpk\"\t\t\"1\"\n\t\t\"source-b.vpk\"\t\t\"0\"\n\t\"gap-b.vpk\"\t\t\"1\"\n}\n")
+	preview, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{
+		Constraints: []AddonListLoadOrderConstraint{
+			{Before: "anchor.vpk", After: "source-a.vpk", AnchorMove: "after"},
+			{Before: "anchor.vpk", After: "source-b.vpk", AnchorMove: "after"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("preview source-after-anchor: %v", err)
+	}
+	want := []string{"anchor.vpk", "source-a.vpk", "source-b.vpk", "gap-a.vpk", "gap-b.vpk"}
+	if got := loadOrderKeys(preview.Entries); !reflect.DeepEqual(got, want) {
+		t.Fatalf("source-after-anchor = %#v, want %#v", got, want)
+	}
+}
+
+func TestAddonListLoadOrderAnchorMoveBeforeKeepsSourcesAdjacent(t *testing.T) {
+	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"source-a.vpk\"\t\t\"1\"\n\t\"gap-a.vpk\"\t\t\"1\"\n\t\"anchor.vpk\"\t\t\"1\"\n\t\"gap-b.vpk\"\t\t\"0\"\n\t\"source-b.vpk\"\t\t\"1\"\n}\n")
+	preview, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{
+		Constraints: []AddonListLoadOrderConstraint{
+			{Before: "source-a.vpk", After: "anchor.vpk", AnchorMove: "before"},
+			{Before: "source-b.vpk", After: "anchor.vpk", AnchorMove: "before"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("preview source-before-anchor: %v", err)
+	}
+	want := []string{"gap-a.vpk", "source-a.vpk", "source-b.vpk", "anchor.vpk", "gap-b.vpk"}
+	if got := loadOrderKeys(preview.Entries); !reflect.DeepEqual(got, want) {
+		t.Fatalf("source-before-anchor = %#v, want %#v", got, want)
+	}
+}
+
 func TestApplyAddonListLoadOrderPolicyWritesAndSyncsProtectedSnapshot(t *testing.T) {
 	app, path := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"workshop\\100.vpk\"\t\t\"0\"\n\t\"root-a.vpk\"\t\t\"1\"\n}\n")
 	app.addonListGuardEnabled = true

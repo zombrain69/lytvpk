@@ -19,10 +19,14 @@ type archivePathEntry struct {
 type archivePathIndex struct {
 	hasMap bool
 
-	characterFiles []archivePathEntry
-	weaponFiles    []archivePathEntry
-	missionFiles   []*vpk.File
-	contentTags    map[string]bool
+	characterFiles  []archivePathEntry
+	weaponFiles     []archivePathEntry
+	missionFiles    []*vpk.File
+	contentTags     map[string]bool
+	voiceCharacters map[string]bool
+	subjectEvidence map[string]subjectEvidence
+	xdrSlots        map[string]xdrSlotEvidence
+	hasXDRMarker    bool
 
 	addonImageFile *vpk.File
 	addonInfoFile  *vpk.File
@@ -31,10 +35,13 @@ type archivePathIndex struct {
 
 func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 	index := archivePathIndex{
-		characterFiles: make([]archivePathEntry, 0),
-		weaponFiles:    make([]archivePathEntry, 0),
-		missionFiles:   make([]*vpk.File, 0),
-		contentTags:    make(map[string]bool),
+		characterFiles:  make([]archivePathEntry, 0),
+		weaponFiles:     make([]archivePathEntry, 0),
+		missionFiles:    make([]*vpk.File, 0),
+		contentTags:     make(map[string]bool),
+		voiceCharacters: make(map[string]bool),
+		subjectEvidence: make(map[string]subjectEvidence),
+		xdrSlots:        make(map[string]xdrSlotEvidence),
 	}
 
 	for i := range archive.Files {
@@ -49,6 +56,11 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 			index.missionFiles = append(index.missionFiles, file)
 		}
 		isItem := collectContentTags(name, index.contentTags)
+		collectSubjectEvidence(name, isItem, &index)
+		collectXDRSlotEvidence(name, &index)
+		if character := detectVoiceCharacter(name); character != "" {
+			index.voiceCharacters[character] = true
+		}
 		if isCharacterAssetPath(name) {
 			index.characterFiles = append(index.characterFiles, entry)
 		}

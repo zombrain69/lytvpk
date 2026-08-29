@@ -62,7 +62,7 @@ export function renderModInfoPanel(file) {
   const name = escapeHtml(file.name || "");
   const path = escapeHtml(file.path || "");
   const workshopId = escapeHtml(file.workshopId || "");
-  const tags = renderTags(file.primaryTag, file.secondaryTags);
+  const tags = renderTags(file.primaryTag, file.secondaryTags, file.voiceCharacters, file.subjectSummary, file.xdrSummary);
   const hidden = file.name?.startsWith("_");
   const firstAction = file.location === "workshop"
     ? `<button class="panel-action move-btn primary" data-file-path="${path}" data-action="move">复制到 addons</button>`
@@ -125,7 +125,7 @@ function infoRow(label, value, variant = "") {
   `;
 }
 
-function renderTags(primaryTag, secondaryTags = []) {
+function renderTags(primaryTag, secondaryTags = [], voiceCharacters = [], subjectSummary = "", xdrSummary = "") {
   const tags = [];
   const seen = new Set();
   const addTag = (tag, className) => {
@@ -138,6 +138,12 @@ function renderTags(primaryTag, secondaryTags = []) {
     tags.push(`<span class="tag ${className}">${escapeHtml(canonical)}</span>`);
   };
   addTag(primaryTag, "primary-tag");
+  addTag(subjectSummary, "subject-tag");
+  addTag(xdrSummary, "xdr-tag");
+  const voiceLabels = [...new Set((voiceCharacters || []).map((tag) => String(tag || "").trim()).filter(Boolean))];
+  if (voiceLabels.length > 0) {
+    addTag(`语音替换：${voiceLabels.join("、")}`, "voice-replacement-tag");
+  }
   secondaryTags?.forEach((tag) => {
     addTag(tag, "secondary-tag");
   });

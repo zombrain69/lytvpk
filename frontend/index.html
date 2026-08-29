@@ -509,6 +509,7 @@
             <span id="game-enabled-files">游戏内开启: 0</span>
             <span id="game-disabled-files">游戏内关闭: 0</span>
             <span id="selected-files">已选择: 0</span>
+            <span class="selection-hint" title="按住 Shift 选择连续范围，按住 Ctrl 选择多个不连续 Mod">Shift 范围 · Ctrl 多选</span>
           </div>
           <div class="status-actions">
             <button id="select-all-btn" class="btn btn-small btn-outline">
@@ -1004,6 +1005,12 @@
                   <label>最后修改:</label>
                   <span id="detail-modified"></span>
                 </div>
+              </div>
+            </div>
+            <div class="detail-section">
+              <h4>主体识别</h4>
+              <div id="detail-subject" class="detail-subject-summary">
+                <!-- 动态生成主体摘要 -->
               </div>
             </div>
             <div class="detail-section">

@@ -52,6 +52,7 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 第一步: 一次性建立目录索引；它只读取 VPK 的条目名称，不解压资源。
 	index := buildArchivePathIndex(archive)
 	vpkType := determineVPKType(index)
+	vpkFile.VoiceCharacters = sortedTagSet(index.voiceCharacters)
 
 	// addoninfo is part of normal metadata. Preview image decoding is optional:
 	// it can allocate several MiB per VPK and is only needed when the UI displays
@@ -96,6 +97,8 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	vpkFile.SecondaryTags = sortedTagSet(secondaryTags)
 
 	vpkFile.Chapters = chapters
+	buildSubjectInfo(index, vpkFile)
+	buildXDRInfo(index, vpkFile)
 
 	// 检查自定义标签并覆盖
 	if pTag, sTags, _, ok := ParseFilenameTags(vpkFile.Name); ok {
@@ -105,6 +108,9 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 		// 如果 [] 空的，len(tagParts)==1 ("") -> primaryTag=""
 		vpkFile.PrimaryTag = strings.TrimSpace(pTag)
 		vpkFile.SecondaryTags = UniqueTagsExcluding(sTags, vpkFile.PrimaryTag)
+	}
+	if vpkFile.XDRSummary != "" {
+		vpkFile.SecondaryTags = UniqueTagsExcluding(append(vpkFile.SecondaryTags, "XDR动画"), vpkFile.PrimaryTag)
 	}
 
 	return vpkFile, nil

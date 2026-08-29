@@ -1,5 +1,5 @@
 import { appState } from "../state.js";
-import { formatFileSize, getLocationDisplayName } from "../../core/utils.js";
+import { escapeHtml, formatFileSize, getLocationDisplayName } from "../../core/utils.js";
 import { showError } from "../../core/toast.js";
 import {
   GetWorkshopBrowserTarget,
@@ -178,18 +178,38 @@ export function showFileDetail(filePath) {
 
   const tagsContainer = document.getElementById("detail-tags");
   const primaryTagHtml = file.primaryTag
-    ? `<span class="tag primary-tag">${file.primaryTag}</span>`
+    ? `<span class="tag primary-tag">${escapeHtml(file.primaryTag)}</span>`
     : "";
+  const subjectSummary = String(file.subjectSummary || "").trim();
   tagsContainer.innerHTML = primaryTagHtml;
+  const subjectElement = document.getElementById("detail-subject");
+  if (subjectElement) {
+    const xdrSummary = String(file.xdrSummary || "").trim();
+    const xdrSlots = Array.isArray(file.xdrSlots) ? file.xdrSlots : [];
+    const xdrRows = xdrSlots
+      .map((slot) => {
+        const actions = Array.isArray(slot.actions) && slot.actions.length > 0
+          ? ` · 动作：${slot.actions.join("、")}`
+          : "";
+        return `<div class="detail-xdr-slot"><strong>${escapeHtml(slot.character || "未指定角色/模型")}</strong> · ${escapeHtml(slot.model || "未知模型")} · slot ${escapeHtml(slot.slotLabel || String(slot.slot ?? "?"))}${escapeHtml(actions)}</div>`;
+      })
+      .join("");
+    subjectElement.innerHTML = `${xdrSummary ? `<div class="detail-xdr-summary">${escapeHtml(xdrSummary)}</div>` : ""}${xdrRows}${subjectSummary ? `<div class="detail-subject-text">${escapeHtml(subjectSummary)}</div>` : ""}` || "主体：未识别";
+    subjectElement.dataset.confidence = String(file.subjectConfidence || "低");
+  }
 
   const detailTagsContainer = document.getElementById("detail-detail-tags");
+  const voiceCharacters = [...new Set((file.voiceCharacters || []).map((tag) => String(tag || "").trim()).filter(Boolean))];
+  const voiceTagsHtml = voiceCharacters.length > 0
+    ? `<span class="tag voice-replacement-tag" title="按 sound/player 标准语音目录识别">语音替换：${voiceCharacters.map(escapeHtml).join("、")}</span>`
+    : "";
   const secondaryTagsHtml =
     file.secondaryTags && file.secondaryTags.length > 0
       ? file.secondaryTags
-          .map((tag) => `<span class="tag secondary-tag">${tag}</span>`)
+          .map((tag) => `<span class="tag secondary-tag">${escapeHtml(tag)}</span>`)
           .join("")
       : "";
-  detailTagsContainer.innerHTML = secondaryTagsHtml;
+  detailTagsContainer.innerHTML = voiceTagsHtml + secondaryTagsHtml;
 
   const vpkInfoSection = document.getElementById("vpk-info-section");
   document.getElementById("detail-vpk-title").textContent = file.title || "无标题";

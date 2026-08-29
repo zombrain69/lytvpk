@@ -4,6 +4,66 @@ import (
 	"strings"
 )
 
+var survivorVoiceDirectoryRules = map[string]string{
+	"namvet":    "Bill",
+	"bill":      "Bill",
+	"biker":     "Francis",
+	"francis":   "Francis",
+	"manager":   "Louis",
+	"louis":     "Louis",
+	"teenangst": "Zoey",
+	"teengirl":  "Zoey",
+	"zoey":      "Zoey",
+	"coach":     "Coach",
+	"mechanic":  "Ellis",
+	"ellis":     "Ellis",
+	"gambler":   "Nick",
+	"nick":      "Nick",
+	"producer":  "Rochelle",
+	"rochelle":  "Rochelle",
+}
+
+var infectedVoiceDirectoryRules = map[string]string{
+	"boomer":  "Boomer",
+	"charger": "Charger",
+	"hunter":  "Hunter",
+	"jockey":  "Jockey",
+	"smoker":  "Smoker",
+	"spitter": "Spitter",
+	"tank":    "Tank",
+	"hulk":    "Tank",
+	"witch":   "Witch",
+	"common":  "Common Infected",
+}
+
+// detectVoiceCharacter identifies the character slot from the standard Source
+// voice directory, e.g. sound/player/survivor/voice/coach/*.wav.  The slot is
+// authoritative for voice replacements; individual filenames often contain
+// references to other survivors (youarewelcomeproducer01.wav, etc.) and must
+// not be treated as evidence for another character.
+func detectVoiceCharacter(name string) string {
+	parts := strings.Split(strings.Trim(strings.ToLower(name), "/"), "/")
+	if len(parts) < 5 || parts[0] != "sound" || parts[1] != "player" || parts[3] != "voice" {
+		return ""
+	}
+	if parts[2] == "survivor" {
+		return survivorVoiceDirectoryRules[parts[4]]
+	}
+	if parts[2] == "infected" {
+		return infectedVoiceDirectoryRules[parts[4]]
+	}
+	return ""
+}
+
+func isInfectedVoiceCharacter(character string) bool {
+	switch character {
+	case "Boomer", "Charger", "Hunter", "Jockey", "Smoker", "Spitter", "Tank", "Witch", "Common Infected":
+		return true
+	default:
+		return false
+	}
+}
+
 // ProcessCharacterVPK 处理人物类型VPK
 func ProcessCharacterVPK(index archivePathIndex, vpkFile *VPKFile, secondaryTags map[string]bool) {
 	vpkFile.PrimaryTag = "人物"
@@ -15,9 +75,27 @@ func ProcessCharacterVPK(index archivePathIndex, vpkFile *VPKFile, secondaryTags
 // survivor/infected model to stay in its primary category while remaining
 // discoverable through Workshop-style character filters.
 func collectCharacterTags(index archivePathIndex, secondaryTags map[string]bool) {
+	for character := range index.voiceCharacters {
+		if character == "Common Infected" {
+			secondaryTags["common"] = true
+			secondaryTags["普通感染者"] = true
+			continue
+		}
+		if isInfectedVoiceCharacter(character) {
+			secondaryTags[strings.ToLower(character)] = true
+			secondaryTags["特殊感染者"] = true
+			continue
+		}
+		secondaryTags["幸存者"] = true
+		secondaryTags[character] = true
+	}
+
 	// 只处理建立目录索引时确认的角色资源，避免再次遍历整个 VPK。
 	for _, entry := range index.characterFiles {
 		filename := entry.name
+		if detectVoiceCharacter(filename) != "" {
+			continue
+		}
 
 		// 幸存者检测
 		if strings.Contains(filename, "survivor") {

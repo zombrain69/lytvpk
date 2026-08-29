@@ -30,10 +30,13 @@ export function selectAll() {
       toggleFileSelection(file.path, true);
     }
   });
+  const lastVisibleFile = appState.vpkFiles[appState.vpkFiles.length - 1];
+  appState.selectionAnchorPath = lastVisibleFile?.path || "";
 }
 
 export function deselectAll() {
   appState.selectedFiles.clear();
+  appState.selectionAnchorPath = "";
   document.querySelectorAll(".file-checkbox").forEach((checkbox) => {
     checkbox.checked = false;
   });

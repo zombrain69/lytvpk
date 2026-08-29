@@ -17,6 +17,7 @@ let currentPolicy = createEmptyPolicy();
 let controlsBound = false;
 let currentMode = "global";
 let selectedSourceKeys = new Set();
+let selectedTargetKey = "";
 let selectedPaths = [];
 let selectedPathNames = [];
 let entryFileByKey = new Map();
@@ -63,6 +64,7 @@ export async function openEnhancedLoadOrderModal(context = {}) {
   currentEntries = [];
   currentPolicy = createEmptyPolicy();
   selectedSourceKeys = new Set();
+  selectedTargetKey = "";
   selectedPaths = normalizedContext.selectedPaths;
   selectedPathNames = selectedPaths
     .map((path) => vpkFiles.find((item) => item.path === path)?.name)
@@ -105,6 +107,7 @@ export function closeEnhancedLoadOrderModal() {
   document.getElementById("load-order-modal")?.classList.add("hidden");
   currentLoadOrderFile = null;
   selectedSourceKeys = new Set();
+  selectedTargetKey = "";
   selectedPaths = [];
   selectedPathNames = [];
 }
@@ -170,7 +173,14 @@ function setupLoadOrderControls() {
     .getElementById("load-order-rule-target-search")
     ?.addEventListener("input", () => renderRuleSelectors());
   document.getElementById("load-order-rule-sources")?.addEventListener("change", (event) => {
-    selectedSourceKeys = new Set(Array.from(event.target.selectedOptions).map((option) => option.value));
+    const visibleKeys = new Set(Array.from(event.target.options).map((option) => option.value));
+    selectedSourceKeys = new Set(
+      [...selectedSourceKeys].filter((key) => !visibleKeys.has(key))
+    );
+    Array.from(event.target.selectedOptions).forEach((option) => selectedSourceKeys.add(option.value));
+  });
+  document.getElementById("load-order-rule-target")?.addEventListener("change", (event) => {
+    selectedTargetKey = event.target.value || "";
   });
   document.getElementById("load-order-rules")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-load-order-rule-index]");
@@ -237,7 +247,7 @@ function renderRuleSelectors() {
   const target = document.getElementById("load-order-rule-target");
   if (!sources || !target) return;
   const selectedSources = new Set(selectedSourceKeys);
-  const selectedTarget = target.value;
+  const selectedTarget = selectedTargetKey || target.value;
   const sourceQuery = document.getElementById("load-order-rule-sources-search")?.value || "";
   const targetQuery = document.getElementById("load-order-rule-target-search")?.value || "";
   sources.replaceChildren();
@@ -259,8 +269,11 @@ function addConstraints(direction) {
     showError("加载顺序规则选择器不可用，请重新打开窗口");
     return;
   }
-  const sources = Array.from(sourceSelect.selectedOptions).map((option) => option.value);
-  const target = targetSelect.value;
+  const visibleSources = Array.from(sourceSelect.selectedOptions).map((option) => option.value);
+  const entryKeys = new Set(currentEntries.map((entry) => entry.key));
+  const sources = [...selectedSourceKeys].filter((key) => entryKeys.has(key));
+  if (sources.length === 0) sources.push(...visibleSources);
+  const target = selectedTargetKey || targetSelect.value;
   if (!target || sources.length === 0) {
     showError("请至少选择一个 Mod，并选择相对目标");
     return;
@@ -269,7 +282,9 @@ function addConstraints(direction) {
   let added = 0;
   sources.forEach((source) => {
     if (source === target) return;
-    const constraint = direction === "before" ? { before: source, after: target } : { before: target, after: source };
+    const constraint = direction === "before"
+      ? { before: source, after: target, anchorMove: "before" }
+      : { before: target, after: source, anchorMove: "after" };
     const exists = currentPolicy.constraints.some((item) => item.before === constraint.before && item.after === constraint.after);
     if (!exists) {
       currentPolicy.constraints.push(constraint);
@@ -300,7 +315,13 @@ function renderRules() {
     row.className = "load-order-rule";
     const text = document.createElement("span");
     text.className = "load-order-rule-text";
-    text.textContent = `${entryDisplayName(constraint.before)} 排在 ${entryDisplayName(constraint.after)} 前面`;
+    if (constraint.anchorMove === "before") {
+      text.textContent = `${entryDisplayName(constraint.before)} 移到 ${entryDisplayName(constraint.after)} 前面`;
+    } else if (constraint.anchorMove === "after") {
+      text.textContent = `${entryDisplayName(constraint.after)} 移到 ${entryDisplayName(constraint.before)} 后面`;
+    } else {
+      text.textContent = `${entryDisplayName(constraint.before)} 排在 ${entryDisplayName(constraint.after)} 前面`;
+    }
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "load-order-rule-delete";
@@ -319,7 +340,7 @@ async function previewLoadOrderPolicy() {
     showNotification("已生成加载顺序预览", "info");
   } catch (err) {
     console.error("预览加载顺序失败:", err);
-    showError("无法应用该排序策略: " + err);
+    showError("无法生成排序预览: " + err);
   }
 }
 
@@ -373,8 +394,20 @@ function renderPreview(entries, summary) {
     return;
   }
 
-  const sourceKeys = new Set(currentPolicy.constraints.map((constraint) => constraint.before));
-  const targetKeys = new Set(currentPolicy.constraints.map((constraint) => constraint.after));
+  const sourceKeys = new Set();
+  const targetKeys = new Set();
+  currentPolicy.constraints.forEach((constraint) => {
+    if (constraint.anchorMove === "before") {
+      sourceKeys.add(constraint.before);
+      targetKeys.add(constraint.after);
+    } else if (constraint.anchorMove === "after") {
+      sourceKeys.add(constraint.after);
+      targetKeys.add(constraint.before);
+    } else {
+      sourceKeys.add(constraint.before);
+      targetKeys.add(constraint.after);
+    }
+  });
   const fragment = document.createDocumentFragment();
   entries.forEach((entry) => {
     const row = document.createElement("div");
@@ -439,7 +472,7 @@ function renderModalMode(file) {
   }
   if (isSelection) {
     if (filename) filename.textContent = `已选择 ${selectedPathNames.length} 个 Mod`;
-    if (contextNote) contextNote.textContent = "批量模式：左侧是要实际移动的来源 Mod，右侧是位置参照锚点；点击“移到锚点前面/后面”后，来源会搬到锚点相应一侧，锚点不会被错误推到列表末尾。";
+    if (contextNote) contextNote.textContent = "批量模式：左侧是要实际移动的来源 Mod，右侧是位置参照锚点；点击“移到锚点前面/后面”后，来源会按当前相对顺序紧邻搬到锚点相应一侧，锚点不会被错误推到列表末尾。";
     return;
   }
   if (filename) filename.textContent = "全部 addonlist.txt 条目";

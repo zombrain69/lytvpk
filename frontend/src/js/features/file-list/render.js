@@ -1,4 +1,4 @@
-import { appState, toggleFileSelection } from "../state.js";
+import { appState, applyFileSelectionGesture } from "../state.js";
 import {
   formatFileSize,
   getLocationDisplayName,
@@ -29,6 +29,22 @@ function getGameStateInfo(file) {
     return { className: "game-state-enabled", label: "游戏内开启", title: "addonlist.txt：1；点击关闭游戏内 Mod" };
   }
   return { className: "game-state-disabled", label: "游戏内关闭", title: "addonlist.txt：0；点击开启游戏内 Mod" };
+}
+
+function applySelectionGesture(filePath, event, selected) {
+  const ctrlEnabled = Boolean(appState.ctrlClickSelectionEnabled);
+  applyFileSelectionGesture(filePath, {
+    shiftKey: Boolean(event.shiftKey),
+    ctrlKey: ctrlEnabled && Boolean(event.ctrlKey),
+    metaKey: ctrlEnabled && Boolean(event.metaKey),
+    selected,
+  });
+  document.querySelectorAll(".file-checkbox").forEach((checkbox) => {
+    const item = checkbox.closest(".file-item, .file-card");
+    if (item?.dataset.path) {
+      checkbox.checked = appState.selectedFiles.has(item.dataset.path);
+    }
+  });
 }
 
 function applyModStateClasses(element, file, prefix) {
@@ -147,8 +163,10 @@ export function createFileItem(file) {
   checkbox.type = "checkbox";
   checkbox.className = "file-checkbox";
   checkbox.checked = appState.selectedFiles.has(file.path);
-  checkbox.addEventListener("change", function () {
-    toggleFileSelection(file.path, checkbox.checked);
+  checkbox.addEventListener("click", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    applySelectionGesture(file.path, event, !appState.selectedFiles.has(file.path));
   });
 
   const displayTitle = file.title || file.name;
@@ -240,7 +258,7 @@ export function createFileItem(file) {
     </div>
       <div class="file-game-state">${getGameStateBadge(file)}${getLoadOrderBadge(file)}</div>
     <div class="file-tags">
-      ${formatTags(file.primaryTag, file.secondaryTags)}
+      ${formatTags(file.primaryTag, file.secondaryTags, file.voiceCharacters, file.subjectSummary, file.xdrSummary)}
       ${getConflictSummaryBadge(file)}
     </div>
     <div class="file-actions">
@@ -266,12 +284,10 @@ export function createFileItem(file) {
       return;
     }
 
-    if (e.ctrlKey && appState.ctrlClickSelectionEnabled) {
+    if ((e.shiftKey || e.ctrlKey || e.metaKey) && (e.shiftKey || appState.ctrlClickSelectionEnabled)) {
       e.preventDefault();
       e.stopPropagation();
-      const newChecked = !checkbox.checked;
-      checkbox.checked = newChecked;
-      toggleFileSelection(file.path, newChecked);
+      applySelectionGesture(file.path, e, !appState.selectedFiles.has(file.path));
     }
   });
 
@@ -326,6 +342,14 @@ export function createFileCard(file) {
   const showPlaceholder = !previewSrc;
 
   let secondaryTagsHtml = "";
+  const subjectSummary = String(file.subjectSummary || "").trim();
+  const xdrSummary = String(file.xdrSummary || "").trim();
+  const subjectBadgeHtml = subjectSummary
+    ? `<span class="card-badge subject-badge" title="${escapeHtml(subjectSummary)}">${escapeHtml(subjectSummary)}</span>`
+    : "";
+  const xdrBadgeHtml = xdrSummary
+    ? `<span class="card-badge xdr-badge" title="${escapeHtml(xdrSummary)}">${escapeHtml(xdrSummary)}</span>`
+    : "";
   const uniqueDisplayTags = getUniqueDisplayTags(file.primaryTag, file.secondaryTags);
   if (uniqueDisplayTags.secondary.length > 0) {
     const displayTags = uniqueDisplayTags.secondary.slice(0, 2);
@@ -446,6 +470,7 @@ export function createFileCard(file) {
             ? `<span class="card-badge tag-badge" title="${escapeHtml(file.primaryTag)}">${escapeHtml(file.primaryTag)}</span>`
             : ""
         }
+        ${xdrBadgeHtml}${subjectBadgeHtml}
         ${secondaryTagsHtml}
         ${getConflictSummaryBadge(file, "card-badge mod-conflict-badge")}
       </div>
@@ -468,8 +493,10 @@ export function createFileCard(file) {
   checkbox.type = "checkbox";
   checkbox.className = "file-checkbox card-checkbox";
   checkbox.checked = appState.selectedFiles.has(file.path);
-  checkbox.addEventListener("change", function () {
-    toggleFileSelection(file.path, checkbox.checked);
+  checkbox.addEventListener("click", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    applySelectionGesture(file.path, event, !appState.selectedFiles.has(file.path));
   });
   const checkboxContainer = card.querySelector(".card-checkbox-container");
   checkboxContainer.appendChild(checkbox);
@@ -493,12 +520,10 @@ export function createFileCard(file) {
       return;
     }
 
-    if (e.ctrlKey && appState.ctrlClickSelectionEnabled) {
+    if ((e.shiftKey || e.ctrlKey || e.metaKey) && (e.shiftKey || appState.ctrlClickSelectionEnabled)) {
       e.preventDefault();
       e.stopPropagation();
-      const newChecked = !checkbox.checked;
-      checkbox.checked = newChecked;
-      toggleFileSelection(file.path, newChecked);
+      applySelectionGesture(file.path, e, !appState.selectedFiles.has(file.path));
       return;
     }
 

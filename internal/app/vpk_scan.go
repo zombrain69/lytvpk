@@ -342,6 +342,19 @@ func (a *App) SearchVPKFiles(query string, primaryTag string, secondaryTags []st
 					}
 				}
 			}
+			// 匹配结构化主体摘要；主体是面向用户的实际替换对象，
+			// 例如“Coach 语音”“M16 武器”“医疗包”。
+			if !textMatch && fuzzyMatch(query, strings.ToLower(vpkFile.SubjectSummary)) {
+				textMatch = true
+			}
+			if !textMatch {
+				for _, subject := range vpkFile.ContentSubjects {
+					if fuzzyMatch(query, strings.ToLower(subject)) {
+						textMatch = true
+						break
+					}
+				}
+			}
 		}
 
 		// 主标签筛选匹配

@@ -27,6 +27,9 @@ type AddonListLoadOrderEntry struct {
 type AddonListLoadOrderConstraint struct {
 	Before string `json:"before"`
 	After  string `json:"after"`
+	// AnchorMove 标记前端“移到锚点前面/后面”操作。
+	// 为空时保持普通的先后约束语义；非空值只能是 before 或 after。
+	AnchorMove string `json:"anchorMove,omitempty"`
 }
 
 // AddonListLoadOrderPolicy 是一次可选择的加载顺序优化策略。
@@ -238,6 +241,13 @@ func (a *App) applyAddonListOrderConstraints(list []AddonListItem, constraints [
 	predecessors := make([][]int, len(list))
 	inDegree := make([]int, len(list))
 	edges := make(map[[2]int]struct{})
+	type anchorMoveGroup struct {
+		anchor    string
+		direction string
+		sources   []string
+	}
+	groups := make([]anchorMoveGroup, 0)
+	groupIndex := make(map[string]int)
 	for _, constraint := range constraints {
 		before, err := a.addonListKeyForReference(constraint.Before)
 		if err != nil {
@@ -249,6 +259,24 @@ func (a *App) applyAddonListOrderConstraints(list []AddonListItem, constraints [
 		}
 		if before == after {
 			return nil, fmt.Errorf("同一个 Mod 不能同时要求排在自身之前: %s", before)
+		}
+		direction := strings.ToLower(strings.TrimSpace(constraint.AnchorMove))
+		if direction != "" && direction != "before" && direction != "after" {
+			return nil, fmt.Errorf("未知的锚点移动方向 %q", constraint.AnchorMove)
+		}
+		if direction != "" {
+			anchor, source := after, before
+			if direction == "after" {
+				anchor, source = before, after
+			}
+			key := direction + "\x00" + anchor
+			index, exists := groupIndex[key]
+			if !exists {
+				index = len(groups)
+				groupIndex[key] = index
+				groups = append(groups, anchorMoveGroup{anchor: anchor, direction: direction})
+			}
+			groups[index].sources = append(groups[index].sources, source)
 		}
 		beforeIndex, beforeExists := indexByKey[before]
 		afterIndex, afterExists := indexByKey[after]
@@ -319,5 +347,89 @@ func (a *App) applyAddonListOrderConstraints(list []AddonListItem, constraints [
 			return nil, err
 		}
 	}
+
+	// 锚点按钮的语义是“整体搬到锚点一侧”，而不是仅增加一个
+	// before/after 关系。先用拓扑结果满足所有关系，再按每个锚点组
+	// 将来源保持原相对顺序地紧邻插入，避免来源之间夹入无关 Mod。
+	for _, group := range groups {
+		var err error
+		ordered, err = moveAddonListItemsAdjacent(ordered, group.anchor, group.sources, group.direction)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, constraint := range constraints {
+		before, err := a.addonListKeyForReference(constraint.Before)
+		if err != nil {
+			return nil, fmt.Errorf("无效的‘始终在前’ Mod: %w", err)
+		}
+		after, err := a.addonListKeyForReference(constraint.After)
+		if err != nil {
+			return nil, fmt.Errorf("无效的‘始终在后’ Mod: %w", err)
+		}
+		beforeIndex, afterIndex := -1, -1
+		for index, item := range ordered {
+			switch normalizeAddonListKey(item.Name) {
+			case before:
+				beforeIndex = index
+			case after:
+				afterIndex = index
+			}
+		}
+		if beforeIndex < 0 || afterIndex < 0 || beforeIndex >= afterIndex {
+			return nil, fmt.Errorf("锚点移动与其它加载顺序约束冲突: %s -> %s", before, after)
+		}
+	}
 	return ordered, nil
+}
+
+func moveAddonListItemsAdjacent(list []AddonListItem, anchor string, sourceKeys []string, direction string) ([]AddonListItem, error) {
+	anchor = normalizeAddonListKey(anchor)
+	sources := make(map[string]struct{}, len(sourceKeys))
+	for _, key := range sourceKeys {
+		normalized := normalizeAddonListKey(key)
+		if normalized == "" || normalized == anchor {
+			return nil, fmt.Errorf("锚点移动的来源 Mod 无效或与锚点相同: %s", key)
+		}
+		sources[normalized] = struct{}{}
+	}
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("锚点移动至少需要一个来源 Mod")
+	}
+
+	moving := make([]AddonListItem, 0, len(sources))
+	remaining := make([]AddonListItem, 0, len(list))
+	anchorIndex := -1
+	for _, item := range list {
+		key := normalizeAddonListKey(item.Name)
+		if key == anchor {
+			anchorIndex = len(remaining)
+			remaining = append(remaining, item)
+			continue
+		}
+		if _, exists := sources[key]; exists {
+			moving = append(moving, item)
+			continue
+		}
+		remaining = append(remaining, item)
+	}
+	if anchorIndex < 0 {
+		return nil, fmt.Errorf("锚点 Mod 不在 addonlist.txt: %s", anchor)
+	}
+	if len(moving) != len(sources) {
+		return nil, fmt.Errorf("锚点移动的来源 Mod 不在 addonlist.txt")
+	}
+
+	insertAt := anchorIndex
+	if direction == "after" {
+		insertAt++
+	} else if direction != "before" {
+		return nil, fmt.Errorf("未知的锚点移动方向 %q", direction)
+	}
+	result := make([]AddonListItem, 0, len(list))
+	result = append(result, remaining[:insertAt]...)
+	result = append(result, moving...)
+	result = append(result, remaining[insertAt:]...)
+	return result, nil
 }

@@ -2388,8 +2388,8 @@
 .file-list-header {
   display: grid;
   grid-template-columns:
-    3rem minmax(11rem, 1.45fr) 6rem minmax(6.5rem, 0.6fr)
-    minmax(7rem, 0.7fr) minmax(12rem, 1.15fr) minmax(18rem, 1.3fr);
+    3rem minmax(10rem, 1.25fr) 6.25rem minmax(7rem, 0.65fr)
+    minmax(8.5rem, 0.8fr) minmax(15rem, 1.3fr) minmax(18rem, 1.25fr);
   gap: var(--spacing-3);
   padding: var(--spacing-3) var(--spacing-4);
   background: var(--mod-list-header-bg);
@@ -2421,8 +2421,8 @@
 .file-item {
   display: grid;
   grid-template-columns:
-    3rem minmax(11rem, 1.45fr) 6rem minmax(6.5rem, 0.6fr)
-    minmax(7rem, 0.7fr) minmax(12rem, 1.15fr) minmax(18rem, 1.3fr);
+    3rem minmax(10rem, 1.25fr) 6.25rem minmax(7rem, 0.65fr)
+    minmax(8.5rem, 0.8fr) minmax(15rem, 1.3fr) minmax(18rem, 1.25fr);
   gap: var(--spacing-3);
   padding: var(--spacing-3) var(--spacing-4);
   border-bottom: 1px solid var(--mod-list-row-border);
@@ -3070,6 +3070,8 @@
   flex-wrap: wrap;
   overflow: hidden;
   min-width: 0;
+  align-content: center;
+  row-gap: 0.3rem;
 }
 
 .file-tags .tag,
@@ -3110,6 +3112,123 @@
   background: var(--bg-surface);
   border-color: var(--border-light);
   color: var(--text-secondary);
+}
+
+.file-tags .tag.voice-replacement-tag,
+.mod-info-tags .tag.voice-replacement-tag,
+#detail-tags .tag.voice-replacement-tag,
+#detail-detail-tags .tag.voice-replacement-tag {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #047857;
+  font-weight: 800;
+}
+
+.file-tags .tag.xdr-tag,
+.mod-info-tags .tag.xdr-tag,
+#detail-tags .tag.xdr-tag,
+#detail-detail-tags .tag.xdr-tag {
+  max-width: clamp(16rem, 32vw, 34rem);
+  background: rgba(139, 92, 246, 0.14);
+  border-color: rgba(139, 92, 246, 0.35);
+  color: #6d28d9;
+  font-weight: 800;
+}
+
+.file-tags .tag.subject-tag,
+.mod-info-tags .tag.subject-tag,
+#detail-tags .tag.subject-tag,
+#detail-detail-tags .tag.subject-tag,
+.card-badge.subject-badge {
+  max-width: 14rem;
+}
+
+.card-badge.xdr-badge {
+  max-width: min(32rem, 42vw);
+  background: rgba(139, 92, 246, 0.14);
+  border-color: rgba(139, 92, 246, 0.35);
+  color: #6d28d9;
+  font-weight: 800;
+}
+
+.card-badge.subject-badge {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #b45309;
+  font-weight: 800;
+}
+
+.file-tags .tag.subject-tag {
+  max-width: clamp(13rem, 20vw, 26rem);
+}
+
+.detail-subject-summary {
+  display: block;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.detail-xdr-summary {
+  margin-bottom: var(--spacing-2);
+  color: inherit;
+}
+
+.detail-xdr-slot {
+  margin-top: var(--spacing-1);
+  padding-top: var(--spacing-1);
+  border-top: 1px dashed currentColor;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detail-subject-text:empty {
+  display: none;
+}
+
+html.dark-mode .detail-subject-summary {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+}
+
+html.dark-mode .file-tags .tag.subject-tag,
+html.dark-mode .mod-info-tags .tag.subject-tag,
+html.dark-mode #detail-tags .tag.subject-tag,
+html.dark-mode #detail-detail-tags .tag.subject-tag,
+html.dark-mode .card-badge.subject-badge {
+  background: rgba(251, 191, 36, 0.18);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fcd34d;
+}
+
+html.dark-mode .file-tags .tag.voice-replacement-tag,
+html.dark-mode .mod-info-tags .tag.voice-replacement-tag,
+html.dark-mode #detail-tags .tag.voice-replacement-tag,
+html.dark-mode #detail-detail-tags .tag.voice-replacement-tag {
+  background: rgba(52, 211, 153, 0.16);
+  border-color: rgba(52, 211, 153, 0.36);
+  color: #6ee7b7;
+}
+
+html.dark-mode .file-tags .tag.xdr-tag,
+html.dark-mode .mod-info-tags .tag.xdr-tag,
+html.dark-mode #detail-tags .tag.xdr-tag,
+html.dark-mode #detail-detail-tags .tag.xdr-tag {
+  background: rgba(167, 139, 250, 0.18);
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #c4b5fd;
+}
+
+html.dark-mode .card-badge.xdr-badge {
+  background: rgba(167, 139, 250, 0.18);
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #c4b5fd;
 }
 
 .file-tags .tag.more-tags,
@@ -3414,8 +3533,8 @@ button.mod-conflict-badge:hover {
   .file-list-header,
   .file-item {
     grid-template-columns:
-      2.25rem minmax(8rem, 1.2fr) 4.4rem minmax(5rem, 0.55fr)
-      minmax(5.5rem, 0.65fr) minmax(8rem, 0.9fr) minmax(12rem, 1.1fr);
+      2.25rem minmax(8rem, 1.1fr) 4.75rem minmax(6rem, 0.6fr)
+      minmax(7.5rem, 0.8fr) minmax(11rem, 1.15fr) minmax(13rem, 1.1fr);
     gap: var(--spacing-2);
     padding-right: var(--spacing-3);
     padding-left: var(--spacing-3);
@@ -3498,6 +3617,12 @@ button.mod-conflict-badge:hover {
 
 .status-info span {
   font-variant-numeric: tabular-nums;
+}
+
+.status-info .selection-hint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
 }
 
 .status-actions {
