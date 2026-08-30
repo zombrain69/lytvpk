@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"vpk-manager/internal/network"
 )
 
 func newConfigTestApp(t *testing.T) *App {
@@ -97,6 +99,82 @@ func TestUIScaleConfigurationRoundTrip(t *testing.T) {
 	}
 	if config := restored.GetAppConfig(); config.UIScale != defaultUIScale {
 		t.Fatalf("expected invalid UI scale to reset to %v, got %v", defaultUIScale, config.UIScale)
+	}
+}
+
+func TestSaveAppConfigPersistsSettingsAndPreservesSecret(t *testing.T) {
+	t.Cleanup(func() { network.GlobalIPSelector.SetFixedIP("") })
+	app := newConfigTestApp(t)
+	app.workshopTranslateCustomAPIKey = "encrypted-existing-key"
+	app.modRotationConfig = RotationConfig{EnableCharacters: true}
+
+	preferredIP := false
+	fixedIP := "23.55.51.221"
+	metaEnabled := false
+	updateCheckEnabled := true
+	browserTarget := "steam"
+	provider := workshopTranslateProviderYandex
+	guardEnabled := true
+	if err := app.SaveAppConfig(ConfigFile{
+		ModRotationConfig:              RotationConfig{EnableCharacters: false, EnableWeapons: true},
+		WorkshopPreferredIP:            &preferredIP,
+		WorkshopFixedIP:                &fixedIP,
+		WorkshopMetaEnabled:            &metaEnabled,
+		WorkshopUpdateCheckEnabled:     &updateCheckEnabled,
+		WorkshopBrowserTarget:          &browserTarget,
+		WorkshopTranslateProvider:      &provider,
+		WorkshopTranslateCustomBaseURL: "https://translate.example/v1",
+		WorkshopTranslateCustomModelId: "model-a",
+		AddonListGuardEnabled:          &guardEnabled,
+		DisplayMode:                    "card",
+		FilterLayoutMode:               "classic",
+		UIScale:                        1.2,
+	}); err != nil {
+		t.Fatalf("save complete app config: %v", err)
+	}
+
+	config := app.GetAppConfig()
+	if config.WorkshopPreferredIP == nil || *config.WorkshopPreferredIP {
+		t.Fatalf("preferred IP = %#v, want false", config.WorkshopPreferredIP)
+	}
+	if config.WorkshopFixedIP == nil || *config.WorkshopFixedIP != fixedIP {
+		t.Fatalf("fixed IP = %#v, want %q", config.WorkshopFixedIP, fixedIP)
+	}
+	if config.WorkshopMetaEnabled == nil || *config.WorkshopMetaEnabled {
+		t.Fatalf("meta enabled = %#v, want false", config.WorkshopMetaEnabled)
+	}
+	if config.WorkshopUpdateCheckEnabled == nil || !*config.WorkshopUpdateCheckEnabled {
+		t.Fatalf("update check enabled = %#v, want true", config.WorkshopUpdateCheckEnabled)
+	}
+	if config.WorkshopBrowserTarget == nil || *config.WorkshopBrowserTarget != browserTarget {
+		t.Fatalf("browser target = %#v, want %q", config.WorkshopBrowserTarget, browserTarget)
+	}
+	if config.WorkshopTranslateProvider == nil || *config.WorkshopTranslateProvider != provider {
+		t.Fatalf("translate provider = %#v, want %q", config.WorkshopTranslateProvider, provider)
+	}
+	if config.ModRotationConfig != (RotationConfig{EnableWeapons: true}) {
+		t.Fatalf("rotation config = %#v", config.ModRotationConfig)
+	}
+	if config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {
+		t.Fatalf("addonlist guard = %#v, want true", config.AddonListGuardEnabled)
+	}
+	if config.WorkshopTranslateCustomAPIKey != "encrypted-existing-key" {
+		t.Fatalf("custom API key changed unexpectedly: %q", config.WorkshopTranslateCustomAPIKey)
+	}
+
+	partial := ConfigFile{UIScale: 1.3}
+	if err := app.SaveAppConfig(partial); err != nil {
+		t.Fatalf("save partial app config: %v", err)
+	}
+	config = app.GetAppConfig()
+	if config.WorkshopPreferredIP == nil || *config.WorkshopPreferredIP {
+		t.Fatalf("partial save lost preferred IP: %#v", config.WorkshopPreferredIP)
+	}
+	if config.WorkshopBrowserTarget == nil || *config.WorkshopBrowserTarget != browserTarget {
+		t.Fatalf("partial save lost browser target: %#v", config.WorkshopBrowserTarget)
+	}
+	if config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {
+		t.Fatalf("partial save lost addonlist guard: %#v", config.AddonListGuardEnabled)
 	}
 }
 

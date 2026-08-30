@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
 	"golang.org/x/text/encoding/charmap"
@@ -11,6 +13,49 @@ import (
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
+
+func TestAddonListParserKeepsEntriesAfterBracesInVPKNames(t *testing.T) {
+	content := "\"AddonList\"\n{\n" +
+		"\t\"before}brace.vpk\"\t\t\"1\"\n" +
+		"\t\"middle{brace.vpk\"\t\t\"0\"\n" +
+		"\t\"after.vpk\"\t\t\"1\"\n" +
+		"}\n"
+
+	want := []AddonListItem{
+		{Name: "before}brace.vpk", Value: "1"},
+		{Name: "middle{brace.vpk", Value: "0"},
+		{Name: "after.vpk", Value: "1"},
+	}
+	if got := parseAddonListItems(content); !reflect.DeepEqual(got, want) {
+		t.Fatalf("parsed entries = %#v, want %#v", got, want)
+	}
+}
+
+func TestAddonListValueOperationsKeepBracesInVPKNames(t *testing.T) {
+	content := "\"AddonList\"\r\n{\r\n" +
+		"\t\"before}brace.vpk\"\t\t\"1\" // keep\r\n" +
+		"\t\"middle{brace.vpk\"\t\t\"0\"\r\n" +
+		"}\r\n"
+
+	updated, replaced, err := replaceAddonListValue(content, normalizeAddonListKey("middle{brace.vpk"), "1")
+	if err != nil || !replaced {
+		t.Fatalf("replace brace entry = replaced:%t err:%v", replaced, err)
+	}
+	if !strings.Contains(updated, `"middle{brace.vpk"		"1"`) {
+		t.Fatalf("replace lost brace entry: %q", updated)
+	}
+
+	removedContent, removed, err := removeAddonListValue(updated, normalizeAddonListKey("before}brace.vpk"))
+	if err != nil || !removed {
+		t.Fatalf("remove brace entry = removed:%t err:%v", removed, err)
+	}
+	if strings.Contains(removedContent, "before}brace.vpk") {
+		t.Fatalf("remove kept brace entry: %q", removedContent)
+	}
+	if !strings.Contains(removedContent, "middle{brace.vpk") {
+		t.Fatalf("remove damaged remaining brace entry: %q", removedContent)
+	}
+}
 
 func TestApplyAddonListGameStatesMatchesRootAndWorkshopKeys(t *testing.T) {
 	root := t.TempDir()
@@ -165,6 +210,31 @@ func TestAddonListDocumentPreservesUTF16LE(t *testing.T) {
 	decoded, _, err := transform.Bytes(unicode.UTF16(unicode.LittleEndian, unicode.ExpectBOM).NewDecoder(), updated)
 	if err != nil || string(decoded) != content+"\n" {
 		t.Fatalf("UTF-16 round trip = %q, %v", decoded, err)
+	}
+}
+
+func TestAddonListDocumentDetectsASCIIOnlyUTF16LEBeforeUTF8(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "addonlist.txt")
+	content := "\"AddonList\"\n{\n\t\"workshop\\123.vpk\"\t\t\"1\"\n}\n"
+	encoded, _, err := transform.Bytes(unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder(), []byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := append([]byte{0xFF, 0xFE}, encoded...)
+	if err := os.WriteFile(path, original, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	doc, err := readAddonListDocumentAtPath(path)
+	if err != nil {
+		t.Fatalf("read ASCII-only UTF-16 addonlist: %v", err)
+	}
+	if doc.encoding != addonListEncodingUTF16LE || doc.content != content {
+		t.Fatalf("UTF-16 document = encoding %d content %q", doc.encoding, doc.content)
+	}
+	items := parseAddonListItems(doc.content)
+	if len(items) != 1 || items[0].Name != "workshop\\123.vpk" || items[0].Value != "1" {
+		t.Fatalf("UTF-16 items = %#v", items)
 	}
 }
 

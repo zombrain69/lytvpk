@@ -118,6 +118,7 @@ type App struct {
 	addonListGuardMu       sync.Mutex
 	addonListMonitorMu     sync.Mutex
 	addonListMonitorStop   chan struct{}
+	configWriteMu          sync.Mutex
 	addonListGuardEnabled  bool
 	addonListLastRestore   string
 	addonListLastError     string

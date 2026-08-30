@@ -629,21 +629,7 @@ func (a *App) conflictBaselineFile(path, rootDir string, stateMap map[string]boo
 }
 
 func addonListKeyForRootAndPath(rootDir, filePath string) (string, error) {
-	if rootDir == "" {
-		return "", fmt.Errorf("未选择L4D2目录")
-	}
-	relativePath, err := filepath.Rel(rootDir, filePath)
-	if err != nil {
-		return "", err
-	}
-	key := normalizeAddonListKey(relativePath)
-	if strings.HasPrefix(key, "disabled\\") {
-		key = strings.TrimPrefix(key, "disabled\\")
-	}
-	if key == ".." || strings.HasPrefix(key, "..\\") {
-		return "", fmt.Errorf("Mod 不在 addons 目录中: %s", filePath)
-	}
-	return key, nil
+	return addonListKeyForManagedVPKPathFromRoot(rootDir, filePath)
 }
 
 func conflictBaselineMatches(file VPKFile, rules []ConflictBaselineRule, matchMode string) bool {

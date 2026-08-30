@@ -183,6 +183,11 @@ func (a *App) snapshotConfig() ConfigFile {
 }
 
 func (a *App) writeConfigFile(config ConfigFile) error {
+	// 配置会同时由设置页保存、专用 setter 和后台定时任务触发。
+	// 串行化实际写盘，避免并发 os.WriteFile 互相覆盖或留下半写入文件。
+	a.configWriteMu.Lock()
+	defer a.configWriteMu.Unlock()
+
 	a.ensureConfigPaths()
 	if a.configDir != "" {
 		if err := os.MkdirAll(a.configDir, 0755); err != nil {
@@ -209,6 +214,34 @@ func (a *App) GetAppConfig() ConfigFile {
 
 func (a *App) SaveAppConfig(config ConfigFile) error {
 	a.mu.Lock()
+	// ModRotationConfig 是值类型，为兼容旧的部分配置调用，空配置表示
+	// “未提供”而不是主动关闭；真正关闭由 SetModRotation 先更新后端状态。
+	if config.ModRotationConfig != (RotationConfig{}) || a.modRotationConfig == (RotationConfig{}) {
+		a.modRotationConfig = config.ModRotationConfig
+	}
+	if config.WorkshopPreferredIP != nil {
+		a.workshopPreferredIP = *config.WorkshopPreferredIP
+	}
+	fixedIPChanged := false
+	if config.WorkshopFixedIP != nil {
+		a.workshopFixedIP = strings.TrimSpace(*config.WorkshopFixedIP)
+		fixedIPChanged = true
+	}
+	if config.WorkshopMetaEnabled != nil {
+		a.workshopMetaEnabled = *config.WorkshopMetaEnabled
+	}
+	if config.WorkshopUpdateCheckEnabled != nil {
+		a.workshopUpdateCheckEnabled = *config.WorkshopUpdateCheckEnabled
+	}
+	if config.WorkshopBrowserTarget != nil {
+		target := strings.TrimSpace(strings.ToLower(*config.WorkshopBrowserTarget))
+		if target == "mirror" || target == "steam" {
+			a.workshopBrowserTarget = target
+		}
+	}
+	if config.AddonListGuardEnabled != nil {
+		a.addonListGuardEnabled = *config.AddonListGuardEnabled
+	}
 	a.defaultDirectory = config.DefaultDirectory
 	a.savedDirectories = cloneSavedDirectories(config.SavedDirectories)
 	a.lastActiveDirectory = config.LastActiveDirectory
@@ -238,6 +271,10 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 		a.migrationVersion = config.MigrationVersion
 	}
 	a.mu.Unlock()
+
+	if fixedIPChanged {
+		network.GlobalIPSelector.SetFixedIP(strings.TrimSpace(*config.WorkshopFixedIP))
+	}
 
 	return a.writeConfigFile(a.snapshotConfig())
 }

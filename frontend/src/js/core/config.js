@@ -46,6 +46,10 @@ const DEFAULT_CONFIG = {
 export const MAX_DIRECTORIES = 10;
 
 let configCache = cloneConfig(DEFAULT_CONFIG);
+// Wails 方法调用是异步的。连续快速修改多个设置时，如果直接并发调用
+// SaveAppConfig，后发请求可能先落盘，导致旧快照覆盖新设置。用一个可继续的
+// Promise 队列保持提交顺序；即使某次保存失败，后续保存也不会被拒绝链阻塞。
+let configSaveQueue = Promise.resolve();
 
 export async function migrateLegacyLocalStorageIfNeeded() {
   const migrationVersion = await GetConfigMigrationVersion();
@@ -91,7 +95,12 @@ export function saveConfig(config) {
     ...configCache,
     ...config,
   });
-  const savePromise = SaveAppConfig(configCache);
+  // 每次保存都冻结独立快照，避免调用方随后修改对象影响排队中的请求。
+  const snapshot = cloneConfig(configCache);
+  const savePromise = configSaveQueue
+    .catch(() => undefined)
+    .then(() => SaveAppConfig(snapshot));
+  configSaveQueue = savePromise;
   savePromise.catch((error) => {
     console.error("保存配置失败:", error);
   });

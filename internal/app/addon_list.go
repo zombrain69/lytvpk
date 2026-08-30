@@ -41,6 +41,33 @@ type addonListDocument struct {
 
 var addonListValueLineRegex = regexp.MustCompile(`^(\s*"([^"]+)"\s+")([^"]*)(".*)$`)
 
+// addonListHasStructuralBrace reports whether brace appears outside a quoted
+// KeyValues string and before a trailing // comment. Mod filenames are user
+// controlled and may legitimately contain { or }, so raw strings.Contains
+// checks are not safe for identifying the AddonList block.
+func addonListHasStructuralBrace(line string, brace byte) bool {
+	inQuotes := false
+	for index := 0; index < len(line); index++ {
+		if line[index] == '"' {
+			backslashes := 0
+			for cursor := index - 1; cursor >= 0 && line[cursor] == '\\'; cursor-- {
+				backslashes++
+			}
+			if backslashes%2 == 0 {
+				inQuotes = !inQuotes
+			}
+			continue
+		}
+		if !inQuotes && line[index] == '/' && index+1 < len(line) && line[index+1] == '/' {
+			return false
+		}
+		if !inQuotes && line[index] == brace {
+			return true
+		}
+	}
+	return false
+}
+
 // readAddonList 读取并解析 addonlist.txt
 func (a *App) readAddonList() ([]AddonListItem, string, error) {
 	doc, err := a.readAddonListDocument()
@@ -56,31 +83,25 @@ func parseAddonListItems(content string) []AddonListItem {
 	kvRegex := regexp.MustCompile(`"([^"]+)"\s+"([^"]+)"`)
 	inBlock := false
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	for _, rawLine := range lines {
+		line := strings.TrimSpace(rawLine)
 		if line == "" || strings.HasPrefix(line, "//") {
 			continue
 		}
-		if strings.Contains(line, "\"AddonList\"") {
-			continue
+		// 条目必须先于括号判断：合法的 VPK 文件名可能包含大括号。
+		if inBlock {
+			if matches := kvRegex.FindStringSubmatch(line); len(matches) == 3 {
+				list = append(list, AddonListItem{Name: matches[1], Value: matches[2]})
+				continue
+			}
 		}
-		if strings.Contains(line, "{") {
+		if addonListHasStructuralBrace(line, '{') {
 			inBlock = true
 			continue
 		}
-		if strings.Contains(line, "}") {
+		if addonListHasStructuralBrace(line, '}') {
 			inBlock = false
 			continue
-		}
-
-		if inBlock {
-			matches := kvRegex.FindStringSubmatch(line)
-			if len(matches) == 3 {
-				list = append(list, AddonListItem{
-					Name:  matches[1],
-					Value: matches[2],
-				})
-			}
 		}
 	}
 	return list
@@ -269,14 +290,8 @@ func readAddonListDocumentAtPath(path string) (addonListDocument, error) {
 	}
 
 	doc := addonListDocument{path: path, encoding: addonListEncodingUTF8}
-	if len(content) >= 3 && content[0] == 0xEF && content[1] == 0xBB && content[2] == 0xBF {
-		doc.hasUTF8BOM = true
-		content = content[3:]
-	}
-	if utf8.Valid(content) {
-		doc.content = string(content)
-		return doc, nil
-	}
+	// 必须先检查 UTF-16 BOM。仅含 ASCII 的 UTF-16 文本也可能通过
+	// utf8.Valid（其中的 NUL 字节本身是合法 UTF-8），不能先按 UTF-8 返回。
 	if len(content) >= 2 && content[0] == 0xFF && content[1] == 0xFE {
 		decoded, decodeErr := decodeAddonListUTF16(content, unicode.LittleEndian)
 		if decodeErr != nil {
@@ -295,7 +310,14 @@ func readAddonListDocumentAtPath(path string) (addonListDocument, error) {
 		doc.encoding = addonListEncodingUTF16BE
 		return doc, nil
 	}
-
+	if len(content) >= 3 && content[0] == 0xEF && content[1] == 0xBB && content[2] == 0xBF {
+		doc.hasUTF8BOM = true
+		content = content[3:]
+	}
+	if utf8.Valid(content) {
+		doc.content = string(content)
+		return doc, nil
+	}
 	decoded, _, gbkErr := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), content)
 	if gbkErr == nil && !strings.ContainsRune(string(decoded), '\uFFFD') {
 		doc.content = string(decoded)
@@ -517,15 +539,23 @@ func replaceAddonListValue(content, targetKey, value string) (string, bool, erro
 		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
 			continue
 		}
-		if strings.Contains(trimmed, "\"AddonList\"") {
-			continue
+		if inBlock {
+			// 与解析器保持一致：先匹配完整条目，文件名中的大括号不能结束块。
+			matches := addonListValueLineRegex.FindStringSubmatchIndex(lineWithoutEnding)
+			if len(matches) == 10 {
+				if normalizeAddonListKey(lineWithoutEnding[matches[4]:matches[5]]) == targetKey {
+					lines[index] = lineWithoutEnding[:matches[6]] + value + lineWithoutEnding[matches[7]:] + line[len(lineWithoutEnding):]
+					found = true
+				}
+				continue
+			}
 		}
-		if strings.Contains(trimmed, "{") {
+		if addonListHasStructuralBrace(lineWithoutEnding, '{') {
 			inBlock = true
 			blockFound = true
 			continue
 		}
-		if strings.Contains(trimmed, "}") {
+		if addonListHasStructuralBrace(lineWithoutEnding, '}') {
 			if inBlock && !found {
 				entry := fmt.Sprintf("\t\"%s\"\t\t\"%s\"%s", targetKey, value, lineEnding)
 				lines = append(lines[:index], append([]string{entry}, lines[index:]...)...)
@@ -534,17 +564,6 @@ func replaceAddonListValue(content, targetKey, value string) (string, bool, erro
 			inBlock = false
 			continue
 		}
-		if !inBlock {
-			continue
-		}
-
-		matches := addonListValueLineRegex.FindStringSubmatchIndex(lineWithoutEnding)
-		if len(matches) != 10 || normalizeAddonListKey(lineWithoutEnding[matches[4]:matches[5]]) != targetKey {
-			continue
-		}
-
-		lines[index] = lineWithoutEnding[:matches[6]] + value + lineWithoutEnding[matches[7]:] + line[len(lineWithoutEnding):]
-		found = true
 	}
 
 	if !blockFound {
@@ -568,27 +587,28 @@ func removeAddonListValue(content, targetKey string) (string, bool, error) {
 			kept = append(kept, line)
 			continue
 		}
-		if strings.Contains(trimmed, "\"AddonList\"") {
-			kept = append(kept, line)
-			continue
-		}
-		if strings.Contains(trimmed, "{") {
-			inBlock = true
-			blockFound = true
-			kept = append(kept, line)
-			continue
-		}
-		if strings.Contains(trimmed, "}") {
-			inBlock = false
-			kept = append(kept, line)
-			continue
-		}
 		if inBlock {
 			matches := addonListValueLineRegex.FindStringSubmatch(lineWithoutEnding)
 			if len(matches) == 5 && normalizeAddonListKey(matches[2]) == targetKey {
 				removed = true
 				continue
 			}
+			// 条目行优先于结构判断；名称中的大括号是普通字符。
+			if len(matches) == 5 {
+				kept = append(kept, line)
+				continue
+			}
+		}
+		if addonListHasStructuralBrace(lineWithoutEnding, '{') {
+			inBlock = true
+			blockFound = true
+			kept = append(kept, line)
+			continue
+		}
+		if addonListHasStructuralBrace(lineWithoutEnding, '}') {
+			inBlock = false
+			kept = append(kept, line)
+			continue
 		}
 		kept = append(kept, line)
 	}

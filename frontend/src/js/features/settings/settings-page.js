@@ -934,6 +934,11 @@ function bindSettingsPage(deps) {
     const enabled = event.target.checked;
     try {
       await deps.SetAddonListGuardEnabled(enabled);
+      // SetAddonListGuardEnabled 会立即持久化后端状态；同时更新前端缓存，
+      // 防止用户随后修改其他设置时，把旧的监控开关快照再次提交。
+      const config = deps.getConfig();
+      config.addonListGuardEnabled = enabled;
+      await deps.saveConfig(config);
       deps.showNotification(enabled ? "已开启 addonlist.txt 自动恢复监控" : "已关闭 addonlist.txt 自动恢复监控", enabled ? "success" : "info");
       await refreshAddonListPanel();
     } catch (error) {

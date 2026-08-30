@@ -34,7 +34,7 @@ export const appState = {
   boxSelectionEnabled: getConfig().boxSelectionEnabled || false,
   ctrlClickSelectionEnabled: getConfig().ctrlClickSelectionEnabled || false,
   filterLayoutMode: getConfig().filterLayoutMode || "compact",
-  workshopUpdateCheckEnabled: false,
+  workshopUpdateCheckEnabled: getConfig().workshopUpdateCheckEnabled || false,
   // 当前筛选结果的可选冲突分析。默认关闭，避免扫描大量 VPK。
   conflictAnalysisEnabled: false,
   conflictAnalysisLoading: false,
@@ -53,6 +53,7 @@ export function applyConfigToAppState(config = getConfig()) {
   appState.ctrlClickSelectionEnabled =
     config.ctrlClickSelectionEnabled || false;
   appState.filterLayoutMode = config.filterLayoutMode || "compact";
+  appState.workshopUpdateCheckEnabled = config.workshopUpdateCheckEnabled || false;
 }
 
 export function toggleFileSelection(filePath, selected) {
