@@ -6,12 +6,12 @@ import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import { refreshLoadOrderMap } from "./sorting.js";
 import {
   ToggleVPKFile,
-  MoveWorkshopToAddons,
   DeleteVPKFile,
   OpenFileLocation,
   RenameVPKFile,
   ToggleVPKVisibility,
 } from "../../../../wailsjs/go/app/App";
+import { moveWorkshopFileWithConflictResolution } from "./file-move-conflicts.js";
 
 function getBackendMethod(name) {
   const method = window?.go?.app?.App?.[name];
@@ -73,9 +73,20 @@ export async function toggleFile(filePath) {
 export async function moveFileToAddons(filePath) {
   try {
     console.log("复制文件到插件目录:", filePath);
-    await MoveWorkshopToAddons(filePath);
+    const result = await moveWorkshopFileWithConflictResolution(filePath);
     await refreshFilesKeepFilter();
-    showNotification("文件已复制到 addons，workshop 原件已保留并关闭", "success");
+    if (result.successCount > 0) {
+      showNotification("文件已复制到 addons，workshop 原件已保留并关闭", "success");
+    }
+    if (result.skippedCount > 0) {
+      showNotification("目标文件已存在，已跳过复制", "info");
+    }
+    if (result.cancelled) {
+      showNotification("已取消复制", "info");
+    }
+    if (result.failCount > 0) {
+      showError(`复制失败: ${result.errors[0] || "未知错误"}`);
+    }
   } catch (error) {
     console.error("复制文件失败:", error);
     showError("复制失败: " + error);

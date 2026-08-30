@@ -16,6 +16,7 @@ import {
 
 let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
+const checkboxByPath = new Map();
 
 function hasPanelServers() {
   return getServers().some((s) => s.panelUrl && s.panelPasswordSet);
@@ -33,18 +34,23 @@ function getGameStateInfo(file) {
 
 function applySelectionGesture(filePath, event, selected) {
   const ctrlEnabled = Boolean(appState.ctrlClickSelectionEnabled);
-  applyFileSelectionGesture(filePath, {
+  const changedPaths = applyFileSelectionGesture(filePath, {
     shiftKey: Boolean(event.shiftKey),
     ctrlKey: ctrlEnabled && Boolean(event.ctrlKey),
     metaKey: ctrlEnabled && Boolean(event.metaKey),
     selected,
   });
-  document.querySelectorAll(".file-checkbox").forEach((checkbox) => {
-    const item = checkbox.closest(".file-item, .file-card");
-    if (item?.dataset.path) {
-      checkbox.checked = appState.selectedFiles.has(item.dataset.path);
-    }
+  const pathsToSync = changedPaths instanceof Set ? changedPaths : new Set([filePath]);
+  pathsToSync.forEach((path) => {
+    const checkbox = checkboxByPath.get(path);
+    if (checkbox) checkbox.checked = appState.selectedFiles.has(path);
   });
+  // click 事件在浏览器完成 checkbox 预切换后触发；即使缓存映射暂时为空，
+  // 也必须立即同步当前控件，避免用户看到“点击无反应”。
+  const currentCheckbox = event.currentTarget?.classList?.contains("file-checkbox")
+    ? event.currentTarget
+    : event.target?.closest?.(".file-checkbox");
+  if (currentCheckbox) currentCheckbox.checked = appState.selectedFiles.has(filePath);
 }
 
 function applyModStateClasses(element, file, prefix) {
@@ -128,6 +134,7 @@ export function renderFileList() {
 
   if (!container) return;
   clearPendingCardPreviews();
+  checkboxByPath.clear();
   const fragment = document.createDocumentFragment();
 
   if (appState.displayMode === "card") {
@@ -164,9 +171,8 @@ export function createFileItem(file) {
   checkbox.className = "file-checkbox";
   checkbox.checked = appState.selectedFiles.has(file.path);
   checkbox.addEventListener("click", function (event) {
-    event.preventDefault();
     event.stopPropagation();
-    applySelectionGesture(file.path, event, !appState.selectedFiles.has(file.path));
+    applySelectionGesture(file.path, event, event.currentTarget.checked);
   });
 
   const displayTitle = file.title || file.name;
@@ -272,7 +278,13 @@ export function createFileItem(file) {
     </div>
   `;
 
-  item.querySelector(".file-checkbox-container").appendChild(checkbox);
+  const checkboxContainer = item.querySelector(".file-checkbox-container");
+  checkboxContainer.appendChild(checkbox);
+  checkboxByPath.set(file.path, checkbox);
+  // 只有真正点击 checkbox 才改变选择；点击容器空白不能穿透到行处理器。
+  checkboxContainer.addEventListener("click", function (event) {
+    event.stopPropagation();
+  });
 
   item.addEventListener("click", function (e) {
     if (
@@ -284,9 +296,11 @@ export function createFileItem(file) {
       return;
     }
 
-    if ((e.shiftKey || e.ctrlKey || e.metaKey) && (e.shiftKey || appState.ctrlClickSelectionEnabled)) {
+    if (e.shiftKey || (appState.ctrlClickSelectionEnabled && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
       e.stopPropagation();
+      // Shift/Ctrl 点击行主体恢复桌面文件管理器的整行选择语义；
+      // 普通点击仍不会因为点到文字或空白而误选。
       applySelectionGesture(file.path, e, !appState.selectedFiles.has(file.path));
     }
   });
@@ -494,12 +508,12 @@ export function createFileCard(file) {
   checkbox.className = "file-checkbox card-checkbox";
   checkbox.checked = appState.selectedFiles.has(file.path);
   checkbox.addEventListener("click", function (event) {
-    event.preventDefault();
     event.stopPropagation();
-    applySelectionGesture(file.path, event, !appState.selectedFiles.has(file.path));
+    applySelectionGesture(file.path, event, event.currentTarget.checked);
   });
   const checkboxContainer = card.querySelector(".card-checkbox-container");
   checkboxContainer.appendChild(checkbox);
+  checkboxByPath.set(file.path, checkbox);
   checkboxContainer.addEventListener("click", function (e) {
     e.stopPropagation();
   });
@@ -520,9 +534,10 @@ export function createFileCard(file) {
       return;
     }
 
-    if ((e.shiftKey || e.ctrlKey || e.metaKey) && (e.shiftKey || appState.ctrlClickSelectionEnabled)) {
+    if (e.shiftKey || (appState.ctrlClickSelectionEnabled && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
       e.stopPropagation();
+      // Shift/Ctrl 点击卡片主体也可以选择；普通点击仍打开详情。
       applySelectionGesture(file.path, e, !appState.selectedFiles.has(file.path));
       return;
     }

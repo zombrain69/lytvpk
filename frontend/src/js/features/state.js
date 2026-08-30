@@ -61,7 +61,12 @@ export function toggleFileSelection(filePath, selected) {
   } else {
     appState.selectedFiles.delete(filePath);
   }
-  updateStatusBar();
+  updateSelectedFilesStatus();
+}
+
+export function updateSelectedFilesStatus() {
+  const selectedEl = document.getElementById("selected-files");
+  if (selectedEl) selectedEl.textContent = `已选择: ${appState.selectedFiles.size}`;
 }
 
 // 应用常见桌面文件选择手势：普通点击单选/取消，Ctrl（或 macOS 的
@@ -74,6 +79,7 @@ export function applyFileSelectionGesture(
   const orderedPaths = (appState.vpkFiles || []).map((file) => file.path);
   const targetIndex = orderedPaths.indexOf(filePath);
   const additive = ctrlKey || metaKey;
+  const previousSelected = shiftKey ? new Set(appState.selectedFiles) : null;
 
   if (shiftKey && targetIndex >= 0) {
     const anchorIndex = orderedPaths.indexOf(appState.selectionAnchorPath);
@@ -98,7 +104,13 @@ export function applyFileSelectionGesture(
   }
 
   appState.selectionAnchorPath = filePath;
-  updateStatusBar();
+  updateSelectedFilesStatus();
+
+  if (previousSelected) {
+    const changedPaths = new Set([...previousSelected, ...appState.selectedFiles]);
+    return changedPaths;
+  }
+  return new Set([filePath]);
 }
 
 export function updateStatusBar() {

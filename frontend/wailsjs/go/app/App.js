@@ -46,6 +46,10 @@ export function CheckConflictsWithOptions(arg1) {
   return window['go']['app']['App']['CheckConflictsWithOptions'](arg1);
 }
 
+export function CheckFileMoveConflicts(arg1, arg2) {
+  return window['go']['app']['App']['CheckFileMoveConflicts'](arg1, arg2);
+}
+
 export function CheckModUpdates() {
   return window['go']['app']['App']['CheckModUpdates']();
 }
@@ -390,8 +394,16 @@ export function MoveVpkFiles(arg1, arg2) {
   return window['go']['app']['App']['MoveVpkFiles'](arg1, arg2);
 }
 
+export function MoveVpkFilesWithConflictAction(arg1, arg2, arg3) {
+  return window['go']['app']['App']['MoveVpkFilesWithConflictAction'](arg1, arg2, arg3);
+}
+
 export function MoveWorkshopToAddons(arg1) {
   return window['go']['app']['App']['MoveWorkshopToAddons'](arg1);
+}
+
+export function MoveWorkshopToAddonsWithConflictAction(arg1, arg2) {
+  return window['go']['app']['App']['MoveWorkshopToAddonsWithConflictAction'](arg1, arg2);
 }
 
 export function OpenFileLocation(arg1) {

@@ -2634,6 +2634,33 @@
       </div>
     </div>
 
+    <!-- 文件移动冲突处理对话框 -->
+    <div id="file-conflict-modal" class="modal hidden" style="z-index: 20002">
+      <div class="modal-content file-conflict-modal-content">
+        <div class="modal-header">
+          <h2 id="file-conflict-title">文件冲突</h2>
+          <button id="close-file-conflict-modal-btn" class="close-btn" type="button">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body file-conflict-body">
+          <p id="file-conflict-summary" class="file-conflict-summary"></p>
+          <div id="file-conflict-list" class="file-conflict-list"></div>
+          <label class="file-conflict-all-option">
+            <input id="file-conflict-apply-all" type="checkbox" />
+            <span>对后续冲突都执行相同操作</span>
+          </label>
+        </div>
+        <div class="modal-footer file-conflict-footer">
+          <button id="file-conflict-compare-btn" class="btn btn-secondary" type="button">比较文件信息</button>
+          <span class="file-conflict-footer-spacer"></span>
+          <button id="file-conflict-cancel-btn" class="btn btn-secondary" type="button">取消</button>
+          <button id="file-conflict-skip-btn" class="btn btn-secondary" type="button">跳过</button>
+          <button id="file-conflict-replace-btn" class="btn btn-primary" type="button">替换目标文件</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 通用消息弹窗 -->
     <div id="message-modal" class="modal hidden" style="z-index: 20001">
       <div class="modal-content modal-small">

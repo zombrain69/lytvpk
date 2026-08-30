@@ -67,6 +67,8 @@ func (a *App) AutoDiscoverAddons() (string, error) {
 type MoveResult struct {
 	SuccessCount int      `json:"successCount"`
 	FailCount    int      `json:"failCount"`
+	SkippedCount int      `json:"skippedCount"`
+	Cancelled    bool     `json:"cancelled"`
 	Errors       []string `json:"errors"`
 }
 

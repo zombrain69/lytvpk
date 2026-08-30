@@ -1,15 +1,15 @@
 export namespace app {
-	
+
 	export class AddonListBackup {
 	    name: string;
 	    createdAt: string;
 	    size: number;
 	    kind: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new AddonListBackup(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -28,7 +28,7 @@ export namespace app {
 	    guardEnabled: boolean;
 	    lastGuardRestore: string;
 	    lastGuardError: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new AddonListInfo(source);
 	    }
@@ -642,6 +642,30 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class FileMoveConflict {
+	    sourcePath: string;
+	    targetPath: string;
+	    fileType: string;
+	    sourceSize: number;
+	    targetSize: number;
+	    sourceModTime: string;
+	    targetModTime: string;
+
+	    static createFrom(source: any = {}) {
+	        return new FileMoveConflict(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourcePath = source["sourcePath"];
+	        this.targetPath = source["targetPath"];
+	        this.fileType = source["fileType"];
+	        this.sourceSize = source["sourceSize"];
+	        this.targetSize = source["targetSize"];
+	        this.sourceModTime = source["sourceModTime"];
+	        this.targetModTime = source["targetModTime"];
+	    }
+	}
 	export class ForkInfo {
 	    name: string;
 	    app_version: string;
@@ -761,6 +785,8 @@ export namespace app {
 	export class MoveResult {
 	    successCount: number;
 	    failCount: number;
+	    skippedCount: number;
+	    cancelled: boolean;
 	    errors: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -771,6 +797,8 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.successCount = source["successCount"];
 	        this.failCount = source["failCount"];
+	        this.skippedCount = source["skippedCount"];
+	        this.cancelled = source["cancelled"];
 	        this.errors = source["errors"];
 	    }
 	}
@@ -1932,7 +1960,6 @@ export namespace app {
 	}
 
 }
-
 export namespace minidump {
 	
 	export class CodeViewInfo {

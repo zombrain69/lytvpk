@@ -1,6 +1,7 @@
 @import "./global.css";
 @import "./app/base.css";
 @import "./app/mods.css";
+@import "./app/file-move.css";
 @import "./app/modals-details.css";
 @import "./app/downloads.css";
 @import "./app/servers.css";

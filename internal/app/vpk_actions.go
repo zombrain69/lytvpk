@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -255,13 +256,29 @@ func (a *App) ToggleVPKFile(filePath string) error {
 
 // MoveWorkshopToAddons 将workshop中的VPK移动到addons目录（root目录）
 func (a *App) MoveWorkshopToAddons(filePath string) error {
+	_, err := a.moveWorkshopToAddonsWithConflictAction(filePath, "")
+	return err
+}
+
+// MoveWorkshopToAddonsWithConflictAction 将workshop中的VPK复制到addons目录，
+// action 可为空、replace、skip 或 cancel。
+func (a *App) MoveWorkshopToAddonsWithConflictAction(filePath, action string) (MoveResult, error) {
+	return a.moveWorkshopToAddonsWithConflictAction(filePath, action)
+}
+
+func (a *App) moveWorkshopToAddonsWithConflictAction(filePath, action string) (MoveResult, error) {
+	result := MoveResult{}
+	var err error
+	if action, err = normalizeMoveConflictAction(action); err != nil {
+		return result, err
+	}
 	a.mu.Lock()
 
 	// 从缓存中获取文件信息
 	cached, ok := a.vpkCache.Load(filePath)
 	if !ok {
 		a.mu.Unlock()
-		return fmt.Errorf("文件未找到: %s", filePath)
+		return result, fmt.Errorf("文件未找到: %s", filePath)
 	}
 
 	cache := cached.(*VPKFileCache)
@@ -269,24 +286,38 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 	rootDir := a.rootDir
 	if strings.TrimSpace(rootDir) == "" {
 		a.mu.Unlock()
-		return fmt.Errorf("未选择L4D2目录")
+		return result, fmt.Errorf("未选择L4D2目录")
 	}
 
 	if vpkFile.Location != "workshop" {
 		a.mu.Unlock()
-		return fmt.Errorf("只能转移workshop文件")
+		return result, fmt.Errorf("只能转移workshop文件")
 	}
 
 	newPath := filepath.Join(rootDir, vpkFile.Name)
-	err := copyRegularFile(vpkFile.Path, newPath)
+	err = copyRegularFileWithConflictAction(vpkFile.Path, newPath, action)
+	if errors.Is(err, errMoveSkipped) {
+		a.mu.Unlock()
+		result.SkippedCount = 1
+		return result, nil
+	}
+	if errors.Is(err, errMoveCancelled) {
+		a.mu.Unlock()
+		result.Cancelled = true
+		return result, nil
+	}
 	if err != nil {
 		a.mu.Unlock()
-		return err
+		return result, err
 	}
-	if err := copySidecarFiles(vpkFile.Path, newPath); err != nil {
+	if err := copyWorkshopSidecarsWithConflictAction(vpkFile.Path, newPath, action); err != nil {
 		_ = os.Remove(newPath)
 		a.mu.Unlock()
-		return fmt.Errorf("复制工坊 Mod 伴随文件失败: %w", err)
+		if errors.Is(err, errMoveCancelled) {
+			result.Cancelled = true
+			return result, nil
+		}
+		return result, fmt.Errorf("复制工坊 Mod 伴随文件失败: %w", err)
 	}
 
 	// 转移到root目录后，文件默认为启用状态
@@ -307,13 +338,13 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 	workshopKey := normalizeAddonListKey(filepath.Join("workshop", filepath.Base(filePath)))
 	rootKey, keyErr := addonListKeyForManagedVPKPathFromRoot(rootDir, newPath)
 	if keyErr != nil {
-		return keyErr
+		return result, keyErr
 	}
 	if err := a.updateAddonListEntries(map[string]string{
 		rootKey:     "1",
 		workshopKey: "0",
 	}, nil); err != nil {
-		return fmt.Errorf("已复制到 addons，但 addonlist.txt 同步失败: %w", err)
+		return result, fmt.Errorf("已复制到 addons，但 addonlist.txt 同步失败: %w", err)
 	}
 	// 保留 workshop 原件意味着 Steam/游戏可能在下次启动时重新写入 1。
 	// 防覆盖监控是用户明确选择的功能：复制操作只同步当前状态，绝不隐式开启监控。
@@ -321,7 +352,8 @@ func (a *App) MoveWorkshopToAddons(filePath string) error {
 
 	log.Printf("文件已复制: %s -> %s（保留 workshop 原文件并显式关闭）", filePath, newPath)
 
-	return nil
+	result.SuccessCount = 1
+	return result, nil
 }
 
 func (a *App) ToggleVPKVisibility(filePath string) (string, error) {

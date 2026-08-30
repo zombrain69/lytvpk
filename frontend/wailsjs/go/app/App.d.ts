@@ -27,6 +27,8 @@ export function CheckConflictsForPaths(arg1:Array<string>):Promise<app.ConflictR
 
 export function CheckConflictsWithOptions(arg1:app.ConflictAnalysisOptions):Promise<app.ConflictResult>;
 
+export function CheckFileMoveConflicts(arg1:Array<string>,arg2:string):Promise<Array<app.FileMoveConflict>>;
+
 export function CheckModUpdates():Promise<app.UpdateCheckResult>;
 
 export function CheckUpdate():Promise<app.UpdateInfo>;
@@ -199,7 +201,11 @@ export function MigrateLocalStorageConfig(arg1:app.LocalStorageMigrationPayload)
 
 export function MoveVpkFiles(arg1:Array<string>,arg2:string):Promise<app.MoveResult>;
 
+export function MoveVpkFilesWithConflictAction(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
+
 export function MoveWorkshopToAddons(arg1:string):Promise<void>;
+
+export function MoveWorkshopToAddonsWithConflictAction(arg1:string,arg2:string):Promise<app.MoveResult>;
 
 export function OpenFileLocation(arg1:string):Promise<void>;
 

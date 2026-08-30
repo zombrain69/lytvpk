@@ -13,13 +13,13 @@ import { refreshFilesKeepFilter } from "./filters.js";
 import {
   ToggleVPKFile,
   ExportVPKFilesToZip,
-  MoveVpkFiles,
   DeleteVPKFiles,
   SelectDirectory,
   GetVPKFiles,
   ToggleVPKVisibility,
 } from "../../../../wailsjs/go/app/App";
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
+import { moveVpkFilesWithConflictResolution } from "./file-move-conflicts.js";
 
 export function selectAll() {
   const checkboxes = document.querySelectorAll(".file-checkbox");
@@ -285,16 +285,24 @@ export async function moveSelected() {
 
     showNotification("正在移动文件...", "info");
 
-    const result = await MoveVpkFiles(filesToMove, destDir);
+    const result = await moveVpkFilesWithConflictResolution(filesToMove, destDir);
 
     if (result.successCount > 0) {
       showSuccess(`成功移动 ${result.successCount} 个文件`);
-      appState.selectedFiles.clear();
+      result.successPaths?.forEach((filePath) => appState.selectedFiles.delete(filePath));
     }
 
     if (result.failCount > 0) {
       showError(`${result.failCount} 个文件移动失败: ${result.errors[0]}`);
       console.error("移动失败详情:", result.errors);
+    }
+
+    if (result.skippedCount > 0) {
+      showNotification(`已跳过 ${result.skippedCount} 个冲突文件`, "info");
+    }
+
+    if (result.cancelled) {
+      showNotification("已取消后续移动", "info");
     }
 
     await refreshFilesKeepFilter();

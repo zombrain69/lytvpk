@@ -53,6 +53,15 @@ export function initBoxSelection() {
 
 function handleClickCapture(e) {
   if (suppressClick) {
+    // 框选结束后，下一次点击可能就是用户有意点击复选框。
+    // 不得在捕获阶段吞掉它，否则 checkbox 自己的 click 处理器不会执行。
+    const checkboxTarget = e.target?.closest?.(
+      ".file-checkbox, .file-checkbox-container, .card-checkbox-container",
+    );
+    if (checkboxTarget) {
+      suppressClick = false;
+      return;
+    }
     e.stopPropagation();
     suppressClick = false;
   }
@@ -75,6 +84,8 @@ function handleMouseDown(e) {
     ".file-list-header",
     ".status-bar",
     ".file-checkbox",
+    ".file-checkbox-container",
+    ".card-checkbox-container",
     "button",
     "input",
     ".more-btn",
