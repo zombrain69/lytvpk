@@ -1,3 +1,7 @@
+// The toolbox starts with an asynchronous problem-Mod session read.  Keep a
+// render identity so a slower earlier navigation cannot replace a newer page.
+let diagnosticsRenderGeneration = 0;
+
 export async function renderDiagnosticsPage({
   GetProblemModScanSession,
   openProblemModScanIntro,
@@ -13,6 +17,8 @@ export async function renderDiagnosticsPage({
 } = {}) {
   const container = document.getElementById("diagnostics-page-content");
   if (!container) return;
+  const renderGeneration = ++diagnosticsRenderGeneration;
+  const pageView = container.closest(".page-view");
 
   let problemScanSession = null;
   try {
@@ -22,6 +28,12 @@ export async function renderDiagnosticsPage({
   } catch (error) {
     console.warn("读取问题 Mod 查找状态失败:", error);
   }
+
+  if (
+    renderGeneration !== diagnosticsRenderGeneration ||
+    !container.isConnected ||
+    (pageView && !pageView.classList.contains("active"))
+  ) return;
 
   const problemScanActive = Boolean(problemScanSession?.active);
 

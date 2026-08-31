@@ -14,6 +14,11 @@ let displayModeChangeToken = 0;
 let uiScaleChangeToken = 0;
 let boxSelectionChangeToken = 0;
 let ctrlClickSelectionChangeToken = 0;
+// Settings data is assembled from several asynchronous Wails calls.  Opening
+// the page again (or refreshing an addonlist action) can start a newer render
+// while an older one is still waiting; only the newest render may replace DOM
+// or bind controls.
+let settingsRenderGeneration = 0;
 
 export async function renderSettingsPage(deps) {
   const {
@@ -66,6 +71,12 @@ export async function renderSettingsPage(deps) {
   } = deps;
   const container = document.getElementById("settings-page-content");
   if (!container) return;
+  const renderGeneration = ++settingsRenderGeneration;
+  const pageView = container.closest(".page-view");
+  const isCurrentRender = () =>
+    renderGeneration === settingsRenderGeneration &&
+    container.isConnected &&
+    (!pageView || pageView.classList.contains("active"));
   const config = getConfig();
   // Individual Wails reads must not turn the whole settings page into a blank
   // view. A transient failure (for example while the app is reloading bindings)
@@ -129,6 +140,9 @@ export async function renderSettingsPage(deps) {
   if (addonListMergePreview && addonListInfo?.path && addonListMergePreview.targetPath?.toLowerCase() !== addonListInfo.path.toLowerCase()) {
     addonListMergePreview = null;
   }
+
+  // Do not let a slow, superseded render overwrite a page opened more recently.
+  if (!isCurrentRender()) return;
 
   let ipStatusText = "";
   if (enabled) {
@@ -475,6 +489,10 @@ export async function renderSettingsPage(deps) {
       </div>
     </div>
   `;
+
+  // The DOM can be replaced by a newer render between template construction
+  // and binding (for example after a quick settings refresh).
+  if (!isCurrentRender()) return;
 
   bindSettingsPage({
     enabled,
