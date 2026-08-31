@@ -10,6 +10,10 @@ const SETTINGS_NAV_ICONS = {
 
 let addonListMergePreview = null;
 let filterLayoutChangeToken = 0;
+let displayModeChangeToken = 0;
+let uiScaleChangeToken = 0;
+let boxSelectionChangeToken = 0;
+let ctrlClickSelectionChangeToken = 0;
 
 export async function renderSettingsPage(deps) {
   const {
@@ -351,7 +355,7 @@ export async function renderSettingsPage(deps) {
             <div class="setting-row-desc">编辑后保存会保留游戏文件原有的编码、BOM 和换行格式；内容只写入文件，不会在本程序中执行。未知指令可能来自插件或 Mod。</div>
             <div class="autoexec-layout">
               <div class="autoexec-editor-column">
-                <div class="autoexec-meta">
+                <div class="autoexec-meta" id="settings-autoexec-meta">
                   <span class="autoexec-path">${escapeHtml(autoexecInfo?.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</span>
                   <span>${autoexecInfo?.exists ? "文件存在" : "文件不存在，将在保存时创建"}</span>
                   <span>${escapeHtml(autoexecInfo?.encoding || "UTF-8")} · ${escapeHtml(autoexecInfo?.lineEnding || "CRLF")}</span>
@@ -677,9 +681,27 @@ function bindSettingsPage(deps) {
   const updateUIScale = (value, persist = false) => {
     const scale = applyUIScale(Number(value) / 100);
     if (!persist) return scale;
+    const previousScale = normalizeUIScale(deps.getConfig().uiScale);
+    const changeToken = ++uiScaleChangeToken;
     const config = deps.getConfig();
     config.uiScale = scale;
-    deps.saveConfig(config);
+    let savePromise;
+    try {
+      savePromise = deps.saveConfig(config);
+    } catch (error) {
+      savePromise = Promise.reject(error);
+    }
+    Promise.resolve(savePromise).catch((error) => {
+        if (changeToken !== uiScaleChangeToken) return;
+        applyUIScale(previousScale);
+        if (uiScaleInput?.isConnected) {
+          uiScaleInput.value = String(Math.round(previousScale * 100));
+        }
+        const rollbackConfig = deps.getConfig();
+        rollbackConfig.uiScale = previousScale;
+        Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("界面缩放配置回滚失败:", rollbackError));
+        deps.showNotification("保存界面缩放失败: " + error, "error");
+      });
     return scale;
   };
   uiScaleInput?.addEventListener("input", () => {
@@ -698,14 +720,36 @@ function bindSettingsPage(deps) {
   });
 
   document.querySelectorAll('input[name="settings-display-mode"]').forEach((radio) => {
-    radio.addEventListener("change", () => {
-      deps.appState.displayMode = radio.value;
-      const config = deps.getConfig();
-      config.displayMode = radio.value;
-      deps.saveConfig(config);
-      radio.closest(".mode-toggle-group")?.querySelectorAll(".mode-option").forEach((option) => option.classList.remove("active"));
-      radio.closest(".mode-option")?.classList.add("active");
+    radio.addEventListener("change", async () => {
+      if (!radio.checked) return;
+      const previousMode = deps.getConfig().displayMode === "card" ? "card" : "list";
+      const nextMode = radio.value === "card" ? "card" : "list";
+      if (previousMode === nextMode) return;
+      const changeToken = ++displayModeChangeToken;
+      const group = radio.closest(".mode-toggle-group");
+      const controls = Array.from(group?.querySelectorAll('input[name="settings-display-mode"]') || []);
+      controls.forEach((input) => { input.disabled = true; });
+      deps.appState.displayMode = nextMode;
+      group?.querySelectorAll(".mode-option").forEach((option) => option.classList.toggle("active", option.querySelector("input")?.value === nextMode));
       deps.renderFileList();
+      try {
+        const config = deps.getConfig();
+        config.displayMode = nextMode;
+        await deps.saveConfig(config);
+      } catch (error) {
+        if (changeToken !== displayModeChangeToken) return;
+        deps.appState.displayMode = previousMode;
+        const previousRadio = group?.querySelector(`input[value="${previousMode}"]`);
+        if (previousRadio) previousRadio.checked = true;
+        group?.querySelectorAll(".mode-option").forEach((option) => option.classList.toggle("active", option.querySelector("input")?.value === previousMode));
+        deps.renderFileList();
+        const rollbackConfig = deps.getConfig();
+        rollbackConfig.displayMode = previousMode;
+        Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("显示模式配置回滚失败:", rollbackError));
+        deps.showNotification("保存显示模式失败: " + error, "error");
+      } finally {
+        if (changeToken === displayModeChangeToken) controls.forEach((input) => { input.disabled = false; });
+      }
     });
   });
 
@@ -767,20 +811,54 @@ function bindSettingsPage(deps) {
     });
   });
 
-  document.getElementById("settings-box-selection")?.addEventListener("change", (e) => {
-    deps.appState.boxSelectionEnabled = e.target.checked;
-    const config = deps.getConfig();
-    config.boxSelectionEnabled = e.target.checked;
-    deps.saveConfig(config);
-    deps.showNotification(e.target.checked ? "已开启框选模式" : "已关闭框选模式", "info");
+  document.getElementById("settings-box-selection")?.addEventListener("change", async (e) => {
+    const toggle = e.currentTarget;
+    const enabled = toggle.checked;
+    const previousEnabled = !enabled;
+    const changeToken = ++boxSelectionChangeToken;
+    toggle.disabled = true;
+    deps.appState.boxSelectionEnabled = enabled;
+    try {
+      const config = deps.getConfig();
+      config.boxSelectionEnabled = enabled;
+      await deps.saveConfig(config);
+      deps.showNotification(enabled ? "已开启框选模式" : "已关闭框选模式", "info");
+    } catch (error) {
+      if (changeToken !== boxSelectionChangeToken) return;
+      toggle.checked = previousEnabled;
+      deps.appState.boxSelectionEnabled = previousEnabled;
+      const rollbackConfig = deps.getConfig();
+      rollbackConfig.boxSelectionEnabled = previousEnabled;
+      Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("框选模式配置回滚失败:", rollbackError));
+      deps.showNotification("保存框选模式失败: " + error, "error");
+    } finally {
+      if (changeToken === boxSelectionChangeToken) toggle.disabled = false;
+    }
   });
 
-  document.getElementById("settings-ctrl-click-selection")?.addEventListener("change", (e) => {
-    deps.appState.ctrlClickSelectionEnabled = e.target.checked;
-    const config = deps.getConfig();
-    config.ctrlClickSelectionEnabled = e.target.checked;
-    deps.saveConfig(config);
-    deps.showNotification(e.target.checked ? "已开启 Ctrl+单击选择" : "已关闭 Ctrl+单击选择", "info");
+  document.getElementById("settings-ctrl-click-selection")?.addEventListener("change", async (e) => {
+    const toggle = e.currentTarget;
+    const enabled = toggle.checked;
+    const previousEnabled = !enabled;
+    const changeToken = ++ctrlClickSelectionChangeToken;
+    toggle.disabled = true;
+    deps.appState.ctrlClickSelectionEnabled = enabled;
+    try {
+      const config = deps.getConfig();
+      config.ctrlClickSelectionEnabled = enabled;
+      await deps.saveConfig(config);
+      deps.showNotification(enabled ? "已开启 Ctrl+单击选择" : "已关闭 Ctrl+单击选择", "info");
+    } catch (error) {
+      if (changeToken !== ctrlClickSelectionChangeToken) return;
+      toggle.checked = previousEnabled;
+      deps.appState.ctrlClickSelectionEnabled = previousEnabled;
+      const rollbackConfig = deps.getConfig();
+      rollbackConfig.ctrlClickSelectionEnabled = previousEnabled;
+      Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("Ctrl+单击选择配置回滚失败:", rollbackError));
+      deps.showNotification("保存 Ctrl+单击选择失败: " + error, "error");
+    } finally {
+      if (changeToken === ctrlClickSelectionChangeToken) toggle.disabled = false;
+    }
   });
 
   document.getElementById("settings-meta-enabled")?.addEventListener("change", async (event) => {
@@ -1036,12 +1114,25 @@ function bindSettingsPage(deps) {
   });
 
   const autoexecEditor = document.getElementById("settings-autoexec-content");
+  const autoexecMeta = document.getElementById("settings-autoexec-meta");
   const autoexecLineNumbers = document.getElementById("settings-autoexec-line-numbers");
   const autoexecAnalysis = document.getElementById("settings-autoexec-analysis");
   const autoexecMatchesEl = document.getElementById("settings-autoexec-matches");
   const autoexecLineNumberEditor = attachLineNumberGutter(autoexecEditor, autoexecLineNumbers);
   let autoexecAnalysisRequest = 0;
   let autoexecAnalysisTimer = null;
+  let autoexecReloadRequest = 0;
+  const updateAutoexecMeta = (info) => {
+    if (!autoexecMeta) return;
+    const data = info || {};
+    autoexecMeta.innerHTML = `
+      <span class="autoexec-path">${escapeHtml(data.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</span>
+      <span>${data.exists ? "文件存在" : "文件不存在，将在保存时创建"}</span>
+      <span>${escapeHtml(data.encoding || "UTF-8")} · ${escapeHtml(data.lineEnding || "CRLF")}</span>
+      <span>${formatAddonListBytes(data.size)}</span>
+      ${data.lastModified ? `<span>修改于 ${escapeHtml(formatAddonListTime(data.lastModified))}</span>` : ""}
+    `;
+  };
   const updateAutoexecAnalysis = async () => {
     if (!autoexecEditor?.isConnected || typeof deps.AnalyzeAutoexecCommands !== "function") return;
     const requestId = ++autoexecAnalysisRequest;
@@ -1073,9 +1164,14 @@ function bindSettingsPage(deps) {
   void updateAutoexecAnalysis();
   const reloadAutoexecEditor = async () => {
     if (!autoexecEditor || typeof deps.GetAutoexecConfig !== "function") return;
+    const requestId = ++autoexecReloadRequest;
     const next = await deps.GetAutoexecConfig();
+    if (requestId !== autoexecReloadRequest || !autoexecEditor.isConnected) return;
     autoexecInfo = next || autoexecInfo;
     autoexecEditor.value = next?.content || "";
+    updateAutoexecMeta(autoexecInfo);
+    const openButton = document.getElementById("settings-autoexec-open");
+    if (openButton) openButton.disabled = !autoexecInfo?.exists;
     autoexecLineNumberEditor.refresh();
     await updateAutoexecAnalysis();
   };
@@ -1093,12 +1189,17 @@ function bindSettingsPage(deps) {
       if (button) button.disabled = false;
     }
   });
-  document.getElementById("settings-autoexec-reload")?.addEventListener("click", async () => {
+  document.getElementById("settings-autoexec-reload")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (button.disabled) return;
+    button.disabled = true;
     try {
       await reloadAutoexecEditor();
       deps.showNotification("已重新读取 autoexec.cfg", "info");
     } catch (error) {
       deps.showNotification("重新读取 autoexec.cfg 失败: " + error, "error");
+    } finally {
+      button.disabled = false;
     }
   });
   document.getElementById("settings-autoexec-open")?.addEventListener("click", async () => {
@@ -1155,25 +1256,26 @@ function bindSettingsPage(deps) {
   const refreshAddonListFiles = async () => {
     await deps.refreshFilesKeepFilter?.();
   };
-
-  document.getElementById("settings-addonlist-save-snapshot")?.addEventListener("click", async () => {
+  const runAddonListAction = async (button, action, successMessage, errorPrefix, refresh = true) => {
+    if (!button || button.disabled) return;
+    button.disabled = true;
     try {
-      await deps.SaveAddonListManagedSnapshot();
-      deps.showNotification("已保存 addonlist.txt 受保护版本", "success");
-      await refreshAddonListPanel();
+      await action();
+      if (successMessage) deps.showNotification(successMessage, "success");
+      if (refresh) await refreshAddonListPanel();
     } catch (error) {
-      deps.showNotification("保存受保护版本失败: " + error, "error");
+      deps.showNotification(`${errorPrefix}: ${error}`, "error");
+    } finally {
+      button.disabled = false;
     }
+  };
+
+  document.getElementById("settings-addonlist-save-snapshot")?.addEventListener("click", (event) => {
+    void runAddonListAction(event.currentTarget, () => deps.SaveAddonListManagedSnapshot(), "已保存 addonlist.txt 受保护版本", "保存受保护版本失败");
   });
 
-  document.getElementById("settings-addonlist-create-backup")?.addEventListener("click", async () => {
-    try {
-      await deps.CreateAddonListBackup();
-      deps.showNotification("已创建 addonlist.txt 历史备份", "success");
-      await refreshAddonListPanel();
-    } catch (error) {
-      deps.showNotification("创建备份失败: " + error, "error");
-    }
+  document.getElementById("settings-addonlist-create-backup")?.addEventListener("click", (event) => {
+    void runAddonListAction(event.currentTarget, () => deps.CreateAddonListBackup(), "已创建 addonlist.txt 历史备份", "创建备份失败");
   });
 
   document.getElementById("settings-addonlist-open")?.addEventListener("click", async () => {
@@ -1229,14 +1331,10 @@ function bindSettingsPage(deps) {
     button.addEventListener("click", async () => {
       const name = button.dataset.addonlistBackup;
       if (!name || !window.confirm("恢复这份备份？当前 addonlist.txt 会先自动备份，然后被替换。")) return;
-      try {
+      await runAddonListAction(button, async () => {
         await deps.RestoreAddonListBackup(name);
         await refreshAddonListFiles();
-        deps.showNotification("已恢复 addonlist.txt 备份并同步受保护版本", "success");
-        await refreshAddonListPanel();
-      } catch (error) {
-        deps.showNotification("恢复备份失败: " + error, "error");
-      }
+      }, "已恢复 addonlist.txt 备份并同步受保护版本", "恢复备份失败");
     });
   });
 
@@ -1244,38 +1342,26 @@ function bindSettingsPage(deps) {
     button.addEventListener("click", async () => {
       const name = button.dataset.addonlistBackup;
       if (!name || !window.confirm("删除这份历史备份？该操作不可撤销。")) return;
-      try {
-        await deps.DeleteAddonListBackup(name);
-        deps.showNotification("已删除历史备份", "info");
-        await refreshAddonListPanel();
-      } catch (error) {
-        deps.showNotification("删除备份失败: " + error, "error");
-      }
+      await runAddonListAction(button, () => deps.DeleteAddonListBackup(name), "已删除历史备份", "删除备份失败");
     });
   });
 
-  document.getElementById("settings-addonlist-delete")?.addEventListener("click", async () => {
+  document.getElementById("settings-addonlist-delete")?.addEventListener("click", async (event) => {
     if (!window.confirm("删除 addonlist.txt？程序会先创建历史备份；自动恢复监控会关闭，受保护版本也会移除。")) return;
-    try {
+    await runAddonListAction(event.currentTarget, async () => {
       await deps.DeleteAddonList();
       await refreshAddonListFiles();
-      deps.showNotification("已删除 addonlist.txt，并保留删除前备份", "info");
-      await refreshAddonListPanel();
-    } catch (error) {
-      deps.showNotification("删除 addonlist.txt 失败: " + error, "error");
-    }
+    }, "已删除 addonlist.txt，并保留删除前备份", "删除 addonlist.txt 失败");
   });
 
-  document.getElementById("settings-addonlist-select-merge-source")?.addEventListener("click", async () => {
-    try {
+  document.getElementById("settings-addonlist-select-merge-source")?.addEventListener("click", async (event) => {
+    await runAddonListAction(event.currentTarget, async () => {
       const sourcePath = await deps.SelectAddonListMergeSource();
       if (!sourcePath) return;
       addonListMergePreview = await deps.PreviewAddonListMerge(sourcePath);
       deps.showNotification("已读取融合差异，请确认冲突项的开关选择", "info");
       await refreshAddonListPanel();
-    } catch (error) {
-      deps.showNotification("读取融合差异失败: " + error, "error");
-    }
+    }, null, "读取融合差异失败", false);
   });
 
   document.getElementById("settings-addonlist-cancel-merge")?.addEventListener("click", async () => {
@@ -1283,20 +1369,16 @@ function bindSettingsPage(deps) {
     await refreshAddonListPanel();
   });
 
-  document.getElementById("settings-addonlist-apply-merge")?.addEventListener("click", async () => {
+  document.getElementById("settings-addonlist-apply-merge")?.addEventListener("click", async (event) => {
     if (!addonListMergePreview) return;
     const sourceWinsKeys = Array.from(document.querySelectorAll(".addonlist-merge-conflict input:checked"))
       .map((input) => input.dataset.addonlistMergeKey)
       .filter(Boolean);
-    try {
+    await runAddonListAction(event.currentTarget, async () => {
       await deps.ApplyAddonListMerge(addonListMergePreview.sourcePath, sourceWinsKeys);
       addonListMergePreview = null;
       await refreshAddonListFiles();
-      deps.showNotification("已融合 addonlist.txt 配置", "success");
-      await refreshAddonListPanel();
-    } catch (error) {
-      deps.showNotification("融合 addonlist.txt 失败: " + error, "error");
-    }
+    }, "已融合 addonlist.txt 配置", "融合 addonlist.txt 失败");
   });
 
 }

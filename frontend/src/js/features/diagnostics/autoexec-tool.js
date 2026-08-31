@@ -3,8 +3,10 @@ import { attachLineNumberGutter } from "../../core/line-number-editor.js";
 import { makeModalResizable } from "../../core/modal-resizer.js";
 
 const MODAL_ID = "autoexec-tool-modal";
+let openRequestId = 0;
 
 export async function openAutoexecTool() {
+  const requestId = ++openRequestId;
   const modal = ensureModal();
   modal.classList.remove("hidden");
   const body = modal.querySelector("[data-autoexec-tool-body]");
@@ -16,8 +18,10 @@ export async function openAutoexecTool() {
       callApp("GetAutoexecConfig"),
       callApp("GetAutoexecCommandHelp", ""),
     ]);
+    if (requestId !== openRequestId || modal.classList.contains("hidden")) return;
     renderEditor(modal, config || {}, Array.isArray(help) ? help : []);
   } catch (error) {
+    if (requestId !== openRequestId || modal.classList.contains("hidden")) return;
     body.innerHTML = `<div class="autoexec-tool-error">${escapeHtml(formatError(error))}</div>`;
     showError("读取 autoexec.cfg 失败: " + formatError(error));
   }
@@ -97,6 +101,8 @@ function renderEditor(modal, config, help) {
   const matches = body.querySelector("[data-autoexec-tool-matches]");
   const lineNumberEditor = attachLineNumberGutter(editor, lineNumbers);
   let analysisRequest = 0;
+  let helpSearchRequest = 0;
+  let helpSearchTimer = null;
   const analyze = async () => {
     if (!editor || typeof window?.go?.app?.App?.AnalyzeAutoexecCommands !== "function") return;
     const requestId = ++analysisRequest;
@@ -121,14 +127,22 @@ function renderEditor(modal, config, help) {
   editor?.addEventListener("input", analyze);
   analyze();
 
-  body.querySelector("[data-autoexec-tool-search]")?.addEventListener("input", async (event) => {
-    try {
-      const filtered = await callApp("GetAutoexecCommandHelp", event.target.value || "");
-      const list = body.querySelector("[data-autoexec-tool-help]");
-      if (list) list.innerHTML = renderHelpItems(filtered);
-    } catch (error) {
-      showNotification("搜索指令说明失败: " + formatError(error), "error");
-    }
+  body.querySelector("[data-autoexec-tool-search]")?.addEventListener("input", (event) => {
+    if (helpSearchTimer) window.clearTimeout(helpSearchTimer);
+    const query = event.target.value || "";
+    helpSearchTimer = window.setTimeout(async () => {
+      helpSearchTimer = null;
+      const requestId = ++helpSearchRequest;
+      try {
+        const filtered = await callApp("GetAutoexecCommandHelp", query);
+        if (requestId !== helpSearchRequest || modal.classList.contains("hidden") || !body.isConnected) return;
+        const list = body.querySelector("[data-autoexec-tool-help]");
+        if (list) list.innerHTML = renderHelpItems(filtered);
+      } catch (error) {
+        if (requestId !== helpSearchRequest || modal.classList.contains("hidden") || !body.isConnected) return;
+        showNotification("搜索指令说明失败: " + formatError(error), "error");
+      }
+    }, 160);
   });
   body.querySelector("[data-autoexec-tool-help]")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-autoexec-command]");
