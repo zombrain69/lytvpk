@@ -892,6 +892,7 @@ function bindSettingsPage(deps) {
 
   document.getElementById("settings-manual-check-btn")?.addEventListener("click", async () => {
     const btn = document.getElementById("settings-manual-check-btn");
+    if (!btn || btn.disabled) return;
     btn.disabled = true;
     btn.innerHTML = '<span class="btn-spinner"></span> 检测中...';
     btn.style.pointerEvents = "none";
@@ -899,17 +900,19 @@ function bindSettingsPage(deps) {
       const result = await deps.CheckModUpdates();
       const config = deps.getConfig();
       config.lastUpdateCheckTime = String(Date.now());
-      deps.saveConfig(config);
-      const count = result.total_updates || 0;
+      await deps.saveConfig(config);
+      const count = result?.total_updates || 0;
       deps.showNotification(count > 0 ? `检测完成，发现 ${count} 个Mod有更新` : "检测完成，所有Mod均为最新版本", count > 0 ? "info" : "success");
       await deps.refreshFilesKeepFilter();
     } catch (err) {
       deps.showNotification("检测失败: " + err, "error");
+    } finally {
+      // 无论检测、保存时间戳还是刷新失败，都必须恢复按钮，避免窗口永久卡在“检测中”。
+      btn.disabled = false;
+      const checkIcon = '<svg class="trigger-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>';
+      btn.innerHTML = checkIcon + '<span class="trigger-check-text">立即触发检测</span>';
+      btn.style.pointerEvents = "";
     }
-    btn.disabled = false;
-    const checkIcon = '<svg class="trigger-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>';
-    btn.innerHTML = checkIcon + '<span class="trigger-check-text">立即触发检测</span>';
-    btn.style.pointerEvents = "";
   });
 
   document.querySelectorAll('input[name="settings-browser-target"]').forEach((radio) => {
@@ -1187,6 +1190,7 @@ function bindSettingsPage(deps) {
     const select = event.currentTarget;
     const placement = ["start", "after-enabled", "end"].includes(select.value) ? select.value : "end";
     const previousPlacement = deps.getConfig().unrecordedModLoadOrderPlacement || "end";
+    select.disabled = true;
     try {
       const config = deps.getConfig();
       config.unrecordedModLoadOrderPlacement = placement;
@@ -1195,11 +1199,15 @@ function bindSettingsPage(deps) {
     } catch (error) {
       select.value = previousPlacement;
       deps.showNotification("保存未记录 Mod 插入位置失败: " + error, "error");
+    } finally {
+      select.disabled = false;
     }
   });
 
   document.getElementById("settings-addonlist-guard")?.addEventListener("change", async (event) => {
-    const enabled = event.target.checked;
+    const toggle = event.currentTarget;
+    const enabled = toggle.checked;
+    toggle.disabled = true;
     try {
       await deps.SetAddonListGuardEnabled(enabled);
       // SetAddonListGuardEnabled 会立即持久化后端状态；同时更新前端缓存，
@@ -1210,8 +1218,10 @@ function bindSettingsPage(deps) {
       deps.showNotification(enabled ? "已开启 addonlist.txt 自动恢复监控" : "已关闭 addonlist.txt 自动恢复监控", enabled ? "success" : "info");
       await refreshAddonListPanel();
     } catch (error) {
-      event.target.checked = !enabled;
+      toggle.checked = !enabled;
       deps.showNotification("更新监控状态失败: " + error, "error");
+    } finally {
+      toggle.disabled = false;
     }
   });
 
