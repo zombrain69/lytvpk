@@ -12,6 +12,10 @@ let currentResult = null;
 let closeBound = false;
 let awaitingScanStart = false;
 let scanEventSettled = false;
+// `GetModelStatsScanState` 与 `StartModelStatsScan` 都是异步边界。用窗口
+// 会话号隔离它们，避免用户已关闭窗口后，旧的状态读取又启动一轮扫描，或在
+// 快速重开时把旧请求的状态写进新会话。
+let modalSessionId = 0;
 let currentView = "mods";
 let currentPage = 1;
 let viewSwitchTimer = 0;
@@ -30,6 +34,12 @@ export function configureModelStatsScan(deps = {}) {
 export async function openModelStatsScanModal() {
   const modal = getModal();
   if (!modal) return;
+  const sessionId = ++modalSessionId;
+  const isCurrentSession = () =>
+    sessionId === modalSessionId &&
+    modalOpen &&
+    modal.isConnected &&
+    !modal.classList.contains("hidden");
 
   modalOpen = true;
   currentResult = null;
@@ -45,6 +55,7 @@ export async function openModelStatsScanModal() {
 
   try {
     const state = await callApp("GetModelStatsScanState");
+    if (!isCurrentSession()) return;
     if (state?.running && state.scanId) {
       activeScanId = state.scanId;
       awaitingScanStart = false;
@@ -55,11 +66,13 @@ export async function openModelStatsScanModal() {
     awaitingScanStart = true;
     scanEventSettled = false;
     const started = await callApp("StartModelStatsScan");
+    if (!isCurrentSession()) return;
     if (scanEventSettled) return;
     if (!activeScanId) activeScanId = started?.scanId || "";
     awaitingScanStart = false;
     renderLoading(started?.progress || { current: 0, total: 0, message: "正在扫描模型面数..." });
   } catch (error) {
+    if (!isCurrentSession()) return;
     awaitingScanStart = false;
     renderError("模型面数检测失败: " + error);
     showError?.("模型面数检测失败: " + error);
@@ -67,6 +80,9 @@ export async function openModelStatsScanModal() {
 }
 
 function closeModelStatsScanModal() {
+  // 让尚未返回的 GetModelStatsScanState/StartModelStatsScan 失效。正在运行的
+  // 后端扫描仍可继续；下次打开会重新接入它，而不是由旧 UI 回调继续操作。
+  modalSessionId += 1;
   modalOpen = false;
   activeScanId = "";
   awaitingScanStart = false;

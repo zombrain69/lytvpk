@@ -18,10 +18,10 @@ export async function openAutoexecTool() {
       callApp("GetAutoexecConfig"),
       callApp("GetAutoexecCommandHelp", ""),
     ]);
-    if (requestId !== openRequestId || modal.classList.contains("hidden")) return;
-    renderEditor(modal, config || {}, Array.isArray(help) ? help : []);
+    if (!isCurrentOpenSession(modal, requestId)) return;
+    renderEditor(modal, config || {}, Array.isArray(help) ? help : [], requestId);
   } catch (error) {
-    if (requestId !== openRequestId || modal.classList.contains("hidden")) return;
+    if (!isCurrentOpenSession(modal, requestId)) return;
     body.innerHTML = `<div class="autoexec-tool-error">${escapeHtml(formatError(error))}</div>`;
     showError("读取 autoexec.cfg 失败: " + formatError(error));
   }
@@ -60,7 +60,7 @@ function ensureModal() {
   return modal;
 }
 
-function renderEditor(modal, config, help) {
+function renderEditor(modal, config, help, sessionId) {
   const body = modal.querySelector("[data-autoexec-tool-body]");
   const saveButton = modal.querySelector("[data-autoexec-tool-save]");
   if (!body || !saveButton) return;
@@ -104,11 +104,15 @@ function renderEditor(modal, config, help) {
   let helpSearchRequest = 0;
   let helpSearchTimer = null;
   const analyze = async () => {
-    if (!editor || typeof window?.go?.app?.App?.AnalyzeAutoexecCommands !== "function") return;
+    if (!editor || !isCurrentOpenSession(modal, sessionId) || typeof window?.go?.app?.App?.AnalyzeAutoexecCommands !== "function") return;
     const requestId = ++analysisRequest;
     try {
       const result = await callApp("AnalyzeAutoexecCommands", editor.value);
-      if (requestId !== analysisRequest) return;
+      if (
+        requestId !== analysisRequest ||
+        !isCurrentOpenSession(modal, sessionId) ||
+        !editor.isConnected
+      ) return;
       const items = Array.isArray(result) ? result : [];
       const known = items.filter((item) => item.known).length;
       const unknown = items.length - known;
@@ -120,7 +124,11 @@ function renderEditor(modal, config, help) {
       }
       renderMatches(matches, items);
     } catch (error) {
-      if (requestId !== analysisRequest) return;
+      if (
+        requestId !== analysisRequest ||
+        !isCurrentOpenSession(modal, sessionId) ||
+        !editor.isConnected
+      ) return;
       if (analysis) analysis.textContent = `指令识别失败：${formatError(error)}`;
     }
   };
@@ -132,14 +140,23 @@ function renderEditor(modal, config, help) {
     const query = event.target.value || "";
     helpSearchTimer = window.setTimeout(async () => {
       helpSearchTimer = null;
+      if (!isCurrentOpenSession(modal, sessionId)) return;
       const requestId = ++helpSearchRequest;
       try {
         const filtered = await callApp("GetAutoexecCommandHelp", query);
-        if (requestId !== helpSearchRequest || modal.classList.contains("hidden") || !body.isConnected) return;
+        if (
+          requestId !== helpSearchRequest ||
+          !isCurrentOpenSession(modal, sessionId) ||
+          !body.isConnected
+        ) return;
         const list = body.querySelector("[data-autoexec-tool-help]");
         if (list) list.innerHTML = renderHelpItems(filtered);
       } catch (error) {
-        if (requestId !== helpSearchRequest || modal.classList.contains("hidden") || !body.isConnected) return;
+        if (
+          requestId !== helpSearchRequest ||
+          !isCurrentOpenSession(modal, sessionId) ||
+          !body.isConnected
+        ) return;
         showNotification("搜索指令说明失败: " + formatError(error), "error");
       }
     }, 160);
@@ -169,13 +186,15 @@ function renderEditor(modal, config, help) {
   });
   saveButton.disabled = !config.path;
   saveButton.onclick = async () => {
-    if (!editor) return;
+    if (!editor || !isCurrentOpenSession(modal, sessionId)) return;
     saveButton.disabled = true;
     try {
       await callApp("SaveAutoexecConfig", editor.value);
+      if (!isCurrentOpenSession(modal, sessionId)) return;
       showNotification("已保存 autoexec.cfg（编码与换行格式已保留）", "success");
       closeModal(modal);
     } catch (error) {
+      if (!isCurrentOpenSession(modal, sessionId)) return;
       showError("保存 autoexec.cfg 失败: " + formatError(error));
       saveButton.disabled = false;
     }
@@ -222,7 +241,18 @@ function renderMatches(container, items) {
 }
 
 function closeModal(modal) {
+  // 关闭后使当前编辑器及其搜索/保存请求全部失效；否则快速重开时旧回调
+  // 可能更新新会话的帮助列表，甚至把新窗口一起关闭。
+  openRequestId += 1;
   modal.classList.add("hidden");
+}
+
+function isCurrentOpenSession(modal, sessionId) {
+  return (
+    sessionId === openRequestId &&
+    modal?.isConnected &&
+    !modal.classList.contains("hidden")
+  );
 }
 
 function callApp(methodName, ...args) {
