@@ -16,6 +16,9 @@ let activeTab = "overview";
 let currentReport = null;
 let tableState = {};
 let closeBound = false;
+// 解析请求可能在窗口关闭或切换到另一个转储后才返回。
+// 每次打开/关闭都推进会话号，防止旧结果覆盖当前窗口。
+let reportRequestId = 0;
 
 export async function openMDMPReportTool() {
   let filePath = "";
@@ -30,6 +33,7 @@ export async function openMDMPReportTool() {
 }
 
 export async function openMDMPReportFromPath(filePath) {
+  const requestId = ++reportRequestId;
   try {
     currentReport = null;
     activeTab = "overview";
@@ -38,10 +42,22 @@ export async function openMDMPReportFromPath(filePath) {
     renderLoading(filePath);
 
     const report = await callApp("ParseMDMPFile", filePath);
+    if (
+      requestId !== reportRequestId ||
+      getModal()?.classList.contains("hidden")
+    ) {
+      return;
+    }
     currentReport = report || {};
     renderReport();
     showNotification("崩溃转储解析完成", "success");
   } catch (error) {
+    if (
+      requestId !== reportRequestId ||
+      getModal()?.classList.contains("hidden")
+    ) {
+      return;
+    }
     renderError("解析崩溃转储失败: " + formatError(error));
     showError("解析崩溃转储失败: " + formatError(error));
   }
@@ -53,6 +69,7 @@ function openModal() {
 }
 
 function closeModal() {
+  reportRequestId += 1;
   currentReport = null;
   tableState = {};
   getBody()?.replaceChildren();
