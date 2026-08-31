@@ -1295,7 +1295,17 @@ export function setupPanelModalListeners() {
     (modalId) => {
       document.getElementById(modalId)?.addEventListener("click", function (e) {
         if (e.target === this) {
-          this.classList.add("hidden");
+          // Route backdrop closes through the same cleanup functions as the
+          // explicit close buttons. This invalidates in-flight requests and
+          // clears upload refresh timers before the modal is opened again.
+          const closeModal = {
+            "panel-server-details-modal": closePanelServerDetailsModal,
+            "panel-map-modal": closePanelMapModal,
+            "panel-difficulty-modal": closePanelDifficultyModal,
+            "panel-upload-modal": closePanelUploadModal,
+            "panel-rcon-modal": closePanelRconModal,
+          }[modalId];
+          closeModal?.();
         }
       });
     }

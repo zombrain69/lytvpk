@@ -23,6 +23,7 @@ import {
 } from "./utils.js";
 
 const descriptionTranslationCache = new Map();
+let workshopDetailRequestId = 0;
 const TRANSLATE_ICON_SVG = `
   <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="m5 8 6 6"></path>
@@ -77,6 +78,7 @@ function hideWorkshopDetailView(detailView, browserBody) {
 export function resetWorkshopDetailView(detailView) {
   if (!detailView) return;
 
+  workshopDetailRequestId += 1;
   detailView.classList.add("hidden");
   detailView.classList.remove("workshop-detail-enter", "workshop-detail-leave");
   detailView.closest(".browser-body")?.classList.remove("detail-open");
@@ -471,6 +473,7 @@ function renderWorkshopDetail(detail, options = {}) {
 }
 
 export async function openWorkshopDetail(item, options = {}) {
+  const requestId = ++workshopDetailRequestId;
   const detailView = document.getElementById("browser-detail-view");
   const browserBody = detailView.closest(".browser-body");
   showWorkshopDetailView(detailView, browserBody);
@@ -478,8 +481,10 @@ export async function openWorkshopDetail(item, options = {}) {
 
   try {
     const detail = await workshopDeps.FetchWorkshopDetail(getWorkshopItemId(item));
+    if (requestId !== workshopDetailRequestId) return;
     renderWorkshopDetail(detail, options);
   } catch (err) {
+    if (requestId !== workshopDetailRequestId) return;
     detailView.innerHTML = `
             <div class="loading-placeholder">
                 <p>加载详情失败: ${err}</p>

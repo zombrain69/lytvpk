@@ -20,6 +20,14 @@ import {
 } from "./watch-later.js";
 
 let browserOpenedFromWorkshopModal = false;
+let workshopLoadRequestId = 0;
+let workshopSelectingPollTimer = null;
+
+function clearWorkshopSelectingPoll() {
+  if (workshopSelectingPollTimer === null) return;
+  clearInterval(workshopSelectingPollTimer);
+  workshopSelectingPollTimer = null;
+}
 
 function updateWorkshopTypeToggle() {
   const toggle = document.getElementById("browser-type-toggle");
@@ -111,70 +119,101 @@ export function openBrowser(options = {}) {
 }
 
 export async function loadWorkshopList() {
-  if (browserState.loading) return;
-  browserState.loading = true;
-
-  const isSelecting = await workshopDeps.IsSelectingIP();
-  if (isSelecting) {
-    browserState.loading = false;
-
-    const grid = document.getElementById("browser-grid");
-    const loadingEl = document.getElementById("browser-loading");
-    const loadMoreBtn = document.getElementById("browser-load-more");
-
-    browserState.loadFailed = false;
-    if (loadMoreBtn) updateWorkshopLoadMoreButton();
-    if (grid && browserState.page === 1) grid.innerHTML = "";
-
-    if (loadingEl) {
-      loadingEl.classList.remove("hidden");
-      loadingEl.innerHTML = renderWorkshopLoading(
-        "正在优选最佳网络线路...",
-        "优选完成后将自动加载创意工坊列表"
-      );
-    }
-
-    const checkInterval = setInterval(async () => {
-      const stillSelecting = await workshopDeps.IsSelectingIP();
-      if (!stillSelecting) {
-        clearInterval(checkInterval);
-        if (loadingEl) loadingEl.innerHTML = renderWorkshopLoading();
-        loadWorkshopList();
-      }
-    }, 1000);
-
+  const requestVersion = Number(browserState.requestVersion || 0);
+  if (
+    browserState.loading &&
+    browserState.loadingRequestVersion === requestVersion
+  ) {
     return;
   }
 
-  const detailView = document.getElementById("browser-detail-view");
-  if (detailView) {
-    resetWorkshopDetailView(detailView);
-  }
+  const requestId = ++workshopLoadRequestId;
+  const isCurrentRequest = () =>
+    requestId === workshopLoadRequestId &&
+    Number(browserState.requestVersion || 0) === requestVersion;
 
-  const grid = document.getElementById("browser-grid");
-  const loadingEl = document.getElementById("browser-loading");
-
-  loadingEl.classList.remove("hidden");
-  loadingEl.innerHTML = renderWorkshopLoading(
-    browserState.page === 1 ? "正在加载创意工坊列表..." : "正在加载更多内容..."
-  );
-  browserState.loadFailed = false;
-  updateWorkshopLoadMoreButton();
-
-  if (browserState.page === 1) {
-    grid.innerHTML = "";
-    browserState.hasMore = true;
-    const scrollContainer = document.getElementById("browser-scroll-container");
-    if (scrollContainer) scrollContainer.scrollTop = 0;
-  } else {
-    const errorEl = grid.querySelector(".error-state");
-    if (errorEl) errorEl.remove();
-
-    const emptyEl = grid.querySelector(".empty-state");
-    if (emptyEl) emptyEl.remove();
-  }
+  clearWorkshopSelectingPoll();
+  browserState.loading = true;
+  browserState.loadingRequestVersion = requestVersion;
+  let waitingForIP = false;
 
   try {
+    const isSelecting = await workshopDeps.IsSelectingIP();
+    if (!isCurrentRequest()) return;
+
+    if (isSelecting) {
+      waitingForIP = true;
+      browserState.loading = false;
+
+      const grid = document.getElementById("browser-grid");
+      const loadingEl = document.getElementById("browser-loading");
+
+      browserState.loadFailed = false;
+      updateWorkshopLoadMoreButton();
+      if (grid && browserState.page === 1) grid.innerHTML = "";
+
+      if (loadingEl) {
+        loadingEl.classList.remove("hidden");
+        loadingEl.innerHTML = renderWorkshopLoading(
+          "正在优选最佳网络线路...",
+          "优选完成后将自动加载创意工坊列表"
+        );
+      }
+
+      workshopSelectingPollTimer = setInterval(async () => {
+        if (!isCurrentRequest()) {
+          clearWorkshopSelectingPoll();
+          return;
+        }
+        let stillSelecting = false;
+        try {
+          stillSelecting = await workshopDeps.IsSelectingIP();
+        } catch {
+          return;
+        }
+        if (!isCurrentRequest()) {
+          clearWorkshopSelectingPoll();
+          return;
+        }
+        if (!stillSelecting) {
+          clearWorkshopSelectingPoll();
+          if (loadingEl) loadingEl.innerHTML = renderWorkshopLoading();
+          void loadWorkshopList();
+        }
+      }, 1000);
+      return;
+    }
+
+    const detailView = document.getElementById("browser-detail-view");
+    if (detailView) {
+      resetWorkshopDetailView(detailView);
+    }
+
+    const grid = document.getElementById("browser-grid");
+    const loadingEl = document.getElementById("browser-loading");
+
+    loadingEl?.classList.remove("hidden");
+    if (loadingEl) {
+      loadingEl.innerHTML = renderWorkshopLoading(
+        browserState.page === 1 ? "正在加载创意工坊列表..." : "正在加载更多内容..."
+      );
+    }
+    browserState.loadFailed = false;
+    updateWorkshopLoadMoreButton();
+
+    if (browserState.page === 1) {
+      if (grid) grid.innerHTML = "";
+      browserState.hasMore = true;
+      const scrollContainer = document.getElementById("browser-scroll-container");
+      if (scrollContainer) scrollContainer.scrollTop = 0;
+    } else if (grid) {
+      const errorEl = grid.querySelector(".error-state");
+      if (errorEl) errorEl.remove();
+
+      const emptyEl = grid.querySelector(".empty-state");
+      if (emptyEl) emptyEl.remove();
+    }
+
     console.log(
       `[Frontend] Fetching Workshop List: Page=${browserState.page}, Query=${browserState.query}, Sort=${browserState.sort}, FileType=${browserState.filetype}`
     );
@@ -188,26 +227,31 @@ export async function loadWorkshopList() {
     };
 
     const result = await workshopDeps.FetchWorkshopList(opts);
+    if (!isCurrentRequest()) return;
 
-    if (result.items && result.items.length > 0) {
+    if (result?.items && result.items.length > 0) {
       renderWorkshopGrid(result.items);
       browserState.data = browserState.data.concat(result.items);
     } else {
       browserState.hasMore = false;
-      if (browserState.page === 1) {
+      if (browserState.page === 1 && grid) {
         grid.innerHTML =
           '<div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-tertiary);">未找到相关结果</div>';
       }
     }
   } catch (err) {
+    if (!isCurrentRequest()) return;
     console.error("Fetch failed", err);
     browserState.loadFailed = true;
-    if (browserState.page === 1) {
+    const grid = document.getElementById("browser-grid");
+    if (browserState.page === 1 && grid) {
       grid.innerHTML = `<div class="error-state" style="grid-column: 1/-1; text-align: center; color: var(--danger);">加载失败: ${err}</div>`;
     }
   } finally {
+    if (!isCurrentRequest() || waitingForIP) return;
     browserState.loading = false;
-    loadingEl.classList.add("hidden");
+    browserState.loadingRequestVersion = null;
+    document.getElementById("browser-loading")?.classList.add("hidden");
     updateWorkshopLoadMoreButton();
     requestAnimationFrame(maybeAutoLoadNextWorkshopPage);
   }
