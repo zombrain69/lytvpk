@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { beginMessageModalSession } from "../../core/message-modal.js";
 
 let unpackRunning = false;
 
@@ -8,12 +9,15 @@ export async function openVPKUnpackTool() {
     return;
   }
 
+  unpackRunning = true;
   try {
     const vpkPath = await callApp("SelectVPKFile");
     if (!vpkPath) return;
-    await unpackVPKFromPath(vpkPath);
+    await unpackSelectedVPK(vpkPath);
   } catch (error) {
     showError("选择 VPK 失败: " + formatError(error));
+  } finally {
+    unpackRunning = false;
   }
 }
 
@@ -28,6 +32,15 @@ export async function unpackVPKFromPath(vpkPath) {
     return;
   }
 
+  unpackRunning = true;
+  try {
+    await unpackSelectedVPK(vpkPath);
+  } finally {
+    unpackRunning = false;
+  }
+}
+
+async function unpackSelectedVPK(vpkPath) {
   let targetRoot = "";
   try {
     targetRoot = await callApp("SelectVPKUnpackOutputDirectory");
@@ -35,55 +48,36 @@ export async function unpackVPKFromPath(vpkPath) {
     showError("选择解包位置失败: " + formatError(error));
     return;
   }
-
   if (!targetRoot) return;
 
-  unpackRunning = true;
   showNotification("正在解包 VPK...", "info");
-
   try {
     const result = await callApp("UnpackVPKFile", vpkPath, targetRoot);
     showVPKUnpackResult(result);
     showNotification("VPK 解包完成", "success");
   } catch (error) {
     showError("解包失败: " + formatError(error));
-  } finally {
-    unpackRunning = false;
   }
 }
 
 function showVPKUnpackResult(result = {}) {
-  const modal = document.getElementById("message-modal");
-  const titleEl = document.getElementById("message-modal-title");
-  const contentEl = document.getElementById("message-modal-content");
-  const confirmBtn = document.getElementById("message-modal-confirm-btn");
-  const closeBtn = document.getElementById("close-message-modal-btn");
-  const footer = confirmBtn?.parentElement;
-  if (!modal || !titleEl || !contentEl || !confirmBtn || !closeBtn || !footer) return;
+  const session = beginMessageModalSession();
+  if (!session) return;
 
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
   cancelBtn.className = "btn btn-secondary";
   cancelBtn.textContent = "关闭";
 
-  titleEl.textContent = "解包完成";
-  contentEl.replaceChildren(createResultContent(result));
-  confirmBtn.textContent = "打开目标位置";
-  footer.insertBefore(cancelBtn, confirmBtn);
+  session.titleEl.textContent = "解包完成";
+  session.contentEl.replaceChildren(createResultContent(result));
+  session.confirmBtn.textContent = "打开目标位置";
+  session.addActionButton(cancelBtn);
 
-  const cleanup = () => {
-    modal.classList.add("hidden");
-    cancelBtn.remove();
-    contentEl.replaceChildren();
-    confirmBtn.textContent = "确定";
-    confirmBtn.onclick = null;
-    closeBtn.onclick = null;
-  };
-
-  cancelBtn.onclick = cleanup;
-  closeBtn.onclick = cleanup;
-  confirmBtn.onclick = async () => {
-    cleanup();
+  cancelBtn.onclick = () => session.close("close");
+  session.closeBtn.onclick = () => session.close("close");
+  session.confirmBtn.onclick = async () => {
+    session.close("confirm");
     if (!result.outputDir) return;
     try {
       await callApp("OpenFileLocation", result.outputDir);
@@ -92,7 +86,7 @@ function showVPKUnpackResult(result = {}) {
     }
   };
 
-  modal.classList.remove("hidden");
+  session.show();
 }
 
 function createResultContent(result = {}) {

@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { beginMessageModalSession } from "../../core/message-modal.js";
 
 let packRunning = false;
 
@@ -8,39 +9,28 @@ export async function openVPKPackTool({ refreshFilesKeepFilter } = {}) {
     return;
   }
 
-  let sourceDir = "";
-  try {
-    sourceDir = await callApp("SelectVPKPackSourceDirectory");
-  } catch (error) {
-    showError("选择打包目录失败: " + formatError(error));
-    return;
-  }
-  if (!sourceDir) return;
-
-  let outputDir = "";
-  let isAddons = false;
-  try {
-    const choice = await choosePackOutput(sourceDir);
-    outputDir = choice.outputDir;
-    isAddons = !!choice.isAddons;
-  } catch (error) {
-    showError("选择输出位置失败: " + formatError(error));
-    return;
-  }
-  if (!outputDir) return;
-
   packRunning = true;
-  showNotification("正在打包 VPK...", "info");
-
   try {
-    const result = await callApp("PackVPKDirectory", sourceDir, outputDir, isAddons);
+    const sourceDir = await callApp("SelectVPKPackSourceDirectory");
+    if (!sourceDir) return;
+
+    const choice = await choosePackOutput(sourceDir);
+    if (!choice.outputDir) return;
+
+    showNotification("正在打包 VPK...", "info");
+    const result = await callApp(
+      "PackVPKDirectory",
+      sourceDir,
+      choice.outputDir,
+      !!choice.isAddons,
+    );
     showVPKPackResult(result);
     showNotification("VPK 打包完成", "success");
     if (result.outputIsAddons && typeof refreshFilesKeepFilter === "function") {
       await refreshFilesKeepFilter();
     }
   } catch (error) {
-    showError("打包失败: " + formatError(error));
+    showError("打包流程失败: " + formatError(error));
   } finally {
     packRunning = false;
   }
@@ -50,49 +40,33 @@ export async function openVPKPackTool({ refreshFilesKeepFilter } = {}) {
 // Resolves with { outputDir, isAddons } or { outputDir: "" } when cancelled.
 function choosePackOutput(sourceDir) {
   return new Promise((resolve) => {
-    const modal = document.getElementById("message-modal");
-    const titleEl = document.getElementById("message-modal-title");
-    const contentEl = document.getElementById("message-modal-content");
-    const confirmBtn = document.getElementById("message-modal-confirm-btn");
-    const closeBtn = document.getElementById("close-message-modal-btn");
-    const footer = confirmBtn?.parentElement;
-    if (!modal || !titleEl || !contentEl || !confirmBtn || !closeBtn || !footer) {
-      resolve({ outputDir: "" });
-      return;
-    }
+    let settled = false;
+    let session = null;
+    const done = (value, reason = "choice") => {
+      if (settled) return;
+      settled = true;
+      session?.close(reason);
+      resolve(value);
+    };
+    session = beginMessageModalSession({
+      onClose: () => done({ outputDir: "" }, "cancel"),
+    });
+    if (!session) return done({ outputDir: "" }, "unavailable");
 
     const otherBtn = document.createElement("button");
     otherBtn.type = "button";
     otherBtn.className = "btn btn-secondary";
     otherBtn.textContent = "选择其他位置";
 
-    titleEl.textContent = "选择打包输出位置";
-    contentEl.replaceChildren(createOutputChoiceContent(sourceDir));
-    confirmBtn.textContent = "放入当前 addons";
-    footer.insertBefore(otherBtn, confirmBtn);
+    session.titleEl.textContent = "选择打包输出位置";
+    session.contentEl.replaceChildren(createOutputChoiceContent(sourceDir));
+    session.confirmBtn.textContent = "放入当前 addons";
+    session.addActionButton(otherBtn);
 
-    let settled = false;
+    session.closeBtn.onclick = () => session.close("close");
 
-    const cleanup = () => {
-      modal.classList.add("hidden");
-      otherBtn.remove();
-      contentEl.replaceChildren();
-      confirmBtn.textContent = "确定";
-      confirmBtn.onclick = null;
-      closeBtn.onclick = null;
-      otherBtn.onclick = null;
-    };
-
-    const done = (value) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(value);
-    };
-
-    closeBtn.onclick = () => done({ outputDir: "" });
-
-    confirmBtn.onclick = async () => {
+    session.confirmBtn.onclick = async () => {
+      session.setPending(true);
       try {
         const addons = await callApp("GetRootDirectory");
         if (!addons) {
@@ -102,20 +76,25 @@ function choosePackOutput(sourceDir) {
         done({ outputDir: addons, isAddons: true });
       } catch (error) {
         showError("获取 addons 目录失败: " + formatError(error));
+      } finally {
+        session.setPending(false);
       }
     };
 
     otherBtn.onclick = async () => {
+      session.setPending(true);
       try {
         const dir = await callApp("SelectDirectory");
         if (!dir) return;
         done({ outputDir: dir, isAddons: false });
       } catch (error) {
         showError("选择目录失败: " + formatError(error));
+      } finally {
+        session.setPending(false);
       }
     };
 
-    modal.classList.remove("hidden");
+    session.show();
   });
 }
 
@@ -140,37 +119,23 @@ function createOutputChoiceContent(sourceDir) {
 }
 
 function showVPKPackResult(result = {}) {
-  const modal = document.getElementById("message-modal");
-  const titleEl = document.getElementById("message-modal-title");
-  const contentEl = document.getElementById("message-modal-content");
-  const confirmBtn = document.getElementById("message-modal-confirm-btn");
-  const closeBtn = document.getElementById("close-message-modal-btn");
-  const footer = confirmBtn?.parentElement;
-  if (!modal || !titleEl || !contentEl || !confirmBtn || !closeBtn || !footer) return;
+  const session = beginMessageModalSession();
+  if (!session) return;
 
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
   cancelBtn.className = "btn btn-secondary";
   cancelBtn.textContent = "关闭";
 
-  titleEl.textContent = "打包完成";
-  contentEl.replaceChildren(createPackResultContent(result));
-  confirmBtn.textContent = "打开目标位置";
-  footer.insertBefore(cancelBtn, confirmBtn);
+  session.titleEl.textContent = "打包完成";
+  session.contentEl.replaceChildren(createPackResultContent(result));
+  session.confirmBtn.textContent = "打开目标位置";
+  session.addActionButton(cancelBtn);
 
-  const cleanup = () => {
-    modal.classList.add("hidden");
-    cancelBtn.remove();
-    contentEl.replaceChildren();
-    confirmBtn.textContent = "确定";
-    confirmBtn.onclick = null;
-    closeBtn.onclick = null;
-  };
-
-  cancelBtn.onclick = cleanup;
-  closeBtn.onclick = cleanup;
-  confirmBtn.onclick = async () => {
-    cleanup();
+  cancelBtn.onclick = () => session.close("close");
+  session.closeBtn.onclick = () => session.close("close");
+  session.confirmBtn.onclick = async () => {
+    session.close("confirm");
     if (!result.outputPath) return;
     try {
       await callApp("OpenFileLocation", result.outputPath);
@@ -179,7 +144,7 @@ function showVPKPackResult(result = {}) {
     }
   };
 
-  modal.classList.remove("hidden");
+  session.show();
 }
 
 function createPackResultContent(result = {}) {

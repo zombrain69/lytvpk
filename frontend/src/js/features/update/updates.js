@@ -1,3 +1,5 @@
+import { showMessageModal } from "../../core/message-modal.js";
+
 let getConfig;
 let saveConfig;
 let EventsOn;
@@ -623,27 +625,7 @@ export async function showUpdateModal(info) {
   modal.classList.remove("hidden");
 }
 
-// 显示通用消息弹窗
-export function showMessageModal(title, message, onConfirm) {
-  const modal = document.getElementById("message-modal");
-  const titleEl = document.getElementById("message-modal-title");
-  const contentEl = document.getElementById("message-modal-content");
-  const confirmBtn = document.getElementById("message-modal-confirm-btn");
-  const closeBtn = document.getElementById("close-message-modal-btn");
-
-  titleEl.textContent = title;
-  contentEl.textContent = message;
-
-  const closeModal = () => {
-    modal.classList.add("hidden");
-    if (onConfirm) onConfirm();
-  };
-
-  confirmBtn.onclick = closeModal;
-  closeBtn.onclick = () => modal.classList.add("hidden"); // 关闭按钮不触发回调
-
-  modal.classList.remove("hidden");
-}
+export { showMessageModal };
 
 // 执行更新逻辑
 export async function performUpdate(mirrorUrl) {

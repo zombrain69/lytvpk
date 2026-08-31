@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { beginMessageModalSession } from "../../core/message-modal.js";
 
 let integrityRunning = false;
 
@@ -8,15 +9,16 @@ export async function openVPKIntegrityTool() {
     return;
   }
 
-  let vpkPath = "";
+  integrityRunning = true;
   try {
-    vpkPath = await callApp("SelectVPKFile");
+    const vpkPath = await callApp("SelectVPKFile");
+    if (!vpkPath) return;
+    await inspectVPKIntegrityPaths([vpkPath]);
   } catch (error) {
     showError("选择 VPK 失败: " + formatError(error));
-    return;
+  } finally {
+    integrityRunning = false;
   }
-  if (!vpkPath) return;
-  await openVPKIntegrityForPaths([vpkPath]);
 }
 
 // Opens the same integrity workflow for one or multiple selected VPK files.
@@ -35,6 +37,14 @@ export async function openVPKIntegrityForPaths(filePaths = []) {
   }
 
   integrityRunning = true;
+  try {
+    await inspectVPKIntegrityPaths(paths);
+  } finally {
+    integrityRunning = false;
+  }
+}
+
+async function inspectVPKIntegrityPaths(paths) {
   showNotification(
     paths.length === 1
       ? "正在检查 VPK 文件和 addoninfo.txt..."
@@ -57,70 +67,58 @@ export async function openVPKIntegrityForPaths(filePaths = []) {
     }
   } catch (error) {
     showError("VPK 检测失败: " + formatError(error));
-  } finally {
-    integrityRunning = false;
   }
 }
 
 function showIntegrityReport(report = {}) {
-  const modal = document.getElementById("message-modal");
-  const titleEl = document.getElementById("message-modal-title");
-  const contentEl = document.getElementById("message-modal-content");
-  const confirmBtn = document.getElementById("message-modal-confirm-btn");
-  const closeBtn = document.getElementById("close-message-modal-btn");
-  const footer = confirmBtn?.parentElement;
-  if (!modal || !titleEl || !contentEl || !confirmBtn || !closeBtn || !footer) return;
+  const session = beginMessageModalSession();
+  if (!session) return;
 
   const repairBtn = document.createElement("button");
   repairBtn.type = "button";
   repairBtn.className = "btn btn-primary";
   repairBtn.textContent = "修复并另存为";
   repairBtn.hidden = !report.repairable;
-  setIntegrityModalClass(modal, true);
+  session.addClass(
+    session.modal.querySelector(".modal-content"),
+    "vpk-integrity-modal-content",
+  );
 
-  const cleanup = () => {
-    modal.classList.add("hidden");
-    repairBtn.remove();
-    contentEl.replaceChildren();
-    confirmBtn.textContent = "确定";
-    confirmBtn.onclick = null;
-    closeBtn.onclick = null;
-    setIntegrityModalClass(modal, false);
-  };
-
-  titleEl.textContent = report.valid ? "VPK 检测通过" : "VPK 检测结果";
-  contentEl.replaceChildren(createIntegrityContent(report));
-  confirmBtn.textContent = "关闭";
-  confirmBtn.onclick = cleanup;
-  closeBtn.onclick = cleanup;
+  session.titleEl.textContent = report.valid ? "VPK 检测通过" : "VPK 检测结果";
+  session.contentEl.replaceChildren(createIntegrityContent(report));
+  session.confirmBtn.textContent = "关闭";
+  session.confirmBtn.onclick = () => session.close("close");
+  session.closeBtn.onclick = () => session.close("close");
   if (report.repairable) {
-    footer.insertBefore(repairBtn, confirmBtn);
+    session.addActionButton(repairBtn);
     repairBtn.onclick = async () => {
-      repairBtn.disabled = true;
+      integrityRunning = true;
+      session.setPending(true);
       repairBtn.textContent = "修复中...";
       try {
         const result = await callApp("RepairVPKIntegrity", report.path);
-        cleanup();
-        showRepairResult(result);
+        if (session.isCurrent()) {
+          session.close("repair");
+          showRepairResult(result);
+        }
         showNotification("VPK 已修复并生成新文件，原文件未改动", "success");
       } catch (error) {
-        repairBtn.disabled = false;
-        repairBtn.textContent = "修复并另存为";
+        if (session.isCurrent()) {
+          session.setPending(false);
+          repairBtn.textContent = "修复并另存为";
+        }
         showError("VPK 修复失败: " + formatError(error));
+      } finally {
+        integrityRunning = false;
       }
     };
   }
-  modal.classList.remove("hidden");
+  session.show();
 }
 
 function showIntegrityBatchReport(results = []) {
-  const modal = document.getElementById("message-modal");
-  const titleEl = document.getElementById("message-modal-title");
-  const contentEl = document.getElementById("message-modal-content");
-  const confirmBtn = document.getElementById("message-modal-confirm-btn");
-  const closeBtn = document.getElementById("close-message-modal-btn");
-  const footer = confirmBtn?.parentElement;
-  if (!modal || !titleEl || !contentEl || !confirmBtn || !closeBtn || !footer) return;
+  const session = beginMessageModalSession();
+  if (!session) return;
 
   const safeResults = Array.isArray(results) ? results : [];
   const repairPaths = safeResults
@@ -131,42 +129,42 @@ function showIntegrityBatchReport(results = []) {
   repairBtn.className = "btn btn-primary";
   repairBtn.textContent = `修复可修复项 (${repairPaths.length})`;
   repairBtn.hidden = repairPaths.length === 0;
-  setIntegrityModalClass(modal, true);
+  session.addClass(
+    session.modal.querySelector(".modal-content"),
+    "vpk-integrity-modal-content",
+  );
 
-  const cleanup = () => {
-    modal.classList.add("hidden");
-    repairBtn.remove();
-    contentEl.replaceChildren();
-    confirmBtn.textContent = "确定";
-    confirmBtn.onclick = null;
-    closeBtn.onclick = null;
-    setIntegrityModalClass(modal, false);
-  };
-
-  titleEl.textContent = `VPK 批量检测结果 (${safeResults.length})`;
-  contentEl.replaceChildren(createBatchIntegrityContent(safeResults));
-  confirmBtn.textContent = "关闭";
-  confirmBtn.onclick = cleanup;
-  closeBtn.onclick = cleanup;
+  session.titleEl.textContent = `VPK 批量检测结果 (${safeResults.length})`;
+  session.contentEl.replaceChildren(createBatchIntegrityContent(safeResults));
+  session.confirmBtn.textContent = "关闭";
+  session.confirmBtn.onclick = () => session.close("close");
+  session.closeBtn.onclick = () => session.close("close");
   if (repairPaths.length > 0) {
-    footer.insertBefore(repairBtn, confirmBtn);
+    session.addActionButton(repairBtn);
     repairBtn.onclick = async () => {
-      repairBtn.disabled = true;
+      integrityRunning = true;
+      session.setPending(true);
       repairBtn.textContent = "批量修复中...";
       try {
         const repaired = await callApp("RepairVPKIntegrityBatch", repairPaths);
-        cleanup();
-        showRepairBatchResult(repaired);
+        if (session.isCurrent()) {
+          session.close("repair");
+          showRepairBatchResult(repaired);
+        }
         const successCount = repaired.filter((item) => item?.outputPath && !item?.error).length;
         showNotification(`批量修复完成：成功生成 ${successCount} 个 VPK`, "success");
       } catch (error) {
-        repairBtn.disabled = false;
-        repairBtn.textContent = `修复可修复项 (${repairPaths.length})`;
+        if (session.isCurrent()) {
+          session.setPending(false);
+          repairBtn.textContent = `修复可修复项 (${repairPaths.length})`;
+        }
         showError("批量 VPK 修复失败: " + formatError(error));
+      } finally {
+        integrityRunning = false;
       }
     };
   }
-  modal.classList.remove("hidden");
+  session.show();
 }
 
 function showRepairResult(result = {}) {
@@ -174,41 +172,32 @@ function showRepairResult(result = {}) {
 }
 
 function showRepairBatchResult(results = [], single = false) {
-  const modal = document.getElementById("message-modal");
-  const titleEl = document.getElementById("message-modal-title");
-  const contentEl = document.getElementById("message-modal-content");
-  const confirmBtn = document.getElementById("message-modal-confirm-btn");
-  const closeBtn = document.getElementById("close-message-modal-btn");
-  if (!modal || !titleEl || !contentEl || !confirmBtn || !closeBtn) return;
+  const session = beginMessageModalSession();
+  if (!session) return;
 
   const safeResults = Array.isArray(results) ? results : [];
   const outputPaths = safeResults.filter((item) => item?.outputPath).map((item) => item.outputPath);
-  titleEl.textContent = single ? "VPK 修复完成" : "VPK 批量修复结果";
-  contentEl.replaceChildren(createRepairBatchContent(safeResults));
-  confirmBtn.textContent = outputPaths.length > 0 ? "打开输出位置" : "关闭";
-  setIntegrityModalClass(modal, true);
-  const cleanup = () => {
-    modal.classList.add("hidden");
-    contentEl.replaceChildren();
-    confirmBtn.textContent = "确定";
-    confirmBtn.onclick = null;
-    closeBtn.onclick = null;
-    setIntegrityModalClass(modal, false);
-  };
-  closeBtn.onclick = cleanup;
-  confirmBtn.onclick = async () => {
+  session.titleEl.textContent = single ? "VPK 修复完成" : "VPK 批量修复结果";
+  session.contentEl.replaceChildren(createRepairBatchContent(safeResults));
+  session.confirmBtn.textContent = outputPaths.length > 0 ? "打开输出位置" : "关闭";
+  session.addClass(
+    session.modal.querySelector(".modal-content"),
+    "vpk-integrity-modal-content",
+  );
+  session.closeBtn.onclick = () => session.close("close");
+  session.confirmBtn.onclick = async () => {
     if (outputPaths.length === 0) {
-      cleanup();
+      session.close("close");
       return;
     }
-    cleanup();
+    session.close("confirm");
     try {
       await callApp("OpenFileLocation", outputPaths[0]);
     } catch (error) {
       showError("打开修复文件位置失败: " + formatError(error));
     }
   };
-  modal.classList.remove("hidden");
+  session.show();
 }
 
 function createIntegrityContent(report = {}) {
@@ -373,10 +362,6 @@ function createPathBlock(label, value) {
   pathValue.title = value;
   pathBlock.append(pathLabel, pathValue);
   return pathBlock;
-}
-
-function setIntegrityModalClass(modal, enabled) {
-  modal?.querySelector(".modal-content")?.classList.toggle("vpk-integrity-modal-content", enabled);
 }
 
 function normalizePaths(filePaths) {
