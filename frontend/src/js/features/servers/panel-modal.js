@@ -77,11 +77,14 @@ let panelOfficialMapsHidden = false;
 let panelMapRequestToken = 0;
 let panelMapFileRequestToken = 0;
 let panelStatusRequestToken = 0;
+let panelServerDetailsSessionToken = 0;
 // 这些子窗口会复用同一组 DOM。操作返回时必须确认仍属于原服务器和原窗口，
 // 否则旧响应会把新打开的窗口关闭或写入错误内容。
 let panelDifficultySessionToken = 0;
 let panelMapActionSessionToken = 0;
 let panelRconSessionToken = 0;
+let panelUploadSessionToken = 0;
+let panelMapHotReloadSessionToken = 0;
 let panelMapFilesRefreshTimer = null;
 const completedPanelUploadNotifications = new Set();
 
@@ -102,6 +105,14 @@ export function openPanelServerDetailsModal(index) {
   const server = getServers()[index];
   if (!server) return;
 
+  panelServerDetailsSessionToken += 1;
+  // 详情窗口切换服务器时，所有子窗口及其未完成操作都属于旧服务器，必须先
+  // 统一关闭并失效，避免确认框或文件选择返回后读取新的 currentPanelServer。
+  closePanelMapModal();
+  closePanelDifficultyModal();
+  closePanelUploadModal();
+  closePanelRconModal();
+
   currentPanelServer = server;
   currentPanelServerIndex = index;
   currentPanelDifficulty = "";
@@ -118,16 +129,31 @@ export function openPanelServerDetailsModal(index) {
   content.classList.add("hidden");
   error.classList.add("hidden");
   error.innerHTML = "";
+  document.getElementById("panel-restart-btn")?.removeAttribute("disabled");
   modal.classList.remove("hidden");
 
   loadPanelStatus(server);
 }
 
 export function closePanelServerDetailsModal() {
+  panelServerDetailsSessionToken += 1;
   panelStatusRequestToken += 1;
+  closePanelMapModal();
+  closePanelDifficultyModal();
+  closePanelUploadModal();
+  closePanelRconModal();
   document.getElementById("panel-server-details-modal")?.classList.add("hidden");
   currentPanelServer = null;
   currentPanelServerIndex = -1;
+}
+
+function isCurrentPanelServerDetailsSession(serverID, sessionToken) {
+  const modal = document.getElementById("panel-server-details-modal");
+  return (
+    sessionToken === panelServerDetailsSessionToken &&
+    String(currentPanelServer?.id || "") === String(serverID || "") &&
+    !modal?.classList.contains("hidden")
+  );
 }
 
 function isPanelStatusRequestActive(requestToken, server) {
@@ -261,20 +287,28 @@ export function refreshCurrentPanelStatus() {
 
 export function restartCurrentPanelServer() {
   if (!currentPanelServer) return;
+  const serverID = currentPanelServer.id;
+  const serverName = currentPanelServer.name;
+  const sessionToken = panelServerDetailsSessionToken;
   showConfirmModal(
     "重启服务器",
-    `确定要重启 "${currentPanelServer.name}" 吗？当前玩家会断开连接。`,
+    `确定要重启 "${serverName}" 吗？当前玩家会断开连接。`,
     async () => {
+      if (!isCurrentPanelServerDetailsSession(serverID, sessionToken)) return;
       const btn = document.getElementById("panel-restart-btn");
-      btn.disabled = true;
+      btn?.setAttribute("disabled", "true");
       try {
-        const text = await RestartPanelServer(currentPanelServer.id);
+        const text = await RestartPanelServer(serverID);
+        if (!isCurrentPanelServerDetailsSession(serverID, sessionToken)) return;
         showNotification(text || "重启指令已发送", "success");
       } catch (err) {
+        if (!isCurrentPanelServerDetailsSession(serverID, sessionToken)) return;
         console.error("重启失败:", err);
         showError("重启失败: " + err);
       } finally {
-        btn.disabled = false;
+        if (isCurrentPanelServerDetailsSession(serverID, sessionToken) && btn?.isConnected) {
+          btn.removeAttribute("disabled");
+        }
       }
     }
   );
@@ -388,6 +422,7 @@ async function handlePanelDifficultyClick(event) {
 export function openPanelMapModal() {
   if (!currentPanelServer) return;
   panelMapActionSessionToken += 1;
+  panelMapHotReloadSessionToken += 1;
   const modal = document.getElementById("panel-map-modal");
   const title = document.getElementById("panel-map-title");
   const search = document.getElementById("panel-map-search");
@@ -402,6 +437,8 @@ export function openPanelMapModal() {
 export function closePanelMapModal() {
   panelMapRequestToken += 1;
   panelMapActionSessionToken += 1;
+  panelMapHotReloadSessionToken += 1;
+  setPanelMapHotReloading(false);
   document.getElementById("panel-map-modal")?.classList.add("hidden");
 }
 
@@ -409,6 +446,18 @@ function isCurrentPanelMapActionSession(serverID, sessionToken) {
   return (
     sessionToken === panelMapActionSessionToken &&
     String(currentPanelServer?.id || "") === String(serverID || "") &&
+    isPanelMapModalOpen()
+  );
+}
+
+function isCurrentPanelMapHotReloadSession(
+  serverID,
+  detailsSessionToken,
+  hotReloadSessionToken
+) {
+  return (
+    hotReloadSessionToken === panelMapHotReloadSessionToken &&
+    isCurrentPanelServerDetailsSession(serverID, detailsSessionToken) &&
     isPanelMapModalOpen()
   );
 }
@@ -464,34 +513,101 @@ function setPanelMapHotReloading(loading) {
   button.querySelector(".icon-svg")?.classList.toggle("spinning", loading);
 }
 
-async function executePanelMapHotReload() {
-  if (!currentPanelServer) return;
+async function executePanelMapHotReload(
+  serverID,
+  detailsSessionToken,
+  hotReloadSessionToken
+) {
+  if (
+    !isCurrentPanelMapHotReloadSession(
+      serverID,
+      detailsSessionToken,
+      hotReloadSessionToken
+    )
+  ) {
+    return;
+  }
 
   setPanelMapHotReloading(true);
   try {
-    const result = await HotReloadPanelMaps(currentPanelServer.id);
+    const result = await HotReloadPanelMaps(serverID);
+    if (
+      !isCurrentPanelMapHotReloadSession(
+        serverID,
+        detailsSessionToken,
+        hotReloadSessionToken
+      )
+    ) {
+      return;
+    }
     showNotification(result?.message || "地图热重载指令已发送", "success");
   } catch (err) {
+    if (
+      !isCurrentPanelMapHotReloadSession(
+        serverID,
+        detailsSessionToken,
+        hotReloadSessionToken
+      )
+    ) {
+      return;
+    }
     console.error("热重载地图失败:", err);
     showError("热重载失败: " + err);
   } finally {
-    setPanelMapHotReloading(false);
+    if (
+      isCurrentPanelMapHotReloadSession(
+        serverID,
+        detailsSessionToken,
+        hotReloadSessionToken
+      )
+    ) {
+      setPanelMapHotReloading(false);
+    }
   }
 }
 
 async function confirmPanelMapHotReload() {
   if (!currentPanelServer) return;
+  const serverID = currentPanelServer.id;
+  const detailsSessionToken = panelServerDetailsSessionToken;
+  const hotReloadSessionToken = ++panelMapHotReloadSessionToken;
 
   setPanelMapHotReloading(true);
   let status;
   try {
-    status = await FetchPanelMapHotReloadStatus(currentPanelServer.id);
+    status = await FetchPanelMapHotReloadStatus(serverID);
+    if (
+      !isCurrentPanelMapHotReloadSession(
+        serverID,
+        detailsSessionToken,
+        hotReloadSessionToken
+      )
+    ) {
+      return;
+    }
   } catch (err) {
+    if (
+      !isCurrentPanelMapHotReloadSession(
+        serverID,
+        detailsSessionToken,
+        hotReloadSessionToken
+      )
+    ) {
+      return;
+    }
     console.error("获取地图热重载状态失败:", err);
     showError("获取热重载状态失败: " + err);
     return;
   } finally {
-    setPanelMapHotReloading(false);
+    if (
+      isCurrentPanelMapHotReloadSession(
+        serverID,
+        detailsSessionToken,
+        hotReloadSessionToken
+      )
+    ) {
+      setPanelMapHotReloading(false);
+    }
   }
 
   let message =
@@ -504,7 +620,12 @@ async function confirmPanelMapHotReload() {
   showConfirmModal(
     "确认热重载地图？",
     message,
-    executePanelMapHotReload,
+    () =>
+      executePanelMapHotReload(
+        serverID,
+        detailsSessionToken,
+        hotReloadSessionToken
+      ),
     false,
     "panel-hot-reload-confirm"
   );
@@ -512,6 +633,7 @@ async function confirmPanelMapHotReload() {
 
 export function openPanelUploadModal() {
   if (!currentPanelServer) return;
+  panelUploadSessionToken += 1;
 
   const modal = document.getElementById("panel-upload-modal");
   const title = document.getElementById("panel-upload-title");
@@ -525,13 +647,31 @@ export function openPanelUploadModal() {
 
 export function closePanelUploadModal() {
   panelMapFileRequestToken += 1;
+  panelUploadSessionToken += 1;
   currentPanelMapFiles = [];
   currentPanelMapIssues.clear();
   if (panelMapFilesRefreshTimer !== null) {
     clearTimeout(panelMapFilesRefreshTimer);
     panelMapFilesRefreshTimer = null;
   }
+  document.getElementById("panel-select-upload-files-btn")?.removeAttribute("disabled");
+  document.getElementById("panel-clear-maps-btn")?.removeAttribute("disabled");
+  const taskList = document.getElementById("panel-upload-tasks-list");
+  taskList?.replaceChildren();
+  taskList?.classList.remove("has-tasks", "has-multiple-tasks");
   document.getElementById("panel-upload-modal")?.classList.add("hidden");
+}
+
+function isCurrentPanelUploadSession(
+  serverID,
+  detailsSessionToken,
+  uploadSessionToken
+) {
+  return (
+    uploadSessionToken === panelUploadSessionToken &&
+    isCurrentPanelServerDetailsSession(serverID, detailsSessionToken) &&
+    isPanelUploadModalOpen()
+  );
 }
 
 function normalizePanelMapIssueKey(vpkName) {
@@ -549,11 +689,19 @@ function getPanelMapFileDeletionKey(serverID, mapName) {
   return `${serverID}\n${normalizePanelMapIssueKey(mapName)}`;
 }
 
-function isCurrentPanelMapFileRequest(serverID, requestToken) {
+function isCurrentPanelMapFileRequest(
+  serverID,
+  requestToken,
+  detailsSessionToken,
+  uploadSessionToken
+) {
   return (
     requestToken === panelMapFileRequestToken &&
-    currentPanelServer?.id === serverID &&
-    isPanelUploadModalOpen()
+    isCurrentPanelUploadSession(
+      serverID,
+      detailsSessionToken,
+      uploadSessionToken
+    )
   );
 }
 
@@ -567,6 +715,8 @@ async function loadPanelMapFiles() {
   }
 
   const serverID = currentPanelServer.id;
+  const detailsSessionToken = panelServerDetailsSessionToken;
+  const uploadSessionToken = panelUploadSessionToken;
   const requestToken = ++panelMapFileRequestToken;
   const list = document.getElementById("panel-vpk-list");
   const loading = document.getElementById("panel-vpk-loading");
@@ -584,32 +734,80 @@ async function loadPanelMapFiles() {
 
   try {
     const files = await FetchPanelMapFiles(serverID);
-    if (!isCurrentPanelMapFileRequest(serverID, requestToken)) return;
+    if (
+      !isCurrentPanelMapFileRequest(
+        serverID,
+        requestToken,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     currentPanelMapFiles = (Array.isArray(files) ? files : [])
       .map(normalizePanelMapFile)
       .filter((file) => file.name);
     renderPanelMapFiles();
-    void loadPanelMapFileIssues(serverID, currentPanelMapFiles, requestToken);
+    void loadPanelMapFileIssues(
+      serverID,
+      currentPanelMapFiles,
+      requestToken,
+      detailsSessionToken,
+      uploadSessionToken
+    );
   } catch (err) {
-    if (!isCurrentPanelMapFileRequest(serverID, requestToken)) return;
+    if (
+      !isCurrentPanelMapFileRequest(
+        serverID,
+        requestToken,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     const error = document.createElement("div");
     error.className = "panel-error-box";
     error.textContent = `读取 VPK 地图列表失败: ${err}`;
     list.replaceChildren(error);
     if (count) count.textContent = "读取失败";
   } finally {
-    if (!isCurrentPanelMapFileRequest(serverID, requestToken)) return;
+    if (
+      !isCurrentPanelMapFileRequest(
+        serverID,
+        requestToken,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     loading?.classList.add("hidden");
     refreshBtn?.removeAttribute("disabled");
     refreshBtn?.querySelector(".icon-svg")?.classList.remove("spinning");
   }
 }
 
-async function loadPanelMapFileIssues(serverID, files, requestToken) {
+async function loadPanelMapFileIssues(
+  serverID,
+  files,
+  requestToken,
+  detailsSessionToken,
+  uploadSessionToken
+) {
   if (typeof FetchPanelMapIssues !== "function") return;
   const vpkNames = files.map((file) => file.name);
   for (let index = 0; index < vpkNames.length; index += PANEL_MAP_ISSUE_BATCH_SIZE) {
-    if (!isCurrentPanelMapFileRequest(serverID, requestToken)) return;
+    if (
+      !isCurrentPanelMapFileRequest(
+        serverID,
+        requestToken,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     const batch = vpkNames.slice(index, index + PANEL_MAP_ISSUE_BATCH_SIZE);
     let response;
     try {
@@ -617,7 +815,16 @@ async function loadPanelMapFileIssues(serverID, files, requestToken) {
     } catch {
       return;
     }
-    if (!isCurrentPanelMapFileRequest(serverID, requestToken)) return;
+    if (
+      !isCurrentPanelMapFileRequest(
+        serverID,
+        requestToken,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     if (!response?.supported) return;
 
     Object.entries(response.items || {}).forEach(([vpkName, issue]) => {
@@ -717,11 +924,22 @@ function handlePanelMapFileClick(event) {
   const mapName = String(button?.dataset.vpkName || "").trim();
   if (!button || !mapName || !currentPanelServer) return;
   const serverID = currentPanelServer.id;
+  const detailsSessionToken = panelServerDetailsSessionToken;
+  const uploadSessionToken = panelUploadSessionToken;
 
   showConfirmModal(
     "删除 VPK 地图",
     `确定要删除 ${mapName} 吗？删除后无法恢复。`,
     async () => {
+      if (
+        !isCurrentPanelUploadSession(
+          serverID,
+          detailsSessionToken,
+          uploadSessionToken
+        )
+      ) {
+        return;
+      }
       const key = getPanelMapFileDeletionKey(serverID, mapName);
       let deleteSucceeded = false;
       deletingPanelMapFiles.add(key);
@@ -729,17 +947,51 @@ function handlePanelMapFileClick(event) {
       try {
         const text = await DeletePanelMapFile(serverID, mapName);
         deleteSucceeded = true;
+        if (
+          !isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          )
+        ) {
+          return;
+        }
         showNotification(text || `${mapName} 已删除`, "success");
-        if (currentPanelServer?.id === serverID) {
-          await loadPanelMapFiles();
-          if (isPanelMapModalOpen()) loadPanelMaps();
+        await loadPanelMapFiles();
+        if (
+          isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          ) &&
+          isPanelMapModalOpen()
+        ) {
+          loadPanelMaps();
         }
       } catch (err) {
+        if (
+          !isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          )
+        ) {
+          return;
+        }
         console.error("删除 VPK 地图失败:", err);
         showError("删除 VPK 地图失败: " + err);
       } finally {
         deletingPanelMapFiles.delete(key);
-        if (!deleteSucceeded && isPanelUploadModalOpen()) renderPanelMapFiles();
+        if (
+          !deleteSucceeded &&
+          isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          )
+        ) {
+          renderPanelMapFiles();
+        }
       }
     }
   );
@@ -760,31 +1012,108 @@ async function selectPanelUploadFiles() {
     return;
   }
 
+  const serverID = currentPanelServer.id;
+  const detailsSessionToken = panelServerDetailsSessionToken;
+  const uploadSessionToken = panelUploadSessionToken;
+  if (
+    !isCurrentPanelUploadSession(
+      serverID,
+      detailsSessionToken,
+      uploadSessionToken
+    )
+  ) {
+    return;
+  }
+
   const btn = document.getElementById("panel-select-upload-files-btn");
   btn?.setAttribute("disabled", "true");
   try {
     const paths = await SelectPanelMapUploadFiles();
     if (!paths || paths.length === 0) return;
 
-    await StartPanelMapUpload(currentPanelServer.id, paths);
+    if (
+      !isCurrentPanelUploadSession(
+        serverID,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
+    await StartPanelMapUpload(serverID, paths);
+    if (
+      !isCurrentPanelUploadSession(
+        serverID,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     showNotification(`已添加 ${paths.length} 个上传任务`, "success");
     await refreshPanelUploadTasks();
   } catch (err) {
+    if (
+      !isCurrentPanelUploadSession(
+        serverID,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     console.error("添加上传任务失败:", err);
     showError("添加上传任务失败: " + err);
   } finally {
-    btn?.removeAttribute("disabled");
+    if (
+      isCurrentPanelUploadSession(
+        serverID,
+        detailsSessionToken,
+        uploadSessionToken
+      ) &&
+      btn?.isConnected
+    ) {
+      btn.removeAttribute("disabled");
+    }
   }
 }
 
 export async function refreshPanelUploadTasks() {
   const list = document.getElementById("panel-upload-tasks-list");
-  if (!list || typeof GetPanelMapUploadTasks !== "function") return;
+  if (
+    !list ||
+    !currentPanelServer ||
+    typeof GetPanelMapUploadTasks !== "function" ||
+    !isPanelUploadModalOpen()
+  ) {
+    return;
+  }
+  const serverID = currentPanelServer.id;
+  const detailsSessionToken = panelServerDetailsSessionToken;
+  const uploadSessionToken = panelUploadSessionToken;
 
   try {
     const tasks = await GetPanelMapUploadTasks();
+    if (
+      !isCurrentPanelUploadSession(
+        serverID,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     renderPanelUploadTasks(tasks || []);
   } catch (err) {
+    if (
+      !isCurrentPanelUploadSession(
+        serverID,
+        detailsSessionToken,
+        uploadSessionToken
+      )
+    ) {
+      return;
+    }
     console.error("刷新上传任务失败:", err);
     list.classList.remove("has-tasks");
     list.classList.remove("has-multiple-tasks");
@@ -900,6 +1229,10 @@ function createPanelUploadTaskElement(task) {
 }
 
 export function updatePanelUploadTaskInList(task) {
+  if (!isPanelUploadModalOpen()) {
+    handlePanelUploadCompletion(task);
+    return;
+  }
   const existing = document.getElementById(`panel-upload-task-${task.id}`);
   if (existing) {
     existing.replaceWith(createPanelUploadTaskElement(task));
@@ -910,6 +1243,7 @@ export function updatePanelUploadTaskInList(task) {
 }
 
 export function updatePanelUploadProgress(task) {
+  if (!isPanelUploadModalOpen()) return;
   const existing = document.getElementById(`panel-upload-task-${task.id}`);
   if (!existing) {
     if (isPanelUploadModalOpen()) refreshPanelUploadTasks();
@@ -943,7 +1277,7 @@ export function updatePanelUploadProgress(task) {
 }
 
 export function handlePanelUploadTasksCleared() {
-  refreshPanelUploadTasks();
+  if (isPanelUploadModalOpen()) refreshPanelUploadTasks();
 }
 
 async function clearCompletedPanelUploads() {
@@ -961,27 +1295,71 @@ async function clearPanelMaps() {
     showError("请先打开已配置面板的服务器详情");
     return;
   }
+  const serverID = currentPanelServer.id;
+  const detailsSessionToken = panelServerDetailsSessionToken;
+  const uploadSessionToken = panelUploadSessionToken;
 
   showConfirmModal(
     "清空地图",
     "此操作会清空所有地图，确定继续吗？",
     async () => {
+      if (
+        !isCurrentPanelUploadSession(
+          serverID,
+          detailsSessionToken,
+          uploadSessionToken
+        )
+      ) {
+        return;
+      }
       const btn = document.getElementById("panel-clear-maps-btn");
       btn?.setAttribute("disabled", "true");
       try {
-        const text = await ClearPanelMaps(currentPanelServer.id);
-        showNotification(text || "地图已清空", "success");
-        if (isPanelUploadModalOpen()) {
-          await loadPanelMapFiles();
+        const text = await ClearPanelMaps(serverID);
+        if (
+          !isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          )
+        ) {
+          return;
         }
-        if (isPanelMapModalOpen()) {
+        showNotification(text || "地图已清空", "success");
+        await loadPanelMapFiles();
+        if (
+          isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          ) &&
+          isPanelMapModalOpen()
+        ) {
           loadPanelMaps();
         }
       } catch (err) {
+        if (
+          !isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          )
+        ) {
+          return;
+        }
         console.error("清空地图失败:", err);
         showError("清空地图失败: " + err);
       } finally {
-        btn?.removeAttribute("disabled");
+        if (
+          isCurrentPanelUploadSession(
+            serverID,
+            detailsSessionToken,
+            uploadSessionToken
+          ) &&
+          btn?.isConnected
+        ) {
+          btn.removeAttribute("disabled");
+        }
       }
     }
   );
@@ -993,6 +1371,9 @@ function handlePanelUploadCompletion(task) {
   }
   completedPanelUploadNotifications.add(task.id);
   showNotification(`${task.filename || "地图"} 上传成功`, "success");
+  if (String(task.server_id || "") !== String(currentPanelServer?.id || "")) {
+    return;
+  }
   schedulePanelMapFilesRefresh();
   if (isPanelMapModalOpen()) {
     loadPanelMaps();
@@ -1209,6 +1590,7 @@ export function openPanelRconModal() {
   document.getElementById("panel-rcon-title").textContent = `RCON - ${currentPanelServer.name}`;
   document.getElementById("panel-rcon-command").value = "";
   document.getElementById("panel-rcon-output").textContent = "等待发送指令...";
+  document.getElementById("panel-rcon-send-btn")?.removeAttribute("disabled");
   output.classList.add("panel-rcon-output-muted");
   document.getElementById("panel-rcon-modal").classList.remove("hidden");
   document.getElementById("panel-rcon-command").focus();
