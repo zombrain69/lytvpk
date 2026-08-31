@@ -597,39 +597,80 @@ function bindSettingsPage(deps) {
   }
 
   ipToggle?.addEventListener("change", async () => {
-    ipSection.style.display = ipToggle.checked ? "block" : "none";
-    await deps.SetWorkshopPreferredIP(ipToggle.checked);
-    const config = deps.getConfig();
-    config.workshopPreferredIP = ipToggle.checked;
-    deps.saveConfig(config);
-    deps.showNotification(ipToggle.checked ? "已开启优选 IP 加速" : "已关闭优选 IP 加速", ipToggle.checked ? "success" : "info");
+    const enabled = ipToggle.checked;
+    const previousEnabled = !enabled;
+    ipToggle.disabled = true;
+    try {
+      await deps.SetWorkshopPreferredIP(enabled);
+      const config = deps.getConfig();
+      config.workshopPreferredIP = enabled;
+      await deps.saveConfig(config);
+      ipSection.style.display = enabled ? "block" : "none";
+      deps.showNotification(enabled ? "已开启优选 IP 加速" : "已关闭优选 IP 加速", enabled ? "success" : "info");
+    } catch (error) {
+      ipToggle.checked = previousEnabled;
+      ipSection.style.display = previousEnabled ? "block" : "none";
+      deps.showNotification("更新优选 IP 设置失败: " + error, "error");
+    } finally {
+      ipToggle.disabled = false;
+    }
   });
 
   document.querySelectorAll('input[name="settings-ip-mode"]').forEach((radio) => {
     radio.addEventListener("change", async () => {
       const useFixed = radio.value === "fixed" && radio.checked;
-      if (fixedTools) fixedTools.style.display = useFixed ? "" : "none";
+      const previousFixedIP = deps.getConfig().workshopFixedIP || "";
       if (!useFixed) {
-        await deps.SetWorkshopFixedIP("");
-        const config = deps.getConfig();
-        config.workshopFixedIP = "";
-        deps.saveConfig(config);
-        await deps.SetWorkshopPreferredIP(true);
-        await refreshIPStatus();
+        radio.disabled = true;
+        try {
+          await deps.SetWorkshopFixedIP("");
+          await deps.SetWorkshopPreferredIP(true);
+          const config = deps.getConfig();
+          config.workshopFixedIP = "";
+          await deps.saveConfig(config);
+          if (fixedTools) fixedTools.style.display = "none";
+          await refreshIPStatus();
+        } catch (error) {
+          const fixedRadio = document.querySelector('input[name="settings-ip-mode"][value="fixed"]');
+          const autoRadio = document.querySelector('input[name="settings-ip-mode"][value="auto"]');
+          if (previousFixedIP) {
+            if (fixedRadio) fixedRadio.checked = true;
+            if (fixedTools) fixedTools.style.display = "";
+          } else {
+            if (autoRadio) autoRadio.checked = true;
+            if (fixedTools) fixedTools.style.display = "none";
+          }
+          deps.showNotification("切换 IP 模式失败: " + error, "error");
+        } finally {
+          radio.disabled = false;
+        }
+      } else if (fixedTools) {
+        fixedTools.style.display = "";
       }
     });
   });
 
   fixedInput?.addEventListener("change", async () => {
     const fixedIP = fixedInput.value.trim();
-    await deps.SetWorkshopFixedIP(fixedIP);
-    const config = deps.getConfig();
-    config.workshopFixedIP = fixedIP;
-    deps.saveConfig(config);
-    updateIPOptionTrigger(ipOptionTrigger, ipOptions, fixedIP);
-    syncIPOptionMenuActive(ipOptionMenu, fixedIP);
-    await refreshIPStatus();
-    deps.showNotification("已更新固定 IP 设置", "success");
+    const previousFixedIP = deps.getConfig().workshopFixedIP || "";
+    fixedInput.disabled = true;
+    try {
+      await deps.SetWorkshopFixedIP(fixedIP);
+      const config = deps.getConfig();
+      config.workshopFixedIP = fixedIP;
+      await deps.saveConfig(config);
+      updateIPOptionTrigger(ipOptionTrigger, ipOptions, fixedIP);
+      syncIPOptionMenuActive(ipOptionMenu, fixedIP);
+      await refreshIPStatus();
+      deps.showNotification("已更新固定 IP 设置", "success");
+    } catch (error) {
+      fixedInput.value = previousFixedIP;
+      updateIPOptionTrigger(ipOptionTrigger, ipOptions, previousFixedIP);
+      syncIPOptionMenuActive(ipOptionMenu, previousFixedIP);
+      deps.showNotification("更新固定 IP 设置失败: " + error, "error");
+    } finally {
+      fixedInput.disabled = false;
+    }
   });
 
   const uiScaleInput = document.getElementById("settings-ui-scale");
@@ -743,61 +784,109 @@ function bindSettingsPage(deps) {
   });
 
   document.getElementById("settings-meta-enabled")?.addEventListener("change", async (event) => {
-    await deps.SetWorkshopMetaEnabled(event.target.checked);
-    const config = deps.getConfig();
-    config.workshopMetaEnabled = event.target.checked;
-    deps.showNotification(event.target.checked ? "已开启工坊信息存储" : "已关闭工坊信息存储", event.target.checked ? "success" : "info");
+    const metaToggle = event.currentTarget;
+    const metaEnabled = metaToggle.checked;
+    const previousMetaEnabled = !metaEnabled;
+    metaToggle.disabled = true;
+    try {
+      await deps.SetWorkshopMetaEnabled(metaEnabled);
+      const config = deps.getConfig();
+      config.workshopMetaEnabled = metaEnabled;
 
-    // 更新更新检测开关的可用状态
-    const updateCheckRow = document.getElementById("settings-update-check-row");
-    const updateCheckToggle = document.getElementById("settings-update-check-enabled");
-    const toggleSwitch = updateCheckToggle?.closest(".toggle-switch");
+      // 更新更新检测开关的可用状态
+      const updateCheckRow = document.getElementById("settings-update-check-row");
+      const updateCheckToggle = document.getElementById("settings-update-check-enabled");
+      const toggleSwitch = updateCheckToggle?.closest(".toggle-switch");
 
-    if (event.target.checked) {
-      updateCheckRow?.classList.remove("setting-row-disabled");
-      toggleSwitch?.classList.remove("toggle-switch-disabled");
-      updateCheckToggle?.removeAttribute("disabled");
-      if (updateCheckToggle?.checked) {
-        const checkSection = document.getElementById("settings-update-check-section");
-        if (checkSection) checkSection.style.display = "";
-        document.getElementById("settings-manual-check-btn")?.removeAttribute("disabled");
+      if (metaEnabled) {
+        updateCheckRow?.classList.remove("setting-row-disabled");
+        toggleSwitch?.classList.remove("toggle-switch-disabled");
+        updateCheckToggle?.removeAttribute("disabled");
+        if (updateCheckToggle?.checked) {
+          const checkSection = document.getElementById("settings-update-check-section");
+          if (checkSection) checkSection.style.display = "";
+          document.getElementById("settings-manual-check-btn")?.removeAttribute("disabled");
+        }
+      } else {
+        updateCheckRow?.classList.add("setting-row-disabled");
+        toggleSwitch?.classList.add("toggle-switch-disabled");
+        updateCheckToggle?.setAttribute("disabled", "true");
+        // 关闭meta时也要关闭更新检测
+        if (updateCheckToggle?.checked) {
+          updateCheckToggle.checked = false;
+          await deps.SetWorkshopUpdateCheckEnabled(false);
+          config.workshopUpdateCheckEnabled = false;
+          const checkSection = document.getElementById("settings-update-check-section");
+          if (checkSection) checkSection.style.display = "none";
+        }
+        document.getElementById("settings-manual-check-btn")?.setAttribute("disabled", "true");
       }
-    } else {
-      updateCheckRow?.classList.add("setting-row-disabled");
-      toggleSwitch?.classList.add("toggle-switch-disabled");
-      updateCheckToggle?.setAttribute("disabled", "true");
-      // 关闭meta时也要关闭更新检测
-      if (updateCheckToggle?.checked) {
-        updateCheckToggle.checked = false;
-        await deps.SetWorkshopUpdateCheckEnabled(false);
-        config.workshopUpdateCheckEnabled = false;
-        const checkSection = document.getElementById("settings-update-check-section");
+
+      await deps.saveConfig(config);
+      deps.showNotification(metaEnabled ? "已开启工坊信息存储" : "已关闭工坊信息存储", metaEnabled ? "success" : "info");
+      await deps.refreshFilesKeepFilter();
+    } catch (error) {
+      metaToggle.checked = previousMetaEnabled;
+      deps.showNotification("更新工坊信息存储失败: " + error, "error");
+      const updateCheckRow = document.getElementById("settings-update-check-row");
+      const updateCheckToggle = document.getElementById("settings-update-check-enabled");
+      const toggleSwitch = updateCheckToggle?.closest(".toggle-switch");
+      const checkSection = document.getElementById("settings-update-check-section");
+      const manualCheckBtn = document.getElementById("settings-manual-check-btn");
+      if (previousMetaEnabled) {
+        updateCheckRow?.classList.remove("setting-row-disabled");
+        toggleSwitch?.classList.remove("toggle-switch-disabled");
+        if (updateCheckToggle?.checked) {
+          updateCheckToggle.removeAttribute("disabled");
+          if (checkSection) checkSection.style.display = "";
+          manualCheckBtn?.removeAttribute("disabled");
+        } else {
+          updateCheckToggle?.removeAttribute("disabled");
+          if (checkSection) checkSection.style.display = "none";
+          manualCheckBtn?.setAttribute("disabled", "true");
+        }
+      } else {
+        updateCheckRow?.classList.add("setting-row-disabled");
+        toggleSwitch?.classList.add("toggle-switch-disabled");
+        updateCheckToggle?.setAttribute("disabled", "true");
         if (checkSection) checkSection.style.display = "none";
+        manualCheckBtn?.setAttribute("disabled", "true");
       }
+    } finally {
+      metaToggle.disabled = false;
     }
-
-    deps.saveConfig(config);
-    await deps.refreshFilesKeepFilter();
   });
 
   document.getElementById("settings-update-check-enabled")?.addEventListener("change", async (event) => {
-    await deps.SetWorkshopUpdateCheckEnabled(event.target.checked);
-    deps.appState.workshopUpdateCheckEnabled = event.target.checked;
-    const config = deps.getConfig();
-    config.workshopUpdateCheckEnabled = event.target.checked;
-    deps.saveConfig(config);
-    deps.showNotification(event.target.checked ? "已开启Mod更新检测" : "已关闭Mod更新检测", event.target.checked ? "success" : "info");
+    const updateToggle = event.currentTarget;
+    const enabled = updateToggle.checked;
+    const previousEnabled = !enabled;
+    updateToggle.disabled = true;
+    try {
+      await deps.SetWorkshopUpdateCheckEnabled(enabled);
+      deps.appState.workshopUpdateCheckEnabled = enabled;
+      const config = deps.getConfig();
+      config.workshopUpdateCheckEnabled = enabled;
+      await deps.saveConfig(config);
+      deps.showNotification(enabled ? "已开启Mod更新检测" : "已关闭Mod更新检测", enabled ? "success" : "info");
 
-    const checkSection = document.getElementById("settings-update-check-section");
-    const manualCheckBtn = document.getElementById("settings-manual-check-btn");
-    const metaEnabled = document.getElementById("settings-meta-enabled")?.checked;
+      const checkSection = document.getElementById("settings-update-check-section");
+      const manualCheckBtn = document.getElementById("settings-manual-check-btn");
+      const metaEnabled = document.getElementById("settings-meta-enabled")?.checked;
 
-    if (event.target.checked && metaEnabled) {
-      if (checkSection) checkSection.style.display = "";
-      manualCheckBtn?.removeAttribute("disabled");
-    } else {
-      if (checkSection) checkSection.style.display = "none";
-      manualCheckBtn?.setAttribute("disabled", "true");
+      if (enabled && metaEnabled) {
+        if (checkSection) checkSection.style.display = "";
+        manualCheckBtn?.removeAttribute("disabled");
+      } else {
+        if (checkSection) checkSection.style.display = "none";
+        manualCheckBtn?.setAttribute("disabled", "true");
+      }
+    } catch (error) {
+      updateToggle.checked = previousEnabled;
+      deps.appState.workshopUpdateCheckEnabled = previousEnabled;
+      deps.showNotification("更新 Mod 检测设置失败: " + error, "error");
+    } finally {
+      updateToggle.disabled = false;
     }
   });
 
@@ -826,11 +915,21 @@ function bindSettingsPage(deps) {
   document.querySelectorAll('input[name="settings-browser-target"]').forEach((radio) => {
     radio.addEventListener("change", async () => {
       if (!radio.checked) return;
-      await deps.SetWorkshopBrowserTarget(radio.value);
-      const config = deps.getConfig();
-      config.workshopBrowserTarget = radio.value;
-      deps.saveConfig(config);
-      deps.showNotification(radio.value === "mirror" ? "已切换到镜像站" : "已切换到 Steam 官方", "success");
+      const previousTarget = deps.getConfig().workshopBrowserTarget || "mirror";
+      radio.disabled = true;
+      try {
+        await deps.SetWorkshopBrowserTarget(radio.value);
+        const config = deps.getConfig();
+        config.workshopBrowserTarget = radio.value;
+        await deps.saveConfig(config);
+        deps.showNotification(radio.value === "mirror" ? "已切换到镜像站" : "已切换到 Steam 官方", "success");
+      } catch (error) {
+        const previousRadio = document.querySelector(`input[name="settings-browser-target"][value="${previousTarget}"]`);
+        if (previousRadio) previousRadio.checked = true;
+        deps.showNotification("切换工坊浏览目标失败: " + error, "error");
+      } finally {
+        radio.disabled = false;
+      }
     });
   });
 
@@ -839,21 +938,36 @@ function bindSettingsPage(deps) {
   document.querySelectorAll('input[name="settings-translate-provider"]').forEach((radio) => {
     radio.addEventListener("change", async () => {
       if (!radio.checked) return;
-      await deps.SetWorkshopTranslateProvider(radio.value);
-      const config = deps.getConfig();
-      config.workshopTranslateProvider = radio.value;
-      deps.saveConfig(config);
-      radio.closest(".mode-toggle-group")?.querySelectorAll(".mode-option").forEach((option) => option.classList.remove("active"));
-      radio.closest(".mode-option")?.classList.add("active");
-      if (customSection) {
-        customSection.style.display = radio.value === "custom" ? "" : "none";
+      const previousProvider = deps.getConfig().workshopTranslateProvider || "microsoft";
+      radio.disabled = true;
+      try {
+        await deps.SetWorkshopTranslateProvider(radio.value);
+        const config = deps.getConfig();
+        config.workshopTranslateProvider = radio.value;
+        await deps.saveConfig(config);
+        radio.closest(".mode-toggle-group")?.querySelectorAll(".mode-option").forEach((option) => option.classList.remove("active"));
+        radio.closest(".mode-option")?.classList.add("active");
+        if (customSection) {
+          customSection.style.display = radio.value === "custom" ? "" : "none";
+        }
+        const messages = {
+          microsoft: "已切换到微软翻译",
+          yandex: "已切换到 Yandex 翻译",
+          custom: "已切换到自定义AI翻译",
+        };
+        deps.showNotification(messages[radio.value] || "已切换翻译服务", "success");
+      } catch (error) {
+        const previousRadio = document.querySelector(`input[name="settings-translate-provider"][value="${previousProvider}"]`);
+        if (previousRadio) {
+          previousRadio.checked = true;
+          radio.closest(".mode-toggle-group")?.querySelectorAll(".mode-option").forEach((option) => option.classList.remove("active"));
+          previousRadio.closest(".mode-option")?.classList.add("active");
+        }
+        if (customSection) customSection.style.display = previousProvider === "custom" ? "" : "none";
+        deps.showNotification("切换翻译服务失败: " + error, "error");
+      } finally {
+        radio.disabled = false;
       }
-      const messages = {
-        microsoft: "已切换到微软翻译",
-        yandex: "已切换到 Yandex 翻译",
-        custom: "已切换到自定义AI翻译",
-      };
-      deps.showNotification(messages[radio.value] || "已切换翻译服务", "success");
     });
   });
 
@@ -864,33 +978,58 @@ function bindSettingsPage(deps) {
 
   customBaseURLInput?.addEventListener("change", async () => {
     const url = customBaseURLInput.value.trim();
-    await deps.SetWorkshopTranslateCustomBaseURL(url);
-    const config = deps.getConfig();
-    config.workshopTranslateCustomBaseURL = url;
-    deps.saveConfig(config);
-    deps.showNotification("已更新自定义AI Base URL", "success");
+    const previousURL = deps.getConfig().workshopTranslateCustomBaseURL || "";
+    customBaseURLInput.disabled = true;
+    try {
+      await deps.SetWorkshopTranslateCustomBaseURL(url);
+      const config = deps.getConfig();
+      config.workshopTranslateCustomBaseURL = url;
+      await deps.saveConfig(config);
+      deps.showNotification("已更新自定义AI Base URL", "success");
+    } catch (error) {
+      customBaseURLInput.value = previousURL;
+      deps.showNotification("更新自定义AI Base URL 失败: " + error, "error");
+    } finally {
+      customBaseURLInput.disabled = false;
+    }
   });
 
   customAPIKeyInput?.addEventListener("change", async () => {
     const key = customAPIKeyInput.value.trim();
     if (!key) return;
-    await deps.SetWorkshopTranslateCustomAPIKey(key);
-    const config = deps.getConfig();
-    config.workshopTranslateCustomAPIKey = "已设置";
-    deps.saveConfig(config);
-    customAPIKeyInput.value = "";
-    // 直接赋值，避免用户重复更新密钥时把“（已设置）”叠加多次。
-    customAPIKeyInput.setAttribute("placeholder", "API Key（已设置）");
-    deps.showNotification("已更新自定义AI API Key", "success");
+    customAPIKeyInput.disabled = true;
+    try {
+      await deps.SetWorkshopTranslateCustomAPIKey(key);
+      const config = deps.getConfig();
+      config.workshopTranslateCustomAPIKey = "已设置";
+      await deps.saveConfig(config);
+      customAPIKeyInput.value = "";
+      // 直接赋值，避免用户重复更新密钥时把“（已设置）”叠加多次。
+      customAPIKeyInput.setAttribute("placeholder", "API Key（已设置）");
+      deps.showNotification("已更新自定义AI API Key", "success");
+    } catch (error) {
+      deps.showNotification("更新自定义AI API Key 失败: " + error, "error");
+    } finally {
+      customAPIKeyInput.disabled = false;
+    }
   });
 
   customModelIdInput?.addEventListener("change", async () => {
     const modelId = customModelIdInput.value.trim();
-    await deps.SetWorkshopTranslateCustomModelId(modelId);
-    const config = deps.getConfig();
-    config.workshopTranslateCustomModelId = modelId;
-    deps.saveConfig(config);
-    deps.showNotification("已更新自定义AI模型ID", "success");
+    const previousModelID = deps.getConfig().workshopTranslateCustomModelId || "";
+    customModelIdInput.disabled = true;
+    try {
+      await deps.SetWorkshopTranslateCustomModelId(modelId);
+      const config = deps.getConfig();
+      config.workshopTranslateCustomModelId = modelId;
+      await deps.saveConfig(config);
+      deps.showNotification("已更新自定义AI模型ID", "success");
+    } catch (error) {
+      customModelIdInput.value = previousModelID;
+      deps.showNotification("更新自定义AI模型ID失败: " + error, "error");
+    } finally {
+      customModelIdInput.disabled = false;
+    }
   });
 
   const autoexecEditor = document.getElementById("settings-autoexec-content");
@@ -1235,16 +1374,34 @@ function renderIPOptionDropdown({
     }
 
     button.addEventListener("click", async () => {
-      fixedInput.value = option.ip;
-      await SetWorkshopFixedIP(option.ip);
-      const config = getConfig();
-      config.workshopFixedIP = option.ip;
-      saveConfig(config);
-      updateIPOptionTrigger(trigger, normalizedOptions, option.ip);
-      syncIPOptionMenuActive(menu, option.ip);
-      await onStatusUpdate?.();
-      menu.classList.add("hidden");
-      showNotification("已更新固定 IP 设置", "success");
+      const previousFixedIP = getConfig().workshopFixedIP || "";
+      const optionButtons = Array.from(menu.querySelectorAll(".settings-ip-option"));
+      optionButtons.forEach((item) => {
+        item.disabled = true;
+      });
+      trigger.disabled = true;
+      try {
+        await SetWorkshopFixedIP(option.ip);
+        const config = getConfig();
+        config.workshopFixedIP = option.ip;
+        await saveConfig(config);
+        fixedInput.value = option.ip;
+        updateIPOptionTrigger(trigger, normalizedOptions, option.ip);
+        syncIPOptionMenuActive(menu, option.ip);
+        await onStatusUpdate?.();
+        menu.classList.add("hidden");
+        showNotification("已更新固定 IP 设置", "success");
+      } catch (error) {
+        fixedInput.value = previousFixedIP;
+        updateIPOptionTrigger(trigger, normalizedOptions, previousFixedIP);
+        syncIPOptionMenuActive(menu, previousFixedIP);
+        showNotification("更新固定 IP 设置失败: " + error, "error");
+      } finally {
+        optionButtons.forEach((item) => {
+          item.disabled = false;
+        });
+        trigger.disabled = false;
+      }
     });
 
     menu.appendChild(button);

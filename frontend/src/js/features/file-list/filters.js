@@ -10,8 +10,16 @@ import { GetPrimaryTags, GetSecondaryTags, SearchVPKFiles, ScanVPKFiles, GetVPKF
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
 const GAME_STATE_FILTERS = ["enabled", "disabled", "unknown"];
 const SEARCH_INPUT_DEBOUNCE_MS = 160;
+const FILE_LIST_IDLE_POLL_MS = 32;
 
 let searchInputTimer = null;
+// Refreshes are requested by file moves, game-state changes, VPK tools and
+// addonlist operations. They must not be lost just because a scan or filter
+// reset is still in progress. Keep one caller-visible Promise and only add a
+// follow-up scan when a request arrives after the current scan has begun.
+let refreshFilesPromise = null;
+let refreshFilesPhase = "idle";
+let refreshFilesNeedsFollowUp = false;
 let searchRequestId = 0;
 let tagFilterRenderId = 0;
 let secondaryTagRenderId = 0;
@@ -1608,19 +1616,61 @@ export async function refreshFilesKeepFilter() {
     return;
   }
 
-  if (appState.isLoading) {
-    console.log("正在加载中，请稍候...");
-    return;
+  if (refreshFilesPromise) {
+    // If scanning has already started, an operation that just completed may
+    // have missed the current scan's filesystem snapshot. Run one coalesced
+    // follow-up scan so every awaiter observes the final state.
+    if (refreshFilesPhase === "scanning") {
+      refreshFilesNeedsFollowUp = true;
+    }
+    return refreshFilesPromise;
   }
 
-  const currentFilters = {
+  refreshFilesPromise = runRefreshFilesKeepFilter().finally(() => {
+    refreshFilesPromise = null;
+    refreshFilesPhase = "idle";
+    refreshFilesNeedsFollowUp = false;
+  });
+  return refreshFilesPromise;
+}
+
+async function runRefreshFilesKeepFilter() {
+  do {
+    refreshFilesNeedsFollowUp = false;
+    refreshFilesPhase = "waiting";
+    await waitForFileListIdle();
+    refreshFilesPhase = "scanning";
+    await refreshFilesKeepFilterOnce();
+  } while (refreshFilesNeedsFollowUp);
+}
+
+function waitForFileListIdle() {
+  if (!appState.isLoading) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const wait = () => {
+      if (!appState.isLoading) {
+        resolve();
+        return;
+      }
+      window.setTimeout(wait, FILE_LIST_IDLE_POLL_MS);
+    };
+    wait();
+  });
+}
+
+async function refreshFilesKeepFilterOnce() {
+  // Capture immediately before rebuilding the filter controls rather than at
+  // request time. This preserves filter changes a user makes while the
+  // filesystem scan is still running instead of restoring a stale snapshot.
+  const getCurrentFilters = () => ({
     searchText: document.getElementById("search-input")?.value || "",
     primaryTag: appState.selectedPrimaryTag || "",
     secondaryTags: [...appState.selectedSecondaryTags],
     secondaryMatchMode: appState.secondaryMatchMode,
     locationTags: [...appState.selectedLocations],
     gameStates: [...appState.selectedGameStates],
-  };
+  });
 
   appState.isLoading = true;
   showFileListLoading("正在刷新文件列表...");
@@ -1639,6 +1689,7 @@ export async function refreshFilesKeepFilter() {
     appState.allVpkFiles = files;
     appState.primaryTags = primaryTags;
 
+    const currentFilters = getCurrentFilters();
     appState.searchQuery = currentFilters.searchText || "";
     appState.selectedPrimaryTag = currentFilters.primaryTag || "";
     appState.selectedSecondaryTags = currentFilters.secondaryTags || [];
