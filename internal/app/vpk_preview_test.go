@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestScanVPKFilesDefersPreviewImageUntilRequested(t *testing.T) {
@@ -45,7 +46,6 @@ func TestScanVPKFilesDefersPreviewImageUntilRequested(t *testing.T) {
 	if err := app.ScanVPKFiles(); err != nil {
 		t.Fatalf("scan VPK files: %v", err)
 	}
-
 	cached, ok := app.vpkCache.Load(vpkPath)
 	if !ok {
 		t.Fatalf("scan did not cache %s", vpkPath)
@@ -96,6 +96,11 @@ func TestGetVPKPreviewImageCachesAndInvalidatesExternalImage(t *testing.T) {
 	if err := app.ScanVPKFiles(); err != nil {
 		t.Fatalf("scan VPK files: %v", err)
 	}
+	initialCache, ok := app.vpkCache.Load(vpkPath)
+	if !ok || initialCache.(*VPKFileCache).File.PreviewRevision == "" {
+		t.Fatal("scan did not expose a stable preview source revision")
+	}
+	initialRevision := initialCache.(*VPKFileCache).File.PreviewRevision
 
 	first := app.GetVPKPreviewImage(vpkPath)
 	if first == "" {
@@ -119,9 +124,20 @@ func TestGetVPKPreviewImageCachesAndInvalidatesExternalImage(t *testing.T) {
 	if err := os.WriteFile(sidecarPath, externalImage.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	forcedImageTime := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(sidecarPath, forcedImageTime, forcedImageTime); err != nil {
+		t.Fatal(err)
+	}
 
 	updated := app.GetVPKPreviewImage(vpkPath)
 	if updated == "" || updated == first {
 		t.Fatal("adding an external sidecar image must invalidate the previous preview")
+	}
+	if err := app.ScanVPKFiles(); err != nil {
+		t.Fatalf("rescan after external preview change: %v", err)
+	}
+	refreshedCache, ok := app.vpkCache.Load(vpkPath)
+	if !ok || refreshedCache.(*VPKFileCache).File.PreviewRevision == initialRevision {
+		t.Fatal("external preview change must produce a new preview source revision")
 	}
 }

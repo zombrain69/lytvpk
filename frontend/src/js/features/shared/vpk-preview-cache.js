@@ -12,9 +12,14 @@ let previewCacheBytes = 0;
 let activePreviewLoads = 0;
 
 function getPreviewKey(file) {
-  const path = String(file?.path || "");
-  const modified = String(file?.lastModified || "");
-  return `${path}\u0000${modified}`;
+	const revision = String(file?.previewRevision || "").trim();
+	if (revision) return revision;
+
+	const path = String(file?.path || "");
+	const name = String(file?.name || "");
+	const size = String(file?.size || "");
+	const modified = String(file?.lastModified || "");
+	return `${name}\u0000${size}\u0000${modified}\u0000${path}`;
 }
 
 function estimatePreviewBytes(data) {

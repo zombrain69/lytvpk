@@ -36,6 +36,8 @@ const DEFAULT_CONFIG = {
   uiScale: DEFAULT_UI_SCALE,
   // addonlist.txt 的运行时监控属于显式选择，默认绝不启动。
   addonListGuardEnabled: false,
+  // 未记录 Mod 首次在游戏内开启时，不重排已有条目的默认插入位置。
+  unrecordedModLoadOrderPlacement: "end",
   theme: "",
   ignoredVersion: "",
   lastUpdateCheckTime: "",
@@ -130,7 +132,7 @@ function normalizeConfig(config = {}) {
     : [];
   next.displayMode = next.displayMode || DEFAULT_CONFIG.displayMode;
   next.filterLayoutMode =
-    next.filterLayoutMode || DEFAULT_CONFIG.filterLayoutMode;
+    next.filterLayoutMode === "classic" ? "classic" : DEFAULT_CONFIG.filterLayoutMode;
   next.workshopBrowserTarget =
     next.workshopBrowserTarget || DEFAULT_CONFIG.workshopBrowserTarget;
   next.workshopTranslateProvider =
@@ -138,6 +140,11 @@ function normalizeConfig(config = {}) {
       ? next.workshopTranslateProvider
       : DEFAULT_CONFIG.workshopTranslateProvider;
   next.uiScale = normalizeUIScale(next.uiScale);
+  next.unrecordedModLoadOrderPlacement = ["start", "after-enabled", "end"].includes(
+    next.unrecordedModLoadOrderPlacement,
+  )
+    ? next.unrecordedModLoadOrderPlacement
+    : DEFAULT_CONFIG.unrecordedModLoadOrderPlacement;
   next.migrationVersion = Number(next.migrationVersion) || 0;
 
   return cloneConfig(next);

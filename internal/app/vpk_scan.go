@@ -1,7 +1,10 @@
 package app
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -177,6 +180,7 @@ func (a *App) processVPKFileWithCache(filePath string) {
 			break
 		}
 	}
+	previewRevision := buildVPKPreviewRevision(filePath, modTime, size, imgModTime)
 
 	// 检查meta文件状态
 	var metaModTime time.Time
@@ -184,9 +188,19 @@ func (a *App) processVPKFileWithCache(filePath string) {
 		metaModTime = metaInfo.ModTime()
 	}
 
+	// 记住上一次成功读取的游戏内开关。VPK 文件被外部程序触碰后重新解析时，
+	// addonlist.txt 可能恰好仍被游戏占用；此时 applyAddonListGameStates 会保留
+	// 旧状态，不能因为重建 VPK 元数据而先把它丢成“未记录”。
+	var previousGameEnabled bool
+	var previousGameStateKnown bool
+	var hasPreviousGameState bool
+
 	// 检查缓存
 	if cached, ok := a.vpkCache.Load(filePath); ok {
 		cache := cached.(*VPKFileCache)
+		previousGameEnabled = cache.File.GameEnabled
+		previousGameStateKnown = cache.File.GameStateKnown
+		hasPreviousGameState = true
 
 		// 判断文件是否变化（通过修改时间和大小）以及图片/meta是否变化
 		if cache.ModTime.Equal(modTime) && cache.Size == size && cache.ImageModTime.Equal(imgModTime) && cache.MetaModTime.Equal(metaModTime) {
@@ -196,6 +210,7 @@ func (a *App) processVPKFileWithCache(filePath string) {
 			cache.File.Location = location
 			cache.File.Enabled = location != "disabled"
 			cache.File.Path = filePath // 更新路径（处理移动情况）
+			cache.File.PreviewRevision = previewRevision
 
 			// 更新缓存
 			a.vpkCache.Store(filePath, cache)
@@ -211,8 +226,12 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	// frontend requests it later only for visible cards or the detail dialog.
 	vpkFile, err := parser.ParseVPKFileMetadata(filePath)
 	if err != nil {
-		a.LogError("VPK解析", err.Error(), filePath)
+		a.LogError("VPK解析", describeVPKParseError(filePath, err), filePath)
 		return
+	}
+	if hasPreviousGameState {
+		vpkFile.GameEnabled = previousGameEnabled
+		vpkFile.GameStateKnown = previousGameStateKnown
 	}
 
 	// 设置文件系统相关信息
@@ -221,6 +240,7 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	vpkFile.Location = location
 	vpkFile.Enabled = location != "disabled"
 	vpkFile.LastModified = modTime.Format(time.RFC3339)
+	vpkFile.PreviewRevision = previewRevision
 	vpkFile.Path = filePath
 
 	// 自定义标签始终从 .meta 读取：它们是本程序的本地分类数据，不能依赖于工坊详情开关。
@@ -273,6 +293,44 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	a.vpkCache.Store(filePath, cache)
 
 	log.Printf("已解析并缓存: %s", filepath.Base(filePath))
+}
+
+// buildVPKPreviewRevision identifies the bytes that can affect the card
+// preview without including the absolute path. Excluding the path is
+// intentional: toggling a Mod between addons and disabled changes its path,
+// but not its image, so the frontend can retain the already decoded image.
+func buildVPKPreviewRevision(filePath string, modTime time.Time, size int64, imageModTime time.Time) string {
+	return fmt.Sprintf("%s|%d|%d|%d",
+		strings.ToLower(filepath.Base(filePath)),
+		size,
+		modTime.UnixNano(),
+		imageModTime.UnixNano(),
+	)
+}
+
+// describeVPKParseError adds a concrete diagnosis for files that merely use a
+// .vpk extension. Steam Workshop downloads occasionally leave a ZIP archive in
+// place (header PK\x03\x04), which otherwise surfaces as an opaque VPK magic
+// error and makes users suspect the addonlist state instead.
+func describeVPKParseError(filePath string, parseErr error) string {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return parseErr.Error()
+	}
+	defer file.Close()
+
+	var header [4]byte
+	n, readErr := io.ReadFull(file, header[:])
+	if n >= 4 && bytes.Equal(header[:2], []byte{'P', 'K'}) {
+		return fmt.Sprintf("文件扩展名为 .vpk，但实际是 ZIP 压缩包（文件头 PK\\x03\\x04）；请重新下载、解压或改正文件后再扫描（原始错误：%v）", parseErr)
+	}
+	if n >= 4 && !bytes.Equal(header[:], []byte{0x34, 0x12, 0xAA, 0x55}) {
+		return fmt.Sprintf("不是有效的 VPK 文件（文件头 % X）；请确认文件未被错误重命名或下载不完整（原始错误：%v）", header, parseErr)
+	}
+	if readErr != nil && !errors.Is(readErr, io.EOF) && !errors.Is(readErr, io.ErrUnexpectedEOF) {
+		return fmt.Sprintf("无法读取 VPK 文件头：%v（原始错误：%v）", readErr, parseErr)
+	}
+	return parseErr.Error()
 }
 
 // getLocationFromPath 根据文件路径判断位置

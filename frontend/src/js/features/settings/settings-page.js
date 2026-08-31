@@ -61,6 +61,10 @@ export async function renderSettingsPage(deps) {
   } = deps;
   const container = document.getElementById("settings-page-content");
   if (!container) return;
+  const config = getConfig();
+  const unrecordedModLoadOrderPlacement = ["start", "after-enabled", "end"].includes(config.unrecordedModLoadOrderPlacement)
+    ? config.unrecordedModLoadOrderPlacement
+    : "end";
 
   const enabled = await GetWorkshopPreferredIP();
   const fixedIP = await GetWorkshopFixedIP();
@@ -213,19 +217,27 @@ export async function renderSettingsPage(deps) {
                 <span class="toggle-slider"></span>
               </label>
             </div>
-            <div class="setting-row">
+            <div class="setting-row setting-row-filter-layout">
               <div class="setting-row-info">
                 <div class="setting-row-label">筛选布局</div>
-                <div class="setting-row-desc">简洁模式使用下拉筛选节省空间；经典模式展开选项，方便快速点击筛选 Mod</div>
+                <div class="setting-row-desc">切换后立即应用到 Mod 列表。两种布局保留相同的筛选能力：简洁模式更省空间；经典模式直接展示常用条件与预设入口。</div>
               </div>
-              <div class="mode-toggle-group filter-layout-toggle">
-                <label class="mode-option ${appState.filterLayoutMode !== "classic" ? "active" : ""}">
+              <div class="mode-toggle-group filter-layout-toggle" role="radiogroup" aria-label="筛选布局">
+                <label class="mode-option filter-layout-option filter-layout-option-compact ${appState.filterLayoutMode !== "classic" ? "active" : ""}">
                   <input type="radio" name="settings-filter-layout" value="compact" ${appState.filterLayoutMode !== "classic" ? "checked" : ""}>
-                  <span class="mode-text">简洁</span>
+                  <span class="filter-layout-option-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="4" rx="1"></rect><rect x="3" y="10" width="18" height="4" rx="1"></rect><rect x="3" y="16" width="11" height="4" rx="1"></rect></svg>
+                  </span>
+                  <span class="filter-layout-option-copy"><strong>简洁下拉</strong><small>节省空间，适合专注浏览</small></span>
+                  <span class="filter-layout-option-badge">紧凑</span>
                 </label>
-                <label class="mode-option ${appState.filterLayoutMode === "classic" ? "active" : ""}">
+                <label class="mode-option filter-layout-option filter-layout-option-classic ${appState.filterLayoutMode === "classic" ? "active" : ""}">
                   <input type="radio" name="settings-filter-layout" value="classic" ${appState.filterLayoutMode === "classic" ? "checked" : ""}>
-                  <span class="mode-text">经典</span>
+                  <span class="filter-layout-option-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><path d="M14 17.5h7"></path></svg>
+                  </span>
+                  <span class="filter-layout-option-copy"><strong>经典展开</strong><small>常用条件直观可点</small></span>
+                  <span class="filter-layout-option-badge">详细</span>
                 </label>
               </div>
             </div>
@@ -358,6 +370,17 @@ export async function renderSettingsPage(deps) {
                 <div class="setting-row-desc addonlist-path">${escapeHtml(addonListInfo?.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</div>
                 ${addonListError ? `<div class="addonlist-status-error">${escapeHtml(addonListError)}</div>` : ""}
               </div>
+            </div>
+            <div class="setting-row addonlist-unrecorded-placement-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">未记录 Mod 首次开启时的位置</div>
+                <div class="setting-row-desc">仅影响点击“未记录”后首次写入 addonlist.txt 的 Mod；已记录 Mod 的开关不会移动。默认放在列表末尾，避免改变已有 Mod 的相对加载顺序；成功后会提示实际优先级编号。</div>
+              </div>
+              <select id="settings-unrecorded-mod-load-order-placement" class="form-input addonlist-unrecorded-placement-select" aria-label="未记录 Mod 首次开启时的加载顺序位置">
+                <option value="end" ${unrecordedModLoadOrderPlacement === "end" ? "selected" : ""}>列表末尾（默认，不重排已有 Mod）</option>
+                <option value="start" ${unrecordedModLoadOrderPlacement === "start" ? "selected" : ""}>列表顶部（优先级 #1）</option>
+                <option value="after-enabled" ${unrecordedModLoadOrderPlacement === "after-enabled" ? "selected" : ""}>紧跟最后一个游戏内已开启 Mod</option>
+              </select>
             </div>
             ${addonListInfo ? `
               <div class="addonlist-status-grid">
@@ -623,14 +646,39 @@ function bindSettingsPage(deps) {
   document.querySelectorAll('input[name="settings-filter-layout"]').forEach((radio) => {
     radio.addEventListener("change", async () => {
       if (!radio.checked) return;
-      deps.appState.filterLayoutMode = radio.value;
-      const config = deps.getConfig();
-      config.filterLayoutMode = radio.value;
-      deps.saveConfig(config);
-      radio.closest(".mode-toggle-group")?.querySelectorAll(".mode-option").forEach((option) => option.classList.remove("active"));
-      radio.closest(".mode-option")?.classList.add("active");
-      await deps.renderTagFilters?.();
-      deps.showNotification(radio.value === "classic" ? "已切换到经典筛选布局" : "已切换到简洁筛选布局", "success");
+      // saveConfig() updates its in-memory cache before the asynchronous Wails
+      // write completes. Keep a complete snapshot so a failed write cannot
+      // leave the cache on the new layout while the UI has rolled back.
+      const previousConfig = deps.getConfig();
+      const previousMode = previousConfig.filterLayoutMode === "classic" ? "classic" : "compact";
+      const nextMode = radio.value === "classic" ? "classic" : "compact";
+      const toggleGroup = radio.closest(".mode-toggle-group");
+      try {
+        deps.appState.filterLayoutMode = nextMode;
+        const config = deps.getConfig();
+        config.filterLayoutMode = nextMode;
+        await deps.saveConfig(config);
+        toggleGroup?.querySelectorAll(".mode-option").forEach((option) => option.classList.remove("active"));
+        radio.closest(".mode-option")?.classList.add("active");
+        await deps.renderTagFilters?.();
+        deps.showNotification(nextMode === "classic" ? "已切换到经典展开筛选布局" : "已切换到简洁下拉筛选布局", "success");
+      } catch (error) {
+        deps.appState.filterLayoutMode = previousMode;
+        // Restore both the visible state and config.js's cache. The latter is
+        // important because later settings saves start from getConfig().
+        try {
+          await deps.saveConfig(previousConfig);
+        } catch (rollbackError) {
+          console.error("筛选布局配置回滚失败:", rollbackError);
+        }
+        const previousRadio = toggleGroup?.querySelector(`input[value="${previousMode}"]`);
+        if (previousRadio) previousRadio.checked = true;
+        toggleGroup?.querySelectorAll(".mode-option").forEach((option) => {
+          option.classList.toggle("active", option.querySelector("input")?.value === previousMode);
+        });
+        await deps.renderTagFilters?.();
+        deps.showNotification("保存筛选布局失败: " + error, "error");
+      }
     });
   });
 
@@ -927,6 +975,21 @@ function bindSettingsPage(deps) {
       await deps.OpenFileLocation(path);
     } catch (error) {
       deps.showNotification("打开 addonlist.txt 位置失败: " + error, "error");
+    }
+  });
+
+  document.getElementById("settings-unrecorded-mod-load-order-placement")?.addEventListener("change", async (event) => {
+    const select = event.currentTarget;
+    const placement = ["start", "after-enabled", "end"].includes(select.value) ? select.value : "end";
+    const previousPlacement = deps.getConfig().unrecordedModLoadOrderPlacement || "end";
+    try {
+      const config = deps.getConfig();
+      config.unrecordedModLoadOrderPlacement = placement;
+      await deps.saveConfig(config);
+      deps.showNotification("已更新未记录 Mod 首次开启时的加载顺序位置", "success");
+    } catch (error) {
+      select.value = previousPlacement;
+      deps.showNotification("保存未记录 Mod 插入位置失败: " + error, "error");
     }
   });
 

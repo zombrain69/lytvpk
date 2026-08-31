@@ -128,33 +128,34 @@ type App struct {
 	singletonMgr           *SingletonManager // 单例管理器
 
 	// 配置项
-	modRotationConfig              RotationConfig
-	workshopPreferredIP            bool
-	workshopFixedIP                string
-	workshopMetaEnabled            bool
-	workshopUpdateCheckEnabled     bool
-	workshopBrowserTarget          string
-	workshopTranslateProvider      string
-	workshopTranslateCustomBaseURL string
-	workshopTranslateCustomAPIKey  string
-	workshopTranslateCustomModelId string
-	migrationVersion               int
-	defaultDirectory               string
-	savedDirectories               []SavedDirectory
-	lastActiveDirectory            string
-	displayMode                    string
-	filterLayoutMode               string
-	boxSelectionEnabled            bool
-	ctrlClickSelectionEnabled      bool
-	uiScale                        float64
-	theme                          string
-	ignoredVersion                 string
-	lastUpdateCheckTime            string
-	configDir                      string
-	configPath                     string
-	serversPath                    string
-	workshopWatchLaterPath         string
-	problemScanPath                string
+	modRotationConfig               RotationConfig
+	workshopPreferredIP             bool
+	workshopFixedIP                 string
+	workshopMetaEnabled             bool
+	workshopUpdateCheckEnabled      bool
+	workshopBrowserTarget           string
+	workshopTranslateProvider       string
+	workshopTranslateCustomBaseURL  string
+	workshopTranslateCustomAPIKey   string
+	workshopTranslateCustomModelId  string
+	migrationVersion                int
+	defaultDirectory                string
+	savedDirectories                []SavedDirectory
+	lastActiveDirectory             string
+	displayMode                     string
+	filterLayoutMode                string
+	boxSelectionEnabled             bool
+	ctrlClickSelectionEnabled       bool
+	uiScale                         float64
+	unrecordedModLoadOrderPlacement string
+	theme                           string
+	ignoredVersion                  string
+	lastUpdateCheckTime             string
+	configDir                       string
+	configPath                      string
+	serversPath                     string
+	workshopWatchLaterPath          string
+	problemScanPath                 string
 }
 
 // rootDirectorySnapshot returns a consistent directory value for background
@@ -176,28 +177,29 @@ func (a *App) workshopOptionsSnapshot() (metaEnabled, updateCheckEnabled bool) {
 
 // ConfigFile 定义配置文件结构
 type ConfigFile struct {
-	ModRotationConfig              RotationConfig   `json:"modRotationConfig"`
-	WorkshopPreferredIP            *bool            `json:"workshopPreferredIP,omitempty"`
-	WorkshopFixedIP                *string          `json:"workshopFixedIP,omitempty"`
-	WorkshopMetaEnabled            *bool            `json:"workshopMetaEnabled,omitempty"`
-	WorkshopUpdateCheckEnabled     *bool            `json:"workshopUpdateCheckEnabled,omitempty"`
-	WorkshopBrowserTarget          *string          `json:"workshopBrowserTarget,omitempty"`
-	WorkshopTranslateProvider      *string          `json:"workshopTranslateProvider,omitempty"`
-	WorkshopTranslateCustomBaseURL string           `json:"workshopTranslateCustomBaseURL,omitempty"`
-	WorkshopTranslateCustomAPIKey  string           `json:"workshopTranslateCustomAPIKey,omitempty"`
-	WorkshopTranslateCustomModelId string           `json:"workshopTranslateCustomModelId,omitempty"`
-	DefaultDirectory               string           `json:"defaultDirectory"`
-	SavedDirectories               []SavedDirectory `json:"savedDirectories"`
-	LastActiveDirectory            string           `json:"lastActiveDirectory"`
-	DisplayMode                    string           `json:"displayMode"`
-	FilterLayoutMode               string           `json:"filterLayoutMode"`
-	BoxSelectionEnabled            *bool            `json:"boxSelectionEnabled,omitempty"`
-	CtrlClickSelectionEnabled      *bool            `json:"ctrlClickSelectionEnabled,omitempty"`
-	UIScale                        float64          `json:"uiScale,omitempty"`
-	AddonListGuardEnabled          *bool            `json:"addonListGuardEnabled,omitempty"`
-	Theme                          string           `json:"theme"`
-	IgnoredVersion                 string           `json:"ignoredVersion"`
-	LastUpdateCheckTime            string           `json:"lastUpdateCheckTime"`
+	ModRotationConfig               RotationConfig   `json:"modRotationConfig"`
+	WorkshopPreferredIP             *bool            `json:"workshopPreferredIP,omitempty"`
+	WorkshopFixedIP                 *string          `json:"workshopFixedIP,omitempty"`
+	WorkshopMetaEnabled             *bool            `json:"workshopMetaEnabled,omitempty"`
+	WorkshopUpdateCheckEnabled      *bool            `json:"workshopUpdateCheckEnabled,omitempty"`
+	WorkshopBrowserTarget           *string          `json:"workshopBrowserTarget,omitempty"`
+	WorkshopTranslateProvider       *string          `json:"workshopTranslateProvider,omitempty"`
+	WorkshopTranslateCustomBaseURL  string           `json:"workshopTranslateCustomBaseURL,omitempty"`
+	WorkshopTranslateCustomAPIKey   string           `json:"workshopTranslateCustomAPIKey,omitempty"`
+	WorkshopTranslateCustomModelId  string           `json:"workshopTranslateCustomModelId,omitempty"`
+	DefaultDirectory                string           `json:"defaultDirectory"`
+	SavedDirectories                []SavedDirectory `json:"savedDirectories"`
+	LastActiveDirectory             string           `json:"lastActiveDirectory"`
+	DisplayMode                     string           `json:"displayMode"`
+	FilterLayoutMode                string           `json:"filterLayoutMode"`
+	BoxSelectionEnabled             *bool            `json:"boxSelectionEnabled,omitempty"`
+	CtrlClickSelectionEnabled       *bool            `json:"ctrlClickSelectionEnabled,omitempty"`
+	UIScale                         float64          `json:"uiScale,omitempty"`
+	AddonListGuardEnabled           *bool            `json:"addonListGuardEnabled,omitempty"`
+	UnrecordedModLoadOrderPlacement *string          `json:"unrecordedModLoadOrderPlacement,omitempty"`
+	Theme                           string           `json:"theme"`
+	IgnoredVersion                  string           `json:"ignoredVersion"`
+	LastUpdateCheckTime             string           `json:"lastUpdateCheckTime"`
 	// migrationVersion=2 表示前端 localStorage 配置已迁移到配置目录。
 	MigrationVersion int `json:"migrationVersion"`
 }
@@ -299,24 +301,25 @@ func NewApp() *App {
 	problemScanPath := filepath.Join(appConfigDir, "problem_mod_scan.json")
 
 	app := &App{
-		goroutinePool:             pool,
-		restyClient:               client,
-		proxyServer:               proxy,
-		configDir:                 appConfigDir,
-		configPath:                configPath,
-		serversPath:               serversPath,
-		workshopWatchLaterPath:    workshopWatchLaterPath,
-		problemScanPath:           problemScanPath,
-		workshopPreferredIP:       true,     // 默认开启优选IP
-		workshopMetaEnabled:       true,     // 默认开启工坊meta信息存储
-		workshopBrowserTarget:     "mirror", // 默认使用镜像站
-		workshopTranslateProvider: workshopTranslateProviderMicrosoft,
-		displayMode:               "list",
-		filterLayoutMode:          "compact",
-		boxSelectionEnabled:       true,
-		ctrlClickSelectionEnabled: true,
-		uiScale:                   defaultUIScale,
-		savedDirectories:          []SavedDirectory{},
+		goroutinePool:                   pool,
+		restyClient:                     client,
+		proxyServer:                     proxy,
+		configDir:                       appConfigDir,
+		configPath:                      configPath,
+		serversPath:                     serversPath,
+		workshopWatchLaterPath:          workshopWatchLaterPath,
+		problemScanPath:                 problemScanPath,
+		workshopPreferredIP:             true,     // 默认开启优选IP
+		workshopMetaEnabled:             true,     // 默认开启工坊meta信息存储
+		workshopBrowserTarget:           "mirror", // 默认使用镜像站
+		workshopTranslateProvider:       workshopTranslateProviderMicrosoft,
+		displayMode:                     "list",
+		filterLayoutMode:                "compact",
+		boxSelectionEnabled:             true,
+		ctrlClickSelectionEnabled:       true,
+		uiScale:                         defaultUIScale,
+		unrecordedModLoadOrderPlacement: addonListUnrecordedPlacementEnd,
+		savedDirectories:                []SavedDirectory{},
 	}
 
 	// 加载配置

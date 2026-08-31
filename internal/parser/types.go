@@ -43,7 +43,8 @@ type VPKFile struct {
 	Campaign          string                 `json:"campaign"`
 	Chapters          map[string]ChapterInfo `json:"chapters"` // key: 章节代码, value: 章节信息
 	Mode              string                 `json:"mode"`
-	PreviewImage      string                 `json:"previewImage"` // Base64编码的预览图
+	PreviewImage      string                 `json:"previewImage"`    // Base64编码的预览图
+	PreviewRevision   string                 `json:"previewRevision"` // 预览源签名；用于前端跨刷新/移动复用已解码图片
 	LastModified      string                 `json:"lastModified"`
 	// addoninfo.txt 相关信息
 	Title      string `json:"title"`      // addontitle (必有)

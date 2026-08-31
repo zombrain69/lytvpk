@@ -3,6 +3,8 @@ import { showNotification, showError } from "../../core/toast.js";
 import { renderFileList } from "./render.js";
 import { GetAddonListOrder } from "../../../../wailsjs/go/app/App";
 
+let loadOrderHighlightTimer = null;
+
 export function setupSortEvents() {
   const sortBtn = document.getElementById("sort-btn");
   const dropdown = document.getElementById("sort-dropdown-content");
@@ -36,7 +38,70 @@ export function setupSortEvents() {
     .getElementById("sort-load-order-btn")
     ?.addEventListener("click", () => handleLoadOrderSort());
 
+  setupLoadOrderLocator();
+
   updateSortButtonUI();
+}
+
+function setupLoadOrderLocator() {
+  const input = document.getElementById("load-order-locate-input");
+  const button = document.getElementById("load-order-locate-btn");
+  if (!input || !button) return;
+
+  const locate = () => locateFileByLoadOrder(input);
+  button.addEventListener("click", locate);
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    locate();
+  });
+}
+
+async function locateFileByLoadOrder(input) {
+  const priority = Number(input.value);
+  if (!Number.isSafeInteger(priority) || priority < 1) {
+    showError("请输入大于 0 的优先级编号");
+    input.focus();
+    return;
+  }
+
+  try {
+    await refreshLoadOrderMap();
+    const targetIndex = priority - 1;
+    const allFiles = appState.allVpkFiles?.length ? appState.allVpkFiles : appState.vpkFiles || [];
+    const targetFile = allFiles.find((file) => getFileLoadOrderIndex(file) === targetIndex);
+    if (!targetFile) {
+      showNotification(`优先级 #${priority} 当前没有扫描到对应的 Mod`, "info");
+      return;
+    }
+
+    const isVisible = (appState.vpkFiles || []).some((file) => file.path === targetFile.path);
+    if (!isVisible) {
+      showNotification(`当前筛选隐藏了优先级 #${priority} 的 Mod，请清除筛选后再定位`, "info");
+      return;
+    }
+
+    const element = Array.from(
+      document.querySelectorAll("#file-list .file-item[data-path], #file-list .file-card[data-path]"),
+    ).find((item) => item.dataset.path === targetFile.path);
+    if (!element) {
+      showNotification("列表正在更新，请稍后再次定位", "info");
+      return;
+    }
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    document.querySelectorAll(".load-order-locate-highlight").forEach((item) => item.classList.remove("load-order-locate-highlight"));
+    element.classList.add("load-order-locate-highlight");
+    if (loadOrderHighlightTimer) window.clearTimeout(loadOrderHighlightTimer);
+    loadOrderHighlightTimer = window.setTimeout(() => {
+      element.classList.remove("load-order-locate-highlight");
+      loadOrderHighlightTimer = null;
+    }, 2200);
+  } catch (error) {
+    console.error("按优先级定位 Mod 失败:", error);
+    showError("读取 addonlist.txt 优先级失败: " + error);
+  }
 }
 
 export async function handleLoadOrderSort() {
@@ -177,7 +242,7 @@ function getFileLoadOrderKeys(file) {
   return [...new Set(keys.filter(Boolean))];
 }
 
-function getFileLoadOrderIndex(file) {
+export function getFileLoadOrderIndex(file) {
   for (const key of getFileLoadOrderKeys(file)) {
     const index = appState.loadOrderMap.get(key);
     if (index !== undefined) return index;

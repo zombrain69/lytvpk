@@ -3,7 +3,7 @@ import { showError, showNotification } from "../../core/toast.js";
 import { unpackVPKFromPath } from "../diagnostics/vpk-unpack.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import { performSearch, refreshFilesKeepFilter } from "./filters.js";
-import { refreshLoadOrderMap } from "./sorting.js";
+import { getFileLoadOrderIndex, refreshLoadOrderMap } from "./sorting.js";
 import {
   ToggleVPKFile,
   DeleteVPKFile,
@@ -34,7 +34,8 @@ export async function toggleGameEnabled(filePath) {
     return;
   }
 
-  const nextEnabled = !file.gameStateKnown || !file.gameEnabled;
+  const wasUnrecorded = !file.gameStateKnown;
+  const nextEnabled = wasUnrecorded || !file.gameEnabled;
   try {
     await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);
 
@@ -51,7 +52,11 @@ export async function toggleGameEnabled(filePath) {
     // 加载顺序映射，避免新条目直到下一次完整刷新才出现优先级编号。
     await refreshLoadOrderMap({ silent: true });
     await performSearch();
-    showNotification(nextEnabled ? "已在 addonlist.txt 中开启 Mod" : "已在 addonlist.txt 中关闭 Mod", "success");
+    const orderIndex = getFileLoadOrderIndex(file);
+    const priorityHint = wasUnrecorded && nextEnabled && Number.isInteger(orderIndex)
+      ? `（新增为优先级 #${orderIndex + 1}）`
+      : "";
+    showNotification(nextEnabled ? `已在 addonlist.txt 中开启 Mod${priorityHint}` : "已在 addonlist.txt 中关闭 Mod", "success");
   } catch (error) {
     console.error("切换游戏内开关失败:", error);
     showError("写入 addonlist.txt 失败: " + error);

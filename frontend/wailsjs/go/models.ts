@@ -1,15 +1,15 @@
 export namespace app {
-
+	
 	export class AddonListBackup {
 	    name: string;
 	    createdAt: string;
 	    size: number;
 	    kind: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AddonListBackup(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -28,7 +28,7 @@ export namespace app {
 	    guardEnabled: boolean;
 	    lastGuardRestore: string;
 	    lastGuardError: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AddonListInfo(source);
 	    }
@@ -348,6 +348,7 @@ export namespace app {
 	    ctrlClickSelectionEnabled?: boolean;
 	    uiScale?: number;
 	    addonListGuardEnabled?: boolean;
+	    unrecordedModLoadOrderPlacement?: string;
 	    theme: string;
 	    ignoredVersion: string;
 	    lastUpdateCheckTime: string;
@@ -378,6 +379,7 @@ export namespace app {
 	        this.ctrlClickSelectionEnabled = source["ctrlClickSelectionEnabled"];
 	        this.uiScale = source["uiScale"];
 	        this.addonListGuardEnabled = source["addonListGuardEnabled"];
+	        this.unrecordedModLoadOrderPlacement = source["unrecordedModLoadOrderPlacement"];
 	        this.theme = source["theme"];
 	        this.ignoredVersion = source["ignoredVersion"];
 	        this.lastUpdateCheckTime = source["lastUpdateCheckTime"];
@@ -650,11 +652,11 @@ export namespace app {
 	    targetSize: number;
 	    sourceModTime: string;
 	    targetModTime: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FileMoveConflict(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sourcePath = source["sourcePath"];
@@ -1960,6 +1962,7 @@ export namespace app {
 	}
 
 }
+
 export namespace minidump {
 	
 	export class CodeViewInfo {
@@ -2789,11 +2792,11 @@ export namespace parser {
 	    actions: string[];
 	    evidence: string[];
 	    confidence: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new XDRSlotInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.character = source["character"];
@@ -2830,6 +2833,7 @@ export namespace parser {
 	    chapters: Record<string, ChapterInfo>;
 	    mode: string;
 	    previewImage: string;
+	    previewRevision: string;
 	    lastModified: string;
 	    title: string;
 	    author: string;
@@ -2868,6 +2872,7 @@ export namespace parser {
 	        this.chapters = this.convertValues(source["chapters"], ChapterInfo, true);
 	        this.mode = source["mode"];
 	        this.previewImage = source["previewImage"];
+	        this.previewRevision = source["previewRevision"];
 	        this.lastModified = source["lastModified"];
 	        this.title = source["title"];
 	        this.author = source["author"];
@@ -2898,3 +2903,4 @@ export namespace parser {
 	}
 
 }
+

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -57,6 +58,58 @@ func TestAddonListValueOperationsKeepBracesInVPKNames(t *testing.T) {
 	}
 }
 
+func TestReplaceAddonListValueWithPlacementPlacesOnlyMissingEntries(t *testing.T) {
+	content := "\"AddonList\"\r\n{\r\n\t// 保留首条注释\r\n\t\"first.vpk\"\t\t\"0\"\r\n\t\"enabled-a.vpk\"\t\t\"1\"\r\n\t\"enabled-b.vpk\"\t\t\"1\"\r\n\t\"disabled.vpk\"\t\t\"0\"\r\n}\r\n"
+	tests := []struct {
+		name      string
+		placement string
+		want      []string
+	}{
+		{name: "start", placement: addonListUnrecordedPlacementStart, want: []string{"new.vpk", "first.vpk", "enabled-a.vpk", "enabled-b.vpk", "disabled.vpk"}},
+		{name: "after last enabled", placement: addonListUnrecordedPlacementAfterEnabled, want: []string{"first.vpk", "enabled-a.vpk", "enabled-b.vpk", "new.vpk", "disabled.vpk"}},
+		{name: "end", placement: addonListUnrecordedPlacementEnd, want: []string{"first.vpk", "enabled-a.vpk", "enabled-b.vpk", "disabled.vpk", "new.vpk"}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			updated, replaced, err := replaceAddonListValueWithPlacement(content, "new.vpk", "1", test.placement)
+			if err != nil || !replaced {
+				t.Fatalf("replace missing entry = replaced:%t err:%v", replaced, err)
+			}
+			if !strings.Contains(updated, "// 保留首条注释") || !strings.Contains(updated, "\r\n") {
+				t.Fatalf("comments or CRLF were not preserved: %q", updated)
+			}
+			items := parseAddonListItems(updated)
+			got := make([]string, 0, len(items))
+			for _, item := range items {
+				got = append(got, item.Name)
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("entry order = %#v, want %#v", got, test.want)
+			}
+		})
+	}
+
+	updated, replaced, err := replaceAddonListValueWithPlacement(content, "enabled-a.vpk", "0", addonListUnrecordedPlacementStart)
+	if err != nil || !replaced {
+		t.Fatalf("replace existing entry = replaced:%t err:%v", replaced, err)
+	}
+	items := parseAddonListItems(updated)
+	if len(items) != 4 || items[1] != (AddonListItem{Name: "enabled-a.vpk", Value: "0"}) {
+		t.Fatalf("existing entry was inserted or not updated in place: %#v", items)
+	}
+
+	noEnabledContent := strings.ReplaceAll(content, "\t\t\"1\"", "\t\t\"0\"")
+	updated, replaced, err = replaceAddonListValueWithPlacement(noEnabledContent, "new.vpk", "1", addonListUnrecordedPlacementAfterEnabled)
+	if err != nil || !replaced {
+		t.Fatalf("replace without enabled entries = replaced:%t err:%v", replaced, err)
+	}
+	items = parseAddonListItems(updated)
+	if len(items) != 5 || items[0].Name != "new.vpk" {
+		t.Fatalf("after-enabled should fall back to the list start when none are enabled: %#v", items)
+	}
+}
+
 func TestApplyAddonListGameStatesMatchesRootAndWorkshopKeys(t *testing.T) {
 	root := t.TempDir()
 	addonsDir := filepath.Join(root, "left4dead2", "addons")
@@ -83,6 +136,67 @@ func TestApplyAddonListGameStatesMatchesRootAndWorkshopKeys(t *testing.T) {
 	workshopFile := app.mustCachedVPKFile(t, workshopPath)
 	if !workshopFile.GameStateKnown || workshopFile.GameEnabled {
 		t.Fatalf("workshop state = known:%t enabled:%t, want true/false", workshopFile.GameStateKnown, workshopFile.GameEnabled)
+	}
+}
+
+func TestApplyAddonListGameStatesKeepsCachedStateWhenDocumentUnavailable(t *testing.T) {
+	root := t.TempDir()
+	addonsDir := filepath.Join(root, "left4dead2", "addons")
+	if err := os.MkdirAll(addonsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	rootPath := filepath.Join(addonsDir, "root.vpk")
+	app := &App{rootDir: addonsDir}
+	app.vpkCache.Store(rootPath, &VPKFileCache{File: VPKFile{
+		Path: rootPath, Name: "root.vpk", Location: "root",
+		GameEnabled: true, GameStateKnown: true,
+	}})
+
+	// addonlist.txt 不存在时，模拟游戏启动/退出期间的短暂不可读窗口。
+	app.applyAddonListGameStates()
+
+	file := app.mustCachedVPKFile(t, rootPath)
+	if !file.GameStateKnown || !file.GameEnabled {
+		t.Fatalf("cached state = known:%t enabled:%t, want preserved true/true", file.GameStateKnown, file.GameEnabled)
+	}
+}
+
+func TestApplyAddonListGameStatesKeepsCachedStateForMalformedDocument(t *testing.T) {
+	root := t.TempDir()
+	addonsDir := filepath.Join(root, "left4dead2", "addons")
+	if err := os.MkdirAll(addonsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	addonListPath := filepath.Join(filepath.Dir(addonsDir), "addonlist.txt")
+	if err := os.WriteFile(addonListPath, []byte("partial write without AddonList block\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	rootPath := filepath.Join(addonsDir, "root.vpk")
+	app := &App{rootDir: addonsDir}
+	app.vpkCache.Store(rootPath, &VPKFileCache{File: VPKFile{
+		Path: rootPath, Name: "root.vpk", Location: "root",
+		GameEnabled: false, GameStateKnown: true,
+	}})
+
+	app.applyAddonListGameStates()
+
+	file := app.mustCachedVPKFile(t, rootPath)
+	if !file.GameStateKnown || file.GameEnabled {
+		t.Fatalf("cached state = known:%t enabled:%t, want preserved true/false", file.GameStateKnown, file.GameEnabled)
+	}
+}
+
+func TestDescribeVPKParseErrorIdentifiesZipWithVPKExtension(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fake.vpk")
+	if err := os.WriteFile(path, []byte{'P', 'K', 0x03, 0x04, 0x14, 0x00}, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	message := describeVPKParseError(path, fmt.Errorf("vpk: invalid magic: 04034b50"))
+	if !strings.Contains(message, "ZIP") || !strings.Contains(message, "PK\\x03\\x04") {
+		t.Fatalf("ZIP diagnosis = %q", message)
 	}
 }
 
@@ -137,6 +251,92 @@ func TestSetVPKGameEnabledPreservesGBKLayoutAndWorkshopKey(t *testing.T) {
 	file := app.mustCachedVPKFile(t, vpkPath)
 	if !file.GameStateKnown || !file.GameEnabled {
 		t.Fatalf("cached state = known:%t enabled:%t, want true/true", file.GameStateKnown, file.GameEnabled)
+	}
+}
+
+func TestSetVPKGameEnabledPlacesUnrecordedEntryAndPreservesGBK(t *testing.T) {
+	root := t.TempDir()
+	addonsDir := filepath.Join(root, "left4dead2", "addons")
+	if err := os.MkdirAll(addonsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	original := "\"AddonList\"\r\n{\r\n\t// 保留 GBK 注释\r\n\t\"enabled.vpk\"\t\t\"1\"\r\n\t\"disabled.vpk\"\t\t\"0\"\r\n}\r\n"
+	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(original))
+	if err != nil {
+		t.Fatal(err)
+	}
+	addonListPath := filepath.Join(filepath.Dir(addonsDir), "addonlist.txt")
+	if err := os.WriteFile(addonListPath, encoded, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	vpkPath := filepath.Join(addonsDir, "new.vpk")
+	app := &App{rootDir: addonsDir, unrecordedModLoadOrderPlacement: addonListUnrecordedPlacementAfterEnabled}
+	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: "new.vpk", Location: "root"}})
+	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+		t.Fatalf("SetVPKGameEnabled: %v", err)
+	}
+
+	updatedBytes, err := os.ReadFile(addonListPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(updatedBytes, []byte("保留")) {
+		t.Fatal("addonlist.txt was unexpectedly rewritten as UTF-8")
+	}
+	updated, _, err := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), updatedBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "\"AddonList\"\r\n{\r\n\t// 保留 GBK 注释\r\n\t\"enabled.vpk\"\t\t\"1\"\r\n\t\"new.vpk\"\t\t\"1\"\r\n\t\"disabled.vpk\"\t\t\"0\"\r\n}\r\n"
+	if string(updated) != want {
+		t.Fatalf("unexpected configured insertion:\nwant: %q\n got: %q", want, string(updated))
+	}
+}
+
+func TestSetVPKGameEnabledHandlesGBKRootFilename(t *testing.T) {
+	root := t.TempDir()
+	addonsDir := filepath.Join(root, "left4dead2", "addons")
+	if err := os.MkdirAll(addonsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	original := "\"AddonList\"\r\n{\r\n\t// 保留 GBK\r\n}\r\n"
+	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(original))
+	if err != nil {
+		t.Fatal(err)
+	}
+	addonListPath := filepath.Join(filepath.Dir(addonsDir), "addonlist.txt")
+	if err := os.WriteFile(addonListPath, encoded, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	name := "【BA垃姬桶】垃圾桶 (junk).vpk"
+	vpkPath := filepath.Join(addonsDir, name)
+	app := &App{rootDir: addonsDir}
+	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: name, Location: "root"}})
+	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+		t.Fatalf("SetVPKGameEnabled: %v", err)
+	}
+
+	updatedBytes, err := os.ReadFile(addonListPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, _, err := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), updatedBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantLine := "\t\"" + name + "\"\t\t\"1\""
+	if !strings.Contains(string(updated), wantLine) {
+		t.Fatalf("GBK root filename was not written: %q", updated)
+	}
+
+	app.applyAddonListGameStates()
+	file := app.mustCachedVPKFile(t, vpkPath)
+	if !file.GameStateKnown || !file.GameEnabled {
+		t.Fatalf("GBK root state = known:%t enabled:%t, want true/true", file.GameStateKnown, file.GameEnabled)
 	}
 }
 

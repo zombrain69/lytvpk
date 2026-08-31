@@ -67,7 +67,14 @@ function getGameStateBadge(file, className = "game-state-badge") {
 }
 
 function getLoadOrderBadge(file, className = "load-order-badge") {
-  if (!appState.loadOrderMap?.size) return "";
+  const order = getLoadOrderValue(file);
+  return Number.isInteger(order)
+    ? `<span class="${className}" title="编号来自 addonlist.txt 加载顺序；数字越大表示越靠后加载。实际覆盖结果还取决于游戏资源与 Mod 规则">优先级 #${order + 1}</span>`
+    : "";
+}
+
+function getLoadOrderValue(file) {
+  if (!appState.loadOrderMap?.size) return undefined;
   const name = String(file?.name || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
   const path = String(file?.path || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
   const root = String(appState.currentDirectory || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
@@ -76,10 +83,91 @@ function getLoadOrderBadge(file, className = "load-order-badge") {
   if (file?.location === "workshop" && name) keys.push(`workshop\\${name}`);
   if (file?.location === "disabled" && name) keys.push(`disabled\\${name}`);
   if (name) keys.push(name);
-  const order = [...new Set(keys)].map((key) => appState.loadOrderMap.get(key)).find((value) => Number.isInteger(value));
-  return Number.isInteger(order)
-    ? `<span class="${className}" title="编号来自 addonlist.txt 加载顺序；数字越大通常越靠后加载，覆盖同一资源时更可能生效">优先级 #${order + 1}</span>`
-    : "";
+  return [...new Set(keys)]
+    .map((key) => appState.loadOrderMap.get(key))
+    .find((value) => Number.isInteger(value));
+}
+
+function getCardPreviewRevision(file) {
+	const revision = String(file?.previewRevision || "").trim();
+	if (revision) return revision;
+	return `${String(file?.name || "")}\u0000${String(file?.size || "")}\u0000${String(file?.lastModified || "")}`;
+}
+
+// The signature contains every value rendered inside a card. Keeping this
+// separate from the file object lets a scan return fresh objects without
+// forcing Chromium to rebuild hundreds of unchanged image elements.
+function getFileCardRenderSignature(file, panelServersAvailable) {
+  const conflict = appState.conflictByPath?.get(file.path);
+  return JSON.stringify({
+    name: file.name,
+    title: file.title,
+    location: file.location,
+    enabled: Boolean(file.enabled),
+    gameStateKnown: Boolean(file.gameStateKnown),
+    gameEnabled: Boolean(file.gameEnabled),
+    hasUpdate: Boolean(file.hasUpdate),
+    workshopId: file.workshopId || "",
+    primaryTag: file.primaryTag || "",
+    secondaryTags: file.secondaryTags || [],
+    subjectSummary: file.subjectSummary || "",
+    xdrSummary: file.xdrSummary || "",
+    previewRevision: getCardPreviewRevision(file),
+    loadOrder: getLoadOrderValue(file),
+    conflictEnabled: Boolean(appState.conflictAnalysisEnabled),
+    conflictLoading: Boolean(appState.conflictAnalysisLoading),
+    conflict: conflict
+      ? [conflict.groups, conflict.files, conflict.severity]
+      : null,
+    panelServersAvailable,
+  });
+}
+
+function syncReusedCardSelection(card, file) {
+  const checkbox = card.querySelector(".file-checkbox.card-checkbox");
+  if (!checkbox) return;
+  checkbox.checked = appState.selectedFiles.has(file.path);
+  checkboxByPath.set(file.path, checkbox);
+}
+
+function takeExistingCard(file, existingCards, cardsByIdentity) {
+  const exact = existingCards.get(file.path);
+  if (exact) {
+    existingCards.delete(file.path);
+    removeCardFromIdentityIndex(exact, cardsByIdentity);
+    return exact;
+  }
+
+  const identity = getCardPreviewRevision(file);
+  const candidates = cardsByIdentity.get(identity);
+  while (candidates?.length) {
+    const candidate = candidates.shift();
+    if (!candidate) continue;
+    const oldPath = candidate.dataset.path;
+    if (existingCards.get(oldPath) !== candidate) continue;
+    existingCards.delete(oldPath);
+    return candidate;
+  }
+  return null;
+}
+
+function removeCardFromIdentityIndex(card, cardsByIdentity) {
+  if (!card) return;
+  const identity = card.dataset.cardIdentity || card.dataset.previewRevision;
+  const candidates = cardsByIdentity.get(identity);
+  if (!candidates) return;
+  const index = candidates.indexOf(card);
+  if (index >= 0) candidates.splice(index, 1);
+  if (candidates.length === 0) cardsByIdentity.delete(identity);
+}
+
+function ensureCardPreviewObservation(card, file) {
+  const image = card.querySelector(".card-preview-img");
+  const placeholder = card.querySelector(".card-preview-placeholder");
+  if (!image || !placeholder || image.getAttribute("src")) return;
+  if (getCachedVPKPreview(file) === undefined) {
+    observeCardPreview(card, file, image, placeholder);
+  }
 }
 
 function getGameToggleButton(file) {
@@ -133,9 +221,7 @@ export function renderFileList() {
   const statusBar = document.querySelector(".status-bar");
 
   if (!container) return;
-  clearPendingCardPreviews();
   checkboxByPath.clear();
-  const fragment = document.createDocumentFragment();
 
   if (appState.displayMode === "card") {
     container.classList.add("file-list-grid");
@@ -143,21 +229,69 @@ export function renderFileList() {
     if (listHeader) listHeader.style.display = "none";
     if (statusBar) statusBar.style.display = "flex";
 
-    appState.vpkFiles.forEach((file) => {
-      fragment.appendChild(createFileCard(file));
+    const panelServersAvailable = hasPanelServers();
+    const existingCards = new Map();
+    const cardsByIdentity = new Map();
+    const currentChildren = Array.from(container.children);
+    currentChildren.forEach((child) => {
+      if (child.classList?.contains("file-card") && child.dataset.path) {
+        existingCards.set(child.dataset.path, child);
+        const identity = child.dataset.cardIdentity || child.dataset.previewRevision;
+        if (identity) {
+          const candidates = cardsByIdentity.get(identity) || [];
+          candidates.push(child);
+          cardsByIdentity.set(identity, candidates);
+        }
+      }
     });
+
+    const nextCards = appState.vpkFiles.map((file) => {
+      const existingCard = takeExistingCard(file, existingCards, cardsByIdentity);
+      const signature = getFileCardRenderSignature(file, panelServersAvailable);
+
+      if (existingCard?.dataset.renderSignature === signature) {
+        syncReusedCardSelection(existingCard, file);
+        ensureCardPreviewObservation(existingCard, file);
+        return existingCard;
+      }
+
+      // A changed card may still have an in-flight intersection-observer task.
+      // Remove only this card's task; unchanged cards keep their observation
+      // and do not churn the observer on every refresh/filter action.
+      unobserveCardPreview(existingCard);
+      const card = createFileCard(file, existingCard, panelServersAvailable);
+      card.dataset.renderSignature = signature;
+      return card;
+    });
+
+    // Any old cards not present in the next result must no longer retain an
+    // observer entry. Their detached image nodes are otherwise kept alive by
+    // pendingCardPreviews until the next full render.
+    existingCards.forEach((card) => unobserveCardPreview(card));
+
+    const orderUnchanged =
+      currentChildren.length === nextCards.length &&
+      currentChildren.every((card, index) => card === nextCards[index]);
+    if (!orderUnchanged) {
+      const fragment = document.createDocumentFragment();
+      nextCards.forEach((card) => fragment.appendChild(card));
+      container.replaceChildren(fragment);
+    }
   } else {
+    // Switching away from card mode detaches every observed card. Release
+    // those observer entries immediately so the old card graph is collectible.
+    clearPendingCardPreviews();
     container.classList.add("file-list");
     container.classList.remove("file-list-grid");
     if (listHeader) listHeader.style.display = "grid";
     if (statusBar) statusBar.style.display = "flex";
 
+    const fragment = document.createDocumentFragment();
     appState.vpkFiles.forEach((file) => {
       fragment.appendChild(createFileItem(file));
     });
+    container.replaceChildren(fragment);
   }
-
-  container.replaceChildren(fragment);
 }
 
 export function createFileItem(file) {
@@ -322,10 +456,19 @@ export function createFileItem(file) {
   return item;
 }
 
-export function createFileCard(file) {
-  const card = document.createElement("div");
+export function createFileCard(file, existingCard = null, panelServersAvailable = hasPanelServers()) {
+  const card = existingCard || document.createElement("div");
+  const previousPreview = existingCard?.querySelector(".card-preview-img") || null;
+  const previewRevision = getCardPreviewRevision(file);
+  const canPreservePreview = Boolean(
+    previousPreview &&
+      existingCard.dataset.previewRevision === previewRevision,
+  );
+
   card.className = "file-card";
   card.dataset.path = file.path;
+  card.dataset.previewRevision = previewRevision;
+  card.dataset.cardIdentity = previewRevision;
   applyModStateClasses(card, file, "mod-card");
 
   if (!file.enabled) {
@@ -352,7 +495,12 @@ export function createFileCard(file) {
     : "";
 
   const cachedPreview = getCachedVPKPreview(file);
-  const previewSrc = cachedPreview || "";
+  const previewSrc = canPreservePreview
+    ? previousPreview.getAttribute("src")
+    : cachedPreview || "";
+  // An empty src points an <img> at the current document in some browsers.
+  // Omit the attribute until the queued preview request actually returns.
+  const previewSrcAttribute = previewSrc ? ` src="${previewSrc}"` : "";
   const showPlaceholder = !previewSrc;
 
   let secondaryTagsHtml = "";
@@ -425,7 +573,7 @@ export function createFileCard(file) {
         <button class="dropdown-item set-tags-btn" data-file-path="${file.path}" data-action="set-tags">
           <span class="btn-icon">${iconSvg("tag")}</span> 设置标签
         </button>
-        ${hasPanelServers() ? `
+        ${panelServersAvailable ? `
         <button class="dropdown-item upload-server-btn" data-file-path="${file.path}" data-action="upload-server">
           <span class="btn-icon">${iconSvg("upload")}</span>
           <span class="menu-item-text">上传服务器</span>
@@ -473,7 +621,7 @@ export function createFileCard(file) {
           <polyline points="21 15 16 10 5 21"></polyline>
         </svg>
       </div>
-      <img class="card-preview-img ${showPlaceholder ? "hidden" : ""}" src="${previewSrc}" alt="${displayTitle}" loading="lazy" decoding="async" />
+      <img class="card-preview-img ${showPlaceholder ? "hidden" : ""}"${previewSrcAttribute} alt="${displayTitle}" loading="lazy" decoding="async" fetchpriority="low" />
       <div class="card-checkbox-container"></div>
       <div class="card-badges">
         <span class="card-badge location-badge">${getLocationDisplayName(file.location)}</span>
@@ -518,32 +666,48 @@ export function createFileCard(file) {
     e.stopPropagation();
   });
 
-  const img = card.querySelector(".card-preview-img");
+  let img = card.querySelector(".card-preview-img");
   const placeholder = card.querySelector(".card-preview-placeholder");
 
-  if (cachedPreview === undefined) {
+  if (canPreservePreview) {
+    const renderedPreview = img;
+    previousPreview.className = renderedPreview.className;
+    previousPreview.alt = displayTitle;
+    previousPreview.loading = "lazy";
+    previousPreview.decoding = "async";
+    renderedPreview.replaceWith(previousPreview);
+    img = previousPreview;
+  }
+
+  // A preserved image can still be waiting for its first load (for example
+  // when a Mod moved between addons and disabled). Re-observe it when there is
+  // no cached result and no source yet; otherwise the move would preserve a
+  // blank placeholder without ever starting the request again.
+  if (cachedPreview === undefined && !img.getAttribute("src")) {
     observeCardPreview(card, file, img, placeholder);
   }
 
-  card.addEventListener("click", function (e) {
-    if (
-      e.target.closest("button") ||
-      e.target.closest(".more-actions-dropdown") ||
-      e.target.closest(".card-checkbox-container")
-    ) {
-      return;
-    }
+  if (!existingCard) {
+    card.addEventListener("click", function (e) {
+      if (
+        e.target.closest("button") ||
+        e.target.closest(".more-actions-dropdown") ||
+        e.target.closest(".card-checkbox-container")
+      ) {
+        return;
+      }
 
-    if (e.shiftKey || (appState.ctrlClickSelectionEnabled && (e.ctrlKey || e.metaKey))) {
-      e.preventDefault();
-      e.stopPropagation();
-      // Shift/Ctrl 点击卡片主体也可以选择；普通点击仍打开详情。
-      applySelectionGesture(file.path, e, !appState.selectedFiles.has(file.path));
-      return;
-    }
+      if (e.shiftKey || (appState.ctrlClickSelectionEnabled && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Shift/Ctrl 点击卡片主体也可以选择；普通点击仍打开详情。
+        applySelectionGesture(file.path, e, !appState.selectedFiles.has(file.path));
+        return;
+      }
 
-    showFileDetail(file.path);
-  });
+      showFileDetail(file.path);
+    });
+  }
 
   return card;
 }
@@ -580,15 +744,19 @@ export function getLocationSvg(location) {
   return `<svg class="location-tag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h7l2 2h9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h4"></path></svg>`;
 }
 
-export async function loadCardPreview(file, imgElement, placeholderElement) {
+export async function loadCardPreview(file, imgElement) {
   try {
     const imgData = await loadVPKPreview(file);
-    // A list re-render can detach this card while its preview is loading.
-    // Do not retain or mutate detached DOM nodes after the request completes.
-    if (imgData && imgElement.isConnected && placeholderElement.isConnected) {
+    // A card can refresh while an archive read is running. The image element is
+    // deliberately preserved across that refresh; resolve the current
+    // placeholder at completion instead of holding a stale DOM reference.
+    if (imgData && imgElement.isConnected) {
       imgElement.src = imgData;
       imgElement.classList.remove("hidden");
-      placeholderElement.classList.add("hidden");
+      imgElement
+        .closest(".card-preview-container")
+        ?.querySelector(".card-preview-placeholder")
+        ?.classList.add("hidden");
     }
   } catch (err) {
     console.warn("加载预览图失败:", file.name);
@@ -604,9 +772,15 @@ function getCardPreviewObserver() {
       cardPreviewObserver.unobserve(entry.target);
       pendingCardPreviews.delete(entry.target);
       if (target) {
-        void loadCardPreview(target.file, target.img, target.placeholder);
+        void loadCardPreview(target.file, target.img);
       }
     });
+  }, {
+    root: document.getElementById("file-list") || null,
+    // Start a little before the card reaches the viewport so rapid scrolling
+    // does not expose placeholders, while the bounded queue keeps I/O calm.
+    rootMargin: "320px 0px",
+    threshold: 0.01,
   });
   return cardPreviewObserver;
 }
@@ -614,6 +788,14 @@ function getCardPreviewObserver() {
 function observeCardPreview(card, file, img, placeholder) {
   pendingCardPreviews.set(card, { file, img, placeholder });
   getCardPreviewObserver().observe(card);
+}
+
+function unobserveCardPreview(card) {
+  if (!card) return;
+  if (cardPreviewObserver) {
+    cardPreviewObserver.unobserve(card);
+  }
+  pendingCardPreviews.delete(card);
 }
 
 function clearPendingCardPreviews() {

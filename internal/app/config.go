@@ -123,6 +123,9 @@ func (a *App) loadConfig() {
 	if config.AddonListGuardEnabled != nil {
 		a.addonListGuardEnabled = *config.AddonListGuardEnabled
 	}
+	if config.UnrecordedModLoadOrderPlacement != nil {
+		a.unrecordedModLoadOrderPlacement = normalizeAddonListUnrecordedPlacement(*config.UnrecordedModLoadOrderPlacement)
+	}
 	a.theme = config.Theme
 	a.ignoredVersion = config.IgnoredVersion
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
@@ -154,31 +157,33 @@ func (a *App) snapshotConfig() ConfigFile {
 	boxSelectionEnabled := a.boxSelectionEnabled
 	ctrlClickSelectionEnabled := a.ctrlClickSelectionEnabled
 	addonListGuardEnabled := a.addonListGuardEnabled
+	unrecordedModLoadOrderPlacement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
 
 	return ConfigFile{
-		ModRotationConfig:              a.modRotationConfig,
-		WorkshopPreferredIP:            &preferredIP,
-		WorkshopFixedIP:                &fixedIP,
-		WorkshopMetaEnabled:            &metaEnabled,
-		WorkshopUpdateCheckEnabled:     &updateCheckEnabled,
-		WorkshopBrowserTarget:          &browserTarget,
-		WorkshopTranslateProvider:      &translateProvider,
-		WorkshopTranslateCustomBaseURL: a.workshopTranslateCustomBaseURL,
-		WorkshopTranslateCustomAPIKey:  a.workshopTranslateCustomAPIKey,
-		WorkshopTranslateCustomModelId: a.workshopTranslateCustomModelId,
-		DefaultDirectory:               a.defaultDirectory,
-		SavedDirectories:               cloneSavedDirectories(a.savedDirectories),
-		LastActiveDirectory:            a.lastActiveDirectory,
-		DisplayMode:                    defaultString(a.displayMode, "list"),
-		FilterLayoutMode:               defaultString(a.filterLayoutMode, "compact"),
-		BoxSelectionEnabled:            &boxSelectionEnabled,
-		CtrlClickSelectionEnabled:      &ctrlClickSelectionEnabled,
-		UIScale:                        normalizeUIScale(a.uiScale),
-		AddonListGuardEnabled:          &addonListGuardEnabled,
-		Theme:                          a.theme,
-		IgnoredVersion:                 a.ignoredVersion,
-		LastUpdateCheckTime:            a.lastUpdateCheckTime,
-		MigrationVersion:               a.migrationVersion,
+		ModRotationConfig:               a.modRotationConfig,
+		WorkshopPreferredIP:             &preferredIP,
+		WorkshopFixedIP:                 &fixedIP,
+		WorkshopMetaEnabled:             &metaEnabled,
+		WorkshopUpdateCheckEnabled:      &updateCheckEnabled,
+		WorkshopBrowserTarget:           &browserTarget,
+		WorkshopTranslateProvider:       &translateProvider,
+		WorkshopTranslateCustomBaseURL:  a.workshopTranslateCustomBaseURL,
+		WorkshopTranslateCustomAPIKey:   a.workshopTranslateCustomAPIKey,
+		WorkshopTranslateCustomModelId:  a.workshopTranslateCustomModelId,
+		DefaultDirectory:                a.defaultDirectory,
+		SavedDirectories:                cloneSavedDirectories(a.savedDirectories),
+		LastActiveDirectory:             a.lastActiveDirectory,
+		DisplayMode:                     defaultString(a.displayMode, "list"),
+		FilterLayoutMode:                defaultString(a.filterLayoutMode, "compact"),
+		BoxSelectionEnabled:             &boxSelectionEnabled,
+		CtrlClickSelectionEnabled:       &ctrlClickSelectionEnabled,
+		UIScale:                         normalizeUIScale(a.uiScale),
+		AddonListGuardEnabled:           &addonListGuardEnabled,
+		UnrecordedModLoadOrderPlacement: &unrecordedModLoadOrderPlacement,
+		Theme:                           a.theme,
+		IgnoredVersion:                  a.ignoredVersion,
+		LastUpdateCheckTime:             a.lastUpdateCheckTime,
+		MigrationVersion:                a.migrationVersion,
 	}
 }
 
@@ -241,6 +246,9 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	}
 	if config.AddonListGuardEnabled != nil {
 		a.addonListGuardEnabled = *config.AddonListGuardEnabled
+	}
+	if config.UnrecordedModLoadOrderPlacement != nil {
+		a.unrecordedModLoadOrderPlacement = normalizeAddonListUnrecordedPlacement(*config.UnrecordedModLoadOrderPlacement)
 	}
 	a.defaultDirectory = config.DefaultDirectory
 	a.savedDirectories = cloneSavedDirectories(config.SavedDirectories)

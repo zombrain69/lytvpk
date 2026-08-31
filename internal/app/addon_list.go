@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,6 +31,17 @@ const (
 	addonListEncodingWindows1252
 	addonListEncodingUTF16LE
 	addonListEncodingUTF16BE
+)
+
+const (
+	// addonListUnrecordedPlacementEnd 保持原有行为：首次记录的 Mod
+	// 追加到 AddonList 块的末尾，不改变任何既有条目的相对顺序。
+	addonListUnrecordedPlacementEnd = "end"
+	// addonListUnrecordedPlacementStart 将首次记录的 Mod 放到第一条实际条目前。
+	addonListUnrecordedPlacementStart = "start"
+	// addonListUnrecordedPlacementAfterEnabled 将首次记录的 Mod 紧跟最后一条
+	// 游戏内已开启（值为 1）的 Mod；没有已开启 Mod 时退化为列表顶部。
+	addonListUnrecordedPlacementAfterEnabled = "after-enabled"
 )
 
 type addonListDocument struct {
@@ -454,6 +466,34 @@ func (a *App) addonListKeyForVPKPath(filePath string) (string, error) {
 	return addonListKeyForVPKPathFromRoot(rootDir, filePath)
 }
 
+// addonListDisplayKeyForVPKPath returns the path spelling that should be
+// written for a newly recorded entry.  Matching remains case-insensitive via
+// normalizeAddonListKey, but the game-facing addonlist.txt entry must retain
+// the actual filename casing (and Unicode characters) from disk.
+func (a *App) addonListDisplayKeyForVPKPath(filePath string) (string, error) {
+	rootDir := a.rootDirectorySnapshot()
+	return addonListDisplayKeyForVPKPathFromRoot(rootDir, filePath)
+}
+
+func addonListDisplayKeyForVPKPathFromRoot(rootDir, filePath string) (string, error) {
+	if rootDir == "" {
+		return "", fmt.Errorf("未选择L4D2目录")
+	}
+
+	relativePath, err := filepath.Rel(rootDir, filePath)
+	if err != nil {
+		return "", fmt.Errorf("无法计算 Mod 相对路径: %w", err)
+	}
+	displayName := strings.ReplaceAll(relativePath, "/", "\\")
+	for strings.HasPrefix(displayName, ".\\") {
+		displayName = strings.TrimPrefix(displayName, ".\\")
+	}
+	if displayName == ".." || strings.HasPrefix(displayName, "..\\") {
+		return "", fmt.Errorf("Mod 不在 addons 目录中: %s", filePath)
+	}
+	return displayName, nil
+}
+
 func addonListKeyForVPKPathFromRoot(rootDir, filePath string) (string, error) {
 	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
@@ -494,14 +534,41 @@ func addonListStateMap(list []AddonListItem) map[string]bool {
 	return states
 }
 
-// applyAddonListGameStates 将 addonlist.txt 的游戏内开关状态合并进扫描缓存。
-// addonlist.txt 缺失或不可读时不阻断 VPK 扫描，前端会显示为“未记录”。
-func (a *App) applyAddonListGameStates() {
-	list, _, err := a.readAddonList()
-	states := addonListStateMap(list)
-	if err != nil {
-		states = map[string]bool{}
+func addonListDocumentHasAddonListBlock(content string) bool {
+	lines := strings.Split(content, "\n")
+	for index, rawLine := range lines {
+		line := strings.TrimSpace(strings.TrimSuffix(rawLine, "\r"))
+		if strings.HasPrefix(strings.ToLower(line), `"addonlist"`) && addonListHasStructuralBrace(line, '{') {
+			return true
+		}
+		if !strings.EqualFold(line, `"AddonList"`) {
+			continue
+		}
+		for _, nextLine := range lines[index+1:] {
+			trimmed := strings.TrimSpace(strings.TrimSuffix(nextLine, "\r"))
+			if trimmed == "" || strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			return addonListHasStructuralBrace(trimmed, '{')
+		}
 	}
+	return false
+}
+
+// applyAddonListGameStates 将 addonlist.txt 的游戏内开关状态合并进扫描缓存。
+// addonlist.txt 可能在游戏启动/退出时被短暂重写或占用；读取失败时保留
+// 缓存中上一次成功读取的状态，避免一次瞬时 I/O 错误把全部 Mod 误显示为“未记录”。
+func (a *App) applyAddonListGameStates() {
+	doc, err := a.readAddonListDocument()
+	if err != nil {
+		log.Printf("无法读取 addonlist.txt，保留缓存中的游戏开关状态: %v", err)
+		return
+	}
+	if !addonListDocumentHasAddonListBlock(doc.content) {
+		log.Printf("addonlist.txt 缺少有效的 AddonList 块，保留缓存中的游戏开关状态")
+		return
+	}
+	states := addonListStateMap(parseAddonListItems(doc.content))
 
 	a.vpkCache.Range(func(cacheKey, cacheValue interface{}) bool {
 		cache := cacheValue.(*VPKFileCache)
@@ -523,6 +590,13 @@ func (a *App) applyAddonListGameStates() {
 }
 
 func replaceAddonListValue(content, targetKey, value string) (string, bool, error) {
+	return replaceAddonListValueWithName(content, targetKey, targetKey, value)
+}
+
+// replaceAddonListValueWithName updates an existing entry in place or appends
+// a missing entry while using entryName only for the newly inserted line.
+// Existing lines keep their original spelling and formatting.
+func replaceAddonListValueWithName(content, targetKey, entryName, value string) (string, bool, error) {
 	lineEnding := "\n"
 	if strings.Contains(content, "\r\n") {
 		lineEnding = "\r\n"
@@ -557,12 +631,109 @@ func replaceAddonListValue(content, targetKey, value string) (string, bool, erro
 		}
 		if addonListHasStructuralBrace(lineWithoutEnding, '}') {
 			if inBlock && !found {
-				entry := fmt.Sprintf("\t\"%s\"\t\t\"%s\"%s", targetKey, value, lineEnding)
+				entry := fmt.Sprintf("\t\"%s\"\t\t\"%s\"%s", entryName, value, lineEnding)
 				lines = append(lines[:index], append([]string{entry}, lines[index:]...)...)
 				found = true
 			}
 			inBlock = false
 			continue
+		}
+	}
+
+	if !blockFound {
+		return "", false, fmt.Errorf("addonlist.txt 中未找到 AddonList 块")
+	}
+	return strings.Join(lines, ""), found, nil
+}
+
+func normalizeAddonListUnrecordedPlacement(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case addonListUnrecordedPlacementStart:
+		return addonListUnrecordedPlacementStart
+	case addonListUnrecordedPlacementAfterEnabled:
+		return addonListUnrecordedPlacementAfterEnabled
+	case addonListUnrecordedPlacementEnd:
+		return addonListUnrecordedPlacementEnd
+	default:
+		return addonListUnrecordedPlacementEnd
+	}
+}
+
+// replaceAddonListValueWithPlacement updates an existing entry in place. If it
+// is missing, it inserts it at the requested position while preserving every
+// untouched line, including comments and the document's original line ending.
+// Encoding and BOM preservation remain the responsibility of
+// writeAddonListDocument.
+func replaceAddonListValueWithPlacement(content, targetKey, value, placement string) (string, bool, error) {
+	return replaceAddonListValueWithPlacementAndName(content, targetKey, targetKey, value, placement)
+}
+
+// replaceAddonListValueWithPlacementAndName is the placement-aware variant of
+// replaceAddonListValueWithName.  entryName is used only when the target is
+// absent; matching and replacement continue to use the normalized targetKey.
+func replaceAddonListValueWithPlacementAndName(content, targetKey, entryName, value, placement string) (string, bool, error) {
+	lineEnding := "\n"
+	if strings.Contains(content, "\r\n") {
+		lineEnding = "\r\n"
+	}
+
+	targetKey = normalizeAddonListKey(targetKey)
+	placement = normalizeAddonListUnrecordedPlacement(placement)
+	lines := strings.SplitAfter(content, "\n")
+	inBlock := false
+	blockFound := false
+	found := false
+	firstEntryIndex := -1
+	lastEnabledEntryIndex := -1
+
+	for index, line := range lines {
+		lineWithoutEnding := strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+		trimmed := strings.TrimSpace(lineWithoutEnding)
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+		if inBlock {
+			// 与解析器保持一致：先匹配完整条目，文件名中的大括号不能结束块。
+			matches := addonListValueLineRegex.FindStringSubmatchIndex(lineWithoutEnding)
+			if len(matches) == 10 {
+				if firstEntryIndex == -1 {
+					firstEntryIndex = index
+				}
+				if lineWithoutEnding[matches[6]:matches[7]] == "1" {
+					lastEnabledEntryIndex = index
+				}
+				if normalizeAddonListKey(lineWithoutEnding[matches[4]:matches[5]]) == targetKey {
+					lines[index] = lineWithoutEnding[:matches[6]] + value + lineWithoutEnding[matches[7]:] + line[len(lineWithoutEnding):]
+					found = true
+				}
+				continue
+			}
+		}
+		if addonListHasStructuralBrace(lineWithoutEnding, '{') {
+			inBlock = true
+			blockFound = true
+			continue
+		}
+		if addonListHasStructuralBrace(lineWithoutEnding, '}') && inBlock {
+			if !found {
+				insertIndex := index // 默认末尾，保持原 replaceAddonListValue 的行为。
+				switch placement {
+				case addonListUnrecordedPlacementStart:
+					if firstEntryIndex >= 0 {
+						insertIndex = firstEntryIndex
+					}
+				case addonListUnrecordedPlacementAfterEnabled:
+					if lastEnabledEntryIndex >= 0 {
+						insertIndex = lastEnabledEntryIndex + 1
+					} else if firstEntryIndex >= 0 {
+						insertIndex = firstEntryIndex
+					}
+				}
+				entry := fmt.Sprintf("\t\"%s\"\t\t\"%s\"%s", entryName, value, lineEnding)
+				lines = append(lines[:insertIndex], append([]string{entry}, lines[insertIndex:]...)...)
+				found = true
+			}
+			break
 		}
 	}
 
@@ -763,9 +934,18 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
 		return fmt.Errorf("文件位于 disabled 目录，无法设置游戏内开关")
 	}
 	vpkPath := cache.File.Path
+	wasUnrecorded := !cache.File.GameStateKnown
+	placement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
 	a.mu.RUnlock()
 
 	targetKey, err := a.addonListKeyForVPKPath(vpkPath)
+	if err != nil {
+		return err
+	}
+	// Use the exact on-disk spelling whenever an entry has to be inserted.
+	// The normalized key above remains the case-insensitive comparison key;
+	// existing lines are still updated in place without changing their name.
+	entryName, err := a.addonListDisplayKeyForVPKPath(vpkPath)
 	if err != nil {
 		return err
 	}
@@ -790,7 +970,12 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
 	if enabled {
 		value = "1"
 	}
-	updatedContent, _, err := replaceAddonListValue(doc.content, targetKey, value)
+	var updatedContent string
+	if enabled && wasUnrecorded {
+		updatedContent, _, err = replaceAddonListValueWithPlacementAndName(doc.content, targetKey, entryName, value, placement)
+	} else {
+		updatedContent, _, err = replaceAddonListValueWithName(doc.content, targetKey, entryName, value)
+	}
 	if err != nil {
 		return err
 	}

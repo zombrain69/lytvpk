@@ -17,20 +17,21 @@ func newConfigTestApp(t *testing.T) *App {
 	t.Helper()
 	dir := t.TempDir()
 	return &App{
-		configDir:                 dir,
-		configPath:                filepath.Join(dir, "config.json"),
-		serversPath:               filepath.Join(dir, "servers.json"),
-		workshopWatchLaterPath:    filepath.Join(dir, "workshop_watch_later.json"),
-		workshopPreferredIP:       true,
-		workshopMetaEnabled:       true,
-		workshopBrowserTarget:     "mirror",
-		workshopTranslateProvider: workshopTranslateProviderMicrosoft,
-		displayMode:               "list",
-		filterLayoutMode:          "compact",
-		boxSelectionEnabled:       true,
-		ctrlClickSelectionEnabled: true,
-		uiScale:                   defaultUIScale,
-		savedDirectories:          []SavedDirectory{},
+		configDir:                       dir,
+		configPath:                      filepath.Join(dir, "config.json"),
+		serversPath:                     filepath.Join(dir, "servers.json"),
+		workshopWatchLaterPath:          filepath.Join(dir, "workshop_watch_later.json"),
+		workshopPreferredIP:             true,
+		workshopMetaEnabled:             true,
+		workshopBrowserTarget:           "mirror",
+		workshopTranslateProvider:       workshopTranslateProviderMicrosoft,
+		displayMode:                     "list",
+		filterLayoutMode:                "compact",
+		boxSelectionEnabled:             true,
+		ctrlClickSelectionEnabled:       true,
+		uiScale:                         defaultUIScale,
+		unrecordedModLoadOrderPlacement: addonListUnrecordedPlacementEnd,
+		savedDirectories:                []SavedDirectory{},
 	}
 }
 
@@ -75,6 +76,9 @@ func TestConfigDefaultsWithoutFile(t *testing.T) {
 	if config.AddonListGuardEnabled == nil || *config.AddonListGuardEnabled {
 		t.Fatalf("expected addonlist guard to default to false, got %#v", config.AddonListGuardEnabled)
 	}
+	if config.UnrecordedModLoadOrderPlacement == nil || *config.UnrecordedModLoadOrderPlacement != addonListUnrecordedPlacementEnd {
+		t.Fatalf("expected unrecorded Mod placement to default to end, got %#v", config.UnrecordedModLoadOrderPlacement)
+	}
 }
 
 func TestUIScaleConfigurationRoundTrip(t *testing.T) {
@@ -115,20 +119,22 @@ func TestSaveAppConfigPersistsSettingsAndPreservesSecret(t *testing.T) {
 	browserTarget := "steam"
 	provider := workshopTranslateProviderYandex
 	guardEnabled := true
+	placement := addonListUnrecordedPlacementStart
 	if err := app.SaveAppConfig(ConfigFile{
-		ModRotationConfig:              RotationConfig{EnableCharacters: false, EnableWeapons: true},
-		WorkshopPreferredIP:            &preferredIP,
-		WorkshopFixedIP:                &fixedIP,
-		WorkshopMetaEnabled:            &metaEnabled,
-		WorkshopUpdateCheckEnabled:     &updateCheckEnabled,
-		WorkshopBrowserTarget:          &browserTarget,
-		WorkshopTranslateProvider:      &provider,
-		WorkshopTranslateCustomBaseURL: "https://translate.example/v1",
-		WorkshopTranslateCustomModelId: "model-a",
-		AddonListGuardEnabled:          &guardEnabled,
-		DisplayMode:                    "card",
-		FilterLayoutMode:               "classic",
-		UIScale:                        1.2,
+		ModRotationConfig:               RotationConfig{EnableCharacters: false, EnableWeapons: true},
+		WorkshopPreferredIP:             &preferredIP,
+		WorkshopFixedIP:                 &fixedIP,
+		WorkshopMetaEnabled:             &metaEnabled,
+		WorkshopUpdateCheckEnabled:      &updateCheckEnabled,
+		WorkshopBrowserTarget:           &browserTarget,
+		WorkshopTranslateProvider:       &provider,
+		WorkshopTranslateCustomBaseURL:  "https://translate.example/v1",
+		WorkshopTranslateCustomModelId:  "model-a",
+		AddonListGuardEnabled:           &guardEnabled,
+		UnrecordedModLoadOrderPlacement: &placement,
+		DisplayMode:                     "card",
+		FilterLayoutMode:                "classic",
+		UIScale:                         1.2,
 	}); err != nil {
 		t.Fatalf("save complete app config: %v", err)
 	}
@@ -158,6 +164,9 @@ func TestSaveAppConfigPersistsSettingsAndPreservesSecret(t *testing.T) {
 	if config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {
 		t.Fatalf("addonlist guard = %#v, want true", config.AddonListGuardEnabled)
 	}
+	if config.UnrecordedModLoadOrderPlacement == nil || *config.UnrecordedModLoadOrderPlacement != placement {
+		t.Fatalf("unrecorded Mod placement = %#v, want %q", config.UnrecordedModLoadOrderPlacement, placement)
+	}
 	if config.WorkshopTranslateCustomAPIKey != "encrypted-existing-key" {
 		t.Fatalf("custom API key changed unexpectedly: %q", config.WorkshopTranslateCustomAPIKey)
 	}
@@ -175,6 +184,35 @@ func TestSaveAppConfigPersistsSettingsAndPreservesSecret(t *testing.T) {
 	}
 	if config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {
 		t.Fatalf("partial save lost addonlist guard: %#v", config.AddonListGuardEnabled)
+	}
+	if config.UnrecordedModLoadOrderPlacement == nil || *config.UnrecordedModLoadOrderPlacement != placement {
+		t.Fatalf("partial save lost unrecorded Mod placement: %#v", config.UnrecordedModLoadOrderPlacement)
+	}
+}
+
+func TestUnrecordedModLoadOrderPlacementConfigurationRoundTrip(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.unrecordedModLoadOrderPlacement = addonListUnrecordedPlacementAfterEnabled
+	if err := app.writeConfigFile(app.snapshotConfig()); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	restored := newConfigTestApp(t)
+	restored.configDir = app.configDir
+	restored.configPath = app.configPath
+	restored.serversPath = app.serversPath
+	restored.workshopWatchLaterPath = app.workshopWatchLaterPath
+	restored.loadConfig()
+	if config := restored.GetAppConfig(); config.UnrecordedModLoadOrderPlacement == nil || *config.UnrecordedModLoadOrderPlacement != addonListUnrecordedPlacementAfterEnabled {
+		t.Fatalf("unrecorded Mod placement did not round trip: %#v", config.UnrecordedModLoadOrderPlacement)
+	}
+
+	invalid := "unsupported"
+	if err := restored.SaveAppConfig(ConfigFile{UnrecordedModLoadOrderPlacement: &invalid}); err != nil {
+		t.Fatalf("save invalid placement: %v", err)
+	}
+	if config := restored.GetAppConfig(); config.UnrecordedModLoadOrderPlacement == nil || *config.UnrecordedModLoadOrderPlacement != addonListUnrecordedPlacementEnd {
+		t.Fatalf("invalid placement should normalize to end: %#v", config.UnrecordedModLoadOrderPlacement)
 	}
 }
 

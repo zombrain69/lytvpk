@@ -733,3 +733,282 @@ html.dark-mode .multi-select-search-input:focus {
   }
 
 }
+
+/* Filter layouts: compact keeps related dropdowns readable, while classic
+ * turns always-visible controls into clearly separated, quick-scan groups. */
+.mod-management-page .filter-row-filters.filter-layout-compact .filter-select-group {
+  min-height: 3.15rem;
+  display: grid;
+  grid-template-columns: auto minmax(7.75rem, 1fr);
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  padding: 0.32rem 0.45rem;
+  border: 1px solid var(--border-light);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--bg-surface) 72%, var(--bg-app));
+}
+
+.mod-management-page .filter-row-filters.filter-layout-compact .filter-label {
+  padding: 0 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.mod-management-page .filter-layout-compact .primary-tag-group .filter-label {
+  color: #4f46e5;
+}
+
+.mod-management-page .filter-layout-compact .secondary-tag-group .filter-label {
+  color: #7c3aed;
+}
+
+.mod-management-page .filter-layout-compact .location-filter-group .filter-label {
+  color: #0f766e;
+}
+
+.mod-management-page .filter-layout-compact .game-state-filter-group .filter-label {
+  color: #be123c;
+}
+
+.mod-management-page .filter-layout-compact .primary-tag-group .select-trigger {
+  border-color: rgba(79, 70, 229, 0.26) !important;
+}
+
+.mod-management-page .filter-layout-compact .secondary-tag-group .select-trigger {
+  border-color: rgba(124, 58, 237, 0.26) !important;
+}
+
+.mod-management-page .filter-layout-compact .location-filter-group .select-trigger {
+  border-color: rgba(13, 148, 136, 0.26) !important;
+}
+
+.mod-management-page .filter-layout-compact .game-state-filter-group .select-trigger {
+  border-color: rgba(225, 29, 72, 0.24) !important;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-primary-line,
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-secondary-row {
+  border: 1px solid var(--border-light);
+  border-radius: 0.82rem;
+  background: color-mix(in srgb, var(--bg-surface) 76%, var(--bg-app));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-primary-line {
+  padding: 0.42rem 0.5rem;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-secondary-row {
+  padding: 0.45rem 0.55rem;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-filter-group {
+  min-height: 2.45rem;
+  align-items: center;
+  padding: 0.22rem 0.3rem;
+  border-radius: 0.58rem;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-filter-group + .classic-filter-group {
+  border-left: 1px solid var(--border-light);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-filter-group .filter-label,
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-secondary-row > .filter-label {
+  min-height: 2rem;
+  padding: 0 0.2rem;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 2rem;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn,
+.mod-management-page .filter-row-filters.filter-layout-classic .secondary-tag-btn,
+.mod-management-page .filter-row-filters.filter-layout-classic .primary-tag-btn,
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn {
+  min-height: 2rem;
+  max-height: 2rem;
+  padding: 0 0.62rem;
+  background: var(--bg-app);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-root {
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #2563eb;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-workshop {
+  border-color: rgba(13, 148, 136, 0.3);
+  color: #0f766e;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-disabled {
+  border-color: rgba(217, 119, 6, 0.32);
+  color: #b45309;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-enabled {
+  border-color: rgba(5, 150, 105, 0.3);
+  color: #047857;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-disabled {
+  border-color: rgba(225, 29, 72, 0.3);
+  color: #be123c;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-unknown {
+  border-color: rgba(100, 116, 139, 0.34);
+  color: #475569;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-root.active,
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-workshop.active,
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-disabled.active,
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-enabled.active,
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-disabled.active,
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-unknown.active {
+  color: white;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-root.active {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-workshop.active {
+  border-color: #0f766e;
+  background: linear-gradient(135deg, #0f766e, #0d9488);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .location-tag-btn.filter-location-disabled.active {
+  border-color: #b45309;
+  background: linear-gradient(135deg, #b45309, #d97706);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-enabled.active {
+  border-color: #047857;
+  background: linear-gradient(135deg, #047857, #10b981);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-disabled.active {
+  border-color: #be123c;
+  background: linear-gradient(135deg, #be123c, #f43f5e);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .game-state-tag-btn.filter-game-unknown.active {
+  border-color: #475569;
+  background: linear-gradient(135deg, #475569, #64748b);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .classic-secondary-action-slot {
+  gap: 0.45rem;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .secondary-preset-dropdown,
+.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger {
+  height: 2.1rem;
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger {
+  min-width: 6.25rem;
+  padding: 0 0.78rem;
+  border-color: rgba(124, 58, 237, 0.36);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.14), rgba(79, 70, 229, 0.08));
+  color: #6d28d9;
+  font-size: 0.78rem;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.12);
+}
+
+.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger:hover,
+.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger.has-selection {
+  border-color: #7c3aed;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.23), rgba(79, 70, 229, 0.13));
+  color: #5b21b6;
+}
+
+.preset-filter-group {
+  --preset-accent: #4f46e5;
+  --preset-tint: rgba(79, 70, 229, 0.1);
+  border-left: 3px solid var(--preset-accent);
+  transition: border-color var(--duration-150) var(--ease-out), box-shadow var(--duration-150) var(--ease-out);
+}
+
+.preset-filter-group[data-preset-group="firearms"] { --preset-accent: #2563eb; --preset-tint: rgba(37, 99, 235, 0.11); }
+.preset-filter-group[data-preset-group="official-melee"] { --preset-accent: #dc2626; --preset-tint: rgba(220, 38, 38, 0.1); }
+.preset-filter-group[data-preset-group="throwables"] { --preset-accent: #ea580c; --preset-tint: rgba(234, 88, 12, 0.11); }
+.preset-filter-group[data-preset-group="medical-items"] { --preset-accent: #059669; --preset-tint: rgba(5, 150, 105, 0.11); }
+.preset-filter-group[data-preset-group="supply-boxes"] { --preset-accent: #ca8a04; --preset-tint: rgba(202, 138, 4, 0.11); }
+.preset-filter-group[data-preset-group="survivors"] { --preset-accent: #7c3aed; --preset-tint: rgba(124, 58, 237, 0.11); }
+.preset-filter-group[data-preset-group="special-infected"] { --preset-accent: #be123c; --preset-tint: rgba(190, 18, 60, 0.1); }
+.preset-filter-group[data-preset-group="common-infected"] { --preset-accent: #4d7c0f; --preset-tint: rgba(77, 124, 15, 0.11); }
+.preset-filter-group[data-preset-group="interface-and-audio"] { --preset-accent: #0891b2; --preset-tint: rgba(8, 145, 178, 0.11); }
+.preset-filter-group[data-preset-group="world-and-props"] { --preset-accent: #b45309; --preset-tint: rgba(180, 83, 9, 0.11); }
+.preset-filter-group[data-preset-group="map-game-modes"] { --preset-accent: #0f766e; --preset-tint: rgba(15, 118, 110, 0.11); }
+
+.preset-filter-group .preset-filter-group-header {
+  background: linear-gradient(90deg, var(--preset-tint), color-mix(in srgb, var(--bg-card) 86%, transparent));
+}
+
+.preset-filter-group .preset-filter-group-expand {
+  color: var(--preset-accent);
+}
+
+.preset-filter-group .preset-group-all,
+.preset-filter-group .preset-subgroup-all {
+  border-color: color-mix(in srgb, var(--preset-accent) 34%, var(--border-light));
+  color: var(--preset-accent);
+}
+
+.preset-filter-group .preset-group-all:hover,
+.preset-filter-group .preset-subgroup-all:hover,
+.preset-filter-group .preset-group-all.active,
+.preset-filter-group .preset-subgroup-all.active {
+  border-color: var(--preset-accent);
+  background: var(--preset-tint);
+  color: var(--preset-accent);
+}
+
+.preset-filter-group .preset-tag-option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--preset-accent) 52%, var(--border-light));
+  background: var(--preset-tint);
+  color: var(--preset-accent);
+}
+
+.preset-filter-group .preset-tag-option input:checked {
+  border-color: var(--preset-accent);
+  background: var(--preset-accent);
+}
+
+.preset-filter-group.has-selection {
+  border-color: var(--preset-accent);
+  box-shadow: 0 0 0 1px var(--preset-tint), 0 0.45rem 1rem rgba(15, 23, 42, 0.06);
+}
+
+html.dark-mode .mod-management-page .filter-row-filters.filter-layout-compact .filter-select-group,
+html.dark-mode .mod-management-page .filter-row-filters.filter-layout-classic .classic-primary-line,
+html.dark-mode .mod-management-page .filter-row-filters.filter-layout-classic .classic-secondary-row {
+  background: rgba(15, 23, 42, 0.38);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+html.dark-mode .mod-management-page .filter-layout-compact .primary-tag-group .filter-label { color: #a5b4fc; }
+html.dark-mode .mod-management-page .filter-layout-compact .secondary-tag-group .filter-label { color: #c4b5fd; }
+html.dark-mode .mod-management-page .filter-layout-compact .location-filter-group .filter-label { color: #5eead4; }
+html.dark-mode .mod-management-page .filter-layout-compact .game-state-filter-group .filter-label { color: #fda4af; }
+
+@media (max-width: 920px) {
+  .mod-management-page .filter-row-filters.filter-layout-classic .classic-filter-group + .classic-filter-group {
+    border-left: 0;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .mod-management-page .filter-row-filters.filter-layout-compact .filter-select-group {
+    width: 100%;
+  }
+}

@@ -223,6 +223,163 @@
   line-height: 1.5;
 }
 
+/* 筛选布局需要表达两种工作方式，而不是只有两个难以区分的短文字。 */
+.setting-row-filter-layout {
+  align-items: center;
+}
+
+.settings-page .filter-layout-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(10.75rem, 1fr));
+  width: min(100%, 31rem);
+  min-width: min(100%, 24rem);
+  padding: 0.35rem;
+  gap: 0.35rem;
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--bg-surface) 84%, var(--bg-card));
+}
+
+.settings-page .filter-layout-option {
+  position: relative;
+  min-width: 0;
+  min-height: 4.5rem;
+  display: grid;
+  grid-template-columns: 2.15rem minmax(0, 1fr);
+  grid-template-areas:
+    "icon copy"
+    "badge badge";
+  align-items: center;
+  gap: 0.28rem 0.6rem;
+  padding: 0.6rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.settings-page .filter-layout-option:hover {
+  background: color-mix(in srgb, var(--bg-hover) 82%, transparent);
+}
+
+.settings-page .filter-layout-option.active {
+  color: var(--text-primary);
+  box-shadow: 0 0.45rem 1.05rem rgba(15, 23, 42, 0.1);
+}
+
+.filter-layout-option-icon {
+  grid-area: icon;
+  width: 2.15rem;
+  height: 2.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.6rem;
+}
+
+.filter-layout-option-icon svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.filter-layout-option-copy {
+  grid-area: copy;
+  display: grid;
+  min-width: 0;
+  gap: 0.14rem;
+}
+
+.filter-layout-option-copy strong {
+  overflow: hidden;
+  font-size: 0.88rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-layout-option-copy small {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-layout-option-badge {
+  grid-area: badge;
+  justify-self: start;
+  padding: 0.1rem 0.42rem;
+  border-radius: var(--radius-full);
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.filter-layout-option-compact .filter-layout-option-icon {
+  background: rgba(59, 130, 246, 0.13);
+  color: #2563eb;
+}
+
+.filter-layout-option-compact .filter-layout-option-badge {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.filter-layout-option-compact.active {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(79, 70, 229, 0.06));
+}
+
+.filter-layout-option-classic .filter-layout-option-icon {
+  background: rgba(139, 92, 246, 0.13);
+  color: #7c3aed;
+}
+
+.filter-layout-option-classic .filter-layout-option-badge {
+  background: rgba(139, 92, 246, 0.13);
+  color: #7c3aed;
+}
+
+.filter-layout-option-classic.active {
+  border-color: rgba(139, 92, 246, 0.45);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.13), rgba(236, 72, 153, 0.055));
+}
+
+html.dark-mode .settings-page .filter-layout-toggle {
+  background: rgba(15, 23, 42, 0.38);
+}
+
+html.dark-mode .filter-layout-option-compact .filter-layout-option-icon,
+html.dark-mode .filter-layout-option-compact .filter-layout-option-badge {
+  color: #93c5fd;
+}
+
+html.dark-mode .filter-layout-option-classic .filter-layout-option-icon,
+html.dark-mode .filter-layout-option-classic .filter-layout-option-badge {
+  color: #c4b5fd;
+}
+
+@media (max-width: 760px) {
+  .setting-row-filter-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-page .filter-layout-toggle {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .settings-page .filter-layout-toggle {
+    grid-template-columns: 1fr;
+  }
+}
+
 .setting-row-control {
   flex-shrink: 0;
   padding-top: 2px;
@@ -683,6 +840,18 @@ html.dark-mode .autoexec-analysis.is-warning {
   border-top: 1px solid var(--border-light);
 }
 
+.addonlist-unrecorded-placement-row {
+  align-items: center;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.addonlist-unrecorded-placement-select {
+  flex: 0 1 21rem;
+  min-width: min(100%, 15rem);
+}
+
 .addonlist-status-error {
   margin-top: 8px;
   color: #dc2626;
@@ -860,6 +1029,16 @@ html.dark-mode .autoexec-analysis.is-warning {
 
   .addonlist-lifecycle-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .addonlist-unrecorded-placement-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .addonlist-unrecorded-placement-select {
+    width: 100%;
+    min-width: 0;
   }
 
   .addonlist-backup-item {

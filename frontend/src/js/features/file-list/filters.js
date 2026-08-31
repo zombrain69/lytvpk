@@ -9,6 +9,12 @@ import { GetPrimaryTags, GetSecondaryTags, SearchVPKFiles, ScanVPKFiles, GetVPKF
 
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
 const GAME_STATE_FILTERS = ["enabled", "disabled", "unknown"];
+const SEARCH_INPUT_DEBOUNCE_MS = 160;
+
+let searchInputTimer = null;
+let searchRequestId = 0;
+let tagFilterRenderId = 0;
+let secondaryTagRenderId = 0;
 
 // 这些预设不依赖当前目录恰好扫描到哪些二级标签。这样即使某个目录暂时没有
 // 例如 MP5 或草叉，用户也能看到完整的游戏内物品分类，并可直接切换筛选。
@@ -210,6 +216,38 @@ function getGameState(file) {
   return file.gameEnabled ? "enabled" : "disabled";
 }
 
+function snapshotFilterState() {
+  return {
+    searchQuery: String(appState.searchQuery || ""),
+    primaryTag: String(appState.selectedPrimaryTag || ""),
+    secondaryTags: [...(appState.selectedSecondaryTags || [])],
+    secondaryMatchMode: appState.secondaryMatchMode === "all" ? "all" : "any",
+    locations: [...(appState.selectedLocations || [])],
+    gameStates: [...(appState.selectedGameStates || [])],
+    showHidden: Boolean(appState.showHidden),
+  };
+}
+
+function filterStateStillMatches(snapshot) {
+  const current = snapshotFilterState();
+  return (
+    current.searchQuery === snapshot.searchQuery &&
+    current.primaryTag === snapshot.primaryTag &&
+    current.secondaryMatchMode === snapshot.secondaryMatchMode &&
+    current.showHidden === snapshot.showHidden &&
+    current.secondaryTags.join("\u0000") === snapshot.secondaryTags.join("\u0000") &&
+    current.locations.join("\u0000") === snapshot.locations.join("\u0000") &&
+    current.gameStates.join("\u0000") === snapshot.gameStates.join("\u0000")
+  );
+}
+
+function isCurrentSecondaryTagRender(secondaryGroup, renderId) {
+  return (
+    renderId === secondaryTagRenderId &&
+    document.getElementById("secondary-tag-group") === secondaryGroup
+  );
+}
+
 function getSecondaryMatchModeLabel() {
   return appState.secondaryMatchMode === "all" ? "全部匹配" : "任一匹配";
 }
@@ -263,7 +301,8 @@ function syncSecondaryTagFilterUI() {
     trigger.setAttribute("aria-label", selected.size > 0 ? `子标签筛选，已选 ${selected.size} 项` : "子标签筛选，未选择");
   });
   document.querySelectorAll(".secondary-preset-dropdown .preset-filter-trigger").forEach((trigger) => {
-    trigger.textContent = selected.size > 0 ? `预设 · 已选 ${selected.size}` : "预设";
+    const prefix = trigger.closest(".filter-layout-classic") ? "内容预设" : "预设";
+    trigger.textContent = selected.size > 0 ? `${prefix} · 已选 ${selected.size}` : prefix;
     trigger.classList.toggle("has-selection", selected.size > 0);
     trigger.setAttribute("aria-label", selected.size > 0 ? `内容预设，已选 ${selected.size} 项` : "内容预设，未选择");
   });
@@ -454,8 +493,7 @@ function renderActiveFilterSummary() {
   container.append(title, chipList, clearAllButton);
 }
 
-function matchesSecondaryTags(file) {
-  const selected = appState.selectedSecondaryTags || [];
+function matchesSecondaryTags(file, selected = appState.selectedSecondaryTags || []) {
   if (selected.length === 0) return true;
   const available = new Set((file.secondaryTags || []).map((tag) => String(tag)));
   if (appState.secondaryMatchMode === "all") {
@@ -636,8 +674,9 @@ function renderSecondaryTagPresets(container) {
 
   const dropdown = document.createElement("div");
   dropdown.className = "multi-select-dropdown secondary-preset-dropdown";
+  const triggerLabel = appState.filterLayoutMode === "classic" ? "内容预设" : "预设";
   dropdown.innerHTML = `
-    <button type="button" class="preset-filter-trigger" title="打开角色、感染者、枪械、近战、物品、界面与场景的快捷预设">预设</button>
+    <button type="button" class="preset-filter-trigger" title="打开角色、感染者、枪械、近战、物品、界面与场景的快捷预设">${triggerLabel}</button>
     <div class="select-menu multi-select-menu filter-flyout-menu preset-filter-menu hidden" role="dialog" aria-label="内容预设筛选"></div>
   `;
 
@@ -675,17 +714,24 @@ export async function renderTagFilters() {
   const tagContainer = document.getElementById("tag-filters");
   const locationContainer = document.getElementById("location-filter-section");
   const filterRow = tagContainer?.closest(".filter-row-filters");
+  const renderId = ++tagFilterRenderId;
 
   if (!tagContainer || !locationContainer) return;
   tagContainer.innerHTML = "";
   locationContainer.innerHTML = "";
-  filterRow?.classList.toggle("filter-layout-classic", appState.filterLayoutMode === "classic");
-  tagContainer.classList.toggle("classic-tag-filters", appState.filterLayoutMode === "classic");
-  locationContainer.classList.toggle("classic-location-placeholder", appState.filterLayoutMode === "classic");
+  const classicLayout = appState.filterLayoutMode === "classic";
+  filterRow?.classList.toggle("filter-layout-classic", classicLayout);
+  filterRow?.classList.toggle("filter-layout-compact", !classicLayout);
+  filterRow?.setAttribute("data-filter-layout", classicLayout ? "classic" : "compact");
+  tagContainer.classList.toggle("classic-tag-filters", classicLayout);
+  locationContainer.classList.toggle("classic-location-placeholder", classicLayout);
 
   try {
     const primaryTags = await GetPrimaryTags();
-    if (appState.filterLayoutMode === "classic") {
+    // Settings can be switched while the backend is returning tags. Do not let
+    // a superseded renderer repopulate the newly selected layout.
+    if (renderId !== tagFilterRenderId || !document.body.contains(tagContainer)) return;
+    if (classicLayout) {
       renderClassicFilters(tagContainer, locationContainer, primaryTags);
     } else {
       renderSelectBasedFilters(tagContainer, locationContainer, primaryTags);
@@ -858,17 +904,18 @@ export function createPrimaryTagButton(value, text) {
 
 export async function renderSecondaryTags(primaryTag) {
   const secondaryGroup = document.getElementById("secondary-tag-group");
+  const renderId = ++secondaryTagRenderId;
   if (!secondaryGroup) return;
 
   if (secondaryGroup?.classList.contains("filter-select-group")) {
-    await renderSecondaryTagDropdown(secondaryGroup, primaryTag);
+    await renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId);
     return;
   }
 
-  await renderSecondaryTagButtons(secondaryGroup, primaryTag);
+  await renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId);
 }
 
-async function renderSecondaryTagButtons(secondaryGroup, primaryTag) {
+async function renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId) {
   const tagsSlot = secondaryGroup.querySelector(".classic-secondary-tags-slot") || secondaryGroup;
   const actionSlot = secondaryGroup.querySelector(".classic-secondary-action-slot") || secondaryGroup;
   const existingContainer = secondaryGroup.querySelector(".secondary-tags-container");
@@ -883,6 +930,7 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag) {
 
   try {
     const secondaryTags = await GetSecondaryTags(primaryTag || "");
+    if (!isCurrentSecondaryTagRender(secondaryGroup, renderId)) return;
 
     if (secondaryTags.length > 0) {
       secondaryTags.sort((a, b) => a.localeCompare(b, "zh-CN"));
@@ -923,6 +971,7 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag) {
       syncSecondaryTagFilterUI();
     }
   } catch (error) {
+    if (!isCurrentSecondaryTagRender(secondaryGroup, renderId)) return;
     console.error("获取二级标签失败:", error);
     secondaryGroup.style.display = "none";
     setClassicSecondarySearchVisible(false);
@@ -1030,7 +1079,7 @@ function syncExpandButton(button, isExpanded) {
     : '<span class="icon">▼</span> 展开';
 }
 
-async function renderSecondaryTagDropdown(secondaryGroup, primaryTag) {
+async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) {
   secondaryGroup.querySelectorAll(".secondary-filter-dropdown").forEach((el) => el.remove());
   secondaryGroup.querySelectorAll(".multi-select-trigger.is-disabled").forEach((el) => el.remove());
 
@@ -1043,6 +1092,7 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag) {
   try {
     // 后端已支持空 primaryTag，返回所有二级标签去重
     const secondaryTags = await GetSecondaryTags(primaryTag || "");
+    if (!isCurrentSecondaryTagRender(secondaryGroup, renderId)) return;
     if (!secondaryTags.length) {
       const emptyTrigger = document.createElement("button");
       emptyTrigger.type = "button";
@@ -1139,6 +1189,7 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag) {
     renderSecondaryTagPresets(secondaryGroup);
     syncSecondaryTagFilterUI();
   } catch (error) {
+    if (!isCurrentSecondaryTagRender(secondaryGroup, renderId)) return;
     console.error("获取二级标签失败:", error);
     secondaryGroup.classList.add("is-empty");
     secondaryGroup.style.display = "flex";
@@ -1165,7 +1216,7 @@ function createSecondaryTagButton(tag) {
 
 function createLocationTagButton(location) {
   const button = document.createElement("button");
-  button.className = "location-tag-btn";
+  button.className = `location-tag-btn filter-location-${location}`;
   button.textContent = getLocationDisplayName(location);
   button.dataset.location = location;
 
@@ -1335,7 +1386,7 @@ export function toggleLocationFilter(location, button) {
 
 function createGameStateTagButton(state) {
   const button = document.createElement("button");
-  button.className = "game-state-tag-btn";
+  button.className = `game-state-tag-btn filter-game-${state}`;
   button.textContent = getGameStateDisplayName(state);
   button.dataset.gameState = state;
   button.classList.toggle("active", appState.selectedGameStates.includes(state));
@@ -1406,58 +1457,80 @@ export async function resetFilters() {
 
 export function handleSearch(event) {
   appState.searchQuery = event.target.value;
-  performSearch();
+  if (searchInputTimer) clearTimeout(searchInputTimer);
+  searchInputTimer = setTimeout(() => {
+    searchInputTimer = null;
+    void performSearch();
+  }, SEARCH_INPUT_DEBOUNCE_MS);
 }
 
 export async function performSearch() {
+  // Checkbox/chip actions should be immediate. A pending keystroke search is
+  // redundant once a more explicit filter action starts.
+  if (searchInputTimer) {
+    clearTimeout(searchInputTimer);
+    searchInputTimer = null;
+  }
+
+  const requestId = ++searchRequestId;
+  const filters = snapshotFilterState();
+
   try {
     console.log(
-      "执行搜索，查询词:", appState.searchQuery,
-      "一级标签:", appState.selectedPrimaryTag,
-      "二级标签:", appState.selectedSecondaryTags,
-      "位置:", appState.selectedLocations,
-      "游戏内:", appState.selectedGameStates,
-      "二级匹配:", appState.secondaryMatchMode
+      "执行搜索，查询词:", filters.searchQuery,
+      "一级标签:", filters.primaryTag,
+      "二级标签:", filters.secondaryTags,
+      "位置:", filters.locations,
+      "游戏内:", filters.gameStates,
+      "二级匹配:", filters.secondaryMatchMode
     );
 
+    let files;
     if (
-      !appState.searchQuery &&
-      !appState.selectedPrimaryTag &&
-      appState.selectedSecondaryTags.length === 0
+      !filters.searchQuery &&
+      !filters.primaryTag &&
+      filters.secondaryTags.length === 0
     ) {
-      appState.vpkFiles = [...appState.allVpkFiles];
+      files = [...appState.allVpkFiles];
     } else {
-      const results = await SearchVPKFiles(
-        appState.searchQuery,
-        appState.selectedPrimaryTag,
-        appState.selectedSecondaryTags
-      );
-      appState.vpkFiles = results;
-    }
-
-    if (appState.selectedLocations.length > 0) {
-      appState.vpkFiles = appState.vpkFiles.filter((file) =>
-        appState.selectedLocations.includes(file.location)
+      files = await SearchVPKFiles(
+        filters.searchQuery,
+        filters.primaryTag,
+        filters.secondaryTags,
       );
     }
 
-    if (appState.selectedGameStates.length > 0) {
-      appState.vpkFiles = appState.vpkFiles.filter((file) =>
-        appState.selectedGameStates.includes(getGameState(file))
+    // Wails calls cannot be cancelled after dispatch. Instead, make their
+    // completion harmless: only the latest still-matching filter state may
+    // update the list. This prevents rapid clicks from showing stale results.
+    if (requestId !== searchRequestId || !filterStateStillMatches(filters)) return;
+
+    if (filters.locations.length > 0) {
+      files = files.filter((file) =>
+        filters.locations.includes(file.location),
       );
     }
 
-    if (appState.selectedSecondaryTags.length > 0 && appState.secondaryMatchMode === "all") {
-      appState.vpkFiles = appState.vpkFiles.filter(matchesSecondaryTags);
+    if (filters.gameStates.length > 0) {
+      files = files.filter((file) =>
+        filters.gameStates.includes(getGameState(file)),
+      );
     }
 
-    if (!appState.showHidden) {
-      appState.vpkFiles = appState.vpkFiles.filter(
+    if (filters.secondaryTags.length > 0 && filters.secondaryMatchMode === "all") {
+      files = files.filter((file) => matchesSecondaryTags(file, filters.secondaryTags));
+    }
+
+    if (!filters.showHidden) {
+      files = files.filter(
         (file) => !file.name.startsWith("_")
       );
     }
 
-    applySort(appState.vpkFiles);
+    if (requestId !== searchRequestId || !filterStateStillMatches(filters)) return;
+
+    applySort(files);
+    appState.vpkFiles = files;
     renderFileList();
     updateStatusBar();
     renderActiveFilterSummary();
@@ -1465,6 +1538,7 @@ export async function performSearch() {
 
     console.log(`搜索完成，显示 ${appState.vpkFiles.length} 个文件`);
   } catch (error) {
+    if (requestId !== searchRequestId || !filterStateStillMatches(filters)) return;
     console.error("搜索失败:", error);
     showError("搜索失败: " + error);
   }

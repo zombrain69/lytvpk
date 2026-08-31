@@ -93,6 +93,10 @@
     margin-left: 0;
   }
 
+  .mod-management-page .load-order-locate-control {
+    flex: 1 1 14.5rem;
+  }
+
   .mod-management-page .conflict-analysis-toggle {
     flex: 1 1 16rem;
   }
@@ -170,9 +174,15 @@
   }
 
   .mod-management-page .filter-actions > .btn,
-  .mod-management-page .filter-actions > .batch-actions-dropdown-container {
+  .mod-management-page .filter-actions > .batch-actions-dropdown-container,
+  .mod-management-page .filter-actions > .load-order-locate-control {
     flex: 1 1 8.5rem;
     min-width: 0;
+  }
+
+  .mod-management-page .load-order-locate-input {
+    flex: 1 1 auto;
+    width: auto;
   }
 
   .mod-management-page .filter-actions > .batch-actions-dropdown-container > .btn {
@@ -363,7 +373,8 @@
   .mod-management-page .directory-selector .btn,
   .mod-management-page .directory-dropdown-container,
   .mod-management-page .filter-actions > .btn,
-  .mod-management-page .filter-actions > .batch-actions-dropdown-container {
+  .mod-management-page .filter-actions > .batch-actions-dropdown-container,
+  .mod-management-page .filter-actions > .load-order-locate-control {
     flex-basis: 100%;
     width: 100%;
   }

@@ -248,6 +248,19 @@
               >
                 <span class="icon">☷</span> 加载顺序
               </button>
+              <div class="load-order-locate-control" title="输入 addonlist.txt 中显示的优先级编号，可在任意当前排序方式下定位对应 Mod">
+                <input
+                  id="load-order-locate-input"
+                  class="load-order-locate-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  placeholder="优先级 #"
+                  aria-label="按优先级编号定位 Mod"
+                />
+                <button id="load-order-locate-btn" class="btn btn-small btn-outline" type="button">定位</button>
+              </div>
               <button
                 id="upload-btn"
                 class="btn btn-small btn-primary"
