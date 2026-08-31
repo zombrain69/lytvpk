@@ -54,6 +54,10 @@ function showWorkshopDetailView(detailView, browserBody) {
 }
 
 function hideWorkshopDetailView(detailView, browserBody) {
+	// A detail request may still be pending when the user returns to the list.
+	// Invalidate it so its completion cannot reopen a view the user closed.
+	workshopDetailRequestId += 1;
+
   if (!detailView || detailView.classList.contains("hidden")) {
     browserBody?.classList.remove("detail-open");
     return;

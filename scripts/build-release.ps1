@@ -74,7 +74,14 @@ Build command:
 
 pwsh -ExecutionPolicy Bypass -File .\scripts\build-release.ps1 -Version $Version
 "@
-    Set-Content -LiteralPath (Join-Path $stagePath 'SOURCE_CODE.md') -Value $sourceNotice -Encoding utf8NoBOM
+    # `utf8NoBOM` is unavailable in Windows PowerShell 5.1.  Use the .NET
+    # encoder directly so both Windows PowerShell and pwsh emit the same
+    # UTF-8-without-BOM release notice.
+    [System.IO.File]::WriteAllText(
+        (Join-Path $stagePath 'SOURCE_CODE.md'),
+        $sourceNotice,
+        [System.Text.UTF8Encoding]::new($false)
+    )
 
     $archiveFiles = Get-ChildItem -LiteralPath $stagePath -File | Select-Object -ExpandProperty FullName
     Compress-Archive -LiteralPath $archiveFiles -DestinationPath $assetPath
