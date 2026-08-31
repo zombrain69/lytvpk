@@ -8,8 +8,18 @@ import {
   GetVPKFiles,
   GetPrimaryTags,
 } from "../../../wailsjs/go/app/App";
-import { applySort } from "./file-list/sorting.js";
-import { renderTagFilters, performSearch } from "./file-list/filters.js";
+import { applySort, refreshLoadOrderMap } from "./file-list/sorting.js";
+import {
+  renderTagFilters,
+  performSearch,
+  waitForFileListIdle,
+} from "./file-list/filters.js";
+
+// Directory changes touch the process-wide backend root directory. Serialize
+// them and ignore stale UI completions so a rapid A -> B click cannot let A
+// repaint the list (or hide B's loading indicator) after B was requested.
+let directorySwitchRequestId = 0;
+let directorySwitchQueue = Promise.resolve();
 
 // 截取路径显示（保留最后几级目录）
 function truncatePath(path, maxLen = 40) {
@@ -222,63 +232,98 @@ export async function switchToDirectory(path) {
     return; // 已经是当前目录
   }
 
-  try {
-    showFileListLoading("正在切换目录...");
-    closeDropdown();
+  const requestId = ++directorySwitchRequestId;
+  const run = async () => {
+    const isCurrentRequest = () => requestId === directorySwitchRequestId;
+    let ownsFileListLoading = false;
 
-    // 验证目录
-    await ValidateDirectory(path);
+    try {
+      // File scanning reads the same process-wide backend root directory. Wait
+      // for a current refresh to finish before changing it, then participate in
+      // the shared loading lifecycle so a refresh requested during this switch
+      // is coalesced after the directory data is stable.
+      await waitForFileListIdle();
+      if (!isCurrentRequest()) return;
 
-    // 设置新目录
-    await SetRootDirectory(path);
+      appState.isLoading = true;
+      ownsFileListLoading = true;
+      showFileListLoading("正在切换目录...");
+      closeDropdown();
 
-    // 更新状态
-    appState.currentDirectory = path;
+      // 验证目录
+      await ValidateDirectory(path);
+      if (!isCurrentRequest()) return;
 
-    // 更新配置中的lastUsed和lastActiveDirectory
-    const config = getConfig();
-    const directories = config.savedDirectories || [];
-    const dirIndex = directories.findIndex((d) => d.path === path);
+      // 设置新目录
+      await SetRootDirectory(path);
+      if (!isCurrentRequest()) return;
 
-    if (dirIndex >= 0) {
-      directories[dirIndex].lastUsed = new Date().toISOString();
+      // 更新状态
+      appState.currentDirectory = path;
+
+      // 更新配置中的lastUsed和lastActiveDirectory
+      const config = getConfig();
+      const directories = config.savedDirectories || [];
+      const dirIndex = directories.findIndex((d) => d.path === path);
+
+      if (dirIndex >= 0) {
+        directories[dirIndex].lastUsed = new Date().toISOString();
+      }
+
+      saveConfig({
+        ...config,
+        savedDirectories: directories,
+        lastActiveDirectory: path,
+      });
+
+      // 加载文件
+      await ScanVPKFiles();
+      if (!isCurrentRequest()) return;
+      await refreshLoadOrderMap({ silent: true });
+      if (!isCurrentRequest()) return;
+
+      const [files, primaryTags] = await Promise.all([
+        GetVPKFiles(),
+        GetPrimaryTags(),
+      ]);
+      if (!isCurrentRequest()) return;
+
+      applySort(files);
+
+      appState.allVpkFiles = files;
+      appState.primaryTags = primaryTags;
+
+      await renderTagFilters();
+      if (!isCurrentRequest()) return;
+      await performSearch();
+      if (!isCurrentRequest()) return;
+
+      updateTriggerDisplay();
+      renderDirectoryList();
+
+      showNotification(`已切换目录`, "success");
+    } catch (error) {
+      if (!isCurrentRequest()) return;
+      console.error("切换目录失败:", error);
+      showError("切换目录失败: " + error);
+
+      // 尝试恢复原目录显示
+      updateTriggerDisplay();
+    } finally {
+      if (ownsFileListLoading) {
+        appState.isLoading = false;
+      }
+      // A stale request must never clear the loading state belonging to the
+      // latest requested directory.
+      if (isCurrentRequest()) hideFileListLoading();
     }
+  };
 
-    saveConfig({
-      ...config,
-      savedDirectories: directories,
-      lastActiveDirectory: path,
-    });
-
-    // 加载文件
-    await ScanVPKFiles();
-
-    const [files, primaryTags] = await Promise.all([
-      GetVPKFiles(),
-      GetPrimaryTags(),
-    ]);
-
-    applySort(files);
-
-    appState.allVpkFiles = files;
-    appState.primaryTags = primaryTags;
-
-    await renderTagFilters();
-    await performSearch();
-
-    updateTriggerDisplay();
-    renderDirectoryList();
-
-    showNotification(`已切换目录`, "success");
-  } catch (error) {
-    console.error("切换目录失败:", error);
-    showError("切换目录失败: " + error);
-
-    // 尝试恢复原目录显示
-    updateTriggerDisplay();
-  } finally {
-    hideFileListLoading();
-  }
+  // Keep backend root-directory mutations and scans in order. The catch keeps
+  // the queue usable after a failed switch while preserving the caller error.
+  const result = directorySwitchQueue.then(run, run);
+  directorySwitchQueue = result.catch(() => {});
+  return result;
 }
 
 // 获取当前目录列表（供其他模块使用）

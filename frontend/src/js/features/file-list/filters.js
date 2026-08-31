@@ -1644,7 +1644,9 @@ async function runRefreshFilesKeepFilter() {
   } while (refreshFilesNeedsFollowUp);
 }
 
-function waitForFileListIdle() {
+// Directory switching changes the backend's process-wide root directory, so
+// it must wait for any active list scan before changing that shared state.
+export function waitForFileListIdle() {
   if (!appState.isLoading) return Promise.resolve();
 
   return new Promise((resolve) => {
