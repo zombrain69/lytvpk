@@ -76,6 +76,7 @@ let currentPanelDifficulty = "";
 let panelOfficialMapsHidden = false;
 let panelMapRequestToken = 0;
 let panelMapFileRequestToken = 0;
+let panelStatusRequestToken = 0;
 let panelMapFilesRefreshTimer = null;
 const completedPanelUploadNotifications = new Set();
 
@@ -118,13 +119,24 @@ export function openPanelServerDetailsModal(index) {
 }
 
 export function closePanelServerDetailsModal() {
+  panelStatusRequestToken += 1;
   document.getElementById("panel-server-details-modal")?.classList.add("hidden");
   currentPanelServer = null;
   currentPanelServerIndex = -1;
 }
 
+function isPanelStatusRequestActive(requestToken, server) {
+  const modal = document.getElementById("panel-server-details-modal");
+  return (
+    requestToken === panelStatusRequestToken &&
+    String(currentPanelServer?.id || "") === String(server?.id || "") &&
+    !modal?.classList.contains("hidden")
+  );
+}
+
 async function loadPanelStatus(server = currentPanelServer) {
   if (!server) return;
+  const requestToken = ++panelStatusRequestToken;
 
   const loading = document.getElementById("panel-details-loading");
   const content = document.getElementById("panel-details-content");
@@ -139,17 +151,25 @@ async function loadPanelStatus(server = currentPanelServer) {
 
   try {
     const status = await FetchPanelServerStatus(server.id);
-    await renderPanelStatus(server, status || {});
+    if (!isPanelStatusRequestActive(requestToken, server)) return;
+
+    const rendered = await renderPanelStatus(server, status || {}, requestToken);
+    if (!rendered || !isPanelStatusRequestActive(requestToken, server)) return;
+
     loading.classList.add("hidden");
     content.classList.remove("hidden");
   } catch (err) {
+    if (!isPanelStatusRequestActive(requestToken, server)) return;
+
     console.error("获取面板状态失败:", err);
     loading.classList.add("hidden");
     error.textContent = "获取面板状态失败: " + err;
     error.classList.remove("hidden");
     renderPanelStatusError(err);
   } finally {
-    refreshBtn?.removeAttribute("disabled");
+    if (isPanelStatusRequestActive(requestToken, server)) {
+      refreshBtn?.removeAttribute("disabled");
+    }
   }
 }
 
@@ -171,11 +191,10 @@ function renderPanelStatusError(err) {
   error.classList.remove("hidden");
 }
 
-async function renderPanelStatus(server, status) {
+async function renderPanelStatus(server, status, requestToken) {
   const summary = document.getElementById("panel-status-summary");
   const playerList = document.getElementById("panel-player-list");
   const rawMap = status.map || "Unknown";
-  currentPanelDifficulty = status.difficulty || "";
   let displayMap = rawMap;
   try {
     const resolved = await resolveMapName(rawMap);
@@ -185,6 +204,10 @@ async function renderPanelStatus(server, status) {
   } catch {
     displayMap = rawMap;
   }
+
+  if (!isPanelStatusRequestActive(requestToken, server)) return false;
+
+  currentPanelDifficulty = status.difficulty || "";
 
   summary.innerHTML = `
     ${renderPanelStatusItem("服务器", status.hostname || server.name)}
@@ -198,7 +221,7 @@ async function renderPanelStatus(server, status) {
   if (users.length === 0) {
     playerList.innerHTML =
       '<tr><td colspan="6" class="empty-state">暂无在线玩家</td></tr>';
-    return;
+    return true;
   }
 
   playerList.innerHTML = users
@@ -215,6 +238,7 @@ async function renderPanelStatus(server, status) {
       `
     )
     .join("");
+  return true;
 }
 
 function renderPanelStatusItem(label, value, title = "") {

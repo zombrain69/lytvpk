@@ -11,12 +11,16 @@ import {
   ClearCompletedTasks,
 } from "../../../../wailsjs/go/app/App";
 
+let taskListRequestId = 0;
+
 export async function refreshTaskList() {
+  const requestId = ++taskListRequestId;
   const listContainer = document.getElementById("download-tasks-list");
   if (!listContainer) return;
 
   try {
     const tasks = await GetDownloadTasks();
+    if (requestId !== taskListRequestId || !listContainer.isConnected) return;
 
     if (!tasks || tasks.length === 0) {
       listContainer.innerHTML = '<div class="empty-tasks" style="text-align: center; color: #888; padding: 20px;">暂无下载任务</div>';
@@ -43,7 +47,19 @@ export async function refreshTaskList() {
       listContainer.appendChild(item);
     });
   } catch (err) {
+    if (requestId !== taskListRequestId || !listContainer.isConnected) return;
     console.error("Failed to refresh tasks:", err);
+    const errorState = document.createElement("div");
+    errorState.className = "empty-tasks";
+    errorState.style.cssText = "text-align: center; color: #b42318; padding: 20px;";
+    errorState.textContent = "下载任务列表加载失败。";
+    const retryButton = document.createElement("button");
+    retryButton.type = "button";
+    retryButton.className = "btn btn-secondary btn-small";
+    retryButton.textContent = "重试";
+    retryButton.addEventListener("click", refreshTaskList);
+    errorState.append(" ", retryButton);
+    listContainer.replaceChildren(errorState);
   }
 }
 
@@ -327,6 +343,7 @@ function normalizePathForCompare(filePath) {
 }
 
 export function updateTaskInList(task) {
+  taskListRequestId += 1;
   const existing = document.getElementById(`task-${task.id}`);
   if (existing) {
     const newItem = createTaskElement(task);
@@ -342,17 +359,21 @@ export function updateTaskInList(task) {
 
 export function updateTaskProgress(task) {
   const el = document.getElementById(`task-${task.id}`);
-  if (el) {
-    const progress = clampProgress(task.progress);
-    const fill = el.querySelector(".progress-fill");
-    const percentText = el.querySelector(".task-percent");
-    const sizeText = el.querySelector(".task-size");
+  if (!el) {
+    refreshTaskList();
+    return;
+  }
 
-    if (fill) fill.style.width = `${progress}%`;
-    if (percentText) percentText.textContent = `${progress}%`;
-    if (sizeText) {
-      sizeText.textContent = `${formatBytes(task.downloaded_size)} / ${formatBytes(task.total_size)} ${task.speed ? `(${task.speed})` : ""}`;
-    }
+  taskListRequestId += 1;
+  const progress = clampProgress(task.progress);
+  const fill = el.querySelector(".progress-fill");
+  const percentText = el.querySelector(".task-percent");
+  const sizeText = el.querySelector(".task-size");
+
+  if (fill) fill.style.width = `${progress}%`;
+  if (percentText) percentText.textContent = `${progress}%`;
+  if (sizeText) {
+    sizeText.textContent = `${formatBytes(task.downloaded_size)} / ${formatBytes(task.total_size)} ${task.speed ? `(${task.speed})` : ""}`;
   }
 }
 

@@ -34,6 +34,9 @@ const MAX_WORKSHOP_CACHE_ENTRIES = 64;
 const activeDownloadKeys = new Set();
 let downloadRequestInFlight = false;
 let ipSelectionPollTimer = null;
+let workshopViewSession = 0;
+let workshopParseRequestId = 0;
+let workshopCheckButtonDefaultHTML = null;
 
 function getCachedWorkshopResult(url) {
   const cached = workshopCache.get(url);
@@ -161,22 +164,47 @@ export async function copyCurrentDownloadUrls() {
 }
 
 export function openWorkshopModal() {
+  workshopViewSession += 1;
   switchAppPage("downloads");
   document.getElementById("workshop-url")?.focus();
   refreshTaskList();
 }
 
 export function closeWorkshopModal() {
-  if (ipSelectionPollTimer) {
-    clearInterval(ipSelectionPollTimer);
-    ipSelectionPollTimer = null;
-  }
+  workshopViewSession += 1;
+  clearIPSelectionPollTimer();
   downloadRequestInFlight = false;
   switchAppPage("mods");
   resetWorkshopParseState();
 }
 
+function isWorkshopViewActive(viewSession) {
+  return viewSession === workshopViewSession;
+}
+
+function isWorkshopParseRequestActive(viewSession, requestId) {
+  return (
+    isWorkshopViewActive(viewSession) && requestId === workshopParseRequestId
+  );
+}
+
+function clearIPSelectionPollTimer(timer = ipSelectionPollTimer) {
+  if (timer == null) return;
+  clearInterval(timer);
+  if (ipSelectionPollTimer === timer) {
+    ipSelectionPollTimer = null;
+  }
+}
+
 function resetWorkshopParseState() {
+  workshopParseRequestId += 1;
+  const checkButton = document.getElementById("check-workshop-btn");
+  if (checkButton) {
+    checkButton.removeAttribute("disabled");
+    if (workshopCheckButtonDefaultHTML != null) {
+      checkButton.innerHTML = workshopCheckButtonDefaultHTML;
+    }
+  }
   document.getElementById("workshop-url").value = "";
   document.getElementById("download-url").value = "";
   document.getElementById("download-url").placeholder = "解析后自动填充，或手动输入直链...";
@@ -189,6 +217,8 @@ function resetWorkshopParseState() {
 }
 
 export async function checkWorkshopUrl() {
+  const viewSession = workshopViewSession;
+  const requestId = ++workshopParseRequestId;
   const url = document.getElementById("workshop-url").value.trim();
   if (!url) {
     showError("请输入创意工坊链接或工坊ID");
@@ -200,6 +230,9 @@ export async function checkWorkshopUrl() {
   const downloadUrlInput = document.getElementById("download-url");
 
   const originalBtnText = checkBtn.innerHTML;
+  if (workshopCheckButtonDefaultHTML == null) {
+    workshopCheckButtonDefaultHTML = originalBtnText;
+  }
   checkBtn.disabled = true;
   checkBtn.innerHTML = '<span class="btn-spinner"></span> 解析中...';
 
@@ -222,6 +255,8 @@ export async function checkWorkshopUrl() {
         cacheWorkshopResult(url, groupedResult);
       }
     }
+
+    if (!isWorkshopParseRequestActive(viewSession, requestId)) return;
 
     currentWorkshopResult = groupedResult;
     const groups = getCurrentGroups();
@@ -255,13 +290,17 @@ export async function checkWorkshopUrl() {
       result.appendChild(renderWorkshopGroup(group, groupIndex));
     });
 
-    bindWorkshopResultEvents(result);
+    bindWorkshopResultEvents(result, viewSession);
     result.classList.remove("hidden");
   } catch (err) {
-    showError("解析失败: " + err);
+    if (isWorkshopParseRequestActive(viewSession, requestId)) {
+      showError("解析失败: " + err);
+    }
   } finally {
-    checkBtn.disabled = false;
-    checkBtn.innerHTML = originalBtnText;
+    if (isWorkshopParseRequestActive(viewSession, requestId)) {
+      checkBtn.disabled = false;
+      checkBtn.innerHTML = originalBtnText;
+    }
   }
 }
 
@@ -372,7 +411,7 @@ function bindPreviewLoading(itemDiv, previewUrl) {
   }
 }
 
-function bindWorkshopResultEvents(result) {
+function bindWorkshopResultEvents(result, viewSession) {
   result.querySelectorAll(".workshop-group-header").forEach((header) => {
     header.addEventListener("click", (event) => {
       if (event.target.closest(".download-group-btn")) {
@@ -393,7 +432,12 @@ function bindWorkshopResultEvents(result) {
       const groupIndex = Number.parseInt(btn.dataset.groupIndex, 10);
       const group = getCurrentGroups()[groupIndex];
       const items = getGroupDownloadableItems(group);
-      await startDownloadItems(items, "已添加本组任务到下载队列", btn);
+      await startDownloadItems(
+        items,
+        "已添加本组任务到下载队列",
+        btn,
+        () => isWorkshopViewActive(viewSession)
+      );
     });
   });
 
@@ -403,7 +447,12 @@ function bindWorkshopResultEvents(result) {
       const groupIndex = Number.parseInt(btn.dataset.groupIndex, 10);
       const itemIndex = Number.parseInt(btn.dataset.itemIndex, 10);
       const item = getGroupItems(getCurrentGroups()[groupIndex])[itemIndex];
-      await startDownloadItems([item], "已添加到下载队列", btn);
+      await startDownloadItems(
+        [item],
+        "已添加到下载队列",
+        btn,
+        () => isWorkshopViewActive(viewSession)
+      );
     });
   });
 
@@ -430,7 +479,12 @@ function getDownloadItemKey(details) {
   return String(details?.publishedfileid || details?.file_url || "").trim().toLowerCase();
 }
 
-async function startDownloadItems(items, successMessage, sourceButton = null) {
+async function startDownloadItems(
+  items,
+  successMessage,
+  sourceButton = null,
+  isViewActive = () => true
+) {
   const downloadableItems = items.filter(isDownloadableDetail);
   if (downloadableItems.length === 0) {
     showError("没有可下载的文件");
@@ -466,18 +520,18 @@ async function startDownloadItems(items, successMessage, sourceButton = null) {
       }
     }
 
-    if (successCount > 0) {
+    if (successCount > 0 && isViewActive()) {
       showInfo(
         pendingItems.length === 1
           ? successMessage
           : `已添加 ${successCount} 个任务到下载队列`
       );
       refreshTaskList();
-    } else {
+    } else if (successCount === 0 && isViewActive()) {
       showError("添加任务失败");
     }
   } finally {
-    if (sourceButton?.isConnected) {
+    if (isViewActive() && sourceButton?.isConnected) {
       sourceButton.removeAttribute("disabled");
       if (originalButtonHTML != null) sourceButton.innerHTML = originalButtonHTML;
     }
@@ -487,6 +541,7 @@ async function startDownloadItems(items, successMessage, sourceButton = null) {
 }
 
 export async function downloadWorkshopFile() {
+  const viewSession = workshopViewSession;
   if (downloadRequestInFlight) return;
   downloadRequestInFlight = true;
 
@@ -494,10 +549,14 @@ export async function downloadWorkshopFile() {
   try {
     isSelecting = await IsSelectingIP();
   } catch (error) {
-    downloadRequestInFlight = false;
-    showError("无法获取优选线路状态: " + error);
+    if (isWorkshopViewActive(viewSession)) {
+      downloadRequestInFlight = false;
+      showError("无法获取优选线路状态: " + error);
+    }
     return;
   }
+  if (!isWorkshopViewActive(viewSession)) return;
+
   if (isSelecting) {
     const btn = document.getElementById("download-workshop-btn");
     if (ipSelectionPollTimer) {
@@ -511,12 +570,21 @@ export async function downloadWorkshopFile() {
     }
     showNotification("正在优选最佳线路，完成后自动开始下载", "info");
 
-    ipSelectionPollTimer = setInterval(async () => {
+    let pollCheckInFlight = false;
+    const pollTimer = setInterval(async () => {
+      if (pollCheckInFlight) return;
+      pollCheckInFlight = true;
       try {
         const stillSelecting = await IsSelectingIP();
+        if (
+          !isWorkshopViewActive(viewSession) ||
+          ipSelectionPollTimer !== pollTimer
+        ) {
+          clearIPSelectionPollTimer(pollTimer);
+          return;
+        }
         if (stillSelecting) return;
-        clearInterval(ipSelectionPollTimer);
-        ipSelectionPollTimer = null;
+        clearIPSelectionPollTimer(pollTimer);
         if (btn?.isConnected) {
           btn.disabled = false;
           btn.innerHTML = originalText;
@@ -524,16 +592,25 @@ export async function downloadWorkshopFile() {
         downloadRequestInFlight = false;
         await downloadWorkshopFile();
       } catch (error) {
-        clearInterval(ipSelectionPollTimer);
-        ipSelectionPollTimer = null;
+        if (
+          !isWorkshopViewActive(viewSession) ||
+          ipSelectionPollTimer !== pollTimer
+        ) {
+          clearIPSelectionPollTimer(pollTimer);
+          return;
+        }
+        clearIPSelectionPollTimer(pollTimer);
         if (btn?.isConnected) {
           btn.disabled = false;
           btn.innerHTML = originalText;
         }
         downloadRequestInFlight = false;
         showError("优选线路状态检查失败: " + error);
+      } finally {
+        pollCheckInFlight = false;
       }
     }, 1000);
+    ipSelectionPollTimer = pollTimer;
 
     return;
   }
@@ -543,8 +620,13 @@ export async function downloadWorkshopFile() {
   try {
     const groupedItems = getAllDownloadableItems();
     if (groupedItems.length > 0) {
-      const successCount = await startDownloadItems(groupedItems, "已添加到下载队列", btn);
-      if (successCount > 0) {
+      const successCount = await startDownloadItems(
+        groupedItems,
+        "已添加到下载队列",
+        btn,
+        () => isWorkshopViewActive(viewSession)
+      );
+      if (successCount > 0 && isWorkshopViewActive(viewSession)) {
         resetWorkshopParseState();
       }
       return;
@@ -585,15 +667,20 @@ export async function downloadWorkshopFile() {
 
     try {
       await StartDownloadTask(taskDetails, useOptimizedIP);
+      if (!isWorkshopViewActive(viewSession)) return;
       showInfo("已添加到后台下载队列");
       resetWorkshopParseState();
       refreshTaskList();
     } catch (err) {
-      showError("添加任务失败: " + err);
+      if (isWorkshopViewActive(viewSession)) {
+        showError("添加任务失败: " + err);
+      }
     }
   } finally {
-    downloadRequestInFlight = false;
-    if (btn?.isConnected) btn.disabled = false;
+    if (isWorkshopViewActive(viewSession)) {
+      downloadRequestInFlight = false;
+      if (btn?.isConnected) btn.disabled = false;
+    }
   }
 }
 

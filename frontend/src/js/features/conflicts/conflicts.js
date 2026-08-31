@@ -18,6 +18,7 @@ let showNotification;
 let conflictProgressRegistered = false;
 let isConflictChecking = false;
 let isConflictModalVisible = false;
+let conflictCheckRestartRequested = false;
 // 模态框全量扫描与列表级 scoped 扫描生命周期彼此独立。
 // 关闭模态框不应让列表扫描变成“过期”状态，否则其 loading 标记可能永远不清理。
 let conflictCheckRunId = 0;
@@ -254,7 +255,10 @@ export function showConflictModal(options = {}) {
   if (!modal) return;
   isConflictModalVisible = true;
   modal.classList.remove("hidden");
-  if (isConflictChecking) {
+  if (isConflictChecking && !options.result) {
+    // 当前扫描可能属于已关闭的旧会话。让它自然结束后重新发起，避免旧结果
+    // 回写到刚打开的窗口，同时也不会与后端的单次扫描互斥锁竞争。
+    conflictCheckRestartRequested = true;
     document.getElementById("conflict-progress-container")?.classList.remove("hidden");
     return;
   }
@@ -280,6 +284,7 @@ export function showConflictModal(options = {}) {
 
 export function hideConflictModal() {
   isConflictModalVisible = false;
+  conflictCheckRestartRequested = false;
   // 使尚未返回的异步扫描结果失效，避免关闭后立即重开时显示旧结果。
   conflictCheckRunId += 1;
   document.getElementById("conflict-modal")?.classList.add("hidden");
@@ -624,6 +629,7 @@ export async function startConflictCheck() {
     currentConflictResult = result;
     currentConflictPage = 1;
     await refreshConflictOrderMap();
+    if (runId !== conflictCheckRunId || !isConflictModalVisible) return;
     renderConflictResults(result);
   } catch (err) {
     if (runId === conflictCheckRunId && isConflictModalVisible) {
@@ -633,8 +639,21 @@ export async function startConflictCheck() {
       if (startButton) startButton.style.display = "";
     }
   } finally {
-    if (runId === conflictCheckRunId) {
-      setConflictChecking(false);
+    const shouldRestart =
+      runId !== conflictCheckRunId &&
+      isConflictModalVisible &&
+      conflictCheckRestartRequested;
+
+    // 即使本轮结果已经失效，也必须释放 busy 状态；否则关闭后重开会永久
+    // 停留在“检测中”。只有仍可见的新会话才在后端锁释放后自动重试。
+    setConflictChecking(false);
+    if (shouldRestart) {
+      conflictCheckRestartRequested = false;
+      queueMicrotask(() => {
+        if (!isConflictChecking && isConflictModalVisible) {
+          void startConflictCheck();
+        }
+      });
     }
   }
 }

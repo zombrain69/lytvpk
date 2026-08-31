@@ -8,6 +8,7 @@ let escapeHtml;
 let formatDuration;
 let getServers;
 let SERVER_ICONS;
+let basicDetailsSessionId = 0;
 
 export function configureDetailsModal(deps) {
   ({
@@ -32,10 +33,25 @@ export function openServerDetailsModal(index) {
   openBasicServerDetailsModal(index);
 }
 
+function closeBasicServerDetailsModal() {
+  basicDetailsSessionId += 1;
+  document.getElementById("server-details-modal")?.classList.add("hidden");
+}
+
+function isBasicDetailsSessionActive(sessionId, server) {
+  const modal = document.getElementById("server-details-modal");
+  return (
+    sessionId === basicDetailsSessionId &&
+    !modal?.classList.contains("hidden") &&
+    modal?.dataset.serverAddress === String(server.address || "")
+  );
+}
+
 async function openBasicServerDetailsModal(index) {
   const servers = getServers();
   const server = servers[index];
   if (!server) return;
+  const sessionId = ++basicDetailsSessionId;
 
   const modal = document.getElementById("server-details-modal");
   const title = document.getElementById("details-server-name");
@@ -45,25 +61,36 @@ async function openBasicServerDetailsModal(index) {
   const playersEl = document.getElementById("details-players");
   const listEl = document.getElementById("details-player-list");
 
+  modal.dataset.serverAddress = String(server.address || "");
   title.textContent = server.name;
+  loading.textContent = "正在获取服务器信息...";
   loading.classList.remove("hidden");
   content.classList.add("hidden");
   modal.classList.remove("hidden");
 
   try {
     const info = await FetchServerInfo(server.address);
+    if (!isBasicDetailsSessionActive(sessionId, server)) return;
+
     mapEl.textContent = info.map;
     mapEl.title = `地图: ${info.map}`;
     playersEl.textContent = `${info.players}/${info.max_players}`;
 
-    resolveMapName(info.map).then((realName) => {
-      if (realName !== info.map && document.body.contains(mapEl)) {
-        mapEl.textContent = realName;
-        mapEl.title = `地图: ${info.map}`;
-      }
-    });
+    void resolveMapName(info.map)
+      .then((realName) => {
+        if (
+          isBasicDetailsSessionActive(sessionId, server) &&
+          realName !== info.map &&
+          document.body.contains(mapEl)
+        ) {
+          mapEl.textContent = realName;
+          mapEl.title = `地图: ${info.map}`;
+        }
+      })
+      .catch(() => {});
 
     const players = await FetchPlayerList(server.address);
+    if (!isBasicDetailsSessionActive(sessionId, server)) return;
 
     listEl.innerHTML = "";
     if (players && players.length > 0) {
@@ -86,6 +113,7 @@ async function openBasicServerDetailsModal(index) {
     loading.classList.add("hidden");
     content.classList.remove("hidden");
   } catch (err) {
+    if (!isBasicDetailsSessionActive(sessionId, server)) return;
     console.error(err);
     loading.textContent = "获取失败: " + err;
   }
@@ -106,14 +134,14 @@ export function setupDetailsModalListeners() {
   document
     .getElementById("close-server-details-modal-btn")
     .addEventListener("click", () => {
-      document.getElementById("server-details-modal").classList.add("hidden");
+      closeBasicServerDetailsModal();
     });
 
   document
     .getElementById("server-details-modal")
     .addEventListener("click", function (e) {
       if (e.target === this) {
-        this.classList.add("hidden");
+        closeBasicServerDetailsModal();
       }
     });
 }
