@@ -147,6 +147,44 @@ func TestAddonListGuardRestoresStableExternalOverwrite(t *testing.T) {
 	}
 }
 
+func TestUnrecordedGameStateIsNotRewrittenAfterGameSave(t *testing.T) {
+	initial := "\"AddonList\"\n{\n\t\"workshop\\2758492786.vpk\"\t\t\"1\"\n\t\"workshop\\2914817953.vpk\"\t\t\"1\"\n}\n"
+	app, addonListPath := newAddonListManagerTestApp(t, initial)
+	t.Cleanup(app.stopAddonListMonitor)
+
+	vpkPath := filepath.Join(filepath.Dir(addonListPath), "addons", "AWM Mon3tr.vpk")
+	writeTestVPK(t, vpkPath, map[string][]byte{
+		"addoninfo.txt": []byte("\"AddonInfo\"\n{\n\taddonSteamAppID \"550\"\n}\n"),
+	})
+	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{
+		Path: vpkPath, Name: "AWM Mon3tr.vpk", Location: "root",
+	}})
+	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+		t.Fatalf("SetVPKGameEnabled: %v", err)
+	}
+
+	// The optional full-file guard is disabled by default. A game save must
+	// remain authoritative; LytVPK must not silently reinsert AWM.
+	gameSaved := "\"AddonList\"\n{\n\t\"workshop\\2758492786.vpk\"\t\t\"0\"\n\t\"workshop\\2914817953.vpk\"\t\t\"1\"\n}\n"
+	if err := os.WriteFile(addonListPath, []byte(gameSaved), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(addonListPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != gameSaved {
+		t.Fatalf("game save was unexpectedly rewritten:\nwant %q\n got %q", gameSaved, content)
+	}
+	app.addonListMonitorMu.Lock()
+	monitorActive := app.addonListMonitorStop != nil
+	app.addonListMonitorMu.Unlock()
+	if monitorActive {
+		t.Fatal("temporary addonlist protection monitor started without user opt-in")
+	}
+}
+
 func containsAddonListBackupKind(backups []AddonListBackup, prefix string) bool {
 	for _, backup := range backups {
 		if strings.HasPrefix(backup.Kind, prefix) {

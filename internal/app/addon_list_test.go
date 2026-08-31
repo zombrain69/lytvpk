@@ -272,6 +272,9 @@ func TestSetVPKGameEnabledPlacesUnrecordedEntryAndPreservesGBK(t *testing.T) {
 	}
 
 	vpkPath := filepath.Join(addonsDir, "new.vpk")
+	writeTestVPK(t, vpkPath, map[string][]byte{
+		"addoninfo.txt": []byte("\"AddonInfo\"\n{\n\taddonSteamAppID \"550\"\n}\n"),
+	})
 	app := &App{rootDir: addonsDir, unrecordedModLoadOrderPlacement: addonListUnrecordedPlacementAfterEnabled}
 	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: "new.vpk", Location: "root"}})
 	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
@@ -314,6 +317,9 @@ func TestSetVPKGameEnabledHandlesGBKRootFilename(t *testing.T) {
 
 	name := "【BA垃姬桶】垃圾桶 (junk).vpk"
 	vpkPath := filepath.Join(addonsDir, name)
+	writeTestVPK(t, vpkPath, map[string][]byte{
+		"addoninfo.txt": []byte("\"AddonInfo\"\n{\n\taddonSteamAppID \"550\"\n}\n"),
+	})
 	app := &App{rootDir: addonsDir}
 	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: name, Location: "root"}})
 	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
@@ -376,6 +382,43 @@ func TestSetVPKGameEnabledAddsMissingEntryAndPreservesUTF8BOM(t *testing.T) {
 	}
 	if !bytes.Equal(backup, original) {
 		t.Fatal("backup does not contain the original UTF-8 BOM bytes")
+	}
+}
+
+func TestSetVPKGameEnabledRejectsInvalidRootAddonInfoBeforeWritingAddonList(t *testing.T) {
+	root := t.TempDir()
+	addonsDir := filepath.Join(root, "left4dead2", "addons")
+	if err := os.MkdirAll(addonsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	original := "\"AddonList\"\n{\n\t\"workshop\\known.vpk\"\t\t\"1\"\n}\n"
+	addonListPath := filepath.Join(filepath.Dir(addonsDir), "addonlist.txt")
+	if err := os.WriteFile(addonListPath, []byte(original), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	vpkPath := filepath.Join(addonsDir, "broken.vpk")
+	writeTestVPK(t, vpkPath, map[string][]byte{
+		"addoninfo.txt": []byte("\"AddonInfo\"\n{\n\taddonSteamAppID \"550\"\n\taddonDescription \"\nunclosed\n}\n"),
+	})
+	app := &App{rootDir: addonsDir}
+	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{
+		Path: vpkPath, Name: "broken.vpk", Location: "root",
+		// Also cover a stale addonlist entry: enabling an already-recorded
+		// malformed VPK must not bypass validation.
+		GameEnabled: true, GameStateKnown: true,
+	}})
+
+	err := app.SetVPKGameEnabled(vpkPath, true)
+	if err == nil || !strings.Contains(err.Error(), "addoninfo.txt 格式无效") {
+		t.Fatalf("SetVPKGameEnabled error = %v, want addoninfo validation failure", err)
+	}
+	updated, readErr := os.ReadFile(addonListPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(updated) != original {
+		t.Fatalf("addonlist changed despite invalid addoninfo:\nwant %q\n got %q", original, updated)
 	}
 }
 

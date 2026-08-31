@@ -2494,7 +2494,7 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   overflow: visible; /* 允许下拉菜单溢出 */
-  transition: all var(--duration-200) ease;
+  transition: transform var(--duration-200) ease, box-shadow var(--duration-200) ease, border-color var(--duration-200) ease;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -2528,18 +2528,48 @@
 
 /* 卡片顶部色带与边框同步反映 addonlist.txt 游戏内状态。 */
 .file-card.mod-card-state-enabled {
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.13), var(--bg-app) 42%);
-  border-color: rgba(16, 185, 129, 0.48);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.1) 48%, var(--bg-app) 78%);
+  border: 2px solid rgba(16, 185, 129, 0.82);
+  box-shadow: inset 6px 0 0 #10b981, var(--shadow-sm);
 }
 
 .file-card.mod-card-state-disabled {
-  background: linear-gradient(180deg, rgba(239, 68, 68, 0.13), var(--bg-app) 42%);
-  border-color: rgba(239, 68, 68, 0.48);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.28), rgba(239, 68, 68, 0.09) 48%, var(--bg-app) 78%);
+  border: 2px solid rgba(239, 68, 68, 0.82);
+  box-shadow: inset 6px 0 0 #ef4444, var(--shadow-sm);
 }
 
 .file-card.mod-card-state-unknown {
-  background: linear-gradient(180deg, rgba(100, 116, 139, 0.11), var(--bg-app) 42%);
-  border-color: rgba(100, 116, 139, 0.42);
+  background: linear-gradient(180deg, rgba(100, 116, 139, 0.2), rgba(100, 116, 139, 0.07) 48%, var(--bg-app) 78%);
+  border: 2px solid rgba(148, 163, 184, 0.62);
+  box-shadow: inset 6px 0 0 #94a3b8, var(--shadow-sm);
+}
+
+.file-card.mod-card-state-enabled .card-content {
+  background: rgba(6, 95, 70, 0.22);
+  border-top-color: rgba(110, 231, 183, 0.52);
+}
+
+.file-card.mod-card-state-disabled .card-content {
+  background: rgba(127, 29, 29, 0.2);
+  border-top-color: rgba(252, 165, 165, 0.5);
+}
+
+.file-card.mod-card-state-unknown .card-content {
+  background: rgba(51, 65, 85, 0.16);
+  border-top-color: rgba(203, 213, 225, 0.35);
+}
+
+.file-card.mod-card-state-enabled:hover {
+  box-shadow: inset 6px 0 0 #10b981, var(--shadow-lg);
+}
+
+.file-card.mod-card-state-disabled:hover {
+  box-shadow: inset 6px 0 0 #ef4444, var(--shadow-lg);
+}
+
+.file-card.mod-card-state-unknown:hover {
+  box-shadow: inset 6px 0 0 #94a3b8, var(--shadow-lg);
 }
 
 .file-card.mod-card-location-disabled {
@@ -2585,6 +2615,14 @@
   pointer-events: none;
   justify-content: flex-end;
   max-width: calc(100% - 52px);
+}
+
+/* 父层不拦截卡片点击，但标签本身仍要能被鼠标命中，才能显示完整
+   title（尤其是被折叠到“+N”的子标签）。卡片点击处理会单独忽略这些
+   标签，避免查看提示时误打开详情。 */
+.card-badges .card-badge {
+  pointer-events: auto;
+  cursor: help;
 }
 
 .card-checkbox-container {

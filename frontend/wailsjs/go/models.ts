@@ -1501,6 +1501,40 @@ export namespace app {
 	        this.error = source["error"];
 	    }
 	}
+	export class VPKIntegrityBatchResult {
+	    path: string;
+	    report: parser.VPKIntegrityReport;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new VPKIntegrityBatchResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.report = this.convertValues(source["report"], parser.VPKIntegrityReport);
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class VPKModelMetric {
 	    path: string;
 	    modelCount: number;
@@ -1540,6 +1574,84 @@ export namespace app {
 	        this.packedFiles = source["packedFiles"];
 	        this.outputIsAddons = source["outputIsAddons"];
 	    }
+	}
+	export class VPKRepairBatchResult {
+	    sourcePath: string;
+	    outputPath: string;
+	    originalPreserved: boolean;
+	    addonInfoRepair: parser.VPKAddonInfoRepairSummary;
+	    report: parser.VPKIntegrityReport;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new VPKRepairBatchResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourcePath = source["sourcePath"];
+	        this.outputPath = source["outputPath"];
+	        this.originalPreserved = source["originalPreserved"];
+	        this.addonInfoRepair = this.convertValues(source["addonInfoRepair"], parser.VPKAddonInfoRepairSummary);
+	        this.report = this.convertValues(source["report"], parser.VPKIntegrityReport);
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class VPKRepairResult {
+	    sourcePath: string;
+	    outputPath: string;
+	    originalPreserved: boolean;
+	    addonInfoRepair: parser.VPKAddonInfoRepairSummary;
+	    report: parser.VPKIntegrityReport;
+
+	    static createFrom(source: any = {}) {
+	        return new VPKRepairResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourcePath = source["sourcePath"];
+	        this.outputPath = source["outputPath"];
+	        this.originalPreserved = source["originalPreserved"];
+	        this.addonInfoRepair = this.convertValues(source["addonInfoRepair"], parser.VPKAddonInfoRepairSummary);
+	        this.report = this.convertValues(source["report"], parser.VPKIntegrityReport);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class VPKUnpackResult {
 	    sourcePath: string;
@@ -2783,6 +2895,22 @@ export namespace parser {
 	        this.modes = source["modes"];
 	    }
 	}
+	export class VPKAddonInfoRepairSummary {
+	    preservedFields: string[];
+	    derivedFields: string[];
+	    recoveredTruncatedText: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new VPKAddonInfoRepairSummary(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.preservedFields = source["preservedFields"];
+	        this.derivedFields = source["derivedFields"];
+	        this.recoveredTruncatedText = source["recoveredTruncatedText"];
+	    }
+	}
 	export class XDRSlotInfo {
 	    character: string;
 	    model: string;
@@ -2883,6 +3011,72 @@ export namespace parser {
 	        this.hasUpdate = source["hasUpdate"];
 	    }
 	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class VPKIntegrityIssue {
+	    code: string;
+	    severity: string;
+	    path: string;
+	    message: string;
+	    repairable: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new VPKIntegrityIssue(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.code = source["code"];
+	        this.severity = source["severity"];
+	        this.path = source["path"];
+	        this.message = source["message"];
+	        this.repairable = source["repairable"];
+	    }
+	}
+	export class VPKIntegrityReport {
+	    path: string;
+	    name: string;
+	    valid: boolean;
+	    totalFiles: number;
+	    verifiedFiles: number;
+	    addonInfoFound: boolean;
+	    addonInfoValid: boolean;
+	    repairable: boolean;
+	    issues: VPKIntegrityIssue[];
+
+	    static createFrom(source: any = {}) {
+	        return new VPKIntegrityReport(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.name = source["name"];
+	        this.valid = source["valid"];
+	        this.totalFiles = source["totalFiles"];
+	        this.verifiedFiles = source["verifiedFiles"];
+	        this.addonInfoFound = source["addonInfoFound"];
+	        this.addonInfoValid = source["addonInfoValid"];
+	        this.repairable = source["repairable"];
+	        this.issues = this.convertValues(source["issues"], VPKIntegrityIssue);
+	    }
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;

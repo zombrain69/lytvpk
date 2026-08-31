@@ -201,6 +201,190 @@
   background: rgba(79, 70, 229, 0.1);
 }
 
+.diagnostics-tool-icon.is-integrity {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.vpk-integrity-report {
+  display: grid;
+  gap: 0.75rem;
+  min-width: min(36rem, 82vw);
+  max-width: min(58rem, 82vw);
+}
+
+/* 完整性报告内容可能包含很长的 Windows 路径和多条问题；单独放宽
+   通用消息弹窗，并让路径/问题在弹窗内部换行滚动，不影响其他消息弹窗。 */
+#message-modal .modal-content.vpk-integrity-modal-content {
+  width: min(92vw, 72rem);
+  max-width: min(92vw, 72rem);
+  max-height: min(90dvh, 58rem);
+}
+
+#message-modal .vpk-integrity-modal-content .message-content {
+  padding: 0;
+  text-align: left;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.vpk-integrity-path {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-app);
+}
+
+.vpk-integrity-path span {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.vpk-integrity-path code {
+  display: block;
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.vpk-integrity-batch-report {
+  min-width: 0;
+  max-width: none;
+}
+
+.vpk-integrity-batch-summary {
+  padding: 0.65rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.vpk-integrity-batch-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: min(52dvh, 34rem);
+  min-width: 0;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.vpk-integrity-batch-item {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.vpk-integrity-batch-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.vpk-integrity-batch-item-header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vpk-integrity-batch-item-header span {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.vpk-integrity-batch-item-header .is-valid {
+  color: var(--success);
+}
+
+.vpk-integrity-batch-item-header .is-repairable {
+  color: var(--warning);
+}
+
+.vpk-integrity-batch-item-header .is-invalid,
+.vpk-integrity-batch-error {
+  color: var(--danger);
+}
+
+.vpk-integrity-batch-error {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.vpk-integrity-repair-meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.vpk-integrity-status {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+
+.vpk-integrity-status.is-valid {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.vpk-integrity-status.is-invalid {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.vpk-integrity-stats,
+.vpk-integrity-report h4 {
+  margin: 0;
+}
+
+.vpk-integrity-issues {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+  overflow: auto;
+}
+
+.vpk-integrity-issues li {
+  line-height: 1.45;
+}
+
+.vpk-integrity-issues li.is-error {
+  color: var(--danger);
+}
+
+.vpk-integrity-issues li.is-warning {
+  color: var(--warning);
+}
+
+.vpk-integrity-issues small {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: var(--success);
+  font-weight: 700;
+}
+
 .autoexec-tool-modal-content {
   width: min(94vw, 92rem);
   min-width: min(50rem, 94vw);

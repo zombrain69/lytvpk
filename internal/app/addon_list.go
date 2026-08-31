@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+	"vpk-manager/internal/parser"
 
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -935,8 +936,18 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
 	}
 	vpkPath := cache.File.Path
 	wasUnrecorded := !cache.File.GameStateKnown
+	location := cache.File.Location
 	placement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
 	a.mu.RUnlock()
+	// The game may mount a malformed root VPK successfully, but it drops the
+	// entry when the Add-ons screen is saved. Validate every root VPK before an
+	// enable operation (not only first-time entries) so an existing stale entry
+	// cannot be re-enabled and silently disappear again.
+	if enabled && location == "root" {
+		if err := parser.ValidateVPKAddonInfo(vpkPath); err != nil {
+			return fmt.Errorf("游戏不会接受此 Mod，未写入 addonlist.txt；请先使用工具箱修复 VPK：%w", err)
+		}
+	}
 
 	targetKey, err := a.addonListKeyForVPKPath(vpkPath)
 	if err != nil {
@@ -991,5 +1002,8 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
 	cache.File.GameStateKnown = true
 	a.vpkCache.Store(filePath, cache)
 	a.mu.Unlock()
-	return a.syncManagedAddonListSnapshotLocked(doc.path)
+	if err := a.syncManagedAddonListSnapshotLocked(doc.path); err != nil {
+		return err
+	}
+	return nil
 }

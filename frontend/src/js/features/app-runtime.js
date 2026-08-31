@@ -17,6 +17,7 @@ import { renderDiagnosticsPage } from "./diagnostics/diagnostics-page.js";
 import { openVPKUnpackTool } from "./diagnostics/vpk-unpack.js";
 import { openMDMPReportTool } from "./diagnostics/mdmp-report.js";
 import { openVPKPackTool } from "./diagnostics/vpk-pack.js";
+import { openVPKIntegrityTool } from "./diagnostics/vpk-integrity.js";
 import { openAutoexecTool } from "./diagnostics/autoexec-tool.js";
 import {
   importSprayFiles,
@@ -642,6 +643,7 @@ async function initializeApp() {
     });
     window._addonListGuardEventsRegistered = true;
   }
+
 }
 
 function setupSettingsAndAboutListeners() {
@@ -657,6 +659,7 @@ function setupSettingsAndAboutListeners() {
         openModelStatsScanModal,
         showConflictModal,
         openVPKUnpackTool,
+        openVPKIntegrityTool,
         openMDMPReportTool,
         openVPKPackTool,
         openAutoexecTool,

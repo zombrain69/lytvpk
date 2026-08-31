@@ -19,7 +19,13 @@ import (
 
 func (a *App) SetRootDirectory(path string) error {
 	a.addonListGuardMu.Lock()
-	defer a.addonListGuardMu.Unlock()
+	restartMonitor := false
+	defer func() {
+		a.addonListGuardMu.Unlock()
+		if restartMonitor {
+			a.restartAddonListMonitor()
+		}
+	}()
 
 	path = filepath.Clean(strings.TrimSpace(path))
 	if path == "." || path == "" {
@@ -39,7 +45,7 @@ func (a *App) SetRootDirectory(path string) error {
 	a.mu.Lock()
 	a.rootDir = path
 	a.mu.Unlock()
-	a.restartAddonListMonitor()
+	restartMonitor = true
 	return nil
 }
 

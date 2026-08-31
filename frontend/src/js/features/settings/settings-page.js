@@ -9,6 +9,7 @@ const SETTINGS_NAV_ICONS = {
 };
 
 let addonListMergePreview = null;
+let filterLayoutChangeToken = 0;
 
 export async function renderSettingsPage(deps) {
   const {
@@ -644,41 +645,60 @@ function bindSettingsPage(deps) {
   });
 
   document.querySelectorAll('input[name="settings-filter-layout"]').forEach((radio) => {
-    radio.addEventListener("change", async () => {
+    radio.addEventListener("change", () => {
       if (!radio.checked) return;
+
+      const changeToken = ++filterLayoutChangeToken;
       // saveConfig() updates its in-memory cache before the asynchronous Wails
-      // write completes. Keep a complete snapshot so a failed write cannot
-      // leave the cache on the new layout while the UI has rolled back.
+      // write completes. Keep only the previous layout value so a failed write
+      // cannot overwrite unrelated settings changed while the request is queued.
       const previousConfig = deps.getConfig();
       const previousMode = previousConfig.filterLayoutMode === "classic" ? "classic" : "compact";
       const nextMode = radio.value === "classic" ? "classic" : "compact";
       const toggleGroup = radio.closest(".mode-toggle-group");
-      try {
-        deps.appState.filterLayoutMode = nextMode;
-        const config = deps.getConfig();
-        config.filterLayoutMode = nextMode;
-        await deps.saveConfig(config);
-        toggleGroup?.querySelectorAll(".mode-option").forEach((option) => option.classList.remove("active"));
-        radio.closest(".mode-option")?.classList.add("active");
-        await deps.renderTagFilters?.();
-        deps.showNotification(nextMode === "classic" ? "已切换到经典展开筛选布局" : "已切换到简洁下拉筛选布局", "success");
-      } catch (error) {
-        deps.appState.filterLayoutMode = previousMode;
-        // Restore both the visible state and config.js's cache. The latter is
-        // important because later settings saves start from getConfig().
-        try {
-          await deps.saveConfig(previousConfig);
-        } catch (rollbackError) {
-          console.error("筛选布局配置回滚失败:", rollbackError);
-        }
-        const previousRadio = toggleGroup?.querySelector(`input[value="${previousMode}"]`);
-        if (previousRadio) previousRadio.checked = true;
+
+      const syncLayoutControls = (mode) => {
+        const selectedRadio = toggleGroup?.querySelector(`input[value="${mode}"]`);
+        if (selectedRadio) selectedRadio.checked = true;
         toggleGroup?.querySelectorAll(".mode-option").forEach((option) => {
-          option.classList.toggle("active", option.querySelector("input")?.value === previousMode);
+          option.classList.toggle("active", option.querySelector("input")?.value === mode);
         });
-        await deps.renderTagFilters?.();
-        deps.showNotification("保存筛选布局失败: " + error, "error");
-      }
+      };
+
+      // Apply the visual layout before waiting for disk/Wails I/O. renderTagFilters
+      // updates the layout classes and clears/rebuilds its containers synchronously
+      // before its first backend await, so the click has immediate feedback.
+      deps.appState.filterLayoutMode = nextMode;
+      syncLayoutControls(nextMode);
+      Promise.resolve(deps.renderTagFilters?.()).catch((error) => {
+        console.error("切换筛选布局时渲染失败:", error);
+      });
+
+      const config = deps.getConfig();
+      config.filterLayoutMode = nextMode;
+      Promise.resolve()
+        .then(() => deps.saveConfig(config))
+        .then(() => {
+          if (changeToken !== filterLayoutChangeToken) return;
+          deps.showNotification(nextMode === "classic" ? "已切换到经典展开筛选布局" : "已切换到简洁下拉筛选布局", "success");
+        })
+        .catch((error) => {
+          // A newer click owns the UI and must not be rolled back by an older
+          // request finishing late.
+          if (changeToken !== filterLayoutChangeToken) return;
+          deps.appState.filterLayoutMode = previousMode;
+          syncLayoutControls(previousMode);
+
+          const rollbackConfig = deps.getConfig();
+          rollbackConfig.filterLayoutMode = previousMode;
+          Promise.resolve()
+            .then(() => deps.saveConfig(rollbackConfig))
+            .catch((rollbackError) => console.error("筛选布局配置回滚失败:", rollbackError));
+          Promise.resolve(deps.renderTagFilters?.()).catch((renderError) => {
+            console.error("筛选布局回滚渲染失败:", renderError);
+          });
+          deps.showNotification("保存筛选布局失败: " + error, "error");
+        });
     });
   });
 
@@ -1477,6 +1497,7 @@ function formatAddonListBackupKind(kind) {
   const labels = {
     manual: "手动备份",
     external: "游戏覆盖前",
+    "game-save": "旧版短时保护写入前",
     before: "恢复/删除前",
   };
   return labels[String(kind || "")] || "历史备份";

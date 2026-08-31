@@ -26,6 +26,7 @@ import {
   shareSelectedWorkshopItems,
   shareWorkshopItem,
 } from "./share.js";
+import { openVPKIntegrityForPaths } from "../diagnostics/vpk-integrity.js";
 import { getServers } from "../servers/servers.js";
 import { StartPanelMapUpload } from "../../../../wailsjs/go/app/App";
 import { showNotification } from "../../core/toast.js";
@@ -34,6 +35,7 @@ let currentContextMenu = null;
 let currentServerSubmenu = null;
 
 const loadOrderIconSvg = `<svg class="icon-svg" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>`;
+const integrityIconSvg = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-3z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg>`;
 
 function createMenuItem(text, iconHtml, onClick, options = {}) {
   const item = document.createElement("button");
@@ -160,6 +162,7 @@ export function hideServerSubmenu() {
 
 function buildSingleMenu(menu, file) {
   menu.appendChild(createMenuItem("详情", iconSvg("info"), () => showFileDetail(file.path)));
+  menu.appendChild(createMenuItem("VPK 完整性检测", integrityIconSvg, () => openVPKIntegrityForPaths([file.path])));
 
   if (file.location === "workshop") {
     menu.appendChild(createMenuItem("复制到 addons", iconSvg("package"), () => moveFileToAddons(file.path)));
@@ -244,6 +247,11 @@ function buildBatchMenu(menu) {
   menu.appendChild(
     createMenuItem("调整加载顺序", loadOrderIconSvg, () =>
       openLoadOrderModal({ mode: "selection", selectedPaths: Array.from(appState.selectedFiles) })
+    )
+  );
+  menu.appendChild(
+    createMenuItem("检测/修复选中 VPK", integrityIconSvg, () =>
+      openVPKIntegrityForPaths(selectedPaths)
     )
   );
 

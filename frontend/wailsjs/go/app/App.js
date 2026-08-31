@@ -354,6 +354,14 @@ export function HotReloadPanelMaps(arg1) {
   return window['go']['app']['App']['HotReloadPanelMaps'](arg1);
 }
 
+export function InspectVPKIntegrity(arg1) {
+  return window['go']['app']['App']['InspectVPKIntegrity'](arg1);
+}
+
+export function InspectVPKIntegrityBatch(arg1) {
+  return window['go']['app']['App']['InspectVPKIntegrityBatch'](arg1);
+}
+
 export function InstallSprayVPK(arg1) {
   return window['go']['app']['App']['InstallSprayVPK'](arg1);
 }
@@ -432,6 +440,14 @@ export function PreviewAddonListMerge(arg1) {
 
 export function RenameVPKFile(arg1, arg2) {
   return window['go']['app']['App']['RenameVPKFile'](arg1, arg2);
+}
+
+export function RepairVPKIntegrity(arg1) {
+  return window['go']['app']['App']['RepairVPKIntegrity'](arg1);
+}
+
+export function RepairVPKIntegrityBatch(arg1) {
+  return window['go']['app']['App']['RepairVPKIntegrityBatch'](arg1);
 }
 
 export function RestartApplication() {

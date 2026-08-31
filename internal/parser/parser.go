@@ -100,20 +100,46 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	buildSubjectInfo(index, vpkFile)
 	buildXDRInfo(index, vpkFile)
 
-	// 检查自定义标签并覆盖
+	// 文件名中的标签是用户自定义分组，不应抹掉从 VPK 内容路径识别出的
+	// “一般 Mod 标签”（武器、HUD、具体枪械/角色等）。此前这里直接覆盖
+	// SecondaryTags，导致 `[三角洲]xxx.vpk` 只剩“三角洲”，截图中的草叉、
+	// 匕首、HUD 等自动标签全部消失。
 	if pTag, sTags, _, ok := ParseFilenameTags(vpkFile.Name); ok {
-		// 只有当有明确的自定义标签结构时才覆盖
-		// 允许 PrimaryTag 为空字符串（如果用户删除了）?
-		// 但通常 [Primary,Secondary] 格式意味着至少有一个为空?
-		// 如果 [] 空的，len(tagParts)==1 ("") -> primaryTag=""
-		vpkFile.PrimaryTag = strings.TrimSpace(pTag)
-		vpkFile.SecondaryTags = UniqueTagsExcluding(sTags, vpkFile.PrimaryTag)
+		applyFilenameTagOverrides(vpkFile, pTag, sTags)
 	}
 	if vpkFile.XDRSummary != "" {
 		vpkFile.SecondaryTags = UniqueTagsExcluding(append(vpkFile.SecondaryTags, "XDR动画"), vpkFile.PrimaryTag)
 	}
 
 	return vpkFile, nil
+}
+
+// applyFilenameTagOverrides applies the explicit tags encoded in a filename
+// while retaining automatic content tags discovered from the archive. The
+// custom primary tag remains the card's primary grouping label; the detected
+// primary type is added as a secondary tag when it differs (except the generic
+// “其他” bucket, which would only add noise).
+func applyFilenameTagOverrides(vpkFile *VPKFile, customPrimary string, customSecondary []string) {
+	if vpkFile == nil {
+		return
+	}
+	customPrimary = CanonicalTag(strings.TrimSpace(customPrimary))
+	if customPrimary == "" {
+		// An empty `[]` prefix is equivalent to clearing custom tags. Keep the
+		// detector's result instead of turning a correctly classified Mod into an
+		// unfilterable empty primary label.
+		return
+	}
+
+	automaticPrimary := CanonicalTag(vpkFile.PrimaryTag)
+	merged := make([]string, 0, len(customSecondary)+len(vpkFile.SecondaryTags)+1)
+	merged = append(merged, customSecondary...)
+	merged = append(merged, vpkFile.SecondaryTags...)
+	if automaticPrimary != "" && !strings.EqualFold(automaticPrimary, customPrimary) && automaticPrimary != "其他" {
+		merged = append(merged, automaticPrimary)
+	}
+	vpkFile.PrimaryTag = customPrimary
+	vpkFile.SecondaryTags = UniqueTagsExcluding(merged, customPrimary)
 }
 
 // UniqueTagsExcluding trims and de-duplicates tags while preserving their first

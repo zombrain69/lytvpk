@@ -4,6 +4,7 @@ export async function renderDiagnosticsPage({
   openModelStatsScanModal,
   showConflictModal,
   openVPKUnpackTool,
+  openVPKIntegrityTool,
   openMDMPReportTool,
   openVPKPackTool,
   openSprayTool,
@@ -145,6 +146,20 @@ export async function renderDiagnosticsPage({
               选择并打包
             </button>
           </section>
+
+          <section class="diagnostics-tool-card">
+            <div class="diagnostics-tool-icon is-integrity">${integrityIcon()}</div>
+            <div class="diagnostics-tool-main">
+              <div class="diagnostics-tool-title-row">
+                <h3>VPK 完整性检测</h3>
+                <span class="diagnostics-status">支持修复</span>
+              </div>
+              <p>校验 VPK 目录、文件校验和与 addoninfo.txt；可安全修复元数据问题并另存为新 VPK。Mod 列表右键还支持多选检测与修复。</p>
+            </div>
+            <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-integrity-btn">
+              选择并检测
+            </button>
+          </section>
         </div>
       </section>
     </div>
@@ -185,6 +200,12 @@ export async function renderDiagnosticsPage({
     .getElementById("toolbox-vpk-pack-btn")
     ?.addEventListener("click", () => {
       openVPKPackTool?.({ refreshFilesKeepFilter });
+    });
+
+  document
+    .getElementById("toolbox-vpk-integrity-btn")
+    ?.addEventListener("click", () => {
+      openVPKIntegrityTool?.();
     });
 }
 
@@ -334,6 +355,10 @@ function createSprayIcon() {
 
 function packIcon() {
   return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="m9 7 3 3 3-3"/><path d="M3 14h18"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>`;
+}
+
+function integrityIcon() {
+  return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-3z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg>`;
 }
 
 function configIcon() {

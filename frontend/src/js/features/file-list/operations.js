@@ -59,7 +59,12 @@ export async function toggleGameEnabled(filePath) {
     showNotification(nextEnabled ? `已在 addonlist.txt 中开启 Mod${priorityHint}` : "已在 addonlist.txt 中关闭 Mod", "success");
   } catch (error) {
     console.error("切换游戏内开关失败:", error);
-    showError("写入 addonlist.txt 失败: " + error);
+    const message = String(error || "");
+    if (message.includes("游戏不会接受此 Mod") || message.includes("addoninfo.txt 格式无效")) {
+      showError(message);
+    } else {
+      showError("写入 addonlist.txt 失败: " + error);
+    }
   }
 }
 

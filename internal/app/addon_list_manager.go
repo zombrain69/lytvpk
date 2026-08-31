@@ -247,7 +247,13 @@ func (a *App) ListAddonListBackups() ([]AddonListBackup, error) {
 			continue
 		}
 		name := entry.Name()
-		kind := strings.SplitN(strings.TrimSuffix(name, filepath.Ext(name)), "-", 2)[0]
+		base := strings.TrimSuffix(name, filepath.Ext(name))
+		kind := strings.SplitN(base, "-", 2)[0]
+		// Most backup kinds use one leading word. Preserve the legacy
+		// game-save marker so old backups can still be identified in settings.
+		if strings.HasPrefix(base, "game-save-") {
+			kind = "game-save"
+		}
 		backups = append(backups, AddonListBackup{
 			Name:      name,
 			CreatedAt: metadata.ModTime().Format(time.RFC3339),
@@ -472,13 +478,26 @@ func (a *App) stopAddonListMonitor() {
 
 func (a *App) restartAddonListMonitor() {
 	a.stopAddonListMonitor()
-	enabled, _, _ := a.addonListGuardStatus()
-	if enabled {
+	if a.addonListMonitorNeeded() {
 		a.startAddonListMonitor()
 	}
 }
 
-func (a *App) runAddonListMonitor(stop <-chan struct{}) {
+func (a *App) finishAddonListMonitor(stop chan struct{}) {
+	a.addonListMonitorMu.Lock()
+	if a.addonListMonitorStop == stop {
+		a.addonListMonitorStop = nil
+	}
+	a.addonListMonitorMu.Unlock()
+
+	// 监控结束与新的用户保护设置可能交错；释放旧通道后再次确认，避免
+	// 切换保护状态时遗漏新的监控请求。
+	if a.addonListMonitorNeeded() {
+		a.startAddonListMonitor()
+	}
+}
+
+func (a *App) runAddonListMonitor(stop chan struct{}) {
 	ticker := time.NewTicker(addonListGuardPollInterval)
 	defer ticker.Stop()
 
@@ -494,32 +513,45 @@ func (a *App) runAddonListMonitor(stop <-chan struct{}) {
 				a.setAddonListGuardStatus("", err.Error())
 				lastSignature = ""
 				stableMismatchCount = 0
-				continue
-			}
-			if !mismatch {
+			} else if !mismatch {
 				lastSignature = ""
 				stableMismatchCount = 0
-				continue
-			}
-			if signature == lastSignature {
+			} else if signature == lastSignature {
 				stableMismatchCount++
 			} else {
 				lastSignature = signature
 				stableMismatchCount = 1
 			}
-			if stableMismatchCount < 2 {
-				continue
+			if mismatch && stableMismatchCount >= 2 {
+				restored, restoreErr := a.restoreManagedAddonListSnapshot(signature)
+				if restoreErr != nil {
+					a.setAddonListGuardStatus("", restoreErr.Error())
+				}
+				if restored {
+					lastSignature = ""
+					stableMismatchCount = 0
+				}
 			}
-			restored, err := a.restoreManagedAddonListSnapshot(signature)
-			if err != nil {
-				a.setAddonListGuardStatus("", err.Error())
-			}
-			if restored {
-				lastSignature = ""
-				stableMismatchCount = 0
+
+			if !a.addonListMonitorNeeded() {
+				a.finishAddonListMonitor(stop)
+				return
 			}
 		}
 	}
+}
+
+// addonListMonitorNeeded reports whether the user explicitly enabled the
+// full-file guard.
+func (a *App) addonListMonitorNeeded() bool {
+	a.addonListGuardMu.Lock()
+	defer a.addonListGuardMu.Unlock()
+	return a.addonListMonitorNeededLocked(time.Now())
+}
+
+func (a *App) addonListMonitorNeededLocked(now time.Time) bool {
+	enabled, _, _ := a.addonListGuardStatus()
+	return enabled
 }
 
 func (a *App) addonListGuardMismatch() (bool, string, error) {

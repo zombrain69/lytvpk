@@ -315,6 +315,31 @@ func TestMixedPackageKeepsPrimaryTypeAndExposesAdditionalTags(t *testing.T) {
 	}
 }
 
+func TestFilenameCustomTagPreservesAutomaticContentTags(t *testing.T) {
+	file := &VPKFile{
+		PrimaryTag:    "武器",
+		SecondaryTags: []string{"草叉", "近战", "HUD"},
+	}
+	applyFilenameTagOverrides(file, "三角洲", []string{})
+
+	if file.PrimaryTag != "三角洲" {
+		t.Fatalf("custom primary tag = %q, want 三角洲", file.PrimaryTag)
+	}
+	for _, want := range []string{"草叉", "近战", "HUD", "武器"} {
+		if !containsTag(file.SecondaryTags, want) {
+			t.Fatalf("automatic/custom tag %q missing from %v", want, file.SecondaryTags)
+		}
+	}
+}
+
+func TestEmptyFilenameTagDoesNotEraseAutomaticClassification(t *testing.T) {
+	file := &VPKFile{PrimaryTag: "人物", SecondaryTags: []string{"Bill"}}
+	applyFilenameTagOverrides(file, "", []string{})
+	if file.PrimaryTag != "人物" || !containsTag(file.SecondaryTags, "Bill") {
+		t.Fatalf("empty custom tag erased automatic classification: %#v", file)
+	}
+}
+
 func TestWorkshopCharacterCategories(t *testing.T) {
 	archive := testArchiveFiles(
 		vpkFile("models/survivors", "survivor_namvet", "mdl"),

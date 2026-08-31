@@ -10,8 +10,8 @@ import {
 import { showFileDetail } from "../modals/detail.js";
 import { getServers } from "../servers/servers.js";
 import {
-  getCachedVPKPreview,
-  loadVPKPreview,
+  getCachedVPKCardPreview,
+  loadVPKCardPreview,
 } from "../shared/vpk-preview-cache.js";
 
 let cardPreviewObserver = null;
@@ -165,7 +165,7 @@ function ensureCardPreviewObservation(card, file) {
   const image = card.querySelector(".card-preview-img");
   const placeholder = card.querySelector(".card-preview-placeholder");
   if (!image || !placeholder || image.getAttribute("src")) return;
-  if (getCachedVPKPreview(file) === undefined) {
+  if (getCachedVPKCardPreview(file) === undefined) {
     observeCardPreview(card, file, image, placeholder);
   }
 }
@@ -494,7 +494,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
       </button>`
     : "";
 
-  const cachedPreview = getCachedVPKPreview(file);
+  const cachedPreview = getCachedVPKCardPreview(file);
   const previewSrc = canPreservePreview
     ? previousPreview.getAttribute("src")
     : cachedPreview || "";
@@ -692,7 +692,8 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
       if (
         e.target.closest("button") ||
         e.target.closest(".more-actions-dropdown") ||
-        e.target.closest(".card-checkbox-container")
+        e.target.closest(".card-checkbox-container") ||
+        e.target.closest(".card-badge")
       ) {
         return;
       }
@@ -746,7 +747,7 @@ export function getLocationSvg(location) {
 
 export async function loadCardPreview(file, imgElement) {
   try {
-    const imgData = await loadVPKPreview(file);
+    const imgData = await loadVPKCardPreview(file);
     // A card can refresh while an archive read is running. The image element is
     // deliberately preserved across that refresh; resolve the current
     // placeholder at completion instead of holding a stale DOM reference.
@@ -777,9 +778,10 @@ function getCardPreviewObserver() {
     });
   }, {
     root: document.getElementById("file-list") || null,
-    // Start a little before the card reaches the viewport so rapid scrolling
-    // does not expose placeholders, while the bounded queue keeps I/O calm.
-    rootMargin: "320px 0px",
+    // Keep a modest lead-in window: a large margin eagerly starts many image
+    // decodes during fast filtering/scrolling and defeats the bounded queue.
+    // The card cache still makes already-seen previews instant.
+    rootMargin: "160px 0px",
     threshold: 0.01,
   });
   return cardPreviewObserver;

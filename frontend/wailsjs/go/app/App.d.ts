@@ -181,6 +181,10 @@ export function HasWorkshopTranslateCustomAPIKey():Promise<boolean>;
 
 export function HotReloadPanelMaps(arg1:string):Promise<app.PanelMapHotReloadResult>;
 
+export function InspectVPKIntegrity(arg1:string):Promise<parser.VPKIntegrityReport>;
+
+export function InspectVPKIntegrityBatch(arg1:Array<string>):Promise<Array<app.VPKIntegrityBatchResult>>;
+
 export function InstallSprayVPK(arg1:app.SprayInstallRequest):Promise<app.SprayInstallResult>;
 
 export function IsSelectingIP():Promise<boolean>;
@@ -220,6 +224,10 @@ export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolic
 export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
 
 export function RenameVPKFile(arg1:string,arg2:string):Promise<string>;
+
+export function RepairVPKIntegrity(arg1:string):Promise<app.VPKRepairResult>;
+
+export function RepairVPKIntegrityBatch(arg1:Array<string>):Promise<Array<app.VPKRepairBatchResult>>;
 
 export function RestartApplication():Promise<void>;
 
