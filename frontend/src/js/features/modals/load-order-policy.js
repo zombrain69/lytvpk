@@ -22,6 +22,10 @@ let selectedPaths = [];
 let selectedPathNames = [];
 let entryFileByKey = new Map();
 let entrySearchTextByKey = new Map();
+// 弹窗可以在异步读取 addonlist.txt 的途中被关闭或以另一个 Mod 重新打开。
+// 会话号阻止旧窗口回写新窗口；操作号进一步阻止同一窗口内旧预览覆盖新操作。
+let loadOrderModalGeneration = 0;
+let loadOrderOperationGeneration = 0;
 
 const LOAD_ORDER_PRESETS = {
   recommended: {
@@ -50,6 +54,30 @@ function createEmptyPolicy() {
   return { rootFirst: false, groupWorkshop: false, stateOrder: "keep", constraints: [] };
 }
 
+function beginLoadOrderOperation() {
+  return {
+    modalGeneration: loadOrderModalGeneration,
+    operationGeneration: ++loadOrderOperationGeneration,
+    filePath: currentLoadOrderFile,
+  };
+}
+
+function invalidateLoadOrderOperations() {
+  loadOrderOperationGeneration++;
+}
+
+function isCurrentLoadOrderOperation(operation) {
+  const modal = document.getElementById("load-order-modal");
+  return Boolean(
+    operation &&
+      operation.modalGeneration === loadOrderModalGeneration &&
+      operation.operationGeneration === loadOrderOperationGeneration &&
+      operation.filePath === currentLoadOrderFile &&
+      modal &&
+      !modal.classList.contains("hidden")
+  );
+}
+
 export async function openEnhancedLoadOrderModal(context = {}) {
   const normalizedContext = normalizeLoadOrderContext(context);
   const vpkFiles = appState.vpkFiles || [];
@@ -59,6 +87,7 @@ export async function openEnhancedLoadOrderModal(context = {}) {
   if (normalizedContext.mode === "single" && !file) return;
 
   currentMode = normalizedContext.mode;
+  ++loadOrderModalGeneration;
   currentLoadOrderFile = file?.path || null;
   currentOrder = -1;
   currentEntries = [];
@@ -84,15 +113,18 @@ export async function openEnhancedLoadOrderModal(context = {}) {
   if (sourceSearch) sourceSearch.value = "";
   if (targetSearch) targetSearch.value = "";
   modal.classList.remove("hidden");
+  const operation = beginLoadOrderOperation();
 
   try {
-    await refreshLoadOrderModal();
+    const refreshed = await refreshLoadOrderModal(operation);
+    if (!refreshed || !isCurrentLoadOrderOperation(operation)) return;
     if (currentMode === "single") {
       input?.focus();
     } else {
       sourceSearch?.focus();
     }
   } catch (err) {
+    if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("获取加载顺序失败:", err);
     closeEnhancedLoadOrderModal();
     if (String(err).includes("addonlist.txt 不存在")) {
@@ -104,6 +136,8 @@ export async function openEnhancedLoadOrderModal(context = {}) {
 }
 
 export function closeEnhancedLoadOrderModal() {
+  ++loadOrderModalGeneration;
+  invalidateLoadOrderOperations();
   document.getElementById("load-order-modal")?.classList.add("hidden");
   currentLoadOrderFile = null;
   selectedSourceKeys = new Set();
@@ -128,12 +162,17 @@ export async function saveEnhancedLoadOrder() {
     showError("请输入有效的序号");
     return;
   }
+  const operation = beginLoadOrderOperation();
+  const filePath = operation.filePath;
   try {
-    await SetVPKLoadOrder(currentLoadOrderFile, order);
-    await refreshLoadOrderModal();
+    await SetVPKLoadOrder(filePath, order);
     await refreshModListAfterLoadOrderChange();
+    if (!isCurrentLoadOrderOperation(operation)) return;
+    const refreshed = await refreshLoadOrderModal(operation);
+    if (!refreshed || !isCurrentLoadOrderOperation(operation)) return;
     showNotification("单项加载顺序已保存", "success");
   } catch (err) {
+    if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("保存加载顺序失败:", err);
     showError("保存失败: " + err);
   }
@@ -156,14 +195,17 @@ function setupLoadOrderControls() {
   document.getElementById("apply-load-order-policy-btn")?.addEventListener("click", applyLoadOrderPolicy);
   document.getElementById("load-order-root-first")?.addEventListener("change", (event) => {
     currentPolicy.rootFirst = event.target.checked;
+    invalidateLoadOrderOperations();
     renderActivePolicy();
   });
   document.getElementById("load-order-group-workshop")?.addEventListener("change", (event) => {
     currentPolicy.groupWorkshop = event.target.checked;
+    invalidateLoadOrderOperations();
     renderActivePolicy();
   });
   document.getElementById("load-order-state-order")?.addEventListener("change", (event) => {
     currentPolicy.stateOrder = event.target.value;
+    invalidateLoadOrderOperations();
     renderActivePolicy();
   });
   document
@@ -181,6 +223,7 @@ function setupLoadOrderControls() {
   });
   document.getElementById("load-order-rule-target")?.addEventListener("change", (event) => {
     selectedTargetKey = event.target.value || "";
+    invalidateLoadOrderOperations();
   });
   document.getElementById("load-order-rules")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-load-order-rule-index]");
@@ -188,22 +231,29 @@ function setupLoadOrderControls() {
     const index = Number.parseInt(button.dataset.loadOrderRuleIndex, 10);
     if (!Number.isInteger(index)) return;
     currentPolicy.constraints.splice(index, 1);
+    invalidateLoadOrderOperations();
     renderRules();
   });
 }
 
-async function refreshLoadOrderModal() {
-  const entries = await GetAddonListLoadOrderEntries();
-  currentOrder = currentLoadOrderFile ? await GetVPKLoadOrder(currentLoadOrderFile) : -1;
+async function refreshLoadOrderModal(operation = beginLoadOrderOperation()) {
+  const filePath = operation.filePath;
+  const [entries, order] = await Promise.all([
+    GetAddonListLoadOrderEntries(),
+    filePath ? GetVPKLoadOrder(filePath) : Promise.resolve(-1),
+  ]);
+  if (!isCurrentLoadOrderOperation(operation)) return false;
+  currentOrder = order;
   currentEntries = entries || [];
   prepareEntryMetadata();
   preselectContextEntries();
-  renderModalMode(currentLoadOrderFile ? (appState.vpkFiles || []).find((item) => item.path === currentLoadOrderFile) : null);
+  renderModalMode(filePath ? (appState.vpkFiles || []).find((item) => item.path === filePath) : null);
   renderCurrentOrder();
   renderRuleSelectors();
   renderRules();
   renderActivePolicy();
   renderPreview(currentEntries, "当前 addonlist.txt 顺序");
+  return true;
 }
 
 function renderCurrentOrder() {
@@ -232,12 +282,17 @@ async function moveCurrentFileBy(delta) {
   }
   const destination = Math.min(Math.max(currentOrder + delta, 1), currentEntries.length);
   if (destination === currentOrder) return;
+  const operation = beginLoadOrderOperation();
+  const filePath = operation.filePath;
   try {
-    await SetVPKLoadOrder(currentLoadOrderFile, destination);
-    await refreshLoadOrderModal();
+    await SetVPKLoadOrder(filePath, destination);
     await refreshModListAfterLoadOrderChange();
+    if (!isCurrentLoadOrderOperation(operation)) return;
+    const refreshed = await refreshLoadOrderModal(operation);
+    if (!refreshed || !isCurrentLoadOrderOperation(operation)) return;
     showNotification(delta < 0 ? "Mod 已上移一位" : "Mod 已下移一位", "success");
   } catch (err) {
+    if (!isCurrentLoadOrderOperation(operation)) return;
     showError("调整优先级失败: " + err);
   }
 }
@@ -295,6 +350,7 @@ function addConstraints(direction) {
     showError("不能把同一个 Mod 设为自身的前后关系，或该规则已存在");
     return;
   }
+  invalidateLoadOrderOperations();
   renderRules();
 }
 
@@ -334,32 +390,48 @@ function renderRules() {
 }
 
 async function previewLoadOrderPolicy() {
+  const operation = beginLoadOrderOperation();
+  const policy = {
+    ...currentPolicy,
+    constraints: currentPolicy.constraints.map((constraint) => ({ ...constraint })),
+  };
   try {
-    const preview = await PreviewAddonListLoadOrderPolicy(currentPolicy);
+    const preview = await PreviewAddonListLoadOrderPolicy(policy);
+    if (!isCurrentLoadOrderOperation(operation)) return;
     renderPreview(preview.entries || [], "预览：尚未写入");
     showNotification("已生成加载顺序预览", "info");
   } catch (err) {
+    if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("预览加载顺序失败:", err);
     showError("无法生成排序预览: " + err);
   }
 }
 
 async function applyLoadOrderPolicy(options = {}) {
+  const operation = beginLoadOrderOperation();
+  const policy = {
+    ...currentPolicy,
+    constraints: currentPolicy.constraints.map((constraint) => ({ ...constraint })),
+  };
   try {
-    const result = await ApplyAddonListLoadOrderPolicy(currentPolicy);
+    const result = await ApplyAddonListLoadOrderPolicy(policy);
+    await refreshModListAfterLoadOrderChange();
+    if (!isCurrentLoadOrderOperation(operation)) return;
+    const order = operation.filePath ? await GetVPKLoadOrder(operation.filePath) : -1;
+    if (!isCurrentLoadOrderOperation(operation)) return;
     currentEntries = result.entries || [];
     prepareEntryMetadata();
     renderRuleSelectors();
     renderPreview(currentEntries, "已写入 addonlist.txt，并同步保护快照");
-    currentOrder = currentLoadOrderFile ? await GetVPKLoadOrder(currentLoadOrderFile) : -1;
+    currentOrder = order;
     renderCurrentOrder();
     renderActivePolicy();
-    await refreshModListAfterLoadOrderChange();
     showNotification(
       options.successMessage || "加载顺序已写入 addonlist.txt，所有 Mod 开关状态保持不变",
       "success"
     );
   } catch (err) {
+    if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("应用加载顺序失败:", err);
     showError("写入失败: " + err);
   }

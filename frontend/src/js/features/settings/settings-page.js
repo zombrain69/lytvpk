@@ -14,11 +14,34 @@ let displayModeChangeToken = 0;
 let uiScaleChangeToken = 0;
 let boxSelectionChangeToken = 0;
 let ctrlClickSelectionChangeToken = 0;
+// 工坊信息存储与更新检测是级联设置。共享令牌可以阻止一次尚未完成的
+// 级联保存被另一项设置的旧请求覆盖。
+let workshopSettingsChangeToken = 0;
 // Settings data is assembled from several asynchronous Wails calls.  Opening
 // the page again (or refreshing an addonlist action) can start a newer render
 // while an older one is still waiting; only the newest render may replace DOM
 // or bind controls.
 let settingsRenderGeneration = 0;
+
+function syncWorkshopDataControls(metaEnabled, updateCheckEnabled) {
+  const metaToggle = document.getElementById("settings-meta-enabled");
+  const updateCheckRow = document.getElementById("settings-update-check-row");
+  const updateCheckToggle = document.getElementById("settings-update-check-enabled");
+  const toggleSwitch = updateCheckToggle?.closest(".toggle-switch");
+  const checkSection = document.getElementById("settings-update-check-section");
+  const manualCheckBtn = document.getElementById("settings-manual-check-btn");
+  const effectiveUpdateCheckEnabled = Boolean(metaEnabled && updateCheckEnabled);
+
+  if (metaToggle) metaToggle.checked = Boolean(metaEnabled);
+  if (updateCheckToggle) {
+    updateCheckToggle.checked = effectiveUpdateCheckEnabled;
+    updateCheckToggle.disabled = !metaEnabled;
+  }
+  updateCheckRow?.classList.toggle("setting-row-disabled", !metaEnabled);
+  toggleSwitch?.classList.toggle("toggle-switch-disabled", !metaEnabled);
+  if (checkSection) checkSection.style.display = effectiveUpdateCheckEnabled ? "" : "none";
+  if (manualCheckBtn) manualCheckBtn.disabled = !effectiveUpdateCheckEnabled;
+}
 
 export async function renderSettingsPage(deps) {
   const {
@@ -102,7 +125,10 @@ export async function renderSettingsPage(deps) {
   const fixedIP = await readSetting("固定 IP", GetWorkshopFixedIP, config.workshopFixedIP || "");
   const useFixedIP = enabled && fixedIP !== "";
   const metaEnabled = await readSetting("工坊信息存储", GetWorkshopMetaEnabled, Boolean(config.workshopMetaEnabled));
-  const updateCheckEnabled = await readSetting("Mod 更新检测", GetWorkshopUpdateCheckEnabled, Boolean(config.workshopUpdateCheckEnabled));
+  // 更新检测依赖工坊信息存储。旧配置可能留下两者不一致的组合；渲染时
+  // 以实际可执行的状态为准，避免禁用的开关仍显示内容和操作入口。
+  const storedUpdateCheckEnabled = await readSetting("Mod 更新检测", GetWorkshopUpdateCheckEnabled, Boolean(config.workshopUpdateCheckEnabled));
+  const updateCheckEnabled = Boolean(metaEnabled && storedUpdateCheckEnabled);
   const browserTarget = await readSetting("工坊跳转目标", GetWorkshopBrowserTarget, config.workshopBrowserTarget || "mirror");
   const translateProvider = await readSetting("翻译服务", GetWorkshopTranslateProvider, config.workshopTranslateProvider || "microsoft");
   const customBaseURL = await readSetting("自定义 AI Base URL", GetWorkshopTranslateCustomBaseURL, config.workshopTranslateCustomBaseURL || "");
@@ -883,73 +909,70 @@ function bindSettingsPage(deps) {
     const metaToggle = event.currentTarget;
     const metaEnabled = metaToggle.checked;
     const previousMetaEnabled = !metaEnabled;
+    const updateCheckToggle = document.getElementById("settings-update-check-enabled");
+    const previousUpdateCheckEnabled = Boolean(updateCheckToggle?.checked);
+    const nextUpdateCheckEnabled = metaEnabled ? previousUpdateCheckEnabled : false;
+    const previousConfig = deps.getConfig();
+    const changeToken = ++workshopSettingsChangeToken;
     metaToggle.disabled = true;
+    // Meta 开关正在提交时，更新检测不能再并发写入，否则两个 setter 和
+    // SaveAppConfig 的返回顺序会让界面与实际配置走向不同的状态。
+    if (updateCheckToggle) updateCheckToggle.disabled = true;
+    document.getElementById("settings-manual-check-btn")?.setAttribute("disabled", "true");
     try {
       await deps.SetWorkshopMetaEnabled(metaEnabled);
+      if (changeToken !== workshopSettingsChangeToken) return;
+      if (nextUpdateCheckEnabled !== previousUpdateCheckEnabled) {
+        await deps.SetWorkshopUpdateCheckEnabled(nextUpdateCheckEnabled);
+      }
+      if (changeToken !== workshopSettingsChangeToken) return;
       const config = deps.getConfig();
       config.workshopMetaEnabled = metaEnabled;
-
-      // 更新更新检测开关的可用状态
-      const updateCheckRow = document.getElementById("settings-update-check-row");
-      const updateCheckToggle = document.getElementById("settings-update-check-enabled");
-      const toggleSwitch = updateCheckToggle?.closest(".toggle-switch");
-
-      if (metaEnabled) {
-        updateCheckRow?.classList.remove("setting-row-disabled");
-        toggleSwitch?.classList.remove("toggle-switch-disabled");
-        updateCheckToggle?.removeAttribute("disabled");
-        if (updateCheckToggle?.checked) {
-          const checkSection = document.getElementById("settings-update-check-section");
-          if (checkSection) checkSection.style.display = "";
-          document.getElementById("settings-manual-check-btn")?.removeAttribute("disabled");
-        }
-      } else {
-        updateCheckRow?.classList.add("setting-row-disabled");
-        toggleSwitch?.classList.add("toggle-switch-disabled");
-        updateCheckToggle?.setAttribute("disabled", "true");
-        // 关闭meta时也要关闭更新检测
-        if (updateCheckToggle?.checked) {
-          updateCheckToggle.checked = false;
-          await deps.SetWorkshopUpdateCheckEnabled(false);
-          config.workshopUpdateCheckEnabled = false;
-          const checkSection = document.getElementById("settings-update-check-section");
-          if (checkSection) checkSection.style.display = "none";
-        }
-        document.getElementById("settings-manual-check-btn")?.setAttribute("disabled", "true");
-      }
-
+      config.workshopUpdateCheckEnabled = nextUpdateCheckEnabled;
       await deps.saveConfig(config);
+      if (changeToken !== workshopSettingsChangeToken) return;
+      deps.appState.workshopUpdateCheckEnabled = nextUpdateCheckEnabled;
+      syncWorkshopDataControls(metaEnabled, nextUpdateCheckEnabled);
       deps.showNotification(metaEnabled ? "已开启工坊信息存储" : "已关闭工坊信息存储", metaEnabled ? "success" : "info");
-      await deps.refreshFilesKeepFilter();
     } catch (error) {
-      metaToggle.checked = previousMetaEnabled;
-      deps.showNotification("更新工坊信息存储失败: " + error, "error");
-      const updateCheckRow = document.getElementById("settings-update-check-row");
-      const updateCheckToggle = document.getElementById("settings-update-check-enabled");
-      const toggleSwitch = updateCheckToggle?.closest(".toggle-switch");
-      const checkSection = document.getElementById("settings-update-check-section");
-      const manualCheckBtn = document.getElementById("settings-manual-check-btn");
-      if (previousMetaEnabled) {
-        updateCheckRow?.classList.remove("setting-row-disabled");
-        toggleSwitch?.classList.remove("toggle-switch-disabled");
-        if (updateCheckToggle?.checked) {
-          updateCheckToggle.removeAttribute("disabled");
-          if (checkSection) checkSection.style.display = "";
-          manualCheckBtn?.removeAttribute("disabled");
-        } else {
-          updateCheckToggle?.removeAttribute("disabled");
-          if (checkSection) checkSection.style.display = "none";
-          manualCheckBtn?.setAttribute("disabled", "true");
+      if (changeToken !== workshopSettingsChangeToken) return;
+      // 若后续级联步骤失败，尽力恢复已成功写入的 setter；即使恢复同样失败，
+      // UI 也仍回到提交前的明确状态，而不会遗留半禁用的显示。
+      try {
+        if (nextUpdateCheckEnabled !== previousUpdateCheckEnabled) {
+          await deps.SetWorkshopUpdateCheckEnabled(previousUpdateCheckEnabled);
         }
-      } else {
-        updateCheckRow?.classList.add("setting-row-disabled");
-        toggleSwitch?.classList.add("toggle-switch-disabled");
-        updateCheckToggle?.setAttribute("disabled", "true");
-        if (checkSection) checkSection.style.display = "none";
-        manualCheckBtn?.setAttribute("disabled", "true");
+        await deps.SetWorkshopMetaEnabled(previousMetaEnabled);
+        const rollbackConfig = {
+          ...previousConfig,
+          workshopMetaEnabled: previousMetaEnabled,
+          workshopUpdateCheckEnabled: previousUpdateCheckEnabled,
+        };
+        await deps.saveConfig(rollbackConfig);
+      } catch (rollbackError) {
+        console.error("工坊数据设置回滚失败:", rollbackError);
       }
+      deps.appState.workshopUpdateCheckEnabled = previousUpdateCheckEnabled;
+      syncWorkshopDataControls(previousMetaEnabled, previousUpdateCheckEnabled);
+      deps.showNotification("更新工坊信息存储失败: " + error, "error");
     } finally {
-      metaToggle.disabled = false;
+      if (changeToken === workshopSettingsChangeToken) {
+        // 失败路径已将控件恢复到旧状态；这里必须按当前 DOM 状态重新启用，
+        // 不能按本次请求的目标状态覆盖它。
+        const currentMetaEnabled = Boolean(document.getElementById("settings-meta-enabled")?.checked);
+        const currentUpdateCheckEnabled = Boolean(document.getElementById("settings-update-check-enabled")?.checked);
+        syncWorkshopDataControls(currentMetaEnabled, currentUpdateCheckEnabled);
+        metaToggle.disabled = false;
+      }
+    }
+
+    // 列表刷新属于已保存设置后的派生工作。它失败不应回滚已经成功写入的设置。
+    if (changeToken !== workshopSettingsChangeToken || metaToggle.checked !== metaEnabled) return;
+    try {
+      await deps.refreshFilesKeepFilter();
+    } catch (refreshError) {
+      console.error("工坊信息存储设置已保存，但列表刷新失败:", refreshError);
+      deps.showNotification("工坊信息存储已保存，但列表刷新失败，请点击刷新按钮重试", "warning");
     }
   });
 
@@ -957,32 +980,42 @@ function bindSettingsPage(deps) {
     const updateToggle = event.currentTarget;
     const enabled = updateToggle.checked;
     const previousEnabled = !enabled;
+    const metaEnabled = Boolean(document.getElementById("settings-meta-enabled")?.checked);
+    const previousConfig = deps.getConfig();
+    const changeToken = ++workshopSettingsChangeToken;
     updateToggle.disabled = true;
     try {
       await deps.SetWorkshopUpdateCheckEnabled(enabled);
+      if (changeToken !== workshopSettingsChangeToken) return;
       deps.appState.workshopUpdateCheckEnabled = enabled;
       const config = deps.getConfig();
       config.workshopUpdateCheckEnabled = enabled;
       await deps.saveConfig(config);
+      if (changeToken !== workshopSettingsChangeToken) return;
+      syncWorkshopDataControls(metaEnabled, enabled);
       deps.showNotification(enabled ? "已开启Mod更新检测" : "已关闭Mod更新检测", enabled ? "success" : "info");
-
-      const checkSection = document.getElementById("settings-update-check-section");
-      const manualCheckBtn = document.getElementById("settings-manual-check-btn");
-      const metaEnabled = document.getElementById("settings-meta-enabled")?.checked;
-
-      if (enabled && metaEnabled) {
-        if (checkSection) checkSection.style.display = "";
-        manualCheckBtn?.removeAttribute("disabled");
-      } else {
-        if (checkSection) checkSection.style.display = "none";
-        manualCheckBtn?.setAttribute("disabled", "true");
-      }
     } catch (error) {
-      updateToggle.checked = previousEnabled;
+      if (changeToken !== workshopSettingsChangeToken) return;
+      try {
+        await deps.SetWorkshopUpdateCheckEnabled(previousEnabled);
+        const rollbackConfig = {
+          ...previousConfig,
+          workshopUpdateCheckEnabled: previousEnabled,
+        };
+        await deps.saveConfig(rollbackConfig);
+      } catch (rollbackError) {
+        console.error("Mod 更新检测设置回滚失败:", rollbackError);
+      }
       deps.appState.workshopUpdateCheckEnabled = previousEnabled;
+      syncWorkshopDataControls(metaEnabled, previousEnabled);
       deps.showNotification("更新 Mod 检测设置失败: " + error, "error");
     } finally {
-      updateToggle.disabled = false;
+      if (changeToken === workshopSettingsChangeToken) {
+        const currentMetaEnabled = Boolean(document.getElementById("settings-meta-enabled")?.checked);
+        const currentUpdateCheckEnabled = Boolean(document.getElementById("settings-update-check-enabled")?.checked);
+        syncWorkshopDataControls(currentMetaEnabled, currentUpdateCheckEnabled);
+        updateToggle.disabled = !currentMetaEnabled;
+      }
     }
   });
 

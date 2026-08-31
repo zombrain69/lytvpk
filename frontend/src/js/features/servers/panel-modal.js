@@ -77,6 +77,11 @@ let panelOfficialMapsHidden = false;
 let panelMapRequestToken = 0;
 let panelMapFileRequestToken = 0;
 let panelStatusRequestToken = 0;
+// 这些子窗口会复用同一组 DOM。操作返回时必须确认仍属于原服务器和原窗口，
+// 否则旧响应会把新打开的窗口关闭或写入错误内容。
+let panelDifficultySessionToken = 0;
+let panelMapActionSessionToken = 0;
+let panelRconSessionToken = 0;
 let panelMapFilesRefreshTimer = null;
 const completedPanelUploadNotifications = new Set();
 
@@ -285,6 +290,8 @@ export function openCurrentPanelInBrowser() {
 export function openPanelDifficultyModal() {
   if (!currentPanelServer) return;
 
+  panelDifficultySessionToken += 1;
+
   const modal = document.getElementById("panel-difficulty-modal");
   const title = document.getElementById("panel-difficulty-title");
   if (title) {
@@ -295,7 +302,17 @@ export function openPanelDifficultyModal() {
 }
 
 export function closePanelDifficultyModal() {
+  panelDifficultySessionToken += 1;
   document.getElementById("panel-difficulty-modal")?.classList.add("hidden");
+}
+
+function isCurrentPanelDifficultySession(serverID, sessionToken) {
+  const modal = document.getElementById("panel-difficulty-modal");
+  return (
+    sessionToken === panelDifficultySessionToken &&
+    String(currentPanelServer?.id || "") === String(serverID || "") &&
+    !modal?.classList.contains("hidden")
+  );
 }
 
 function renderPanelDifficultyOptions() {
@@ -347,23 +364,30 @@ async function handlePanelDifficultyClick(event) {
 
   const difficulty = button.dataset.difficulty;
   if (!difficulty) return;
+  const serverID = currentPanelServer.id;
+  const sessionToken = panelDifficultySessionToken;
 
   button.disabled = true;
   try {
-    const text = await ChangePanelDifficulty(currentPanelServer.id, difficulty);
+    const text = await ChangePanelDifficulty(serverID, difficulty);
+    if (!isCurrentPanelDifficultySession(serverID, sessionToken)) return;
     currentPanelDifficulty = difficulty;
     showNotification(text || `难度已切换为 ${difficulty}`, "success");
     closePanelDifficultyModal();
   } catch (err) {
+    if (!isCurrentPanelDifficultySession(serverID, sessionToken)) return;
     console.error("修改难度失败:", err);
     showError("修改难度失败: " + err);
   } finally {
-    button.disabled = false;
+    if (isCurrentPanelDifficultySession(serverID, sessionToken) && button.isConnected) {
+      button.disabled = false;
+    }
   }
 }
 
 export function openPanelMapModal() {
   if (!currentPanelServer) return;
+  panelMapActionSessionToken += 1;
   const modal = document.getElementById("panel-map-modal");
   const title = document.getElementById("panel-map-title");
   const search = document.getElementById("panel-map-search");
@@ -377,7 +401,16 @@ export function openPanelMapModal() {
 
 export function closePanelMapModal() {
   panelMapRequestToken += 1;
+  panelMapActionSessionToken += 1;
   document.getElementById("panel-map-modal")?.classList.add("hidden");
+}
+
+function isCurrentPanelMapActionSession(serverID, sessionToken) {
+  return (
+    sessionToken === panelMapActionSessionToken &&
+    String(currentPanelServer?.id || "") === String(serverID || "") &&
+    isPanelMapModalOpen()
+  );
 }
 
 async function loadPanelMaps() {
@@ -1148,23 +1181,30 @@ async function handlePanelMapClick(event) {
   if (!button || !currentPanelServer) return;
   const mapCode = button.dataset.mapCode;
   if (!mapCode) return;
+  const serverID = currentPanelServer.id;
+  const sessionToken = ++panelMapActionSessionToken;
 
   button.disabled = true;
   try {
-    await ChangePanelMap(currentPanelServer.id, mapCode);
+    await ChangePanelMap(serverID, mapCode);
+    if (!isCurrentPanelMapActionSession(serverID, sessionToken)) return;
     const text = "地图切换指令已发送，请稍后手动刷新状态";
     showNotification(text || "地图切换指令已发送", "success");
     closePanelMapModal();
   } catch (err) {
+    if (!isCurrentPanelMapActionSession(serverID, sessionToken)) return;
     console.error("切换地图失败:", err);
     showError("切换地图失败: " + err);
   } finally {
-    button.disabled = false;
+    if (isCurrentPanelMapActionSession(serverID, sessionToken) && button.isConnected) {
+      button.disabled = false;
+    }
   }
 }
 
 export function openPanelRconModal() {
   if (!currentPanelServer) return;
+  panelRconSessionToken += 1;
   const output = document.getElementById("panel-rcon-output");
   document.getElementById("panel-rcon-title").textContent = `RCON - ${currentPanelServer.name}`;
   document.getElementById("panel-rcon-command").value = "";
@@ -1175,7 +1215,17 @@ export function openPanelRconModal() {
 }
 
 export function closePanelRconModal() {
+  panelRconSessionToken += 1;
   document.getElementById("panel-rcon-modal")?.classList.add("hidden");
+}
+
+function isCurrentPanelRconSession(serverID, sessionToken) {
+  const modal = document.getElementById("panel-rcon-modal");
+  return (
+    sessionToken === panelRconSessionToken &&
+    String(currentPanelServer?.id || "") === String(serverID || "") &&
+    !modal?.classList.contains("hidden")
+  );
 }
 
 async function sendPanelRconCommand() {
@@ -1188,18 +1238,23 @@ async function sendPanelRconCommand() {
     showError("请输入 RCON 指令");
     return;
   }
+  const serverID = currentPanelServer.id;
+  const sessionToken = panelRconSessionToken;
 
   sendBtn.disabled = true;
   output.classList.add("panel-rcon-output-muted");
   output.textContent = "正在发送...";
   try {
-    const result = await SendPanelRconCommand(currentPanelServer.id, command);
+    const result = await SendPanelRconCommand(serverID, command);
+    if (!isCurrentPanelRconSession(serverID, sessionToken)) return;
     output.classList.remove("panel-rcon-output-muted");
     output.textContent = result || "指令已发送，面板未返回内容。";
   } catch (err) {
+    if (!isCurrentPanelRconSession(serverID, sessionToken)) return;
     console.error("RCON 指令失败:", err);
     output.textContent = "发送失败: " + err;
   } finally {
+    if (!isCurrentPanelRconSession(serverID, sessionToken)) return;
     output.classList.remove("panel-rcon-output-muted");
     sendBtn.disabled = false;
   }
