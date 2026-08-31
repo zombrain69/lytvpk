@@ -1,3 +1,5 @@
+let confirmSessionId = 0;
+
 export function showConfirmModal(title, message, onConfirm, useHtml = false, extraClass = "") {
   const modal = document.getElementById("confirm-modal");
   const modalContent = modal.querySelector(".modal-content");
@@ -6,9 +8,13 @@ export function showConfirmModal(title, message, onConfirm, useHtml = false, ext
   const okBtn = document.getElementById("confirm-ok-btn");
   const cancelBtn = document.getElementById("confirm-cancel-btn");
   const closeBtn = document.getElementById("close-confirm-modal-btn");
+  const sessionId = ++confirmSessionId;
   let isConfirming = false;
 
+  const isCurrentSession = () => sessionId === confirmSessionId;
+
   const setPending = (pending) => {
+    if (!isCurrentSession()) return;
     isConfirming = pending;
     okBtn.disabled = pending;
     cancelBtn.disabled = pending;
@@ -30,6 +36,10 @@ export function showConfirmModal(title, message, onConfirm, useHtml = false, ext
   modal.classList.remove("hidden");
 
   const cleanup = () => {
+    // A previous confirmation may finish after another confirmation has
+    // already opened. Only the visible session may hide the modal or clear
+    // its callbacks; otherwise an old async action closes the new dialog.
+    if (!isCurrentSession()) return;
     setPending(false);
     modal.classList.add("hidden");
     okBtn.onclick = null;
@@ -41,26 +51,28 @@ export function showConfirmModal(title, message, onConfirm, useHtml = false, ext
   };
 
   okBtn.onclick = async () => {
-    if (isConfirming) return;
+    if (!isCurrentSession() || isConfirming) return;
 
     setPending(true);
     try {
       const result = await onConfirm();
+      if (!isCurrentSession()) return;
       if (result !== false) {
         cleanup();
       } else {
         setPending(false);
       }
     } catch (error) {
+      if (!isCurrentSession()) return;
       setPending(false);
       console.error("Confirm action failed:", error);
     }
   };
 
   cancelBtn.onclick = () => {
-    if (!isConfirming) cleanup();
+    if (isCurrentSession() && !isConfirming) cleanup();
   };
   closeBtn.onclick = () => {
-    if (!isConfirming) cleanup();
+    if (isCurrentSession() && !isConfirming) cleanup();
   };
 }

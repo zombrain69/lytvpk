@@ -105,8 +105,20 @@ export async function renderSettingsPageWithDeps() {
       GetAutoexecCommandHelp,
       AnalyzeAutoexecCommands,
       OpenFileLocation,
-    });
-  } catch (error) {
-    console.error("设置页面渲染失败:", error);
+      });
+    } catch (error) {
+      console.error("设置页面渲染失败:", error);
+      const container = document.getElementById("settings-page-content");
+      if (container) {
+        const message = document.createElement("div");
+        message.className = "settings-read-warning";
+        message.setAttribute("role", "alert");
+        const title = document.createElement("strong");
+        title.textContent = "设置页面加载失败。";
+        const detail = document.createElement("span");
+        detail.textContent = `请稍后重试；若问题持续存在，请重启应用。原因：${String(error?.message || error || "未知错误")}`;
+        message.append(title, detail);
+        container.replaceChildren(message);
+      }
+    }
   }
-}

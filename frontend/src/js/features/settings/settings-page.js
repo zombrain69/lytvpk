@@ -63,24 +63,42 @@ export async function renderSettingsPage(deps) {
   const container = document.getElementById("settings-page-content");
   if (!container) return;
   const config = getConfig();
+  // Individual Wails reads must not turn the whole settings page into a blank
+  // view. A transient failure (for example while the app is reloading bindings)
+  // keeps the relevant control usable with the last persisted frontend value,
+  // and makes the degraded source visible to the user.
+  const settingsReadErrors = [];
+  const readSetting = async (label, reader, fallback) => {
+    try {
+      if (typeof reader !== "function") {
+        throw new Error("当前后端未提供此设置接口");
+      }
+      return await reader();
+    } catch (error) {
+      settingsReadErrors.push(`${label}：${String(error?.message || error || "读取失败")}`);
+      return fallback;
+    }
+  };
   const unrecordedModLoadOrderPlacement = ["start", "after-enabled", "end"].includes(config.unrecordedModLoadOrderPlacement)
     ? config.unrecordedModLoadOrderPlacement
     : "end";
 
-  const enabled = await GetWorkshopPreferredIP();
-  const fixedIP = await GetWorkshopFixedIP();
+  const enabled = await readSetting("优选 IP", GetWorkshopPreferredIP, Boolean(config.workshopPreferredIP));
+  const fixedIP = await readSetting("固定 IP", GetWorkshopFixedIP, config.workshopFixedIP || "");
   const useFixedIP = enabled && fixedIP !== "";
-  const metaEnabled = await GetWorkshopMetaEnabled();
-  const updateCheckEnabled = await GetWorkshopUpdateCheckEnabled();
-  const browserTarget = await GetWorkshopBrowserTarget();
-  const translateProvider = await GetWorkshopTranslateProvider();
-  const customBaseURL = await GetWorkshopTranslateCustomBaseURL();
-  const customModelId = await GetWorkshopTranslateCustomModelId();
-  const hasCustomAPIKey = await HasWorkshopTranslateCustomAPIKey();
-  const isSelecting = enabled ? await IsSelectingIP() : false;
+  const metaEnabled = await readSetting("工坊信息存储", GetWorkshopMetaEnabled, Boolean(config.workshopMetaEnabled));
+  const updateCheckEnabled = await readSetting("Mod 更新检测", GetWorkshopUpdateCheckEnabled, Boolean(config.workshopUpdateCheckEnabled));
+  const browserTarget = await readSetting("工坊跳转目标", GetWorkshopBrowserTarget, config.workshopBrowserTarget || "mirror");
+  const translateProvider = await readSetting("翻译服务", GetWorkshopTranslateProvider, config.workshopTranslateProvider || "microsoft");
+  const customBaseURL = await readSetting("自定义 AI Base URL", GetWorkshopTranslateCustomBaseURL, config.workshopTranslateCustomBaseURL || "");
+  const customModelId = await readSetting("自定义 AI 模型", GetWorkshopTranslateCustomModelId, config.workshopTranslateCustomModelId || "");
+  const hasCustomAPIKey = await readSetting("自定义 AI 密钥状态", HasWorkshopTranslateCustomAPIKey, Boolean(config.workshopTranslateCustomAPIKey));
+  const isSelecting = enabled ? await readSetting("优选 IP 状态", IsSelectingIP, false) : false;
   const ipOptions = [];
-  const bestIPOption = enabled && !isSelecting ? await GetCurrentBestIPOption() : null;
-  const bestIP = getIPOptionIP(bestIPOption) || (enabled && !isSelecting ? await GetCurrentBestIP() : "");
+  const bestIPOption = enabled && !isSelecting ? await readSetting("当前优选 IP", GetCurrentBestIPOption, null) : null;
+  const bestIP = getIPOptionIP(bestIPOption) || (enabled && !isSelecting
+    ? await readSetting("当前优选 IP 地址", GetCurrentBestIP, "")
+    : "");
   let addonListInfo = null;
   let addonListBackups = [];
   let addonListError = "";
@@ -121,6 +139,12 @@ export async function renderSettingsPage(deps) {
   }
 
   container.innerHTML = `
+    ${settingsReadErrors.length ? `
+      <div class="settings-read-warning" role="status">
+        <strong>部分设置状态暂时无法从后端读取，已显示上次保存的值：</strong>
+        <span>${escapeHtml(settingsReadErrors.join("；"))}</span>
+      </div>
+    ` : ""}
     <div class="settings-layout embedded-settings">
       <div class="settings-sidebar">
         <button class="settings-nav-item active" data-panel="network">网络设置</button>
@@ -855,8 +879,8 @@ function bindSettingsPage(deps) {
     config.workshopTranslateCustomAPIKey = "已设置";
     deps.saveConfig(config);
     customAPIKeyInput.value = "";
-    const newPlaceholder = customAPIKeyInput.getAttribute("placeholder")?.replace("（未设置）", "（已设置）").replace("API Key", "API Key（已设置）");
-    if (newPlaceholder) customAPIKeyInput.setAttribute("placeholder", newPlaceholder);
+    // 直接赋值，避免用户重复更新密钥时把“（已设置）”叠加多次。
+    customAPIKeyInput.setAttribute("placeholder", "API Key（已设置）");
     deps.showNotification("已更新自定义AI API Key", "success");
   });
 
@@ -875,12 +899,13 @@ function bindSettingsPage(deps) {
   const autoexecMatchesEl = document.getElementById("settings-autoexec-matches");
   const autoexecLineNumberEditor = attachLineNumberGutter(autoexecEditor, autoexecLineNumbers);
   let autoexecAnalysisRequest = 0;
+  let autoexecAnalysisTimer = null;
   const updateAutoexecAnalysis = async () => {
-    if (!autoexecEditor || typeof deps.AnalyzeAutoexecCommands !== "function") return;
+    if (!autoexecEditor?.isConnected || typeof deps.AnalyzeAutoexecCommands !== "function") return;
     const requestId = ++autoexecAnalysisRequest;
     try {
       const matches = await deps.AnalyzeAutoexecCommands(autoexecEditor.value);
-      if (requestId !== autoexecAnalysisRequest) return;
+      if (requestId !== autoexecAnalysisRequest || !autoexecEditor.isConnected) return;
       const known = matches.filter((item) => item.known).length;
       const unknown = matches.length - known;
       const highRisk = matches.filter((item) => item.known && item.help?.risk?.startsWith("高")).length;
@@ -895,8 +920,15 @@ function bindSettingsPage(deps) {
       if (autoexecAnalysis) autoexecAnalysis.textContent = `指令识别失败：${String(error?.message || error)}`;
     }
   };
-  autoexecEditor?.addEventListener("input", updateAutoexecAnalysis);
-  updateAutoexecAnalysis();
+  const scheduleAutoexecAnalysis = () => {
+    if (autoexecAnalysisTimer) window.clearTimeout(autoexecAnalysisTimer);
+    autoexecAnalysisTimer = window.setTimeout(() => {
+      autoexecAnalysisTimer = null;
+      void updateAutoexecAnalysis();
+    }, 180);
+  };
+  autoexecEditor?.addEventListener("input", scheduleAutoexecAnalysis);
+  void updateAutoexecAnalysis();
   const reloadAutoexecEditor = async () => {
     if (!autoexecEditor || typeof deps.GetAutoexecConfig !== "function") return;
     const next = await deps.GetAutoexecConfig();
@@ -937,16 +969,30 @@ function bindSettingsPage(deps) {
   });
   const autoexecHelpSearch = document.getElementById("settings-autoexec-help-search");
   const autoexecHelpList = document.getElementById("settings-autoexec-help-list");
+  let autoexecHelpSearchRequest = 0;
+  let autoexecHelpSearchTimer = null;
   const renderHelpList = (items) => {
     if (autoexecHelpList) renderAutoexecHelpList(autoexecHelpList, items);
   };
-  autoexecHelpSearch?.addEventListener("input", async () => {
+  const searchAutoexecHelp = async () => {
     if (typeof deps.GetAutoexecCommandHelp !== "function") return;
+    if (!autoexecHelpSearch?.isConnected) return;
+    const requestId = ++autoexecHelpSearchRequest;
     try {
-      renderHelpList(await deps.GetAutoexecCommandHelp(autoexecHelpSearch.value));
+      const items = await deps.GetAutoexecCommandHelp(autoexecHelpSearch.value);
+      if (requestId !== autoexecHelpSearchRequest || !autoexecHelpSearch.isConnected) return;
+      renderHelpList(items);
     } catch (error) {
+      if (requestId !== autoexecHelpSearchRequest) return;
       deps.showNotification("搜索指令说明失败: " + error, "error");
     }
+  };
+  autoexecHelpSearch?.addEventListener("input", () => {
+    if (autoexecHelpSearchTimer) window.clearTimeout(autoexecHelpSearchTimer);
+    autoexecHelpSearchTimer = window.setTimeout(() => {
+      autoexecHelpSearchTimer = null;
+      void searchAutoexecHelp();
+    }, 160);
   });
   autoexecHelpList?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-autoexec-command]");

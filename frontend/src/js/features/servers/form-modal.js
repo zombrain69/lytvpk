@@ -148,6 +148,9 @@ export async function saveServerForm() {
     }
   } catch (err) {
     console.error("保存服务器失败:", err);
+    // Keep the dialog and its current input intact so the user can correct
+    // the problem or retry instead of losing an unsaved server configuration.
+    showError("保存服务器失败: " + String(err?.message || err || "未知错误"));
     return;
   }
 

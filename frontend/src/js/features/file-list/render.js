@@ -702,11 +702,16 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
         e.preventDefault();
         e.stopPropagation();
         // Shift/Ctrl 点击卡片主体也可以选择；普通点击仍打开详情。
-        applySelectionGesture(file.path, e, !appState.selectedFiles.has(file.path));
+        // 卡片会在 Mod 在 addons / disabled 等目录间移动时按预览身份复用。
+        // 不能捕获首次创建时的 file.path，否则复用后的主体点击仍会操作旧路径。
+        const currentPath = card.dataset.path;
+        if (!currentPath) return;
+        applySelectionGesture(currentPath, e, !appState.selectedFiles.has(currentPath));
         return;
       }
 
-      showFileDetail(file.path);
+      const currentPath = card.dataset.path;
+      if (currentPath) showFileDetail(currentPath);
     });
   }
 

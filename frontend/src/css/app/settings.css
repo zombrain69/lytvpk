@@ -10,6 +10,35 @@
   min-height: 400px;
 }
 
+.settings-read-warning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.5rem;
+  margin: 0 0 0.9rem;
+  padding: 0.72rem 0.85rem;
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  border-radius: var(--radius-md);
+  background: rgba(245, 158, 11, 0.09);
+  color: #92400e;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.settings-read-warning strong {
+  color: inherit;
+}
+
+.settings-read-warning span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+html.dark-mode .settings-read-warning {
+  border-color: rgba(251, 191, 36, 0.42);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fcd34d;
+}
+
 .settings-sidebar {
   width: 180px;
   flex-shrink: 0;
