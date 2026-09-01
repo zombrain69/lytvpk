@@ -206,6 +206,325 @@
   background: rgba(16, 185, 129, 0.12);
 }
 
+.diagnostics-tool-icon.is-archive {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+}
+
+#message-modal .modal-content.archive-manager-modal-content {
+  width: min(96vw, 100rem);
+  max-width: min(96vw, 100rem);
+  max-height: min(94dvh, 72rem);
+}
+
+#message-modal .archive-manager-modal-content .message-content {
+  padding: 0;
+}
+
+.archive-manager-content-body {
+  display: grid;
+  gap: var(--spacing-3);
+  min-width: 0;
+  text-align: left;
+}
+
+.archive-manager-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-app);
+}
+
+.archive-manager-toolbar.is-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .08);
+}
+
+.archive-manager-summary {
+  flex: 1 1 22rem;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: .82rem;
+  overflow-wrap: anywhere;
+}
+
+.archive-manager-search,
+.archive-manager-sort,
+.archive-manager-state-filter {
+  min-height: 2rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  font-size: .78rem;
+}
+
+.archive-manager-search {
+  flex: 1 1 18rem;
+  min-width: 13rem;
+  padding: .35rem .55rem;
+}
+
+.archive-manager-sort,
+.archive-manager-state-filter {
+  max-width: 11rem;
+  padding: .25rem .45rem;
+}
+
+.archive-manager-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  align-items: start;
+  gap: .55rem;
+  max-height: min(70dvh, 56rem);
+  overflow: auto;
+  padding: .1rem .3rem .1rem .1rem;
+}
+
+.archive-manager-content-body.is-compact .archive-manager-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+}
+
+.archive-manager-content-body.is-comfortable .archive-manager-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+  gap: .8rem;
+}
+
+.archive-manager-package {
+  display: grid;
+  min-width: 0;
+  gap: .45rem;
+  padding: .65rem .7rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.archive-manager-content-body.is-comfortable .archive-manager-package {
+  padding: .85rem .9rem;
+  gap: .65rem;
+}
+
+.archive-manager-package.is-selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, .18), inset 3px 0 0 var(--primary);
+}
+
+.archive-manager-package.is-expanded {
+  grid-column: 1 / -1;
+}
+
+.archive-manager-package.is-error {
+  border-color: rgba(239, 68, 68, .35);
+}
+
+.archive-manager-package.is-password-required {
+  border-color: rgba(245, 158, 11, .55);
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.archive-manager-package.has-existing-vpk {
+  box-shadow: inset 3px 0 0 var(--success);
+}
+
+.archive-manager-package.has-new-vpk {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.archive-manager-package.has-existing-vpk.has-new-vpk {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.archive-manager-package-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: .45rem;
+  align-items: center;
+}
+
+.archive-manager-package-header strong,
+.archive-manager-package-stats {
+  min-width: 0;
+}
+
+.archive-manager-package-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-manager-package-stats {
+  color: var(--text-tertiary);
+  font-size: .74rem;
+  white-space: nowrap;
+}
+
+.archive-manager-package-actions {
+  display: inline-flex;
+  gap: .3rem;
+}
+
+.archive-manager-package-action {
+  min-height: 1.8rem;
+  padding: .2rem .45rem;
+  font-size: .74rem;
+  white-space: nowrap;
+}
+
+.archive-manager-tree {
+  display: grid;
+  gap: 2px;
+  max-height: 18rem;
+  overflow: auto;
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+}
+
+.archive-manager-tree-row,
+.archive-manager-vpk {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--spacing-2);
+  padding: .35rem .5rem;
+  font-size: .8rem;
+}
+
+.archive-manager-tree-row span:first-child,
+.archive-manager-vpk strong,
+.archive-manager-vpk small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.archive-manager-tree-row span:last-child {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.archive-manager-tree-row.is-dir {
+  color: var(--text-secondary);
+}
+
+.archive-manager-tree-more {
+  justify-self: start;
+  margin-top: .35rem;
+  font-size: .76rem;
+}
+
+.archive-manager-vpk {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: .35rem;
+  border-left: 3px solid var(--primary);
+  background: rgba(79, 70, 229, .06);
+}
+
+.archive-manager-vpk.is-existing {
+  border-left-color: var(--success);
+  background: rgba(16, 185, 129, .08);
+}
+
+.archive-manager-vpk.is-new {
+  border-left-color: var(--primary);
+  background: rgba(79, 70, 229, .08);
+}
+
+.archive-manager-vpk.is-invalid {
+  border-left-color: var(--danger);
+  background: rgba(239, 68, 68, .08);
+}
+
+.archive-manager-vpk.is-limited {
+  border-left-color: var(--warning);
+  background: rgba(245, 158, 11, .09);
+}
+
+.archive-manager-vpk-state {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.archive-manager-vpk small {
+  grid-column: 1 / -1;
+  color: var(--text-tertiary);
+}
+
+.archive-manager-error,
+.archive-manager-empty {
+  padding: .5rem .6rem;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+  font-size: .82rem;
+}
+
+.archive-manager-error.is-password-required {
+  color: var(--warning);
+}
+
+.archive-manager-password-retry {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .5rem .6rem;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, .08);
+}
+
+.archive-manager-password-retry input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  min-height: 2rem;
+  padding: .35rem .5rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--bg-app);
+}
+
+.archive-manager-password-retry .btn {
+  white-space: nowrap;
+}
+
+.archive-manager-package details > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: .8rem;
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .archive-manager-package-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .archive-manager-package-stats {
+    grid-column: 2 / -1;
+    white-space: normal;
+  }
+
+  .archive-manager-package-actions {
+    grid-column: 2 / -1;
+  }
+}
+
+.archive-manager-conflict-choice {
+  text-align: left;
+}
+
+.archive-manager-conflict-choice ul {
+  max-height: 14rem;
+  overflow: auto;
+  padding-left: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
 .vpk-integrity-report {
   display: grid;
   gap: 0.75rem;

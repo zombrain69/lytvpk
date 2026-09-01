@@ -11,6 +11,7 @@ export async function renderDiagnosticsPage({
   openVPKIntegrityTool,
   openMDMPReportTool,
   openVPKPackTool,
+  openArchiveManager,
   openSprayTool,
   openAutoexecTool,
   refreshFilesKeepFilter,
@@ -172,6 +173,20 @@ export async function renderDiagnosticsPage({
               选择并检测
             </button>
           </section>
+
+          <section class="diagnostics-tool-card">
+            <div class="diagnostics-tool-icon is-archive">${archiveIcon()}</div>
+            <div class="diagnostics-tool-main">
+              <div class="diagnostics-tool-title-row">
+                <h3>压缩包管理</h3>
+                <span class="diagnostics-status">支持 VPK 对比</span>
+              </div>
+              <p>递归查看 ZIP、RAR、7Z、TAR 压缩包文件树，识别其中的 VPK 并与当前 addons Mod 对比。</p>
+            </div>
+            <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-archive-manager-btn">
+              选择文件夹
+            </button>
+          </section>
         </div>
       </section>
     </div>
@@ -219,6 +234,10 @@ export async function renderDiagnosticsPage({
     ?.addEventListener("click", () => {
       openVPKIntegrityTool?.();
     });
+
+  document
+    .getElementById("toolbox-archive-manager-btn")
+    ?.addEventListener("click", () => openArchiveManager?.());
 }
 
 function boltIcon() {
@@ -235,6 +254,10 @@ function modelIcon() {
 
 function unpackIcon() {
   return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`;
+}
+
+function archiveIcon() {
+  return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 4v4h8V4M8 12h8M8 16h5"/></svg>`;
 }
 
 function appendMDMPReportTool(container, openMDMPReportTool) {

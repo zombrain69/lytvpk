@@ -19,6 +19,7 @@ import { openMDMPReportTool } from "./diagnostics/mdmp-report.js";
 import { openVPKPackTool } from "./diagnostics/vpk-pack.js";
 import { openVPKIntegrityTool } from "./diagnostics/vpk-integrity.js";
 import { openAutoexecTool } from "./diagnostics/autoexec-tool.js";
+import { openArchiveManager } from "./diagnostics/archive-manager.js";
 import {
   importSprayFiles,
   importSprayPaths,
@@ -662,6 +663,7 @@ function setupSettingsAndAboutListeners() {
         openVPKIntegrityTool,
         openMDMPReportTool,
         openVPKPackTool,
+        openArchiveManager,
         openAutoexecTool,
         openSprayTool,
         refreshFilesKeepFilter,

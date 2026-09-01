@@ -21,6 +21,8 @@ export function ChangePanelDifficulty(arg1:string,arg2:string):Promise<string>;
 
 export function ChangePanelMap(arg1:string,arg2:string):Promise<string>;
 
+export function CheckArchiveMoveConflicts(arg1:Array<string>,arg2:string):Promise<Array<app.FileMoveConflict>>;
+
 export function CheckConflicts():Promise<app.ConflictResult>;
 
 export function CheckConflictsForPaths(arg1:Array<string>):Promise<app.ConflictResult>;
@@ -205,6 +207,8 @@ export function ManualRotateMods(arg1:app.RotationConfig):Promise<void>;
 
 export function MigrateLocalStorageConfig(arg1:app.LocalStorageMigrationPayload):Promise<void>;
 
+export function MoveArchiveFiles(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
+
 export function MoveVpkFiles(arg1:Array<string>,arg2:string):Promise<app.MoveResult>;
 
 export function MoveVpkFilesWithConflictAction(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
@@ -212,6 +216,8 @@ export function MoveVpkFilesWithConflictAction(arg1:Array<string>,arg2:string,ar
 export function MoveWorkshopToAddons(arg1:string):Promise<void>;
 
 export function MoveWorkshopToAddonsWithConflictAction(arg1:string,arg2:string):Promise<app.MoveResult>;
+
+export function OpenArchivePackage(arg1:string):Promise<void>;
 
 export function OpenFileLocation(arg1:string):Promise<void>;
 
@@ -259,11 +265,19 @@ export function SaveSprayVTF(arg1:app.SpraySaveVTFRequest):Promise<string>;
 
 export function SaveWorkshopWatchLaterStorage(arg1:app.WorkshopWatchLaterStorage):Promise<void>;
 
+export function ScanArchiveDirectory(arg1:string):Promise<Array<app.ArchivePackageInfo>>;
+
+export function ScanArchiveDirectoryWithPasswords(arg1:string,arg2:Record<string, string>):Promise<Array<app.ArchivePackageInfo>>;
+
+export function ScanArchivePackageWithPassword(arg1:string,arg2:string):Promise<app.ArchivePackageInfo>;
+
 export function ScanVPKFiles():Promise<void>;
 
 export function SearchVPKFiles(arg1:string,arg2:string,arg3:Array<string>):Promise<Array<parser.VPKFile>>;
 
 export function SelectAddonListMergeSource():Promise<string>;
+
+export function SelectArchiveDirectory():Promise<string>;
 
 export function SelectDirectory():Promise<string>;
 

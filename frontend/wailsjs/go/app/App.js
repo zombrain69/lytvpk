@@ -34,6 +34,10 @@ export function ChangePanelMap(arg1, arg2) {
   return window['go']['app']['App']['ChangePanelMap'](arg1, arg2);
 }
 
+export function CheckArchiveMoveConflicts(arg1, arg2) {
+  return window['go']['app']['App']['CheckArchiveMoveConflicts'](arg1, arg2);
+}
+
 export function CheckConflicts() {
   return window['go']['app']['App']['CheckConflicts']();
 }
@@ -402,6 +406,10 @@ export function MigrateLocalStorageConfig(arg1) {
   return window['go']['app']['App']['MigrateLocalStorageConfig'](arg1);
 }
 
+export function MoveArchiveFiles(arg1, arg2, arg3) {
+  return window['go']['app']['App']['MoveArchiveFiles'](arg1, arg2, arg3);
+}
+
 export function MoveVpkFiles(arg1, arg2) {
   return window['go']['app']['App']['MoveVpkFiles'](arg1, arg2);
 }
@@ -416,6 +424,10 @@ export function MoveWorkshopToAddons(arg1) {
 
 export function MoveWorkshopToAddonsWithConflictAction(arg1, arg2) {
   return window['go']['app']['App']['MoveWorkshopToAddonsWithConflictAction'](arg1, arg2);
+}
+
+export function OpenArchivePackage(arg1) {
+  return window['go']['app']['App']['OpenArchivePackage'](arg1);
 }
 
 export function OpenFileLocation(arg1) {
@@ -510,6 +522,18 @@ export function SaveWorkshopWatchLaterStorage(arg1) {
   return window['go']['app']['App']['SaveWorkshopWatchLaterStorage'](arg1);
 }
 
+export function ScanArchiveDirectory(arg1) {
+  return window['go']['app']['App']['ScanArchiveDirectory'](arg1);
+}
+
+export function ScanArchiveDirectoryWithPasswords(arg1, arg2) {
+  return window['go']['app']['App']['ScanArchiveDirectoryWithPasswords'](arg1, arg2);
+}
+
+export function ScanArchivePackageWithPassword(arg1, arg2) {
+  return window['go']['app']['App']['ScanArchivePackageWithPassword'](arg1, arg2);
+}
+
 export function ScanVPKFiles() {
   return window['go']['app']['App']['ScanVPKFiles']();
 }
@@ -520,6 +544,10 @@ export function SearchVPKFiles(arg1, arg2, arg3) {
 
 export function SelectAddonListMergeSource() {
   return window['go']['app']['App']['SelectAddonListMergeSource']();
+}
+
+export function SelectArchiveDirectory() {
+  return window['go']['app']['App']['SelectArchiveDirectory']();
 }
 
 export function SelectDirectory() {

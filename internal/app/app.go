@@ -102,34 +102,40 @@ func (a *App) submitPoolTask(task func()) {
 
 // App struct
 type App struct {
-	ctx                    context.Context
-	vpkCache               sync.Map // map[string]*VPKFileCache, key是文件路径
-	previewCache           sync.Map // map[string]*VPKPreviewCache, key是文件路径
-	cardPreviewCache       sync.Map // map[string]*VPKPreviewCache, key是文件路径
-	previewCacheMu         sync.Mutex
-	cardPreviewCacheMu     sync.Mutex
-	conflictIndexMu        sync.Mutex
-	conflictIndexCache     map[string]conflictIndexCacheEntry
-	mu                     sync.RWMutex
-	rootDir                string
-	goroutinePool          *ants.Pool
-	conflictCheckMu        sync.Mutex
-	modelStatsScanMu       sync.Mutex
-	modelStatsScanRunning  bool
-	modelStatsScanID       string
-	modelStatsScanRoot     string
-	modelStatsScanProgress ProgressInfo
-	addonListGuardMu       sync.Mutex
-	addonListMonitorMu     sync.Mutex
-	addonListMonitorStop   chan struct{}
-	configWriteMu          sync.Mutex
-	addonListGuardEnabled  bool
-	addonListLastRestore   string
-	addonListLastError     string
-	forceClose             bool
-	restyClient            *resty.Client
-	proxyServer            *network.ImageProxyServer
-	singletonMgr           *SingletonManager // 单例管理器
+	ctx                     context.Context
+	vpkCache                sync.Map // map[string]*VPKFileCache, key是文件路径
+	previewCache            sync.Map // map[string]*VPKPreviewCache, key是文件路径
+	cardPreviewCache        sync.Map // map[string]*VPKPreviewCache, key是文件路径
+	previewCacheMu          sync.Mutex
+	cardPreviewCacheMu      sync.Mutex
+	archiveScanCacheMu      sync.Mutex
+	archiveScanCache        *archiveScanCache
+	archiveExistingIndexMu  sync.RWMutex
+	archiveExistingIndexSig archiveExistingIndexSignature
+	archiveExistingIndex    archiveExistingVPKIndex
+	archiveExistingIndexSet bool
+	conflictIndexMu         sync.Mutex
+	conflictIndexCache      map[string]conflictIndexCacheEntry
+	mu                      sync.RWMutex
+	rootDir                 string
+	goroutinePool           *ants.Pool
+	conflictCheckMu         sync.Mutex
+	modelStatsScanMu        sync.Mutex
+	modelStatsScanRunning   bool
+	modelStatsScanID        string
+	modelStatsScanRoot      string
+	modelStatsScanProgress  ProgressInfo
+	addonListGuardMu        sync.Mutex
+	addonListMonitorMu      sync.Mutex
+	addonListMonitorStop    chan struct{}
+	configWriteMu           sync.Mutex
+	addonListGuardEnabled   bool
+	addonListLastRestore    string
+	addonListLastError      string
+	forceClose              bool
+	restyClient             *resty.Client
+	proxyServer             *network.ImageProxyServer
+	singletonMgr            *SingletonManager // 单例管理器
 
 	// 配置项
 	modRotationConfig               RotationConfig
