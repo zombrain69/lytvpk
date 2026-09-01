@@ -100,7 +100,8 @@ func isMissionPath(name string) bool {
 func isPreviewImagePath(name string) bool {
 	return strings.HasSuffix(name, ".png") ||
 		strings.HasSuffix(name, ".jpg") ||
-		strings.HasSuffix(name, ".jpeg")
+		strings.HasSuffix(name, ".jpeg") ||
+		strings.HasSuffix(name, ".gif")
 }
 
 func isCharacterAssetPath(name string) bool {

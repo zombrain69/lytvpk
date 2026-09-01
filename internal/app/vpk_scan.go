@@ -110,7 +110,7 @@ func (a *App) ScanVPKFiles() error {
 		path := key.(string)
 		if !currentPaths[path] {
 			a.vpkCache.Delete(path)
-			a.deleteVPKPreviewCache(path)
+			a.deleteVPKPreviewCaches(path)
 			log.Printf("清理缓存: 文件已删除 %s", path)
 		}
 		return true

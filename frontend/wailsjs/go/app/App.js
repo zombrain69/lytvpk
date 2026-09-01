@@ -266,6 +266,10 @@ export function GetServerStorage() {
   return window['go']['app']['App']['GetServerStorage']();
 }
 
+export function GetVPKCardPreviewImage(arg1) {
+  return window['go']['app']['App']['GetVPKCardPreviewImage'](arg1);
+}
+
 export function GetVPKFiles() {
   return window['go']['app']['App']['GetVPKFiles']();
 }

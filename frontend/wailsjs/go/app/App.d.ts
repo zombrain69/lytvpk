@@ -137,6 +137,8 @@ export function GetSecondaryTags(arg1:string):Promise<Array<string>>;
 
 export function GetServerStorage():Promise<app.ServerStorage>;
 
+export function GetVPKCardPreviewImage(arg1:string):Promise<string>;
+
 export function GetVPKFiles():Promise<Array<parser.VPKFile>>;
 
 export function GetVPKLoadOrder(arg1:string):Promise<number>;

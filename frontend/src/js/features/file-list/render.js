@@ -12,6 +12,7 @@ import { getServers } from "../servers/servers.js";
 import {
   getCachedVPKCardPreview,
   loadVPKCardPreview,
+  cancelVPKCardPreview,
 } from "../shared/vpk-preview-cache.js";
 
 let cardPreviewObserver = null;
@@ -765,6 +766,7 @@ export async function loadCardPreview(file, imgElement) {
         ?.classList.add("hidden");
     }
   } catch (err) {
+    if (err?.message === "卡片预览已离开可视区域") return;
     console.warn("加载预览图失败:", file.name);
   }
 }
@@ -802,13 +804,16 @@ function unobserveCardPreview(card) {
   if (cardPreviewObserver) {
     cardPreviewObserver.unobserve(card);
   }
+  const pending = pendingCardPreviews.get(card);
   pendingCardPreviews.delete(card);
+  if (pending) cancelVPKCardPreview(pending.file);
 }
 
 function clearPendingCardPreviews() {
   if (!cardPreviewObserver) return;
-  pendingCardPreviews.forEach((_, card) => {
+  pendingCardPreviews.forEach((pending, card) => {
     cardPreviewObserver.unobserve(card);
+    cancelVPKCardPreview(pending.file);
   });
   pendingCardPreviews.clear();
 }

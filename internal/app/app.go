@@ -80,8 +80,10 @@ type conflictIndexCacheEntry struct {
 }
 
 const (
-	maxVPKPreviewCacheEntries = 24
-	maxVPKPreviewCacheBytes   = 24 * 1024 * 1024
+	maxVPKPreviewCacheEntries     = 24
+	maxVPKPreviewCacheBytes       = 24 * 1024 * 1024
+	maxVPKCardPreviewCacheEntries = 96
+	maxVPKCardPreviewCacheBytes   = 8 * 1024 * 1024
 )
 
 // submitPoolTask uses the shared pool when it is available. A released or
@@ -103,7 +105,9 @@ type App struct {
 	ctx                    context.Context
 	vpkCache               sync.Map // map[string]*VPKFileCache, key是文件路径
 	previewCache           sync.Map // map[string]*VPKPreviewCache, key是文件路径
+	cardPreviewCache       sync.Map // map[string]*VPKPreviewCache, key是文件路径
 	previewCacheMu         sync.Mutex
+	cardPreviewCacheMu     sync.Mutex
 	conflictIndexMu        sync.Mutex
 	conflictIndexCache     map[string]conflictIndexCacheEntry
 	mu                     sync.RWMutex

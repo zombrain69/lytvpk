@@ -62,6 +62,89 @@ func (a *App) GetVPKPreviewImage(filePath string) string {
 	return preview
 }
 
+// GetVPKCardPreviewImage returns a bounded static thumbnail for the card grid.
+// It deliberately uses a separate cache so large animated/detail previews are
+// never duplicated in the card view's working set.
+func (a *App) GetVPKCardPreviewImage(filePath string) string {
+	if _, ok := a.vpkCache.Load(filePath); !ok {
+		return ""
+	}
+
+	modTime, size, imageModTime, err := previewSourceSignature(filePath)
+	if err != nil {
+		return ""
+	}
+	if preview, ok := a.getVPKCardPreviewCache(filePath, modTime, size, imageModTime); ok {
+		return preview
+	}
+
+	preview, err := parser.ExtractVPKCardPreviewImage(filePath)
+	if err != nil {
+		log.Printf("读取 VPK 卡片缩略图失败: %s, 错误: %v", filePath, err)
+		return ""
+	}
+	a.storeVPKCardPreviewCache(filePath, preview, modTime, size, imageModTime)
+	return preview
+}
+
+func (a *App) getVPKCardPreviewCache(filePath string, modTime time.Time, size int64, imageModTime time.Time) (string, bool) {
+	a.cardPreviewCacheMu.Lock()
+	defer a.cardPreviewCacheMu.Unlock()
+
+	cached, ok := a.cardPreviewCache.Load(filePath)
+	if !ok {
+		return "", false
+	}
+	entry := cached.(*VPKPreviewCache)
+	if !entry.ModTime.Equal(modTime) || entry.Size != size || !entry.ImageModTime.Equal(imageModTime) {
+		a.cardPreviewCache.Delete(filePath)
+		return "", false
+	}
+	entry.CachedAt = time.Now()
+	return entry.Data, true
+}
+
+func (a *App) storeVPKCardPreviewCache(filePath, preview string, modTime time.Time, size int64, imageModTime time.Time) {
+	if len(preview) > maxVPKCardPreviewCacheBytes {
+		a.deleteVPKCardPreviewCache(filePath)
+		return
+	}
+
+	a.cardPreviewCacheMu.Lock()
+	defer a.cardPreviewCacheMu.Unlock()
+	a.cardPreviewCache.Store(filePath, &VPKPreviewCache{
+		Data: preview, ModTime: modTime, Size: size, ImageModTime: imageModTime, CachedAt: time.Now(),
+	})
+
+	for {
+		var oldestPath string
+		var oldestTime time.Time
+		entries, totalBytes := 0, 0
+		a.cardPreviewCache.Range(func(key, value any) bool {
+			entry := value.(*VPKPreviewCache)
+			entries++
+			totalBytes += len(entry.Data)
+			if oldestPath == "" || entry.CachedAt.Before(oldestTime) {
+				oldestPath, oldestTime = key.(string), entry.CachedAt
+			}
+			return true
+		})
+		if entries <= maxVPKCardPreviewCacheEntries && totalBytes <= maxVPKCardPreviewCacheBytes {
+			return
+		}
+		if oldestPath == "" {
+			return
+		}
+		a.cardPreviewCache.Delete(oldestPath)
+	}
+}
+
+func (a *App) deleteVPKCardPreviewCache(filePath string) {
+	a.cardPreviewCacheMu.Lock()
+	defer a.cardPreviewCacheMu.Unlock()
+	a.cardPreviewCache.Delete(filePath)
+}
+
 func (a *App) getVPKPreviewCache(filePath string, modTime time.Time, size int64, imageModTime time.Time) (string, bool) {
 	a.previewCacheMu.Lock()
 	defer a.previewCacheMu.Unlock()
@@ -128,6 +211,15 @@ func (a *App) deleteVPKPreviewCache(filePath string) {
 	a.previewCacheMu.Lock()
 	defer a.previewCacheMu.Unlock()
 	a.previewCache.Delete(filePath)
+}
+
+// deleteVPKPreviewCaches invalidates both the full-resolution/detail preview
+// and the bounded card thumbnail for a file. File moves, deletes and renames
+// must clear both caches together so a stale thumbnail cannot survive a path
+// change while the full preview has already been evicted.
+func (a *App) deleteVPKPreviewCaches(filePath string) {
+	a.deleteVPKPreviewCache(filePath)
+	a.deleteVPKCardPreviewCache(filePath)
 }
 
 func previewSourceSignature(filePath string) (time.Time, int64, time.Time, error) {
@@ -224,7 +316,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 
 	// 删除旧路径的缓存
 	a.vpkCache.Delete(filePath)
-	a.deleteVPKPreviewCache(filePath)
+	a.deleteVPKPreviewCaches(filePath)
 
 	// 在新路径下存储缓存
 	newCache := *cache
@@ -327,7 +419,7 @@ func (a *App) moveWorkshopToAddonsWithConflictAction(filePath, action string) (M
 
 	// 删除旧路径的缓存
 	a.vpkCache.Delete(filePath)
-	a.deleteVPKPreviewCache(filePath)
+	a.deleteVPKPreviewCaches(filePath)
 
 	// 在新路径下存储缓存
 	newCache := *cache
@@ -462,7 +554,7 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	cachedVal, loaded := a.vpkCache.Load(filePath)
 	if loaded {
 		a.vpkCache.Delete(filePath)
-		a.deleteVPKPreviewCache(filePath)
+		a.deleteVPKPreviewCaches(filePath)
 	}
 
 	if loaded && len(allTags) > 0 {
@@ -529,7 +621,7 @@ func (a *App) setWorkshopVPKTagsLocked(filePath, primaryTag string, secondaryTag
 	// 清空标签时重新解析，恢复 VPK 自身可推断出的自动标签。
 	if loaded {
 		a.vpkCache.Delete(filePath)
-		a.deleteVPKPreviewCache(filePath)
+		a.deleteVPKPreviewCaches(filePath)
 	}
 	a.processVPKFileWithCache(filePath)
 	return nil
@@ -602,7 +694,7 @@ func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error)
 		// Location 应该不变，因为是在同目录下重命名
 
 		a.vpkCache.Delete(filePath)
-		a.deleteVPKPreviewCache(filePath)
+		a.deleteVPKPreviewCaches(filePath)
 		a.vpkCache.Store(newPath, cache)
 	} else {
 		// 如果不在缓存中，重新处理

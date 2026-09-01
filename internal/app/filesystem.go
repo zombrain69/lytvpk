@@ -360,7 +360,7 @@ func (a *App) DeleteVPKFile(filePath string) error {
 		return fmt.Errorf("删除文件失败: %s", err.Error())
 	}
 	a.vpkCache.Delete(filePath)
-	a.deleteVPKPreviewCache(filePath)
+	a.deleteVPKPreviewCaches(filePath)
 	// 同步删除同名图片
 	a.handleSidecarFile(filePath, "", "delete")
 	if err := a.cleanupAddonListForRemovedVPK(filePath, cachedFile); err != nil {
@@ -399,7 +399,7 @@ func (a *App) DeleteVPKFiles(filePaths []string) error {
 			errs = append(errs, fmt.Sprintf("删除文件 %s 失败: %v", filePath, err))
 		} else {
 			a.vpkCache.Delete(filePath)
-			a.deleteVPKPreviewCache(filePath)
+			a.deleteVPKPreviewCaches(filePath)
 			// 同步删除同名图片
 			a.handleSidecarFile(filePath, "", "delete")
 			if err := a.cleanupAddonListForRemovedVPK(filePath, cachedFile); err != nil {
