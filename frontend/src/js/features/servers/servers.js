@@ -142,6 +142,7 @@ let serverStorage = {
   servers: [],
   recentServers: [],
 };
+let serverStorageWriteQueue = Promise.resolve();
 
 export const SERVER_ICONS = {
   play: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
@@ -309,11 +310,25 @@ export function getServers() {
 }
 
 function saveServers(servers) {
-  serverStorage = normalizeServerStorage({
+  const previousStorage = serverStorage;
+  const nextStorage = normalizeServerStorage({
     ...serverStorage,
     servers,
   });
-  return persistServerStorage();
+  serverStorage = nextStorage;
+  return persistServerStorage().catch((error) => {
+    if (serverStorage === nextStorage) {
+      serverStorage = previousStorage;
+    }
+    throw error;
+  });
+}
+
+function createServerID() {
+  if (globalThis.crypto?.randomUUID) {
+    return `srv_${globalThis.crypto.randomUUID().replace(/-/g, "")}`;
+  }
+  return `srv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
 
 function normalizeAddress(address) {
@@ -336,20 +351,31 @@ function getRawRecentServers() {
 }
 
 function saveRawRecentServers(servers) {
-  serverStorage = normalizeServerStorage({
+  const previousStorage = serverStorage;
+  const nextStorage = normalizeServerStorage({
     ...serverStorage,
     recentServers: servers.slice(0, RECENT_SERVER_LIMIT),
   });
-  persistServerStorage();
+  serverStorage = nextStorage;
+  persistServerStorage().catch((error) => {
+    if (serverStorage === nextStorage) {
+      serverStorage = previousStorage;
+    }
+    console.error("保存最近服务器失败:", error);
+    showError?.("保存最近服务器失败: " + String(error?.message || error || "未知错误"));
+  });
 }
 
 function persistServerStorage() {
-  const promise = SaveServerStorage?.(serverStorage) || Promise.resolve();
-  promise.catch((e) => {
-    console.error("保存服务器配置失败:", e);
-    showError?.("保存服务器配置失败: " + e);
-  });
-  return promise;
+  // Wails may serialize the argument after this call returns. Keep a detached
+  // snapshot and write snapshots in order so a slower old save cannot overwrite
+  // a newer server/recent-server change.
+  const snapshot = normalizeServerStorage(serverStorage);
+  const write = serverStorageWriteQueue
+    .catch(() => undefined)
+    .then(() => SaveServerStorage?.(snapshot) || Promise.resolve());
+  serverStorageWriteQueue = write;
+  return write;
 }
 
 function normalizeServerStorage(storage = {}) {
@@ -712,38 +738,34 @@ function deleteServer(index) {
   showConfirmModal(
     "删除服务器",
     `确定要删除服务器 "${server.name}" 吗？`,
-    () => {
+    async () => {
       const currentServers = getServers();
-      const idx = parseInt(index);
+      const idx = server.id
+        ? currentServers.findIndex((item) => item.id === server.id)
+        : currentServers.findIndex(
+            (item) =>
+              item.name === server.name &&
+              normalizeAddress(item.address) === normalizeAddress(server.address)
+          );
 
-      if (!isNaN(idx) && idx >= 0 && idx < currentServers.length) {
-        currentServers.splice(idx, 1);
-        saveServers(currentServers);
-        renderLaunchServerMenu();
-
-        const list = document.getElementById("server-list");
-        const itemToRemove = list.children[idx];
-        if (itemToRemove) {
-          list.removeChild(itemToRemove);
-
-          Array.from(list.children).forEach((li, newIndex) => {
-            const moreBtn = li.querySelector(".server-more-btn");
-            if (moreBtn) moreBtn.dataset.index = newIndex;
-
-            const details = li.querySelector(".server-details");
-            if (details) details.id = `server-details-${newIndex}`;
-
-            const nameEl = li.querySelector(".server-name");
-            if (nameEl) nameEl.id = `server-name-${newIndex}`;
-          });
-        } else {
-          renderServers();
-        }
-
-        showNotification("服务器已删除", "success");
-      } else {
+      if (idx < 0) {
         showError("删除失败：索引无效");
+        return false;
       }
+
+      currentServers.splice(idx, 1);
+      try {
+        await saveServers(currentServers);
+      } catch (error) {
+        console.error("删除服务器失败:", error);
+        showError("删除服务器失败: " + String(error?.message || error || "未知错误"));
+        return false;
+      }
+
+      renderServers();
+      renderLaunchServerMenu();
+      showNotification("服务器已删除", "success");
+      return true;
     }
   );
 }
@@ -810,7 +832,7 @@ async function importServersFromClipboard() {
   }
 }
 
-function importServers(jsonStr) {
+async function importServers(jsonStr) {
   try {
     const newServers = JSON.parse(jsonStr);
     if (!Array.isArray(newServers)) {
@@ -828,6 +850,7 @@ function importServers(jsonStr) {
 
         if (existingIndex === -1) {
           currentServers.push({
+            id: createServerID(),
             name: server.name,
             address: server.address,
             weight: server.weight || 0,
@@ -839,7 +862,7 @@ function importServers(jsonStr) {
     });
 
     if (addedCount > 0) {
-      saveServers(currentServers);
+      await saveServers(currentServers);
       renderServers();
       renderLaunchServerMenu();
       showNotification(`成功导入 ${addedCount} 个新服务器`, "success");
