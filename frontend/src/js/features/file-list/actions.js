@@ -429,7 +429,7 @@ function updateSingleFileDisplay(file) {
     const stateTitles = {
       enabled: "addonlist.txt：1；点击关闭游戏内 Mod",
       disabled: "addonlist.txt：0；点击开启游戏内 Mod",
-      unknown: "addonlist.txt 中未记录此 Mod；点击可写入并开启",
+      unknown: "addonlist.txt 中未记录此 Mod；点击选择游戏内关闭、游戏内启用或禁用",
     };
     stateBadge.classList.remove("game-state-enabled", "game-state-disabled", "game-state-unknown");
     stateBadge.classList.add(`game-state-${stateClass}`);
