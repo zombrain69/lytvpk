@@ -30,6 +30,7 @@ const (
 	archiveMaxScanDepth              = 64
 	archiveVPKInspectionValid        = "valid"
 	archiveVPKInspectionLimited      = "limited"
+	archiveVPKInspectionUnsupported  = "unsupported"
 	archiveVPKInspectionInvalid      = "invalid"
 	archiveErrorKindPasswordRequired = "password_required"
 	archiveErrorKindUnreadable       = "unreadable"
@@ -431,7 +432,7 @@ func (a *App) existingVPKIndex() archiveExistingVPKIndex {
 		addonStates = addonListStateMap(list)
 	}
 	add := func(path string) {
-		if !strings.EqualFold(filepath.Ext(path), ".vpk") {
+		if !isArchiveComparableVPKPath(root, path) {
 			return
 		}
 		name := strings.ToLower(filepath.Base(path))
@@ -489,12 +490,47 @@ func (a *App) existingVPKIndex() archiveExistingVPKIndex {
 		if err != nil {
 			return nil
 		}
-		if !entry.IsDir() && strings.EqualFold(filepath.Ext(path), ".vpk") {
+		if entry.IsDir() {
+			if path == root {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return nil
+			}
+			parts := strings.Split(rel, string(filepath.Separator))
+			if len(parts) == 0 || (!strings.EqualFold(parts[0], "workshop") && !strings.EqualFold(parts[0], "disabled")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if isArchiveComparableVPKPath(root, path) {
 			add(path)
 		}
 		return nil
 	})
 	return set
+}
+
+// isArchiveComparableVPKPath limits archive-to-addon matching to the same
+// locations that the addon scanner treats as managed content: VPK files in the
+// addons root, workshop, or disabled trees. Other addon subdirectories may be
+// user-managed content and must not make an archive appear already imported.
+func isArchiveComparableVPKPath(root, filePath string) bool {
+	root = filepath.Clean(strings.TrimSpace(root))
+	filePath = filepath.Clean(strings.TrimSpace(filePath))
+	if root == "" || filePath == "" || !strings.EqualFold(filepath.Ext(filePath), ".vpk") {
+		return false
+	}
+	rel, err := filepath.Rel(root, filePath)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return false
+	}
+	parts := strings.Split(rel, string(filepath.Separator))
+	if len(parts) == 1 {
+		return true
+	}
+	return strings.EqualFold(parts[0], "workshop") || strings.EqualFold(parts[0], "disabled")
 }
 
 func (a *App) existingVPKBasenames() map[string]struct{} {
@@ -625,7 +661,7 @@ func inspectNestedVPK(name string, size int64, existing archiveExistingVPKIndex,
 	result.ExistingLocations, result.ExistingGameState = archiveVPKExistingDetails(name, existing)
 	reader, err := open()
 	if err != nil {
-		result.Error = err.Error()
+		result.InspectionStatus, result.Error = classifyNestedVPKReadError(err)
 		return result
 	}
 	defer reader.Close()
@@ -642,7 +678,7 @@ func inspectNestedVPK(name string, size int64, existing archiveExistingVPKIndex,
 			result.Error = fmt.Sprintf("VPK 目录信息超过 %d MiB 的安全读取上限；未判定为文件损坏", archiveMaxVPKDirectoryBytes>>20)
 			return result
 		}
-		result.Error = err.Error()
+		result.InspectionStatus, result.Error = classifyNestedVPKReadError(err)
 		return result
 	}
 	result.Valid = true
@@ -658,6 +694,16 @@ func inspectNestedVPK(name string, size int64, existing archiveExistingVPKIndex,
 	}
 	sort.Strings(result.InternalFiles)
 	return result
+}
+
+func classifyNestedVPKReadError(err error) (string, string) {
+	if err == nil {
+		return archiveVPKInspectionInvalid, "未知读取错误"
+	}
+	if errors.Is(err, zip.ErrAlgorithm) || strings.Contains(strings.ToLower(err.Error()), "unsupported compression algorithm") {
+		return archiveVPKInspectionUnsupported, fmt.Sprintf("ZIP 条目使用当前内置解码器不支持的压缩算法；压缩包文件树仍可读取，但未能检查 VPK 内部目录。可用 7-Zip 解压后再检查。原始错误：%v", err)
+	}
+	return archiveVPKInspectionInvalid, err.Error()
 }
 
 func scanZipArchive(path string, info *ArchivePackageInfo, existing archiveExistingVPKIndex) error {

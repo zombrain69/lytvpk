@@ -426,6 +426,7 @@ function createVPKRow(vpk) {
   row.classList.add(vpk.matchState === "existing" ? "is-existing" : "is-new");
   const inspectionStatus = vpk.inspectionStatus || (vpk.valid ? "valid" : "invalid");
   if (inspectionStatus === "limited") row.classList.add("is-limited");
+  else if (inspectionStatus === "unsupported") row.classList.add("is-unsupported");
   else if (!vpk.valid) row.classList.add("is-invalid");
   const label = document.createElement("strong");
   label.textContent = `VPK · ${vpk.name || vpk.entryPath}`;
@@ -441,6 +442,8 @@ function createVPKRow(vpk) {
       : "";
   state.textContent = inspectionStatus === "limited"
     ? "目录读取受限"
+    : inspectionStatus === "unsupported"
+      ? "压缩算法不支持"
     : vpk.valid
       ? (vpk.matchState === "existing" ? `已有 Mod${locationText}${gameStateText}` : "待导入 addons")
       : "VPK 读取失败";

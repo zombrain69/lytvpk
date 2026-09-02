@@ -8,7 +8,7 @@ import {
 } from "../state.js";
 import { showError, showNotification, showSuccess } from "../../core/toast.js";
 import { showConfirmModal } from "../modals/confirm.js";
-import { renderFileList, iconSvg, getLocationSvg } from "./render.js";
+import { renderFileList, iconSvg, getLocationSvg, getGameStateActionControls } from "./render.js";
 import { refreshFilesKeepFilter } from "./filters.js";
 import {
   ToggleVPKFile,
@@ -468,29 +468,10 @@ function updateSingleFileDisplay(file) {
     }
   }
 
-  const gameToggleBtn = item.querySelector(".game-toggle-btn");
-  if (gameToggleBtn) {
-    const gameStateLabel = stateClass === "enabled"
-      ? "游戏内开启"
-      : stateClass === "disabled"
-        ? "游戏内关闭"
-        : "未记录";
-    gameToggleBtn.disabled = file.location === "disabled";
-    gameToggleBtn.classList.remove("game-state-enabled", "game-state-disabled", "game-state-unknown");
-    gameToggleBtn.classList.add(`game-state-${stateClass}`);
-    gameToggleBtn.querySelector(".btn-text")?.replaceChildren(document.createTextNode(
-      file.location === "disabled" ? "游戏开关不可用" : gameStateLabel,
-    ));
-    gameToggleBtn.title = file.location === "disabled"
-      ? "文件位于 disabled 目录，请先恢复文件后再编辑 addonlist.txt"
-      : stateTitlesForDisplay(stateClass);
+  const gameStateControls = item.querySelector(".game-state-controls");
+  if (gameStateControls) {
+    gameStateControls.outerHTML = getGameStateActionControls(file);
   }
-}
-
-function stateTitlesForDisplay(stateClass) {
-  if (stateClass === "enabled") return "addonlist.txt：1；点击关闭游戏内 Mod";
-  if (stateClass === "disabled") return "addonlist.txt：0；点击开启游戏内 Mod";
-  return "addonlist.txt 中未记录此 Mod；点击选择游戏内关闭、游戏内启用或禁用";
 }
 
 export function syncSelectedFiles() {

@@ -1,7 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getUnrecordedGameStateOptions } from "./unrecorded-game-state.mjs";
+import {
+  getUnrecordedGameStateOptions,
+  getGameStateDisplayModel,
+} from "./unrecorded-game-state.mjs";
+
+test("未记录 Mod 的条目展示模型直接包含三个状态操作", () => {
+  const model = getGameStateDisplayModel({ gameStateKnown: false, location: "root" });
+
+  assert.equal(model.mode, "unrecorded");
+  assert.deepEqual(
+    model.options.map((option) => option.label),
+    ["游戏内关闭", "游戏内启用", "禁用"],
+  );
+});
+
+test("已记录 Mod 的条目展示模型只保留单一切换按钮", () => {
+  const model = getGameStateDisplayModel({ gameStateKnown: true, gameEnabled: true });
+
+  assert.equal(model.mode, "toggle");
+  assert.deepEqual(model.options, []);
+});
 
 test("未记录的根目录 Mod 提供游戏内关闭、游戏内启用和禁用三种选项", () => {
   const options = getUnrecordedGameStateOptions({ location: "root" });

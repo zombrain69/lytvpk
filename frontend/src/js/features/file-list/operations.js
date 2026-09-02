@@ -51,6 +51,36 @@ export async function toggleGameEnabled(filePath) {
   await setGameEnabled(filePath, !file.gameEnabled, false);
 }
 
+export async function setGameState(filePath, state) {
+  const file =
+    appState.allVpkFiles.find((item) => item.path === filePath) ||
+    appState.vpkFiles.find((item) => item.path === filePath);
+  if (!file) {
+    showError("未找到要设置游戏内状态的 Mod，请刷新后重试");
+    return;
+  }
+  if (file.location === "disabled") {
+    showError("该 Mod 位于 disabled 目录，请先恢复文件后再编辑游戏内开关");
+    return;
+  }
+
+  if (state === "disabled") {
+    if (file.location === "workshop") {
+      showError("创意工坊 Mod 不能直接禁用，请先复制到 addons");
+      return;
+    }
+    await disableUnrecordedFile(filePath);
+    return;
+  }
+
+  if (state === "game-enabled" || state === "game-disabled") {
+    await setGameEnabled(filePath, state === "game-enabled", !file.gameStateKnown);
+    return;
+  }
+
+  showError("未知的游戏内状态操作，请刷新后重试");
+}
+
 async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   try {
     await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);

@@ -32,3 +32,19 @@ export function getUnrecordedGameStateOptions(file = {}) {
     };
   });
 }
+
+export function getGameStateDisplayModel(file = {}) {
+  if (Boolean(file?.gameStateKnown)) {
+    return {
+      mode: "toggle",
+      state: file?.gameEnabled ? "enabled" : "disabled",
+      options: [],
+    };
+  }
+
+  return {
+    mode: "unrecorded",
+    state: "unknown",
+    options: getUnrecordedGameStateOptions(file),
+  };
+}

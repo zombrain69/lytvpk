@@ -3540,6 +3540,64 @@ button.mod-conflict-badge:hover {
   opacity: 0.48;
 }
 
+.game-state-controls {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.game-state-action-group {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.game-state-action-btn {
+  min-width: auto !important;
+  padding: 0.35rem 0.55rem !important;
+  font-size: 0.7rem !important;
+  gap: 0.25rem !important;
+}
+
+.game-state-action-btn.game-state-action-game-enabled {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.24) !important;
+}
+
+.game-state-action-btn.game-state-action-game-disabled {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.24) !important;
+}
+
+.game-state-action-btn.game-state-action-disabled {
+  background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.2) !important;
+}
+
+.game-state-action-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.game-state-action-btn:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.48;
+}
+
+/* 三个直接状态操作必须保留文字，即使常规窄屏规则会隐藏其它按钮文字。 */
+.game-state-action-btn .btn-text {
+  display: inline-block !important;
+}
+
+@media (max-width: 1440px) {
+  .game-state-action-btn {
+    padding: 0.25rem 0.35rem !important;
+    font-size: 0.66rem !important;
+  }
+}
+
 .unrecorded-game-state-modal-content {
   width: min(560px, calc(100vw - 2rem));
   max-width: 560px;

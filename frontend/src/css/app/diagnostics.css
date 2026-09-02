@@ -446,6 +446,11 @@
   background: rgba(245, 158, 11, .09);
 }
 
+.archive-manager-vpk.is-unsupported {
+  border-left-color: var(--warning);
+  background: rgba(245, 158, 11, .14);
+}
+
 .archive-manager-vpk-state {
   font-weight: 700;
   white-space: nowrap;

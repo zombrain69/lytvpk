@@ -5,6 +5,7 @@ import {
   toggleFileVisibility,
   toggleFile,
   toggleGameEnabled,
+  setGameState,
   moveFileToAddons,
   deleteFile,
   renameFile,
@@ -259,6 +260,18 @@ export function setupFileListEventDelegation() {
         e.preventDefault();
         e.stopPropagation();
         toggleGameEnabled(filePath);
+      }
+    }
+
+    const gameStateActionBtn = e.target.closest('.game-state-action-btn[data-action="set-game-state"]');
+    if (gameStateActionBtn) {
+      if (gameStateActionBtn.disabled) return;
+      const filePath = gameStateActionBtn.getAttribute("data-file-path");
+      const gameState = gameStateActionBtn.getAttribute("data-game-state");
+      if (filePath && gameState) {
+        e.preventDefault();
+        e.stopPropagation();
+        void setGameState(filePath, gameState);
       }
     }
 

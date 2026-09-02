@@ -14,6 +14,7 @@ import {
   loadVPKCardPreview,
   cancelVPKCardPreview,
 } from "../shared/vpk-preview-cache.js";
+import { getGameStateDisplayModel } from "./unrecorded-game-state.mjs";
 
 let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
@@ -186,6 +187,54 @@ function getGameToggleButton(file) {
       <span class="btn-text">${label}</span>
     </button>
   `;
+}
+
+function getGameStateActionIcon(actionId) {
+  if (actionId === "game-enabled") return iconSvg("check");
+  if (actionId === "game-disabled") return iconSvg("x");
+  return iconSvg("power");
+}
+
+export function getGameStateActionControls(file) {
+  const model = getGameStateDisplayModel(file);
+  if (model.mode !== "unrecorded") {
+    return '<div class="game-state-controls">' + getGameToggleButton(file) + "</div>";
+  }
+
+  const fileInDisabledDirectory = file.location === "disabled";
+  const options = model.options
+    .map((option) => {
+      const disabled = fileInDisabledDirectory || Boolean(option.disabled);
+      const disabledReason = fileInDisabledDirectory
+        ? "文件位于 disabled 目录，请先恢复文件后再编辑 addonlist.txt"
+        : option.disabledReason;
+      const title = disabled ? disabledReason : option.description;
+      const disabledAttribute = disabled ? " disabled" : "";
+      const disabledClass = disabled ? " is-disabled" : "";
+      return [
+        '<button type="button"',
+        ' class="btn-small action-btn game-state-action-btn game-state-action-',
+        option.id,
+        disabledClass,
+        '" data-file-path="',
+        escapeHtml(file.path),
+        '" data-action="set-game-state" data-game-state="',
+        option.id,
+        '" title="',
+        escapeHtml(title || option.label),
+        '"',
+        disabledAttribute,
+        '>',
+        '<span class="btn-icon">',
+        getGameStateActionIcon(option.id),
+        '</span><span class="btn-text">',
+        escapeHtml(option.label),
+        '</span></button>',
+      ].join("");
+    })
+    .join("");
+
+  return '<div class="game-state-controls game-state-action-group" role="group" aria-label="未记录 Mod 游戏内状态">' + options + "</div>";
 }
 
 function getConflictSummaryBadge(file, className = "mod-conflict-badge") {
@@ -407,7 +456,7 @@ export function createFileItem(file) {
         <span class="btn-icon">${iconSvg("info")}</span>
         <span class="btn-text">详情</span>
       </button>
-      ${getGameToggleButton(file)}
+      ${getGameStateActionControls(file)}
       ${getActionButton(file)}
       ${moreActionsHtml}
     </div>
@@ -643,7 +692,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
       <div class="card-filename" title="${file.name}">${file.name}</div>
       <div class="card-actions">
         <div class="card-actions-left">
-          ${getGameToggleButton(file)}
+          ${getGameStateActionControls(file)}
           ${actionBtn}
           ${updateBtnHtml}
         </div>

@@ -343,6 +343,88 @@ func TestExistingVPKIndexTracksRootDisabledAndWorkshopLocations(t *testing.T) {
 	}
 }
 
+func TestExistingVPKIndexExcludesOtherAddonSubdirectories(t *testing.T) {
+	tempDir := t.TempDir()
+	addonsDir := filepath.Join(tempDir, "addons")
+	paths := []string{
+		addonsDir,
+		filepath.Join(addonsDir, "other-folder"),
+		filepath.Join(addonsDir, "workshop", "nested"),
+		filepath.Join(addonsDir, "disabled", "nested"),
+	}
+	for _, path := range paths {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{
+		filepath.Join(addonsDir, "root.vpk"),
+		filepath.Join(addonsDir, "other-folder", "ignored.vpk"),
+		filepath.Join(addonsDir, "workshop", "123.vpk"),
+		filepath.Join(addonsDir, "workshop", "nested", "456.vpk"),
+		filepath.Join(addonsDir, "disabled", "nested", "disabled.vpk"),
+	} {
+		writeTestVPK(t, path, map[string][]byte{"scripts/addoninfo.txt": []byte("AddonInfo")})
+	}
+
+	index := (&App{rootDir: addonsDir}).existingVPKIndex()
+	for _, name := range []string{"root.vpk", "123.vpk", "456.vpk", "disabled.vpk"} {
+		if got := archiveVPKMatchStateFromIndex(name, index); got != "existing" {
+			t.Fatalf("%s match state = %q, want existing", name, got)
+		}
+	}
+	if got := archiveVPKMatchStateFromIndex("ignored.vpk", index); got != "new" {
+		t.Fatalf("ignored.vpk match state = %q, want new", got)
+	}
+	if locations, state := archiveVPKExistingDetails("ignored.vpk", index); len(locations) != 0 || state != "" {
+		t.Fatalf("ignored.vpk details = locations:%v state:%q, want no match", locations, state)
+	}
+}
+
+func TestIsArchiveComparableVPKPathScopesAddonLocations(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "addons")
+	tests := map[string]bool{
+		filepath.Join(root, "root.vpk"):                       true,
+		filepath.Join(root, "workshop", "123.vpk"):            true,
+		filepath.Join(root, "workshop", "nested", "456.vpk"):  true,
+		filepath.Join(root, "disabled", "disabled.vpk"):       true,
+		filepath.Join(root, "disabled", "nested", "x.vpk"):    true,
+		filepath.Join(root, "other", "ignored.vpk"):           false,
+		filepath.Join(root, "other", "nested", "ignored.vpk"): false,
+		filepath.Join(root, "root.txt"):                       false,
+		filepath.Join(t.TempDir(), "outside.vpk"):             false,
+	}
+	for path, want := range tests {
+		if got := isArchiveComparableVPKPath(root, path); got != want {
+			t.Errorf("isArchiveComparableVPKPath(%q) = %v, want %v", path, got, want)
+		}
+	}
+}
+
+func TestClassifyNestedVPKReadErrorExplainsUnsupportedCompression(t *testing.T) {
+	status, message := classifyNestedVPKReadError(zip.ErrAlgorithm)
+	if status != archiveVPKInspectionUnsupported {
+		t.Fatalf("unsupported compression status = %q, want %q", status, archiveVPKInspectionUnsupported)
+	}
+	if !strings.Contains(message, "压缩算法") || !strings.Contains(message, "7-Zip") {
+		t.Fatalf("unsupported compression message = %q, want actionable explanation", message)
+	}
+	if strings.Contains(message, "文件损坏") {
+		t.Fatalf("unsupported compression must not claim corruption: %q", message)
+	}
+	result := inspectNestedVPK("nested/example.vpk", 123, nil, func() (io.ReadCloser, error) {
+		return nil, zip.ErrAlgorithm
+	})
+	if result.Valid || result.InspectionStatus != archiveVPKInspectionUnsupported {
+		t.Fatalf("nested VPK unsupported compression result = %+v, want unsupported and invalid", result)
+	}
+
+	status, message = classifyNestedVPKReadError(errors.New("directory parse failed"))
+	if status != archiveVPKInspectionInvalid || message != "directory parse failed" {
+		t.Fatalf("ordinary read error = (%q, %q), want invalid/original message", status, message)
+	}
+}
+
 func TestScanArchivePackageWithPasswordRefreshesOnlyOneArchive(t *testing.T) {
 	tempDir := t.TempDir()
 	vpkPath := filepath.Join(tempDir, "single.vpk")
