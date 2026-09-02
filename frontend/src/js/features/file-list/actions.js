@@ -490,7 +490,7 @@ function updateSingleFileDisplay(file) {
 function stateTitlesForDisplay(stateClass) {
   if (stateClass === "enabled") return "addonlist.txt：1；点击关闭游戏内 Mod";
   if (stateClass === "disabled") return "addonlist.txt：0；点击开启游戏内 Mod";
-  return "addonlist.txt 中未记录此 Mod；点击可写入并开启";
+  return "addonlist.txt 中未记录此 Mod；点击选择游戏内关闭、游戏内启用或禁用";
 }
 
 export function syncSelectedFiles() {

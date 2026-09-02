@@ -1,5 +1,6 @@
 import { showError, showNotification } from "../../core/toast.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
+import { createImeAwareSearchController } from "./archive-search-controller.mjs";
 
 let archiveManagerRunning = false;
 let archiveManagerSession = null;
@@ -12,7 +13,7 @@ let archiveManagerQuery = "";
 let archiveManagerSort = "name-asc";
 let archiveManagerStateFilter = "all";
 let archiveManagerDensity = "compact";
-let archiveManagerSearchTimer = 0;
+let archiveManagerSearchController = null;
 
 const ARCHIVE_TREE_INITIAL_LIMIT = 160;
 
@@ -30,6 +31,8 @@ export async function openArchiveManager() {
     archiveManagerSort = "name-asc";
     archiveManagerStateFilter = "all";
     archiveManagerDensity = "compact";
+    archiveManagerSearchController?.cancel();
+    archiveManagerSearchController = null;
     await scanArchiveDirectory(directory);
   } catch (error) {
     showError("选择压缩包目录失败: " + formatError(error));
@@ -72,6 +75,8 @@ function showArchiveLoading(directory) {
 }
 
 function renderArchiveManager() {
+  archiveManagerSearchController?.cancel();
+  archiveManagerSearchController = null;
   const session = archiveManagerSession || createArchiveManagerSession();
   if (!session) return;
   archiveManagerSession = session;
@@ -100,19 +105,24 @@ function createArchiveContent() {
   search.placeholder = "搜索压缩包名、路径或 VPK 名称";
   search.value = archiveManagerQuery;
   search.setAttribute("aria-label", "搜索压缩包");
+  const searchController = createImeAwareSearchController(() => {
+    renderArchiveManager();
+    requestAnimationFrame(() => {
+      const next = document.querySelector(".archive-manager-search");
+      next?.focus();
+      if (next) next.setSelectionRange(archiveManagerQuery.length, archiveManagerQuery.length);
+    });
+  });
+  archiveManagerSearchController = searchController;
   search.oninput = () => {
     archiveManagerQuery = search.value;
-    if (archiveManagerSearchTimer) window.clearTimeout(archiveManagerSearchTimer);
-    archiveManagerSearchTimer = window.setTimeout(() => {
-      archiveManagerSearchTimer = 0;
-      renderArchiveManager();
-      requestAnimationFrame(() => {
-        const next = document.querySelector(".archive-manager-search");
-        next?.focus();
-        if (next) next.setSelectionRange(archiveManagerQuery.length, archiveManagerQuery.length);
-      });
-    }, 120);
+    searchController.input();
   };
+  search.addEventListener("compositionstart", () => searchController.compositionStart());
+  search.addEventListener("compositionend", () => {
+    archiveManagerQuery = search.value;
+    searchController.compositionEnd();
+  });
   const sort = document.createElement("select");
   sort.className = "archive-manager-sort";
   sort.setAttribute("aria-label", "排序方式");
@@ -348,10 +358,8 @@ function createArchiveManagerSession() {
   return beginMessageModalSession({
     onClose: () => {
       archiveManagerSession = null;
-      if (archiveManagerSearchTimer) {
-        window.clearTimeout(archiveManagerSearchTimer);
-        archiveManagerSearchTimer = 0;
-      }
+      archiveManagerSearchController?.cancel();
+      archiveManagerSearchController = null;
       archivePasswordByPath.clear();
       expandedArchivePaths.clear();
     },

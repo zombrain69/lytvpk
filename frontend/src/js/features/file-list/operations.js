@@ -2,8 +2,10 @@ import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
 import { unpackVPKFromPath } from "../diagnostics/vpk-unpack.js";
 import { showConfirmModal } from "../modals/confirm.js";
+import { beginMessageModalSession } from "../../core/message-modal.js";
 import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import { getFileLoadOrderIndex, refreshLoadOrderMap } from "./sorting.js";
+import { getUnrecordedGameStateOptions } from "./unrecorded-game-state.mjs";
 import {
   ToggleVPKFile,
   DeleteVPKFile,
@@ -35,7 +37,21 @@ export async function toggleGameEnabled(filePath) {
   }
 
   const wasUnrecorded = !file.gameStateKnown;
-  const nextEnabled = wasUnrecorded || !file.gameEnabled;
+  if (wasUnrecorded) {
+    const action = await chooseUnrecordedGameStateAction(file);
+    if (!action) return;
+    if (action === "disabled") {
+      await disableUnrecordedFile(filePath);
+      return;
+    }
+    await setGameEnabled(filePath, action === "game-enabled", true);
+    return;
+  }
+
+  await setGameEnabled(filePath, !file.gameEnabled, false);
+}
+
+async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   try {
     await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);
 
@@ -52,6 +68,9 @@ export async function toggleGameEnabled(filePath) {
     // 加载顺序映射，避免新条目直到下一次完整刷新才出现优先级编号。
     await refreshLoadOrderMap({ silent: true });
     await performSearch();
+    const file =
+      appState.allVpkFiles.find((item) => item.path === filePath) ||
+      appState.vpkFiles.find((item) => item.path === filePath);
     const orderIndex = getFileLoadOrderIndex(file);
     const priorityHint = wasUnrecorded && nextEnabled && Number.isInteger(orderIndex)
       ? `（新增为优先级 #${orderIndex + 1}）`
@@ -66,6 +85,87 @@ export async function toggleGameEnabled(filePath) {
       showError("写入 addonlist.txt 失败: " + error);
     }
   }
+}
+
+async function disableUnrecordedFile(filePath) {
+  try {
+    await ToggleVPKFile(filePath);
+    await refreshFilesKeepFilter();
+    showNotification("已禁用 Mod，并移入 disabled 目录", "success");
+  } catch (error) {
+    console.error("禁用未记录 Mod 失败:", error);
+    showError("禁用失败: " + error);
+  }
+}
+
+function chooseUnrecordedGameStateAction(file) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const session = beginMessageModalSession({
+      onClose: () => {
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+      },
+    });
+    if (!session) {
+      resolve(null);
+      return;
+    }
+
+    session.addModalClass("unrecorded-game-state-modal-content");
+    session.titleEl.textContent = "未记录 Mod：选择状态";
+    const content = document.createElement("div");
+    content.className = "unrecorded-game-state-content";
+
+    const intro = document.createElement("p");
+    intro.className = "unrecorded-game-state-intro";
+    intro.textContent = `“${file.title || file.name || "此 Mod"}” 尚未记录在 addonlist.txt，请选择要切换到的状态：`;
+    content.appendChild(intro);
+
+    const list = document.createElement("div");
+    list.className = "unrecorded-game-state-options";
+    getUnrecordedGameStateOptions(file).forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn unrecorded-game-state-option";
+      button.disabled = Boolean(option.disabled);
+      button.title = option.disabled ? option.disabledReason : option.description;
+
+      const label = document.createElement("strong");
+      label.textContent = option.label;
+      button.appendChild(label);
+      const description = document.createElement("span");
+      description.textContent = option.disabled ? option.disabledReason : option.description;
+      button.appendChild(description);
+
+      button.onclick = () => {
+        if (button.disabled || !session.isCurrent()) return;
+        settled = true;
+        session.close("choice");
+        resolve(option.id);
+      };
+      list.appendChild(button);
+    });
+    content.appendChild(list);
+    session.contentEl.replaceChildren(content);
+
+    session.confirmBtn.textContent = "取消";
+    session.confirmBtn.onclick = () => {
+      if (!session.isCurrent()) return;
+      settled = true;
+      session.close("cancel");
+      resolve(null);
+    };
+    session.closeBtn.onclick = () => {
+      if (!session.isCurrent()) return;
+      settled = true;
+      session.close("close");
+      resolve(null);
+    };
+    session.show();
+  });
 }
 
 export async function toggleFile(filePath) {

@@ -3540,6 +3540,51 @@ button.mod-conflict-badge:hover {
   opacity: 0.48;
 }
 
+.unrecorded-game-state-modal-content {
+  width: min(560px, calc(100vw - 2rem));
+  max-width: 560px;
+}
+
+.unrecorded-game-state-modal-content .message-content {
+  padding: 0;
+}
+
+.unrecorded-game-state-content {
+  display: grid;
+  gap: 1rem;
+  text-align: left;
+}
+
+.unrecorded-game-state-intro {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.unrecorded-game-state-options {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.unrecorded-game-state-option {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: start;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+}
+
+.unrecorded-game-state-option strong {
+  font-size: 1rem;
+}
+
+.unrecorded-game-state-option span {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
 /* 转移按钮 */
 .move-btn {
   background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%) !important;
