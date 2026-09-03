@@ -106,6 +106,7 @@ import {
   exportZipSelected,
   deleteSelected,
   moveSelected,
+  transferSelectedWorkshopFiles,
   batchToggleVisibility,
   disableAllMods,
 } from "./file-list/actions.js";
@@ -941,6 +942,16 @@ function setupBatchActionEvents() {
     moveSelectedBtn.addEventListener("click", () => {
       closeBatchDropdown();
       moveSelected();
+    });
+  }
+
+  const transferWorkshopSelectedBtn = document.getElementById(
+    "transfer-workshop-selected-btn",
+  );
+  if (transferWorkshopSelectedBtn) {
+    transferWorkshopSelectedBtn.addEventListener("click", () => {
+      closeBatchDropdown();
+      transferSelectedWorkshopFiles();
     });
   }
 

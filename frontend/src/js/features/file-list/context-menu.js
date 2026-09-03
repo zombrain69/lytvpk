@@ -20,6 +20,7 @@ import {
   exportZipSelected,
   deleteSelected,
   moveSelected,
+  transferSelectedWorkshopFiles,
   batchToggleVisibility,
 } from "./actions.js";
 import {
@@ -228,8 +229,22 @@ function buildBatchMenu(menu) {
 
   const selectedPaths = Array.from(appState.selectedFiles);
   const selectedFiles = selectedPaths
-    .map((fp) => appState.vpkFiles.find((f) => f.path === fp))
+    .map(
+      (fp) =>
+        appState.vpkFiles.find((f) => f.path === fp) ||
+        appState.allVpkFiles.find((f) => f.path === fp),
+    )
     .filter(Boolean);
+
+  if (selectedFiles.some((file) => file.location === "workshop")) {
+    menu.appendChild(
+      createMenuItem("转移至根目录", iconSvg("package"), () =>
+        transferSelectedWorkshopFiles(),
+      ),
+    );
+  }
+
+  menu.appendChild(createDivider());
 
   const hasVisible = selectedFiles.some((f) => !f.name.startsWith("_"));
   const hasHidden = selectedFiles.some((f) => f.name.startsWith("_"));

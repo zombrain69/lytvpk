@@ -1,4 +1,9 @@
-import { appState } from "../state.js";
+import {
+  appState,
+  showLoadingScreen,
+  showMainScreen,
+  updateLoadingMessage,
+} from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
 import { unpackVPKFromPath } from "../diagnostics/vpk-unpack.js";
 import { showConfirmModal } from "../modals/confirm.js";
@@ -12,7 +17,9 @@ import {
   OpenFileLocation,
   RenameVPKFile,
   ToggleVPKVisibility,
+  MoveWorkshopFilesToAddons,
 } from "../../../../wailsjs/go/app/App";
+import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import { moveWorkshopFileWithConflictResolution } from "./file-move-conflicts.js";
 
 function getBackendMethod(name) {
@@ -230,6 +237,56 @@ export async function moveFileToAddons(filePath) {
   } catch (error) {
     console.error("复制文件失败:", error);
     showError("复制失败: " + error);
+  }
+}
+
+export async function moveWorkshopFilesToAddons(filePaths) {
+  const paths = Array.isArray(filePaths) ? filePaths.filter(Boolean) : [];
+  if (paths.length === 0) {
+    showNotification("没有可转移的创意工坊文件", "info");
+    return null;
+  }
+
+  const cleanupProgress = EventsOn("workshop_transfer_progress", (progress) => {
+    const current = Number(progress?.current || 0);
+    const total = Number(progress?.total || 0);
+    const name = String(progress?.name || "").trim();
+    const message = String(progress?.message || "正在转移...");
+    const suffix = total > 0 ? ` (${current}/${total})` : "";
+    updateLoadingMessage(`${message}${name ? `：${name}` : ""}${suffix}`);
+  });
+
+  showLoadingScreen();
+  updateLoadingMessage("正在准备转移创意工坊文件...");
+  try {
+    const result = await MoveWorkshopFilesToAddons(paths);
+    await refreshFilesKeepFilter();
+
+    const successCount = Number(result?.successCount || 0);
+    const failCount = Number(result?.failCount || 0);
+    const skippedCount = Number(result?.skippedCount || 0);
+    const items = Array.isArray(result?.items) ? result.items : [];
+    const firstError = items.find((item) => item?.error)?.error || "";
+    const warning = "当前 Fork 会保留 workshop 原件，并同步 addonlist.txt 状态";
+
+    if (failCount > 0) {
+      showNotification(
+        `转移完成：成功 ${successCount} 个，失败 ${failCount} 个，跳过 ${skippedCount} 个${firstError ? `。${firstError}` : ""}`,
+        "warning",
+      );
+    } else if (successCount > 0) {
+      showNotification(`成功转移 ${successCount} 个文件，跳过 ${skippedCount} 个。${warning}`, "success");
+    } else {
+      showNotification(`没有可转移的创意工坊文件，已跳过 ${skippedCount} 个`, "info");
+    }
+    return result;
+  } catch (error) {
+    console.error("批量转移创意工坊文件失败:", error);
+    showError("批量转移失败: " + error);
+    return null;
+  } finally {
+    if (typeof cleanupProgress === "function") cleanupProgress();
+    showMainScreen();
   }
 }
 

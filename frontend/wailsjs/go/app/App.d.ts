@@ -213,6 +213,8 @@ export function MoveVpkFiles(arg1:Array<string>,arg2:string):Promise<app.MoveRes
 
 export function MoveVpkFilesWithConflictAction(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
 
+export function MoveWorkshopFilesToAddons(arg1:Array<string>):Promise<app.WorkshopTransferResult>;
+
 export function MoveWorkshopToAddons(arg1:string):Promise<void>;
 
 export function MoveWorkshopToAddonsWithConflictAction(arg1:string,arg2:string):Promise<app.MoveResult>;

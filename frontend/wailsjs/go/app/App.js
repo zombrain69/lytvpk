@@ -418,6 +418,10 @@ export function MoveVpkFilesWithConflictAction(arg1, arg2, arg3) {
   return window['go']['app']['App']['MoveVpkFilesWithConflictAction'](arg1, arg2, arg3);
 }
 
+export function MoveWorkshopFilesToAddons(arg1) {
+  return window['go']['app']['App']['MoveWorkshopFilesToAddons'](arg1);
+}
+
 export function MoveWorkshopToAddons(arg1) {
   return window['go']['app']['App']['MoveWorkshopToAddons'](arg1);
 }
