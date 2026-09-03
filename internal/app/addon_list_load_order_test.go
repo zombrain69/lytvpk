@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
@@ -95,6 +96,67 @@ func TestAddonListLoadOrderPolicyStableStateOrderingPreservesValues(t *testing.T
 
 	if _, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{StateOrder: "unexpected"}); err == nil {
 		t.Fatal("unexpected state order should fail")
+	}
+}
+
+func TestPreviewAddonListLoadOrderPolicyDeduplicatesSameStateEntries(t *testing.T) {
+	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"root-a.vpk\"\t\t\"1\"\n\t\"WORKSHOP/123.vpk\"\t\t\"0\"\n\t\"workshop\\123.vpk\"\t\t\"0\"\n\t\"root-b.vpk\"\t\t\"1\"\n}\n")
+
+	preview, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{RootFirst: true})
+	if err != nil {
+		t.Fatalf("preview duplicated addonlist: %v", err)
+	}
+	if want := []string{"root-a.vpk", "root-b.vpk", "workshop\\123.vpk"}; !reflect.DeepEqual(loadOrderKeys(preview.Entries), want) {
+		t.Fatalf("deduplicated preview = %#v, want %#v", loadOrderKeys(preview.Entries), want)
+	}
+	if got := preview.Entries[2].Value; got != "0" {
+		t.Fatalf("deduplicated workshop state = %q, want 0", got)
+	}
+}
+
+func TestGetAddonListLoadOrderEntriesDeduplicatesSameStateEntries(t *testing.T) {
+	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"root-a.vpk\"\t\t\"1\"\n\t\"WORKSHOP/123.vpk\"\t\t\"0\"\n\t\"workshop\\123.vpk\"\t\t\"0\"\n}\n")
+
+	entries, err := app.GetAddonListLoadOrderEntries()
+	if err != nil {
+		t.Fatalf("get duplicated addonlist entries: %v", err)
+	}
+	if want := []string{"root-a.vpk", "workshop\\123.vpk"}; !reflect.DeepEqual(loadOrderKeys(entries), want) {
+		t.Fatalf("current entries = %#v, want %#v", loadOrderKeys(entries), want)
+	}
+}
+
+func TestApplyAddonListLoadOrderPolicyWritesDeduplicatedEntries(t *testing.T) {
+	app, path := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"workshop\\123.vpk\"\t\t\"1\"\n\t\"root-a.vpk\"\t\t\"0\"\n\t\"WORKSHOP/123.vpk\"\t\t\"1\"\n}\n")
+
+	preview, err := app.ApplyAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{RootFirst: true})
+	if err != nil {
+		t.Fatalf("apply duplicated addonlist: %v", err)
+	}
+	if want := []string{"root-a.vpk", "workshop\\123.vpk"}; !reflect.DeepEqual(loadOrderKeys(preview.Entries), want) {
+		t.Fatalf("applied deduplicated order = %#v, want %#v", loadOrderKeys(preview.Entries), want)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := parseAddonListItems(string(content)); !reflect.DeepEqual(got, []AddonListItem{
+		{Name: "root-a.vpk", Value: "0"},
+		{Name: "workshop\\123.vpk", Value: "1"},
+	}) {
+		t.Fatalf("written addonlist = %#v", got)
+	}
+}
+
+func TestPreviewAddonListLoadOrderPolicyRejectsConflictingDuplicateStates(t *testing.T) {
+	app, _ := newLoadOrderTestApp(t, "\"AddonList\"\n{\n\t\"workshop\\123.vpk\"\t\t\"0\"\n\t\"WORKSHOP/123.vpk\"\t\t\"1\"\n}\n")
+
+	_, err := app.PreviewAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{})
+	if err == nil {
+		t.Fatal("conflicting duplicate states unexpectedly succeeded")
+	}
+	if got := err.Error(); !strings.Contains(got, "状态冲突") || !strings.Contains(got, "第 1 条") || !strings.Contains(got, "第 2 条") {
+		t.Fatalf("conflicting duplicate error = %q, want state conflict with entry positions", got)
 	}
 }
 

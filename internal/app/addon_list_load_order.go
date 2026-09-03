@@ -55,7 +55,11 @@ func (a *App) GetAddonListLoadOrderEntries() ([]AddonListLoadOrderEntry, error) 
 	if err != nil {
 		return nil, err
 	}
-	return makeAddonListLoadOrderEntries(list), nil
+	uniqueList, err := deduplicateAddonListItemsForLoadOrder(list)
+	if err != nil {
+		return nil, err
+	}
+	return makeAddonListLoadOrderEntries(uniqueList), nil
 }
 
 // PreviewAddonListLoadOrderPolicy 仅计算排序结果，不会改写 addonlist.txt。
@@ -117,11 +121,12 @@ func isRootAddonListKey(key string) bool {
 }
 
 func (a *App) applyAddonListLoadOrderPolicy(list []AddonListItem, policy AddonListLoadOrderPolicy) ([]AddonListItem, error) {
-	if err := validateUniqueAddonListKeys(list); err != nil {
+	uniqueList, err := deduplicateAddonListItemsForLoadOrder(list)
+	if err != nil {
 		return nil, err
 	}
 
-	ordered := append([]AddonListItem(nil), list...)
+	ordered := append([]AddonListItem(nil), uniqueList...)
 	if policy.GroupWorkshop {
 		ordered = groupWorkshopAddonListItems(ordered)
 	}
@@ -151,19 +156,44 @@ func normalizeAddonListStateOrder(value string) (string, error) {
 	}
 }
 
-func validateUniqueAddonListKeys(list []AddonListItem) error {
-	seen := make(map[string]struct{}, len(list))
-	for _, item := range list {
+// deduplicateAddonListItemsForLoadOrder folds duplicate AddonList keys that
+// have the same game state. Keeping the first entry preserves its position and
+// original spelling for write-back, while allowing a stale duplicate block from
+// a game or external save to no longer block all load-order operations.
+//
+// Different values for the same normalized key are unsafe: no ordering rule
+// can tell which game state the user intended, so those remain a hard error.
+func deduplicateAddonListItemsForLoadOrder(list []AddonListItem) ([]AddonListItem, error) {
+	type retainedItem struct {
+		index       int
+		sourceOrder int
+	}
+
+	retained := make([]AddonListItem, 0, len(list))
+	seen := make(map[string]retainedItem, len(list))
+	for sourceIndex, item := range list {
 		key := normalizeAddonListKey(item.Name)
 		if key == "" {
-			return fmt.Errorf("addonlist.txt 含有空的 Mod 条目，无法排序")
+			return nil, fmt.Errorf("addonlist.txt 含有空的 Mod 条目，无法排序")
 		}
-		if _, exists := seen[key]; exists {
-			return fmt.Errorf("addonlist.txt 含有重复条目 %q，无法确定约束目标，请先保留其中一个", item.Name)
+		if existing, exists := seen[key]; exists {
+			first := retained[existing.index]
+			if first.Value != item.Value {
+				return nil, fmt.Errorf(
+					"addonlist.txt 同一 Mod 条目状态冲突: %q 在第 %d 条为 %q，第 %d 条为 %q；请先保留一个状态",
+					first.Name,
+					existing.sourceOrder,
+					first.Value,
+					sourceIndex+1,
+					item.Value,
+				)
+			}
+			continue
 		}
-		seen[key] = struct{}{}
+		seen[key] = retainedItem{index: len(retained), sourceOrder: sourceIndex + 1}
+		retained = append(retained, item)
 	}
-	return nil
+	return retained, nil
 }
 
 // groupWorkshopAddonListItems 保持工坊条目及其余条目的原有相对顺序，
