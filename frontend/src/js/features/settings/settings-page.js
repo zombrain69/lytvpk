@@ -1,5 +1,6 @@
 import { attachLineNumberGutter } from "../../core/line-number-editor.js";
 import { applyUIScale, MAX_UI_SCALE, MIN_UI_SCALE, normalizeUIScale, UI_SCALE_STEP } from "../../core/ui-scale.js";
+import { createAutoexecSettingsController } from "./autoexec-settings-controller.mjs";
 
 const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
@@ -1170,9 +1171,12 @@ function bindSettingsPage(deps) {
   const autoexecAnalysis = document.getElementById("settings-autoexec-analysis");
   const autoexecMatchesEl = document.getElementById("settings-autoexec-matches");
   const autoexecLineNumberEditor = attachLineNumberGutter(autoexecEditor, autoexecLineNumbers);
+  const autoexecController = createAutoexecSettingsController(deps.autoexecInfo, {
+    getConfig: deps.GetAutoexecConfig,
+    saveConfig: deps.SaveAutoexecConfig,
+  });
   let autoexecAnalysisRequest = 0;
   let autoexecAnalysisTimer = null;
-  let autoexecReloadRequest = 0;
   const updateAutoexecMeta = (info) => {
     if (!autoexecMeta) return;
     const data = info || {};
@@ -1213,27 +1217,33 @@ function bindSettingsPage(deps) {
   };
   autoexecEditor?.addEventListener("input", scheduleAutoexecAnalysis);
   void updateAutoexecAnalysis();
-  const reloadAutoexecEditor = async () => {
-    if (!autoexecEditor || typeof deps.GetAutoexecConfig !== "function") return;
-    const requestId = ++autoexecReloadRequest;
-    const next = await deps.GetAutoexecConfig();
-    if (requestId !== autoexecReloadRequest || !autoexecEditor.isConnected) return;
-    autoexecInfo = next || autoexecInfo;
-    autoexecEditor.value = next?.content || "";
-    updateAutoexecMeta(autoexecInfo);
+  const applyAutoexecInfo = (info) => {
+    if (!info || !autoexecEditor?.isConnected) return;
+    autoexecEditor.value = info.content || "";
+    updateAutoexecMeta(info);
     const openButton = document.getElementById("settings-autoexec-open");
-    if (openButton) openButton.disabled = !autoexecInfo?.exists;
+    if (openButton) openButton.disabled = !info.exists;
     autoexecLineNumberEditor.refresh();
-    await updateAutoexecAnalysis();
+    void updateAutoexecAnalysis();
+  };
+  const reloadAutoexecEditor = async () => {
+    if (!autoexecEditor?.isConnected) return;
+    const result = await autoexecController.reload();
+    if (result.stale || !autoexecEditor.isConnected) return;
+    applyAutoexecInfo(result.info);
   };
   document.getElementById("settings-autoexec-save")?.addEventListener("click", async () => {
-    if (!autoexecEditor || typeof deps.SaveAutoexecConfig !== "function") return;
+    if (!autoexecEditor?.isConnected) return;
     const button = document.getElementById("settings-autoexec-save");
     if (button) button.disabled = true;
     try {
-      await deps.SaveAutoexecConfig(autoexecEditor.value);
-      deps.showNotification("已保存 autoexec.cfg（编码与换行格式已保留）", "success");
-      await reloadAutoexecEditor();
+      const result = await autoexecController.save(autoexecEditor.value);
+      if (result.reloadError) {
+        deps.showNotification("已保存 autoexec.cfg，但刷新文件状态失败: " + result.reloadError, "warning");
+      } else {
+        applyAutoexecInfo(result.info);
+        deps.showNotification("已保存 autoexec.cfg（编码与换行格式已保留）", "success");
+      }
     } catch (error) {
       deps.showNotification("保存 autoexec.cfg 失败: " + error, "error");
     } finally {
@@ -1254,9 +1264,10 @@ function bindSettingsPage(deps) {
     }
   });
   document.getElementById("settings-autoexec-open")?.addEventListener("click", async () => {
-    if (!autoexecInfo?.path || typeof deps.OpenFileLocation !== "function") return;
+    const info = autoexecController.getInfo();
+    if (!info?.path || typeof deps.OpenFileLocation !== "function") return;
     try {
-      await deps.OpenFileLocation(autoexecInfo.path);
+      await deps.OpenFileLocation(info.path);
     } catch (error) {
       deps.showNotification("打开 autoexec.cfg 位置失败: " + error, "error");
     }
