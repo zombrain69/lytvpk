@@ -20,7 +20,7 @@ import {
 } from "../../../../wailsjs/go/app/App";
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import { moveVpkFilesWithConflictResolution } from "./file-move-conflicts.js";
-import { moveWorkshopFilesToAddons } from "./operations.js";
+import { confirmVPKOperationWarning, moveWorkshopFilesToAddons } from "./operations.js";
 
 export function selectAll() {
   const checkboxes = document.querySelectorAll(".file-checkbox");
@@ -59,6 +59,8 @@ export async function enableSelected() {
     showNotification("没有需要启用的文件（只能启用disabled目录中的文件）", "info");
     return;
   }
+
+  if (!(await confirmVPKOperationWarning(filesToToggle, "批量启用 Mod"))) return;
 
   try {
     const promises = filesToToggle.map(async (filePath) => {
@@ -104,6 +106,8 @@ export async function disableSelected() {
     showNotification("没有需要禁用的文件（只能禁用root目录中的文件）", "info");
     return;
   }
+
+  if (!(await confirmVPKOperationWarning(filesToToggle, "批量禁用 Mod"))) return;
 
   try {
     const promises = filesToToggle.map(async (filePath) => {
@@ -152,6 +156,7 @@ export async function disableAllMods(primaryTag = "") {
     `确认禁用${scopeLabel}`,
     `确定要禁用 ${filesToToggle.length} 个${scopeLabel}吗？文件将被移动到 disabled 目录。`,
     async () => {
+      if (!(await confirmVPKOperationWarning(filesToToggle, `禁用${scopeLabel}`))) return;
       updateLoadingMessage(`正在禁用${scopeLabel}...`);
       showLoadingScreen();
 
@@ -258,6 +263,8 @@ export async function deleteSelected() {
     async () => {
       const filesToDelete = Array.from(appState.selectedFiles);
 
+      if (!(await confirmVPKOperationWarning(filesToDelete, "批量删除 Mod"))) return;
+
       try {
         console.log(`批量删除 ${filesToDelete.length} 个文件...`);
         await DeleteVPKFiles(filesToDelete);
@@ -283,6 +290,8 @@ export async function moveSelected() {
   try {
     const destDir = await SelectDirectory();
     if (!destDir) return;
+
+    if (!(await confirmVPKOperationWarning(filesToMove, "移动 Mod"))) return;
 
     showNotification("正在移动文件...", "info");
 
@@ -344,7 +353,9 @@ export function transferSelectedWorkshopFiles() {
     `将把 ${eligibleCount} 个创意工坊文件转移至根目录${skippedText}。当前 Fork 会保留 workshop 原件并同步 addonlist.txt。确定继续吗？`,
     async () => {
       document.getElementById("confirm-modal")?.classList.add("hidden");
-      return moveWorkshopFilesToAddons(selectedPaths);
+      return moveWorkshopFilesToAddons(
+        selectedFiles.filter((file) => file.location === "workshop").map((file) => file.path),
+      );
     },
   );
 }
@@ -362,6 +373,7 @@ export async function batchToggleVisibility(hide) {
     `批量${actionName}`,
     `确定要${actionName}选中的 ${selectedFiles.length} 个文件吗？`,
     async () => {
+      if (!(await confirmVPKOperationWarning(selectedFiles, `批量${actionName} Mod`))) return;
       updateLoadingMessage(`正在批量${actionName}...`);
       showLoadingScreen();
 

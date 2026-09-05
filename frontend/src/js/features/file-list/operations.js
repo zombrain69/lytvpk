@@ -21,6 +21,7 @@ import {
 } from "../../../../wailsjs/go/app/App";
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import { moveWorkshopFileWithConflictResolution } from "./file-move-conflicts.js";
+import { confirmVPKIntegrityWarning } from "./vpk-risk-warning.js";
 
 function getBackendMethod(name) {
   const method = window?.go?.app?.App?.[name];
@@ -89,6 +90,7 @@ export async function setGameState(filePath, state) {
 }
 
 async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
+  if (nextEnabled && !(await confirmVPKOperationWarning(filePath, "启用游戏内 Mod"))) return;
   try {
     await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);
 
@@ -124,8 +126,11 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   }
 }
 
+export const confirmVPKOperationWarning = confirmVPKIntegrityWarning;
+
 async function disableUnrecordedFile(filePath) {
   try {
+    if (!(await confirmVPKOperationWarning(filePath, "禁用 Mod"))) return;
     await ToggleVPKFile(filePath);
     await refreshFilesKeepFilter();
     showNotification("已禁用 Mod，并移入 disabled 目录", "success");
@@ -206,6 +211,15 @@ function chooseUnrecordedGameStateAction(file) {
 }
 
 export async function toggleFile(filePath) {
+  const file =
+    appState.allVpkFiles.find((item) => item.path === filePath) ||
+    appState.vpkFiles.find((item) => item.path === filePath);
+  if (!(await confirmVPKOperationWarning(
+    filePath,
+    file?.location === "disabled" ? "恢复并启用 Mod" : "禁用 Mod",
+  ))) {
+    return;
+  }
   try {
     console.log("切换文件状态:", filePath);
     await ToggleVPKFile(filePath);
@@ -218,6 +232,7 @@ export async function toggleFile(filePath) {
 }
 
 export async function moveFileToAddons(filePath) {
+  if (!(await confirmVPKOperationWarning(filePath, "复制 Workshop Mod"))) return;
   try {
     console.log("复制文件到插件目录:", filePath);
     const result = await moveWorkshopFileWithConflictResolution(filePath);
@@ -241,11 +256,20 @@ export async function moveFileToAddons(filePath) {
 }
 
 export async function moveWorkshopFilesToAddons(filePaths) {
-  const paths = Array.isArray(filePaths) ? filePaths.filter(Boolean) : [];
+  const paths = (Array.isArray(filePaths) ? filePaths : [])
+    .filter(Boolean)
+    .filter((filePath) => {
+      const file =
+        appState.allVpkFiles.find((item) => item.path === filePath) ||
+        appState.vpkFiles.find((item) => item.path === filePath);
+      return !file || file.location === "workshop";
+    });
   if (paths.length === 0) {
     showNotification("没有可转移的创意工坊文件", "info");
     return null;
   }
+
+  if (!(await confirmVPKOperationWarning(paths, "复制 Workshop Mod"))) return null;
 
   const cleanupProgress = EventsOn("workshop_transfer_progress", (progress) => {
     const current = Number(progress?.current || 0);
@@ -294,6 +318,7 @@ export function deleteFile(filePath) {
   showConfirmModal("确认删除", "确定要将此文件移至回收站吗？", async () => {
     try {
       console.log("删除文件:", filePath);
+      if (!(await confirmVPKOperationWarning(filePath, "删除 Mod"))) return;
       await DeleteVPKFile(filePath);
       await refreshFilesKeepFilter();
       showNotification("文件已移至回收站", "success");
@@ -316,10 +341,12 @@ export async function openFileLocation(filePath) {
 }
 
 export async function unpackFile(filePath) {
+  if (!(await confirmVPKOperationWarning(filePath, "解包 Mod"))) return;
   await unpackVPKFromPath(filePath);
 }
 export async function toggleFileVisibility(filePath) {
   try {
+    if (!(await confirmVPKOperationWarning(filePath, "切换 Mod 隐藏状态"))) return;
     console.log("切换文件隐藏状态:", filePath);
     await ToggleVPKVisibility(filePath);
     await refreshFilesKeepFilter();
@@ -548,6 +575,7 @@ export async function renameFile(filePath) {
     }
 
     try {
+      if (!(await confirmVPKOperationWarning(filePath, "重命名 Mod"))) return;
       await RenameVPKFile(filePath, finalName);
       showNotification("重命名成功", "success");
       cleanup();

@@ -1,6 +1,6 @@
 let confirmSessionId = 0;
 
-export function showConfirmModal(title, message, onConfirm, useHtml = false, extraClass = "") {
+export function showConfirmModal(title, message, onConfirm, useHtml = false, extraClass = "", onCancel = null) {
   const modal = document.getElementById("confirm-modal");
   const modalContent = modal.querySelector(".modal-content");
   const titleEl = document.getElementById("confirm-title");
@@ -35,7 +35,7 @@ export function showConfirmModal(title, message, onConfirm, useHtml = false, ext
   }
   modal.classList.remove("hidden");
 
-  const cleanup = () => {
+  const cleanup = (reason = "close") => {
     // A previous confirmation may finish after another confirmation has
     // already opened. Only the visible session may hide the modal or clear
     // its callbacks; otherwise an old async action closes the new dialog.
@@ -47,6 +47,13 @@ export function showConfirmModal(title, message, onConfirm, useHtml = false, ext
     closeBtn.onclick = null;
     if (extraClass) {
       extraClass.split(" ").filter(Boolean).forEach((c) => modalContent.classList.remove(c));
+    }
+    if ((reason === "cancel" || reason === "close") && typeof onCancel === "function") {
+      try {
+        onCancel();
+      } catch (error) {
+        console.error("Confirm cancel action failed:", error);
+      }
     }
   };
 
@@ -70,9 +77,9 @@ export function showConfirmModal(title, message, onConfirm, useHtml = false, ext
   };
 
   cancelBtn.onclick = () => {
-    if (isCurrentSession() && !isConfirming) cleanup();
+    if (isCurrentSession() && !isConfirming) cleanup("cancel");
   };
   closeBtn.onclick = () => {
-    if (isCurrentSession() && !isConfirming) cleanup();
+    if (isCurrentSession() && !isConfirming) cleanup("close");
   };
 }

@@ -77,6 +77,9 @@ export function showNotification(message, type = "info") {
     default:
       showInfo(message);
       break;
+    case "warning":
+      showWarning(message);
+      break;
   }
 }
 
@@ -88,14 +91,19 @@ export function showInfo(message) {
   createToast(message, "info", 3000);
 }
 
+export function showWarning(message, duration = 6000) {
+  createToast(message, "warning", duration);
+}
+
 function createToast(message, type = "info", duration = 3000) {
   const container = getToastContainer();
   const toast = document.createElement("div");
-  const normalizedType = ["success", "error", "info"].includes(type) ? type : "info";
+  const normalizedType = ["success", "error", "info", "warning"].includes(type) ? type : "info";
   const titleMap = {
     success: "Success",
     error: "Error",
     info: "Notification",
+    warning: "Warning",
   };
 
   toast.className = `${normalizedType}-notification app-toast`;

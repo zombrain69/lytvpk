@@ -612,7 +612,8 @@ body.is-modal-resizing-nw * { cursor: nwse-resize !important; }
 /* 通知系统 */
 .error-notification,
 .success-notification,
-.info-notification {
+.info-notification,
+.warning-notification {
   position: fixed;
   top: var(--spacing-16);
   right: var(--spacing-4);
@@ -641,6 +642,22 @@ body.is-modal-resizing-nw * { cursor: nwse-resize !important; }
 .info-notification {
   background: var(--bg-app);
   border-bottom: 4px solid var(--accent);
+}
+
+.vpk-risk-confirm-modal .confirm-message {
+  white-space: pre-line;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.vpk-risk-confirm-modal .modal-body {
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-app));
+}
+
+.warning-notification {
+  background: var(--bg-app);
+  border-bottom: 4px solid var(--warning);
 }
 
 .error-content,
@@ -718,7 +735,8 @@ body.is-modal-resizing-nw * { cursor: nwse-resize !important; }
 
 .app-toast.error-notification,
 .app-toast.success-notification,
-.app-toast.info-notification {
+.app-toast.info-notification,
+.app-toast.warning-notification {
   position: static;
   display: grid;
   grid-template-columns: 1.5rem minmax(0, 1fr) 1.5rem;
@@ -770,6 +788,10 @@ body.is-modal-resizing-nw * { cursor: nwse-resize !important; }
 
 .info-notification .toast-icon {
   background: #1677ff;
+}
+
+.warning-notification .toast-icon {
+  background: var(--warning);
 }
 
 .toast-body {
@@ -839,7 +861,8 @@ body.is-modal-resizing-nw * { cursor: nwse-resize !important; }
 
 html.dark-mode .app-toast.error-notification,
 html.dark-mode .app-toast.success-notification,
-html.dark-mode .app-toast.info-notification {
+html.dark-mode .app-toast.info-notification,
+html.dark-mode .app-toast.warning-notification {
   background: #1e293b;
   color: #f1f5f9;
   border-color: rgba(255, 255, 255, 0.08);

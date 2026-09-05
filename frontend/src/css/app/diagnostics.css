@@ -537,6 +537,59 @@
   max-width: min(58rem, 82vw);
 }
 
+#message-modal .modal-content.vpk-risk-warning-modal {
+  width: min(92vw, 58rem);
+  max-width: min(92vw, 58rem);
+  border: 2px solid color-mix(in srgb, var(--warning) 70%, var(--border-light));
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--warning) 16%, transparent), var(--shadow-xl);
+}
+
+.vpk-risk-warning-content {
+  display: grid;
+  gap: 0.75rem;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.vpk-risk-warning-content > p:first-child {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.vpk-risk-warning-list {
+  display: grid;
+  gap: 0.55rem;
+  max-height: min(42dvh, 26rem);
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+  overflow: auto;
+}
+
+.vpk-risk-warning-list li {
+  padding: 0.5rem 0.65rem;
+  border-left: 4px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-app));
+  overflow-wrap: anywhere;
+}
+
+.vpk-risk-warning-list strong {
+  color: var(--text-primary);
+}
+
+.vpk-risk-warning-list small {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.vpk-risk-warning-note {
+  margin: 0;
+  color: var(--warning);
+  font-weight: 700;
+}
+
 /* 完整性报告内容可能包含很长的 Windows 路径和多条问题；单独放宽
    通用消息弹窗，并让路径/问题在弹窗内部换行滚动，不影响其他消息弹窗。 */
 #message-modal .modal-content.vpk-integrity-modal-content {

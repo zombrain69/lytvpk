@@ -385,7 +385,7 @@ func TestSetVPKGameEnabledAddsMissingEntryAndPreservesUTF8BOM(t *testing.T) {
 	}
 }
 
-func TestSetVPKGameEnabledRejectsInvalidRootAddonInfoBeforeWritingAddonList(t *testing.T) {
+func TestSetVPKGameEnabledAllowsInvalidRootAddonInfoAndWritesAddonList(t *testing.T) {
 	root := t.TempDir()
 	addonsDir := filepath.Join(root, "left4dead2", "addons")
 	if err := os.MkdirAll(addonsDir, 0755); err != nil {
@@ -409,16 +409,16 @@ func TestSetVPKGameEnabledRejectsInvalidRootAddonInfoBeforeWritingAddonList(t *t
 		GameEnabled: true, GameStateKnown: true,
 	}})
 
-	err := app.SetVPKGameEnabled(vpkPath, true)
-	if err == nil || !strings.Contains(err.Error(), "addoninfo.txt 格式无效") {
-		t.Fatalf("SetVPKGameEnabled error = %v, want addoninfo validation failure", err)
+	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+		t.Fatalf("SetVPKGameEnabled: %v", err)
 	}
 	updated, readErr := os.ReadFile(addonListPath)
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
-	if string(updated) != original {
-		t.Fatalf("addonlist changed despite invalid addoninfo:\nwant %q\n got %q", original, updated)
+	expected := "\"AddonList\"\n{\n\t\"workshop\\known.vpk\"\t\t\"1\"\n\t\"broken.vpk\"\t\t\"1\"\n}\n"
+	if string(updated) != expected {
+		t.Fatalf("unexpected addonlist content:\nwant %q\n got %q", expected, updated)
 	}
 }
 
