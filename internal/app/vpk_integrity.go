@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"vpk-manager/internal/parser"
+	"vpk-manager/internal/platform/protocol"
 )
 
 // VPKRepairResult describes a repaired copy. The source archive is never
@@ -64,6 +65,7 @@ func (a *App) InspectVPKIntegrityBatch(filePaths []string) []VPKIntegrityBatchRe
 // reported as non-repairable and are left untouched.
 func (a *App) RepairVPKIntegrity(filePath string) (VPKRepairResult, error) {
 	result := VPKRepairResult{SourcePath: filepath.Clean(strings.TrimSpace(filePath))}
+	workshopMeta, _ := LoadWorkshopMeta(result.SourcePath)
 	report, err := parser.InspectVPKIntegrity(filePath)
 	if err != nil {
 		return result, err
@@ -103,31 +105,92 @@ func (a *App) RepairVPKIntegrity(filePath string) (VPKRepairResult, error) {
 		addonInfoPath = filepath.Join(unpacked.OutputDir, "addoninfo.txt")
 	}
 
-	fallbackTitle := strings.TrimSuffix(filepath.Base(result.SourcePath), filepath.Ext(result.SourcePath))
-	repairedAddonInfo, addonInfoRepair := parser.BuildRepairedAddonInfoWithSummary(originalContent, fallbackTitle)
+	sourceBaseName := strings.TrimSuffix(filepath.Base(result.SourcePath), filepath.Ext(result.SourcePath))
+	addonInfoFallbackTitle := sourceBaseName
+	metadataFallbacks := make(map[string]string)
+	if workshopMeta != nil {
+		if strings.TrimSpace(workshopMeta.Title) != "" {
+			addonInfoFallbackTitle = workshopMeta.Title
+			metadataFallbacks["addontitle"] = workshopMeta.Title
+		}
+		metadataFallbacks["addonauthor"] = workshopMeta.Author
+		metadataFallbacks["addonDescription"] = workshopMeta.Description
+		if workshopMeta.WorkshopID != "" && !strings.HasPrefix(workshopMeta.WorkshopID, "direct-") && protocol.IsValidWorkshopID(workshopMeta.WorkshopID) {
+			metadataFallbacks["addonURL0"] = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + workshopMeta.WorkshopID
+		}
+	}
+	repairedAddonInfo, addonInfoRepair := parser.BuildRepairedAddonInfoWithMetadata(originalContent, addonInfoFallbackTitle, metadataFallbacks)
 	if err := os.WriteFile(addonInfoPath, []byte(repairedAddonInfo), 0644); err != nil {
 		return result, fmt.Errorf("无法写入修复后的 addoninfo.txt: %w", err)
 	}
 	result.AddonInfoRepair = addonInfoRepair
 
-	baseName := fallbackTitle + ".repaired"
+	baseName := sourceBaseName + ".repaired"
 	packed, err := a.packVPKDirectoryWithOptions(unpacked.OutputDir, filepath.Dir(result.SourcePath), false, baseName, nil)
 	if err != nil {
 		return result, fmt.Errorf("无法生成修复后的 VPK: %w", err)
 	}
 	result.OutputPath = packed.OutputPath
 	result.OriginalPreserved = true
+	copiedSidecars, err := copyRepairSidecars(result.SourcePath, result.OutputPath, workshopMeta)
+	if err != nil {
+		_ = os.Remove(result.OutputPath)
+		return result, fmt.Errorf("无法保留修复文件的工坊伴随信息: %w", err)
+	}
 	verified, verifyErr := parser.InspectVPKIntegrity(result.OutputPath)
 	if verifyErr != nil {
 		_ = os.Remove(result.OutputPath)
+		removeFiles(copiedSidecars)
 		return result, fmt.Errorf("修复结果无法检查: %w", verifyErr)
 	}
 	result.Report = verified
 	if !verified.Valid {
 		_ = os.Remove(result.OutputPath)
+		removeFiles(copiedSidecars)
 		return result, fmt.Errorf("修复结果仍存在错误，已删除未通过检查的输出文件")
 	}
 	return result, nil
+}
+
+// copyRepairSidecars preserves external metadata under the repaired basename.
+// Invalid or missing .meta files are ignored by the caller's nil metadata
+// value, while image sidecars are copied independently when present.
+func copyRepairSidecars(sourcePath, outputPath string, meta *WorkshopMeta) ([]string, error) {
+	sourceBase := strings.TrimSuffix(sourcePath, filepath.Ext(sourcePath))
+	outputBase := strings.TrimSuffix(outputPath, filepath.Ext(outputPath))
+	copied := make([]string, 0, 5)
+	cleanup := func(err error) ([]string, error) {
+		removeFiles(copied)
+		return nil, err
+	}
+	for _, ext := range []string{".jpg", ".jpeg", ".png", ".gif"} {
+		sourceSidecar := sourceBase + ext
+		if _, err := os.Stat(sourceSidecar); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return cleanup(err)
+		}
+		outputSidecar := outputBase + ext
+		if err := copyRegularFile(sourceSidecar, outputSidecar); err != nil {
+			return cleanup(err)
+		}
+		copied = append(copied, outputSidecar)
+	}
+	if meta != nil {
+		outputMetaPath := GetMetaFilePath(outputPath)
+		if err := copyRegularFile(GetMetaFilePath(sourcePath), outputMetaPath); err != nil {
+			return cleanup(err)
+		}
+		copied = append(copied, outputMetaPath)
+	}
+	return copied, nil
+}
+
+func removeFiles(paths []string) {
+	for _, path := range paths {
+		_ = os.Remove(path)
+	}
 }
 
 // RepairVPKIntegrityBatch repairs only the selected archives that pass the

@@ -180,6 +180,14 @@ func BuildRepairedAddonInfo(content, fallbackTitle string) string {
 // point used by the app layer. The plain BuildRepairedAddonInfo wrapper keeps
 // the parser API convenient for callers that only need the generated text.
 func BuildRepairedAddonInfoWithSummary(content, fallbackTitle string) (string, VPKAddonInfoRepairSummary) {
+	return BuildRepairedAddonInfoWithMetadata(content, fallbackTitle, nil)
+}
+
+// BuildRepairedAddonInfoWithMetadata repairs AddonInfo while using trusted
+// external metadata only as fallbacks. Existing non-empty fields always win;
+// callers can therefore merge Workshop metadata without overwriting author
+// supplied values already present in the archive.
+func BuildRepairedAddonInfoWithMetadata(content, fallbackTitle string, metadata map[string]string) (string, VPKAddonInfoRepairSummary) {
 	root := parseRepairAddonInfo(content)
 	if root == nil || !strings.EqualFold(root.Key, "AddonInfo") {
 		root = &repairKVNode{Key: "AddonInfo"}
@@ -193,6 +201,11 @@ func BuildRepairedAddonInfoWithSummary(content, fallbackTitle string) (string, V
 	if fallbackTitle == "" {
 		fallbackTitle = "未命名 VPK Mod"
 	}
+	if metadata != nil {
+		if metadataTitle := strings.TrimSpace(metadata["addontitle"]); metadataTitle != "" {
+			fallbackTitle = metadataTitle
+		}
+	}
 	for _, field := range []struct {
 		key   string
 		value string
@@ -205,8 +218,23 @@ func BuildRepairedAddonInfoWithSummary(content, fallbackTitle string) (string, V
 			summary.DerivedFields = append(summary.DerivedFields, field.key)
 		}
 	}
+	for _, field := range []struct {
+		key   string
+		value string
+	}{
+		{key: "addonauthor", value: strings.TrimSpace(metadata["addonauthor"])},
+		{key: "addonURL0", value: strings.TrimSpace(metadata["addonURL0"])},
+	} {
+		if field.value != "" && ensureRepairField(root, field.key, field.value) {
+			summary.DerivedFields = append(summary.DerivedFields, field.key)
+		}
+	}
 	if field := findRepairField(root, "addonDescription"); field == nil || strings.TrimSpace(field.Value) == "" {
-		if ensureRepairField(root, "addonDescription", "文件名："+fallbackTitle) {
+		description := strings.TrimSpace(metadata["addonDescription"])
+		if description == "" {
+			description = "文件名：" + fallbackTitle
+		}
+		if ensureRepairField(root, "addonDescription", description) {
 			summary.DerivedFields = append(summary.DerivedFields, "addonDescription")
 		}
 	}

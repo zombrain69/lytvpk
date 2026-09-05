@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.14-community.60 — 2026-09-05
+
+- 修复 VPK 完整性工具“修复并另存为”忽略同名创意工坊 `.meta` 的问题：现在优先使用工坊标题，并仅补全缺失的 `addoninfo.txt` 标题、作者、描述和 Workshop URL 字段。
+- 修复后的 VPK 会同步保留有效的 Workshop 元数据和同名预览图，改用 repaired 文件基名生成 sidecar；缺失或损坏的 `.meta` 会安全降级，不阻止 VPK 修复。
+- 新增缺失 `addoninfo.txt`、Workshop 元数据保留、预览图复制、原字段优先和损坏 `.meta` 降级回归测试。
+
 ## 2.5.14-community.59 — 2026-09-04
 
 - 修复设置页保存 `autoexec.cfg` 后刷新状态时引用未声明 `autoexecInfo` 导致保存提示失败的问题。

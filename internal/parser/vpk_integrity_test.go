@@ -79,3 +79,32 @@ func TestBuildRepairedAddonInfoUsesFilenameWhenMetadataMissing(t *testing.T) {
 		t.Fatalf("filename description was not added:\n%s", repaired)
 	}
 }
+
+func TestBuildRepairedAddonInfoUsesWorkshopFallbacksWithoutOverwritingFields(t *testing.T) {
+	content := `"AddonInfo"
+{
+	addontitle "作者原始标题"
+	addonDescription "作者原始描述"
+}
+`
+	repaired, summary := BuildRepairedAddonInfoWithMetadata(content, "文件名标题", map[string]string{
+		"addontitle":       "工坊标题",
+		"addonauthor":      "工坊作者",
+		"addonDescription": "工坊描述",
+		"addonURL0":        "https://steamcommunity.com/sharedfiles/filedetails/?id=123",
+	})
+	for _, expected := range []string{
+		`"addontitle"`, `"作者原始标题"`, `"作者原始描述"`,
+		`"addonauthor"`, `"工坊作者"`, `"addonURL0"`, `"https://steamcommunity.com/sharedfiles/filedetails/?id=123"`,
+	} {
+		if !strings.Contains(repaired, expected) {
+			t.Fatalf("repaired addoninfo missing %s:\n%s", expected, repaired)
+		}
+	}
+	if strings.Contains(repaired, "工坊标题") || strings.Contains(repaired, "工坊描述") {
+		t.Fatalf("workshop fallback overwrote existing fields:\n%s", repaired)
+	}
+	if len(summary.DerivedFields) == 0 {
+		t.Fatalf("repair summary did not record derived fields: %+v", summary)
+	}
+}
