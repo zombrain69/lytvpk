@@ -163,9 +163,16 @@ func TestConflictPriorityGoldenRegressionWithoutLayers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read golden (先运行 UPDATE_PRIORITY_GOLDEN=1 go test ./internal/app -run TestConflictPriorityGoldenRegressionWithoutLayers 生成基线): %v", err)
 	}
-	if string(want) != string(encoded) {
+	// 仓库没有 .gitattributes，Windows 检出（core.autocrlf=true）会把 testdata 转成 CRLF，
+	// 因此比较前统一换行，避免"本地通过、CI 失败"这种与内容无关的差异。
+	if normalizeGoldenNewlines(string(want)) != normalizeGoldenNewlines(string(encoded)) {
 		t.Fatalf("未分层时的冲突结果与黄金基线不一致:\n--- want ---\n%s\n--- got ---\n%s", want, encoded)
 	}
+}
+
+// normalizeGoldenNewlines 把 CRLF 归一化为 LF，供黄金快照比较使用。
+func normalizeGoldenNewlines(value string) string {
+	return strings.ReplaceAll(value, "\r\n", "\n")
 }
 
 func intPointer(value int) *int {
