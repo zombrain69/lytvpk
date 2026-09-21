@@ -21,6 +21,9 @@ type ConflictVPKFile struct {
 	Path     string `json:"path"`
 	Title    string `json:"title"`
 	Location string `json:"location"`
+	// Order 是该 VPK 在 addonlist.txt 中的 0 基顺序号；-1 表示未记录。
+	// 只有在优先级感知模式下才会填充真实值。
+	Order int `json:"order"`
 }
 
 type ConflictGroup struct {
@@ -31,9 +34,22 @@ type ConflictGroup struct {
 	Severity       string            `json:"severity"` // "critical", "warning", "info"
 }
 
+// ConflictOverrideGroup 描述一组"胜负已判定"的资源重叠：所有参与者都在
+// addonlist.txt 中记录了加载顺序，胜者由顺序号决定，因此不属于冲突。
+type ConflictOverrideGroup struct {
+	VpkFiles       []ConflictVPKFile `json:"vpk_files"`
+	Winner         ConflictVPKFile   `json:"winner"`
+	Files          []string          `json:"files"`
+	FileCount      int               `json:"file_count"`
+	FilesTruncated bool              `json:"files_truncated"`
+	Severity       string            `json:"severity"`
+}
+
 type ConflictResult struct {
-	TotalConflicts int             `json:"total_conflicts"`
-	ConflictGroups []ConflictGroup `json:"conflict_groups"`
+	TotalConflicts int                     `json:"total_conflicts"`
+	ConflictGroups []ConflictGroup         `json:"conflict_groups"`
+	TotalOverrides int                     `json:"total_overrides"`
+	OverrideGroups []ConflictOverrideGroup `json:"override_groups"`
 }
 
 // ConflictBaselineRule describes one condition used to select the Mods that
@@ -53,6 +69,24 @@ type ConflictAnalysisOptions struct {
 	TargetPaths   []string               `json:"targetPaths"`
 	BaselineRules []ConflictBaselineRule `json:"baselineRules"`
 	MatchMode     string                 `json:"matchMode"`
+	// PriorityAware 开启"按加载顺序判定胜负"的分析模式：可判定胜负的重叠
+	// 归入 OverrideGroups，只有无法判定胜负的重叠才留在冲突里。
+	PriorityAware bool `json:"priorityAware"`
+	// IgnoreFiles 是调用方附加的忽略清单，元素为归档内路径；
+	// 以 "/" 结尾的条目按目录前缀匹配。内置忽略规则始终生效。
+	IgnoreFiles []string `json:"ignoreFiles"`
+	// FullScan 让调用方在全量扫描（与 CheckConflicts 相同的范围）上使用新选项，
+	// 此时 TargetPaths 必须为空；未开启时保持"空 targetPaths = 空结果"的历史行为。
+	FullScan bool `json:"fullScan"`
+}
+
+// conflictCheckRequest 汇总一次冲突检查的全部输入，避免继续拉长参数列表。
+type conflictCheckRequest struct {
+	selectedPaths []string
+	baselineRules []ConflictBaselineRule
+	matchMode     string
+	priorityAware bool
+	ignoreFiles   conflictIgnoreSet
 }
 
 const (
@@ -74,6 +108,247 @@ type conflictGroupAccumulator struct {
 	files     []string
 	fileCount int
 	severity  string
+}
+
+// conflictOverrideAccumulator 与冲突累加器同构，额外记住胜者。
+type conflictOverrideAccumulator struct {
+	files      []string
+	fileCount  int
+	severity   string
+	winnerPath string
+}
+
+// conflictLoadEntry 是某个 addonlist 条目的加载顺序信息。
+type conflictLoadEntry struct {
+	Index   int
+	Enabled bool
+}
+
+// conflictLoadOrderTable 把 addonlist 条目名映射为加载顺序。
+type conflictLoadOrderTable struct {
+	entries map[string]conflictLoadEntry
+}
+
+// conflictOwner 是一次资源重叠中的某个 VPK 参与者。
+type conflictOwner struct {
+	Path string
+	// Index 为 addonlist 顺序号，仅在 Known 为真时有意义。
+	Index int
+	// Known 表示 addonlist.txt 是否记录了该 VPK。
+	Known bool
+	// Enabled 表示该条目在 addonlist.txt 中的开关值。
+	Enabled bool
+}
+
+type conflictDecisionKind string
+
+const (
+	conflictDecisionIgnore   conflictDecisionKind = "ignore"
+	conflictDecisionConflict conflictDecisionKind = "conflict"
+	conflictDecisionOverride conflictDecisionKind = "override"
+)
+
+type conflictDecision struct {
+	Kind        conflictDecisionKind
+	Owners      []conflictOwner
+	WinnerIndex int
+	WinnerPath  string
+}
+
+// conflictOrderWins 判定两个加载顺序号谁最终生效。LytVPK 现有文档的语义是
+// “加载顺序越靠后，通常越容易覆盖前面的资源”，因此顺序号更大者获胜。
+// 方向尚待在游戏内做受控实验确认；结论出来后只需修改这一处。
+func conflictOrderWins(candidate, current int) bool {
+	return candidate > current
+}
+
+// decideConflictOwners 按加载顺序把一次资源重叠归类为忽略、覆盖或冲突。
+// 规则：未加载的条目不参与；顺序号未知的参与者会让重叠无法判定胜负。
+func decideConflictOwners(owners []conflictOwner) conflictDecision {
+	participants := make([]conflictOwner, 0, len(owners))
+	for _, owner := range owners {
+		if owner.Known && !owner.Enabled {
+			// 游戏未加载的条目不会提供文件，因此不参与覆盖判定。
+			continue
+		}
+		participants = append(participants, owner)
+	}
+	if len(participants) < 2 {
+		return conflictDecision{Kind: conflictDecisionIgnore}
+	}
+
+	seen := make(map[int]string, len(participants))
+	for _, owner := range participants {
+		if !owner.Known {
+			return conflictDecision{Kind: conflictDecisionConflict, Owners: participants}
+		}
+		if _, duplicate := seen[owner.Index]; duplicate {
+			// 顺序号相同意味着先后关系未定义，仍按冲突处理。
+			return conflictDecision{Kind: conflictDecisionConflict, Owners: participants}
+		}
+		seen[owner.Index] = owner.Path
+	}
+
+	winner := participants[0]
+	for _, owner := range participants[1:] {
+		if conflictOrderWins(owner.Index, winner.Index) {
+			winner = owner
+		}
+	}
+	return conflictDecision{
+		Kind:        conflictDecisionOverride,
+		Owners:      participants,
+		WinnerIndex: winner.Index,
+		WinnerPath:  winner.Path,
+	}
+}
+
+// conflictIgnoreSet 保存调用方传入的忽略清单。
+type conflictIgnoreSet struct {
+	exact    map[string]struct{}
+	prefixes []string
+}
+
+// newConflictIgnoreSet 归一化忽略清单：路径大小写、分隔符与首尾空格都不敏感，
+// 以 "/" 结尾的条目按目录前缀匹配。
+func newConflictIgnoreSet(entries []string) conflictIgnoreSet {
+	set := conflictIgnoreSet{}
+	for _, entry := range entries {
+		normalized := normalizeConflictFilePath(entry)
+		if normalized == "" {
+			continue
+		}
+		if strings.HasSuffix(normalized, "/") {
+			prefix := strings.TrimSuffix(normalized, "/") + "/"
+			if prefix == "/" {
+				continue
+			}
+			set.prefixes = append(set.prefixes, prefix)
+			continue
+		}
+		if set.exact == nil {
+			set.exact = make(map[string]struct{})
+		}
+		set.exact[normalized] = struct{}{}
+	}
+	return set
+}
+
+// ShouldIgnore 的入参必须已经过 normalizeConflictFilePath 归一化。
+func (s conflictIgnoreSet) ShouldIgnore(normalizedPath string) bool {
+	if normalizedPath == "" {
+		return true
+	}
+	if _, ok := s.exact[normalizedPath]; ok {
+		return true
+	}
+	for _, prefix := range s.prefixes {
+		if strings.HasPrefix(normalizedPath, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsEmpty 表示当前没有任何额外忽略规则。
+func (s conflictIgnoreSet) IsEmpty() bool {
+	return len(s.exact) == 0 && len(s.prefixes) == 0
+}
+
+// normalizeConflictIgnoreFileList 归一化用户维护的忽略清单：去掉空行与注释行，
+// 统一使用 "/" 分隔符并转为小写（归档路径匹配本身不区分大小写），按序去重。
+func normalizeConflictIgnoreFileList(entries []string) []string {
+	if len(entries) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(entries))
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+		normalized := strings.ToLower(strings.ReplaceAll(trimmed, "\\", "/"))
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// conflictLoadOrderTable 读取 addonlist.txt 并建立顺序表。读取失败时返回空表，
+// 由调用方安全降级为"全部无法判定"。
+func (a *App) conflictLoadOrderTable() conflictLoadOrderTable {
+	list, _, err := a.readAddonList()
+	if err != nil || len(list) == 0 {
+		return conflictLoadOrderTable{}
+	}
+	table := conflictLoadOrderTable{entries: make(map[string]conflictLoadEntry, len(list))}
+	for index, item := range list {
+		key := normalizeAddonListKey(item.Name)
+		if key == "" {
+			continue
+		}
+		if _, exists := table.entries[key]; exists {
+			// 重复条目保留第一条，避免顺序号随写入顺序漂移。
+			continue
+		}
+		table.entries[key] = conflictLoadEntry{
+			Index:   index,
+			Enabled: strings.TrimSpace(item.Value) == "1",
+		}
+	}
+	return table
+}
+
+// ForPath 返回某个 VPK 路径的加载顺序；第二个返回值表示 addonlist 是否记录了它。
+func (t conflictLoadOrderTable) ForPath(rootDir, path string) (conflictLoadEntry, bool) {
+	if len(t.entries) == 0 || rootDir == "" {
+		return conflictLoadEntry{}, false
+	}
+	key, err := addonListKeyForManagedVPKPathFromRoot(rootDir, path)
+	if err != nil {
+		return conflictLoadEntry{}, false
+	}
+	entry, ok := t.entries[key]
+	return entry, ok
+}
+
+func conflictOwnersFromPaths(rootDir string, paths []string, loadOrder conflictLoadOrderTable) []conflictOwner {
+	owners := make([]conflictOwner, 0, len(paths))
+	for _, path := range paths {
+		entry, known := loadOrder.ForPath(rootDir, path)
+		owners = append(owners, conflictOwner{
+			Path:    path,
+			Index:   entry.Index,
+			Known:   known,
+			Enabled: entry.Enabled,
+		})
+	}
+	return owners
+}
+
+func conflictOwnerPaths(owners []conflictOwner) []string {
+	paths := make([]string, 0, len(owners))
+	for _, owner := range owners {
+		paths = append(paths, owner.Path)
+	}
+	return paths
+}
+
+// conflictGroupLess 统一冲突组与覆盖组的排序：先看严重度，再看文件数。
+func conflictGroupLess(severityA string, countA int, severityB string, countB int) bool {
+	si := getConflictSeverityRank(severityA)
+	sj := getConflictSeverityRank(severityB)
+	if si != sj {
+		return si > sj
+	}
+	return countA > countB
 }
 
 // getConflictSeverity 判断文件冲突严重程度
@@ -191,7 +466,7 @@ func (a *App) emitConflictProgress(progress ProgressInfo) {
 
 // CheckConflicts 检测VPK文件冲突
 func (a *App) CheckConflicts() (*ConflictResult, error) {
-	return a.checkConflicts(nil, nil, "or")
+	return a.checkConflicts(conflictCheckRequest{matchMode: "or"})
 }
 
 // CheckConflictsForPaths treats the supplied paths as analysis targets. Targets
@@ -206,14 +481,18 @@ func (a *App) CheckConflictsForPaths(paths []string) (*ConflictResult, error) {
 	if len(paths) > scopedConflictMaxVPKs {
 		return nil, fmt.Errorf("当前筛选包含 %d 个 Mod；当前最多支持 %d 个目标，请缩小筛选范围后再分析", len(paths), scopedConflictMaxVPKs)
 	}
-	return a.checkConflicts(paths, defaultConflictBaselineRules(), "or")
+	return a.checkConflicts(conflictCheckRequest{
+		selectedPaths: paths,
+		baselineRules: defaultConflictBaselineRules(),
+		matchMode:     "or",
+	})
 }
 
 // CheckConflictsWithOptions checks the selected target Mods against a baseline
 // chosen by the caller. It reuses the VPK metadata and archive file-list
 // caches, so changing a range normally avoids reparsing unchanged archives.
 func (a *App) CheckConflictsWithOptions(options ConflictAnalysisOptions) (*ConflictResult, error) {
-	if len(options.TargetPaths) == 0 {
+	if len(options.TargetPaths) == 0 && !options.FullScan {
 		return &ConflictResult{}, nil
 	}
 	if len(options.TargetPaths) > scopedConflictMaxVPKs {
@@ -224,10 +503,31 @@ func (a *App) CheckConflictsWithOptions(options ConflictAnalysisOptions) (*Confl
 	if err != nil {
 		return nil, err
 	}
-	return a.checkConflicts(options.TargetPaths, rules, matchMode)
+	if options.FullScan && len(options.TargetPaths) == 0 {
+		// 全量扫描不使用基线规则，行为与 CheckConflicts 的范围保持一致。
+		return a.checkConflicts(conflictCheckRequest{
+			matchMode:     matchMode,
+			priorityAware: options.PriorityAware,
+			ignoreFiles:   newConflictIgnoreSet(options.IgnoreFiles),
+		})
+	}
+	return a.checkConflicts(conflictCheckRequest{
+		selectedPaths: options.TargetPaths,
+		baselineRules: rules,
+		matchMode:     matchMode,
+		priorityAware: options.PriorityAware,
+		ignoreFiles:   newConflictIgnoreSet(options.IgnoreFiles),
+	})
 }
 
-func (a *App) checkConflicts(selectedPaths []string, baselineRules []ConflictBaselineRule, matchMode string) (*ConflictResult, error) {
+// conflictIgnoreFilesSnapshot 返回设置页维护的忽略清单副本。
+func (a *App) conflictIgnoreFilesSnapshot() []string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return append([]string(nil), a.conflictIgnoreFiles...)
+}
+
+func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) {
 	rootDir := a.rootDirectorySnapshot()
 
 	if rootDir == "" {
@@ -239,15 +539,21 @@ func (a *App) checkConflicts(selectedPaths []string, baselineRules []ConflictBas
 	}
 	defer a.conflictCheckMu.Unlock()
 
+	// 设置页维护的忽略清单对所有冲突检测入口生效；调用方显式传入的清单优先。
+	ignoreFiles := req.ignoreFiles
+	if ignoreFiles.IsEmpty() {
+		ignoreFiles = newConflictIgnoreSet(a.conflictIgnoreFilesSnapshot())
+	}
+
 	var vpkPaths []string
 	var targetSet map[string]struct{}
 	var baselineSet map[string]struct{}
-	if selectedPaths != nil {
-		targetPaths, err := a.collectConflictVPKPaths(selectedPaths)
+	if req.selectedPaths != nil {
+		targetPaths, err := a.collectConflictVPKPaths(req.selectedPaths)
 		if err != nil {
 			return nil, err
 		}
-		baselinePaths := a.collectConflictBaselineVPKPaths(baselineRules, matchMode)
+		baselinePaths := a.collectConflictBaselineVPKPaths(req.baselineRules, req.matchMode)
 		targetSet = pathSet(targetPaths)
 		baselineSet = pathSet(baselinePaths)
 		vpkPaths = mergeConflictPaths(targetPaths, baselinePaths)
@@ -320,7 +626,7 @@ func (a *App) checkConflicts(selectedPaths []string, baselineRules []ConflictBas
 			mu.Lock()
 			for _, f := range files {
 				lowerF := normalizeConflictFilePath(f)
-				if isIgnoredConflictFile(lowerF) {
+				if isIgnoredConflictFile(lowerF) || ignoreFiles.ShouldIgnore(lowerF) {
 					continue
 				}
 
@@ -355,18 +661,60 @@ func (a *App) checkConflicts(selectedPaths []string, baselineRules []ConflictBas
 		Message: "正在整理冲突结果...",
 	})
 
-	// VPK组合 -> 冲突摘要
+	// VPK组合 -> 冲突 / 覆盖摘要
 	// key: "vpkFullPath1|vpkFullPath2" (sorted)
 	conflictMap := make(map[string]*conflictGroupAccumulator)
+	overrideMap := make(map[string]*conflictOverrideAccumulator)
+
+	// 只有开启优先级感知时才读取 addonlist，默认路径保持零额外 I/O。
+	var loadOrder conflictLoadOrderTable
+	if req.priorityAware {
+		loadOrder = a.conflictLoadOrderTable()
+	}
 
 	for f, vpks := range conflictOwners {
-		if selectedPaths != nil {
+		if req.selectedPaths != nil {
 			vpks = scopedConflictOwners(vpks, targetSet, baselineSet)
 			if len(vpks) < 2 {
 				continue
 			}
 		}
 		sort.Strings(vpks)
+
+		if req.priorityAware {
+			decision := decideConflictOwners(conflictOwnersFromPaths(rootDir, vpks, loadOrder))
+			switch decision.Kind {
+			case conflictDecisionIgnore:
+				continue
+			case conflictDecisionOverride:
+				ownerPaths := conflictOwnerPaths(decision.Owners)
+				key := strings.Join(ownerPaths, "|")
+				acc, ok := overrideMap[key]
+				if !ok {
+					acc = &conflictOverrideAccumulator{
+						files:      make([]string, 0, min(conflictGroupFileListLimit, 16)),
+						severity:   "info",
+						winnerPath: decision.WinnerPath,
+					}
+					overrideMap[key] = acc
+				}
+				acc.fileCount++
+				if len(acc.files) < conflictGroupFileListLimit {
+					acc.files = append(acc.files, f)
+				}
+				if s := getConflictSeverity(f); getConflictSeverityRank(s) > getConflictSeverityRank(acc.severity) {
+					acc.severity = s
+				}
+				continue
+			default:
+				// 未判定的重叠仍按冲突处理，但参与者已剔除未加载条目。
+				vpks = conflictOwnerPaths(decision.Owners)
+				if len(vpks) < 2 {
+					continue
+				}
+			}
+		}
+
 		key := strings.Join(vpks, "|")
 		acc, ok := conflictMap[key]
 		if !ok {
@@ -391,20 +739,8 @@ func (a *App) checkConflicts(selectedPaths []string, baselineRules []ConflictBas
 		vpkFullPaths := strings.Split(key, "|")
 		sort.Strings(files) // 文件列表也排序
 
-		// 从缓存获取完整VPK信息
-		vpkInfos := make([]ConflictVPKFile, 0, len(vpkFullPaths))
-		for _, fullPath := range vpkFullPaths {
-			if cached, ok := a.vpkCache.Load(fullPath); ok {
-				cache := cached.(*VPKFileCache)
-				vpkInfos = append(vpkInfos, newConflictVPKFile(cache.File.Name, cache.File.Path, cache.File.Title, cache.File.Location))
-			} else {
-				// 缓存不存在时的兜底处理
-				vpkInfos = append(vpkInfos, newConflictVPKFile(filepath.Base(fullPath), fullPath, filepath.Base(fullPath), a.getLocationFromPath(fullPath)))
-			}
-		}
-
 		groups = append(groups, ConflictGroup{
-			VpkFiles:       vpkInfos,
+			VpkFiles:       a.conflictVPKFileInfos(rootDir, vpkFullPaths, loadOrder),
 			Files:          files,
 			FileCount:      acc.fileCount,
 			FilesTruncated: acc.fileCount > len(files),
@@ -412,22 +748,69 @@ func (a *App) checkConflicts(selectedPaths []string, baselineRules []ConflictBas
 		})
 	}
 
-	// 按严重程度和冲突数量排序 groups
-	sort.Slice(groups, func(i, j int) bool {
-		// 严重程度优先级: critical > warning > info
-		si := getConflictSeverityRank(groups[i].Severity)
-		sj := getConflictSeverityRank(groups[j].Severity)
+	overrideGroups := make([]ConflictOverrideGroup, 0, len(overrideMap))
+	for key, acc := range overrideMap {
+		files := acc.files
+		vpkFullPaths := strings.Split(key, "|")
+		sort.Strings(files) // 文件列表也排序
 
-		if si != sj {
-			return si > sj
+		vpkInfos := a.conflictVPKFileInfos(rootDir, vpkFullPaths, loadOrder)
+		winner := ConflictVPKFile{Order: -1}
+		for _, info := range vpkInfos {
+			if strings.EqualFold(filepath.Clean(info.Path), filepath.Clean(acc.winnerPath)) {
+				winner = info
+				break
+			}
 		}
-		return groups[i].FileCount > groups[j].FileCount
+
+		overrideGroups = append(overrideGroups, ConflictOverrideGroup{
+			VpkFiles:       vpkInfos,
+			Winner:         winner,
+			Files:          files,
+			FileCount:      acc.fileCount,
+			FilesTruncated: acc.fileCount > len(files),
+			Severity:       acc.severity,
+		})
+	}
+
+	// 按严重程度和文件数量排序冲突组与覆盖组
+	sort.Slice(groups, func(i, j int) bool {
+		return conflictGroupLess(groups[i].Severity, groups[i].FileCount, groups[j].Severity, groups[j].FileCount)
+	})
+	sort.Slice(overrideGroups, func(i, j int) bool {
+		return conflictGroupLess(overrideGroups[i].Severity, overrideGroups[i].FileCount, overrideGroups[j].Severity, overrideGroups[j].FileCount)
 	})
 
 	return &ConflictResult{
 		TotalConflicts: len(groups),
 		ConflictGroups: groups,
+		TotalOverrides: len(overrideGroups),
+		OverrideGroups: overrideGroups,
 	}, nil
+}
+
+// conflictVPKFileInfos 从缓存（或兜底元数据）构造前端展示用的 VPK 信息，
+// 并在优先级感知模式下附带 addonlist 顺序号。
+func (a *App) conflictVPKFileInfos(rootDir string, fullPaths []string, loadOrder conflictLoadOrderTable) []ConflictVPKFile {
+	infos := make([]ConflictVPKFile, 0, len(fullPaths))
+	for _, fullPath := range fullPaths {
+		var info ConflictVPKFile
+		if cached, ok := a.vpkCache.Load(fullPath); ok {
+			if cache, valid := cached.(*VPKFileCache); valid && cache != nil {
+				info = newConflictVPKFile(cache.File.Name, cache.File.Path, cache.File.Title, cache.File.Location)
+			}
+		}
+		if info.Path == "" {
+			// 缓存不存在时的兜底处理
+			info = newConflictVPKFile(filepath.Base(fullPath), fullPath, filepath.Base(fullPath), a.getLocationFromPath(fullPath))
+		}
+		info.Order = -1
+		if entry, known := loadOrder.ForPath(rootDir, fullPath); known {
+			info.Order = entry.Index
+		}
+		infos = append(infos, info)
+	}
+	return infos
 }
 
 func defaultConflictBaselineRules() []ConflictBaselineRule {

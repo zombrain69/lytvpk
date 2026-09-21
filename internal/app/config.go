@@ -58,6 +58,15 @@ func (a *App) ensureConfigPaths() {
 	if a.problemScanPath == "" {
 		a.problemScanPath = filepath.Join(a.configDir, "problem_mod_scan.json")
 	}
+	if a.profilesPath == "" {
+		a.profilesPath = filepath.Join(a.configDir, "profiles.json")
+	}
+	if a.groupsPath == "" {
+		a.groupsPath = filepath.Join(a.configDir, "groups.json")
+	}
+	if a.dependenciesPath == "" {
+		a.dependenciesPath = filepath.Join(a.configDir, "dependencies.json")
+	}
 }
 
 func (a *App) loadConfig() {
@@ -128,6 +137,10 @@ func (a *App) loadConfig() {
 	}
 	a.theme = config.Theme
 	a.ignoredVersion = config.IgnoredVersion
+	if config.ConflictPriorityAware != nil {
+		a.conflictPriorityAware = *config.ConflictPriorityAware
+	}
+	a.conflictIgnoreFiles = normalizeConflictIgnoreFileList(config.ConflictIgnoreFiles)
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
 	a.migrationVersion = config.MigrationVersion
 	a.mu.Unlock()
@@ -158,6 +171,8 @@ func (a *App) snapshotConfig() ConfigFile {
 	ctrlClickSelectionEnabled := a.ctrlClickSelectionEnabled
 	addonListGuardEnabled := a.addonListGuardEnabled
 	unrecordedModLoadOrderPlacement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
+	conflictPriorityAware := a.conflictPriorityAware
+	conflictIgnoreFiles := append([]string(nil), a.conflictIgnoreFiles...)
 
 	return ConfigFile{
 		ModRotationConfig:               a.modRotationConfig,
@@ -180,6 +195,8 @@ func (a *App) snapshotConfig() ConfigFile {
 		UIScale:                         normalizeUIScale(a.uiScale),
 		AddonListGuardEnabled:           &addonListGuardEnabled,
 		UnrecordedModLoadOrderPlacement: &unrecordedModLoadOrderPlacement,
+		ConflictPriorityAware:           &conflictPriorityAware,
+		ConflictIgnoreFiles:             conflictIgnoreFiles,
 		Theme:                           a.theme,
 		IgnoredVersion:                  a.ignoredVersion,
 		LastUpdateCheckTime:             a.lastUpdateCheckTime,
@@ -249,6 +266,12 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	}
 	if config.UnrecordedModLoadOrderPlacement != nil {
 		a.unrecordedModLoadOrderPlacement = normalizeAddonListUnrecordedPlacement(*config.UnrecordedModLoadOrderPlacement)
+	}
+	if config.ConflictPriorityAware != nil {
+		a.conflictPriorityAware = *config.ConflictPriorityAware
+	}
+	if config.ConflictIgnoreFiles != nil {
+		a.conflictIgnoreFiles = normalizeConflictIgnoreFileList(config.ConflictIgnoreFiles)
 	}
 	a.defaultDirectory = config.DefaultDirectory
 	a.savedDirectories = cloneSavedDirectories(config.SavedDirectories)
@@ -642,6 +665,15 @@ func writeJSONFile(dir string, path string, value interface{}) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0644)
+}
+
+// newLocalRecordID 生成配置目录里本地记录的 ID（启用方案、策略组等）。
+func newLocalRecordID() string {
+	buffer := make([]byte, 12)
+	if _, err := rand.Read(buffer); err != nil {
+		return "local-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	return hex.EncodeToString(buffer)
 }
 
 func cloneSavedDirectories(dirs []SavedDirectory) []SavedDirectory {

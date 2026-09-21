@@ -46,11 +46,24 @@ type WorkshopDetailsGroup struct {
 	Main              WorkshopFileDetails   `json:"main"`
 	Items             []WorkshopFileDetails `json:"items"`
 	DownloadableItems []WorkshopFileDetails `json:"downloadable_items"`
+	// ChildCollectionsTruncated 表示子合集嵌套过深，已达到展开上限。
+	ChildCollectionsTruncated bool `json:"child_collections_truncated"`
 }
 
 type WorkshopDetailsResult struct {
 	Groups []WorkshopDetailsGroup `json:"groups"`
 }
+
+const (
+	// workshopCollectionExpandLimit 限制单次解析最多展开多少个子合集，
+	// 避免异常数据导致大量接口请求。
+	workshopCollectionExpandLimit = 20
+	// workshopCollectionFetchChunk 控制单次批量请求的 ID 数量。
+	workshopCollectionFetchChunk = 50
+)
+
+// workshopDetailFetcher 批量获取工坊详情（payload 形如 [1,2,3]）。
+type workshopDetailFetcher func(payload string) ([]WorkshopFileDetails, error)
 
 type DownloadTask struct {
 	ID             string             `json:"id"`
@@ -303,24 +316,85 @@ func (a *App) getWorkshopDetailsGroup(rootID string) (WorkshopDetailsGroup, erro
 	}
 
 	main := details[0]
-	childrenDetails := []WorkshopFileDetails{}
-	if len(main.Children) > 0 {
-		childIDs := make([]string, 0, len(main.Children))
-		for _, child := range main.Children {
-			if child.PublishedFileId != "" {
-				childIDs = append(childIDs, child.PublishedFileId)
-			}
-		}
-
-		if len(childIDs) > 0 {
-			childrenDetails, err = a.fetchWorkshopDetails(workshopPayload(childIDs))
-			if err != nil {
-				return WorkshopDetailsGroup{}, fmt.Errorf("failed to fetch children details: %v", err)
-			}
-		}
+	items, truncated, err := collectWorkshopGroupItems(rootID, main, a.fetchWorkshopDetails, workshopCollectionExpandLimit)
+	if err != nil {
+		return WorkshopDetailsGroup{}, fmt.Errorf("failed to fetch children details: %v", err)
 	}
 
-	return buildWorkshopDetailsGroup(rootID, main, childrenDetails), nil
+	childrenDetails := []WorkshopFileDetails{}
+	if len(items) > 1 {
+		childrenDetails = items[1:]
+	}
+	group := buildWorkshopDetailsGroup(rootID, main, childrenDetails)
+	group.ChildCollectionsTruncated = truncated
+	return group, nil
+}
+
+// collectWorkshopGroupItems 从根条目出发递归展开子合集，返回去重后的全部条目
+// （含根条目与子合集本身）。seen 集合同时承担循环引用保护。
+func collectWorkshopGroupItems(rootID string, root WorkshopFileDetails, fetch workshopDetailFetcher, maxCollections int) ([]WorkshopFileDetails, bool, error) {
+	items := []WorkshopFileDetails{root}
+	seen := map[string]bool{}
+	if id := strings.TrimSpace(root.PublishedFileId); id != "" {
+		seen[id] = true
+	} else if id := strings.TrimSpace(rootID); id != "" {
+		seen[id] = true
+	}
+
+	queue := make([]string, 0, len(root.Children))
+	for _, child := range root.Children {
+		queue = appendUniqueWorkshopID(queue, seen, child.PublishedFileId)
+	}
+
+	expanded := 0
+	truncated := false
+	for len(queue) > 0 {
+		next := make([]string, 0)
+		for start := 0; start < len(queue); start += workshopCollectionFetchChunk {
+			end := min(start+workshopCollectionFetchChunk, len(queue))
+			details, err := fetch(workshopPayload(queue[start:end]))
+			if err != nil {
+				return items, truncated, err
+			}
+			for _, detail := range details {
+				id := strings.TrimSpace(detail.PublishedFileId)
+				if id == "" || seen[id] {
+					continue
+				}
+				seen[id] = true
+				items = append(items, detail)
+
+				if len(detail.Children) == 0 {
+					continue
+				}
+				if expanded >= maxCollections {
+					// 达到展开上限：保留条目本身，但不再继续向下展开。
+					truncated = true
+					continue
+				}
+				expanded++
+				for _, child := range detail.Children {
+					next = appendUniqueWorkshopID(next, seen, child.PublishedFileId)
+				}
+			}
+		}
+		queue = next
+	}
+	return items, truncated, nil
+}
+
+// appendUniqueWorkshopID 把尚未见过的 ID 追加到待处理列表。
+func appendUniqueWorkshopID(target []string, seen map[string]bool, id string) []string {
+	id = strings.TrimSpace(id)
+	if id == "" || seen[id] {
+		return target
+	}
+	for _, existing := range target {
+		if existing == id {
+			return target
+		}
+	}
+	return append(target, id)
 }
 
 func workshopPayload(ids []string) string {

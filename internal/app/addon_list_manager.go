@@ -249,10 +249,13 @@ func (a *App) ListAddonListBackups() ([]AddonListBackup, error) {
 		name := entry.Name()
 		base := strings.TrimSuffix(name, filepath.Ext(name))
 		kind := strings.SplitN(base, "-", 2)[0]
-		// Most backup kinds use one leading word. Preserve the legacy
-		// game-save marker so old backups can still be identified in settings.
-		if strings.HasPrefix(base, "game-save-") {
-			kind = "game-save"
+		// 大多数备份类型是单个词；多词类型需要保留完整前缀，
+		// 其中 game-save 是旧版本遗留的标记，仍要能被识别。
+		for _, multiWordKind := range []string{"game-save", "before-profile-apply", "before-health-fix"} {
+			if base == multiWordKind || strings.HasPrefix(base, multiWordKind+"-") {
+				kind = multiWordKind
+				break
+			}
 		}
 		backups = append(backups, AddonListBackup{
 			Name:      name,

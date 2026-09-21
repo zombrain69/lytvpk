@@ -918,20 +918,24 @@ func (a *App) cleanupAddonListForRemovedVPK(filePath string, cachedFile *VPKFile
 
 // SetVPKGameEnabled 更新 addonlist.txt 中某个已扫描 VPK 的游戏内开关。
 // 该操作不会移动文件，也不会改变本程序 disabled 目录的文件管理状态。
-func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
+// 返回值是本次操作通过策略组自动联动一并改动的其它成员数量。
+func (a *App) SetVPKGameEnabled(filePath string, enabled bool) (int, error) {
 	a.addonListGuardMu.Lock()
 	defer a.addonListGuardMu.Unlock()
+	return a.setVPKGameEnabledLocked(filePath, enabled)
+}
 
+func (a *App) setVPKGameEnabledLocked(filePath string, enabled bool) (int, error) {
 	a.mu.RLock()
 	cached, ok := a.vpkCache.Load(filePath)
 	if !ok {
 		a.mu.RUnlock()
-		return fmt.Errorf("文件未找到: %s", filePath)
+		return 0, fmt.Errorf("文件未找到: %s", filePath)
 	}
 	cache := cached.(*VPKFileCache)
 	if cache.File.Location == "disabled" {
 		a.mu.RUnlock()
-		return fmt.Errorf("文件位于 disabled 目录，无法设置游戏内开关")
+		return 0, fmt.Errorf("文件位于 disabled 目录，无法设置游戏内开关")
 	}
 	vpkPath := cache.File.Path
 	wasUnrecorded := !cache.File.GameStateKnown
@@ -939,24 +943,24 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
 	a.mu.RUnlock()
 	targetKey, err := a.addonListKeyForVPKPath(vpkPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// Use the exact on-disk spelling whenever an entry has to be inserted.
 	// The normalized key above remains the case-insensitive comparison key;
 	// existing lines are still updated in place without changing their name.
 	entryName, err := a.addonListDisplayKeyForVPKPath(vpkPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	doc, err := a.readAddonListDocument()
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return err
+			return 0, err
 		}
 		path, pathErr := a.addonListPath()
 		if pathErr != nil {
-			return pathErr
+			return 0, pathErr
 		}
 		doc = addonListDocument{
 			path:     path,
@@ -976,12 +980,22 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
 		updatedContent, _, err = replaceAddonListValueWithName(doc.content, targetKey, entryName, value)
 	}
 	if err != nil {
-		return err
-	}
-	if err := a.writeAddonListDocument(doc, updatedContent); err != nil {
-		return err
+		return 0, err
 	}
 
+	// 策略组联动：只处理开启了"自动联动"的策略组，且只联动一层。
+	enforcedCount, err := a.applyStrategyGroupEnforcementLocked(&updatedContent, targetKey, enabled)
+	if err != nil {
+		return 0, err
+	}
+	if err := a.writeAddonListDocument(doc, updatedContent); err != nil {
+		return 0, err
+	}
+
+	if enforcedCount > 0 {
+		// 组内其它成员也被改写：直接从文件刷新所有缓存状态。
+		a.applyAddonListGameStates()
+	}
 	a.mu.Lock()
 	if latest, found := a.vpkCache.Load(filePath); found {
 		cache = latest.(*VPKFileCache)
@@ -991,7 +1005,7 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) error {
 	a.vpkCache.Store(filePath, cache)
 	a.mu.Unlock()
 	if err := a.syncManagedAddonListSnapshotLocked(doc.path); err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return enforcedCount, nil
 }

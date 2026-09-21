@@ -159,7 +159,7 @@ func TestUnrecordedGameStateIsNotRewrittenAfterGameSave(t *testing.T) {
 	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{
 		Path: vpkPath, Name: "AWM Mon3tr.vpk", Location: "root",
 	}})
-	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+	if _, err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
 		t.Fatalf("SetVPKGameEnabled: %v", err)
 	}
 

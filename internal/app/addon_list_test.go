@@ -221,7 +221,7 @@ func TestSetVPKGameEnabledPreservesGBKLayoutAndWorkshopKey(t *testing.T) {
 	app := &App{rootDir: addonsDir}
 	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: "123.vpk", Location: "workshop"}})
 
-	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+	if _, err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
 		t.Fatalf("SetVPKGameEnabled: %v", err)
 	}
 
@@ -277,7 +277,7 @@ func TestSetVPKGameEnabledPlacesUnrecordedEntryAndPreservesGBK(t *testing.T) {
 	})
 	app := &App{rootDir: addonsDir, unrecordedModLoadOrderPlacement: addonListUnrecordedPlacementAfterEnabled}
 	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: "new.vpk", Location: "root"}})
-	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+	if _, err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
 		t.Fatalf("SetVPKGameEnabled: %v", err)
 	}
 
@@ -322,7 +322,7 @@ func TestSetVPKGameEnabledHandlesGBKRootFilename(t *testing.T) {
 	})
 	app := &App{rootDir: addonsDir}
 	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: name, Location: "root"}})
-	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+	if _, err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
 		t.Fatalf("SetVPKGameEnabled: %v", err)
 	}
 
@@ -363,7 +363,7 @@ func TestSetVPKGameEnabledAddsMissingEntryAndPreservesUTF8BOM(t *testing.T) {
 	app := &App{rootDir: addonsDir}
 	app.vpkCache.Store(vpkPath, &VPKFileCache{File: VPKFile{Path: vpkPath, Name: "new.vpk", Location: "root"}})
 
-	if err := app.SetVPKGameEnabled(vpkPath, false); err != nil {
+	if _, err := app.SetVPKGameEnabled(vpkPath, false); err != nil {
 		t.Fatalf("SetVPKGameEnabled: %v", err)
 	}
 
@@ -409,7 +409,7 @@ func TestSetVPKGameEnabledAllowsInvalidRootAddonInfoAndWritesAddonList(t *testin
 		GameEnabled: true, GameStateKnown: true,
 	}})
 
-	if err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
+	if _, err := app.SetVPKGameEnabled(vpkPath, true); err != nil {
 		t.Fatalf("SetVPKGameEnabled: %v", err)
 	}
 	updated, readErr := os.ReadFile(addonListPath)

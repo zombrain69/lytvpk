@@ -158,6 +158,8 @@ type App struct {
 	ctrlClickSelectionEnabled       bool
 	uiScale                         float64
 	unrecordedModLoadOrderPlacement string
+	conflictPriorityAware           bool
+	conflictIgnoreFiles             []string
 	theme                           string
 	ignoredVersion                  string
 	lastUpdateCheckTime             string
@@ -166,6 +168,12 @@ type App struct {
 	serversPath                     string
 	workshopWatchLaterPath          string
 	problemScanPath                 string
+	profilesPath                    string
+	profilesMu                      sync.Mutex
+	groupsPath                      string
+	groupsMu                        sync.Mutex
+	dependenciesPath                string
+	dependenciesMu                  sync.Mutex
 }
 
 // rootDirectorySnapshot returns a consistent directory value for background
@@ -211,7 +219,9 @@ type ConfigFile struct {
 	IgnoredVersion                  string           `json:"ignoredVersion"`
 	LastUpdateCheckTime             string           `json:"lastUpdateCheckTime"`
 	// migrationVersion=2 表示前端 localStorage 配置已迁移到配置目录。
-	MigrationVersion int `json:"migrationVersion"`
+	MigrationVersion      int      `json:"migrationVersion"`
+	ConflictPriorityAware *bool    `json:"conflictPriorityAware,omitempty"`
+	ConflictIgnoreFiles   []string `json:"conflictIgnoreFiles,omitempty"`
 }
 
 // RotationConfig Mod轮换配置
@@ -309,6 +319,9 @@ func NewApp() *App {
 	serversPath := filepath.Join(appConfigDir, "servers.json")
 	workshopWatchLaterPath := filepath.Join(appConfigDir, "workshop_watch_later.json")
 	problemScanPath := filepath.Join(appConfigDir, "problem_mod_scan.json")
+	profilesPath := filepath.Join(appConfigDir, "profiles.json")
+	groupsPath := filepath.Join(appConfigDir, "groups.json")
+	dependenciesPath := filepath.Join(appConfigDir, "dependencies.json")
 
 	app := &App{
 		goroutinePool:                   pool,
@@ -319,6 +332,9 @@ func NewApp() *App {
 		serversPath:                     serversPath,
 		workshopWatchLaterPath:          workshopWatchLaterPath,
 		problemScanPath:                 problemScanPath,
+		profilesPath:                    profilesPath,
+		groupsPath:                      groupsPath,
+		dependenciesPath:                dependenciesPath,
 		workshopPreferredIP:             true,     // 默认开启优选IP
 		workshopMetaEnabled:             true,     // 默认开启工坊meta信息存储
 		workshopBrowserTarget:           "mirror", // 默认使用镜像站
