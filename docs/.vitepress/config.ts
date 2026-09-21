@@ -49,6 +49,7 @@ export default defineConfig({
             items: [
               { text: "问题 Mod 查找", link: "/toolbox/problem-mod-scan" },
               { text: "Mod 冲突检测", link: "/toolbox/conflict-check" },
+              { text: "Mod 体检", link: "/toolbox/mod-health-check" },
               { text: "模型面数检测", link: "/toolbox/model-stats" },
               { text: "VPK 解包", link: "/toolbox/vpk-unpack" },
               { text: "VPK 打包", link: "/toolbox/vpk-pack" },
