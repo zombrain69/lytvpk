@@ -1,0 +1,63 @@
+{
+  "totalConflicts": 1,
+  "totalOverrides": 1,
+  "conflictGroups": [
+    {
+      "vpkFiles": [
+        {
+          "name": "a.vpk",
+          "location": "root",
+          "order": 0
+        },
+        {
+          "name": "b.vpk",
+          "location": "root",
+          "order": 2
+        },
+        {
+          "name": "c.vpk",
+          "location": "root",
+          "order": -1
+        },
+        {
+          "name": "123.vpk",
+          "location": "workshop",
+          "order": 1
+        }
+      ],
+      "files": [
+        "materials/shared.vtf"
+      ],
+      "fileCount": 1,
+      "filesTruncated": false,
+      "severity": "info"
+    }
+  ],
+  "overrideGroups": [
+    {
+      "vpkFiles": [
+        {
+          "name": "a.vpk",
+          "location": "root",
+          "order": 0
+        },
+        {
+          "name": "123.vpk",
+          "location": "workshop",
+          "order": 1
+        }
+      ],
+      "files": [
+        "materials/decided.vtf"
+      ],
+      "fileCount": 1,
+      "filesTruncated": false,
+      "severity": "info",
+      "winner": {
+        "name": "123.vpk",
+        "location": "workshop",
+        "order": 1
+      }
+    }
+  ]
+}

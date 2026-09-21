@@ -12,6 +12,9 @@ export async function renderAboutPage({
   GetAppVersion,
   CheckUpdate,
   showUpdateModal,
+  GetCrashReportDirectory,
+  ListCrashReports,
+  OpenFileLocation,
 } = {}) {
   const container = document.getElementById("about-page-content");
   if (!container) return;
@@ -81,6 +84,21 @@ export async function renderAboutPage({
           </div>
           <div id="about-update-status" class="about-update-status" aria-live="polite"></div>
         </div>
+
+        <div class="about-info-panel about-action-panel">
+          <div class="about-panel-title">崩溃报告</div>
+          <p class="about-panel-desc">
+            本应用捕获自己的 panic 与前端未处理异常，写成**只保存在本机**的报告
+            （版本、堆栈、日志尾部），不会联网上传。游戏/系统的原生崩溃转储仍用
+            “工具箱 → 崩溃转储查看器”打开。
+          </p>
+          <div class="about-actions">
+            <button id="about-open-crash-dir-btn" class="about-action-btn" type="button">
+              <span>打开崩溃报告目录</span>
+            </button>
+          </div>
+          <div id="about-crash-status" class="about-update-status" aria-live="polite"></div>
+        </div>
       </section>
     </div>
   `;
@@ -89,12 +107,22 @@ export async function renderAboutPage({
     BrowserOpenURL,
     CheckUpdate,
     showUpdateModal,
+    GetCrashReportDirectory,
+    ListCrashReports,
+    OpenFileLocation,
   });
 
   await hydrateVersion(GetAppVersion);
 }
 
-function bindAboutActions({ BrowserOpenURL, CheckUpdate, showUpdateModal } = {}) {
+function bindAboutActions({
+  BrowserOpenURL,
+  CheckUpdate,
+  showUpdateModal,
+  GetCrashReportDirectory,
+  ListCrashReports,
+  OpenFileLocation,
+} = {}) {
   document.querySelectorAll("#about-page-content [data-about-url]").forEach((button) => {
     button.addEventListener("click", () => {
       const url = button.dataset.aboutUrl;
@@ -109,6 +137,34 @@ function bindAboutActions({ BrowserOpenURL, CheckUpdate, showUpdateModal } = {})
 
   document.getElementById("about-check-update-btn")?.addEventListener("click", async () => {
     await checkAboutUpdate({ CheckUpdate, showUpdateModal });
+  });
+
+  // 崩溃报告：只在本机，用户可自行打开目录查看/删除。
+  const crashStatus = document.getElementById("about-crash-status");
+  void (async () => {
+    if (typeof ListCrashReports !== "function" || !crashStatus) return;
+    try {
+      const reports = (await ListCrashReports()) || [];
+      crashStatus.textContent =
+        reports.length === 0
+          ? "本机还没有崩溃报告"
+          : `本机有 ${reports.length} 份崩溃报告（最新：${reports[0]?.createdAt || "未知时间"}）`;
+    } catch (error) {
+      crashStatus.textContent = "读取崩溃报告失败: " + String(error?.message || error);
+    }
+  })();
+  document.getElementById("about-open-crash-dir-btn")?.addEventListener("click", async () => {
+    if (typeof GetCrashReportDirectory !== "function" || typeof OpenFileLocation !== "function") return;
+    try {
+      const dir = await GetCrashReportDirectory();
+      if (!dir) {
+        if (crashStatus) crashStatus.textContent = "未配置配置目录，暂无可打开的崩溃报告目录";
+        return;
+      }
+      await OpenFileLocation(dir);
+    } catch (error) {
+      if (crashStatus) crashStatus.textContent = "打开崩溃报告目录失败: " + String(error?.message || error);
+    }
   });
 }
 

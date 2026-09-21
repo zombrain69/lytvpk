@@ -1,0 +1,45 @@
+{
+  "app": {
+    "name": "LytVPK"
+  },
+  "toolbox": {
+    "title": "工具箱",
+    "subtitle": "集中放置 Mod 排查、状态验证和常用维护工具。",
+    "section": {
+      "diagnostics": {
+        "title": "诊断工具",
+        "description": "用于排查 Mod 问题、冲突和资源状态。"
+      },
+      "gameConfig": {
+        "title": "游戏配置",
+        "description": "检查并维护游戏启动时读取的配置文件。"
+      },
+      "packaging": {
+        "title": "打包与解包",
+        "description": "查看、拆解和重新打包 VPK 资源。"
+      }
+    },
+    "card": {
+      "problemScan": {
+        "title": "问题 Mod 查找",
+        "description": "按二分法保留当前测试半区，逐轮缩小单个问题 Mod 的范围。",
+        "statusActive": "查找中",
+        "statusIdle": "待开始",
+        "actionActive": "继续查找",
+        "actionIdle": "打开查找工具"
+      },
+      "conflictCheck": {
+        "title": "Mod 冲突检测",
+        "description": "扫描当前 Mod 文件覆盖关系，按严重程度查看可能冲突的文件组。",
+        "status": "可检测",
+        "action": "开始检测"
+      },
+      "modelStats": {
+        "title": "Mod 模型面数检测",
+        "description": "读取启用和创意工坊 Mod 内模型的 LOD0 顶点数与三角形数量，快速定位高面数资源。",
+        "status": "可检测",
+        "action": "打开检测工具"
+      }
+    }
+  }
+}

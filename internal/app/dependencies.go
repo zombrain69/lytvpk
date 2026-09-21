@@ -74,6 +74,7 @@ func (a *App) writeModDependencyStore(store modDependencyStore) error {
 	if store.Records == nil {
 		store.Records = []ModDependencyRecord{}
 	}
+	a.backupLocalStoreFileIfNeeded(path)
 	return writeJSONFile(a.configDir, path, store)
 }
 

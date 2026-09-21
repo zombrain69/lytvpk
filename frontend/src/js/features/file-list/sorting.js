@@ -1,7 +1,8 @@
 import { appState } from "../state.js";
 import { showNotification, showError } from "../../core/toast.js";
 import { renderFileList } from "./render.js";
-import { GetAddonListOrder } from "../../../../wailsjs/go/app/App";
+import { GetAddonListOrder, GetModPriorityPlan } from "../../../../wailsjs/go/app/App";
+import { buildPriorityPlanMap } from "./priority-label.mjs";
 
 let loadOrderHighlightTimer = null;
 
@@ -200,14 +201,28 @@ export async function refreshLoadOrderMap({ silent = false } = {}) {
         appState.loadOrderMap.set(key, index);
       }
     });
+    await refreshPriorityPlanMap();
     return orderList || [];
   } catch (error) {
     // 刷新文件列表时 addonlist.txt 可能尚未生成；不能继续沿用旧映射，
     // 否则新扫描到的 Mod 会显示过期的优先级，且新条目永远没有编号。
     appState.loadOrderMap.clear();
+    appState.priorityPlanMap = null;
     if (!silent) throw error;
     console.warn("刷新加载顺序映射失败，暂不显示优先级:", error);
     return [];
+  }
+}
+
+// refreshPriorityPlanMap 拉取统一优先级模型的有效分层明细。
+// 失败时清空而不是沿用旧值：宁可不显示分层，也不能展示过期意图。
+async function refreshPriorityPlanMap() {
+  try {
+    const plan = await GetModPriorityPlan();
+    appState.priorityPlanMap = buildPriorityPlanMap(plan);
+  } catch (error) {
+    appState.priorityPlanMap = null;
+    console.warn("刷新优先级分层失败，列表仅显示顺序号:", error);
   }
 }
 

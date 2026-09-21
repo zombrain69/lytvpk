@@ -15,6 +15,15 @@ import (
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// 尽早安装崩溃上报：之后的启动步骤（协议注册、目录恢复、任务扫描）
+	// 一旦 panic，都会留下带版本与日志尾部的本地报告。
+	a.InstallCrashReporter()
+	defer func() {
+		// 启动阶段的 panic 同样要变成报告而不是静默退出。
+		if r := recover(); r != nil {
+			a.runGuarded("启动流程", func() { panic(r) })
+		}
+	}()
 
 	// 启动单例监听器，接收来自其他实例的URL参数
 	singletonMgr, err := StartSingletonListener(a)
@@ -137,6 +146,7 @@ func (a *App) beforeClose() (prevent bool) {
 		if a.singletonMgr != nil {
 			a.singletonMgr.Close()
 		}
+		a.CloseCrashReporter()
 		return false
 	}
 
@@ -150,6 +160,7 @@ func (a *App) beforeClose() (prevent bool) {
 	if a.singletonMgr != nil {
 		a.singletonMgr.Close()
 	}
+	a.CloseCrashReporter()
 	return false
 }
 

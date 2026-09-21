@@ -1,0 +1,22 @@
+# 原版文件白名单 · 批次 1：引擎胶水文件（高精度，默认启用）
+#
+# 这些路径的特点：几乎每个 Mod 都可能附带一份完全相同的原版副本，
+# 两份副本互相"覆盖"没有任何实际意义，属于典型的冲突误报。
+#
+# 来源与依据：
+# - ktxiaok/FireAxe v0.7.3 (Apache-2.0) `FireAxe.Core/AddonConflictUtils.cs:48-55`
+#   的内置忽略集合（addoninfo / addonimage / sound.cache / *_addon.nut）。
+# - 本机 Left 4 Dead 2 `left4dead2/pak01_dir.vpk` 索引核对：这些路径确实存在于原版
+#   包内（scripts/vscripts/*_addon.nut、sound/sound.cache）。
+#
+# 格式：每行一个归档内路径（"\" 会被归一化为 "/"），以 "/" 结尾表示目录；# 开头为注释。
+
+addoninfo.txt
+addoninfo.jpg
+addonimage.jpg
+addonimage.vtf
+sound/sound.cache
+scripts/vscripts/mapspawn_addon.nut
+scripts/vscripts/response_testbed_addon.nut
+scripts/vscripts/scriptedmode_addon.nut
+scripts/vscripts/director_base_addon.nut

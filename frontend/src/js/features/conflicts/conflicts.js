@@ -1,5 +1,10 @@
 import { appState } from "../state.js";
 import { getConfig, saveConfig } from "../../core/config.js";
+import { formatPriorityLabel } from "../file-list/priority-label.mjs";
+import {
+  applyConflictFixSuggestion,
+  loadConflictFixSuggestions,
+} from "./conflict-recheck.js";
 import {
   GetAddonListLoadOrderEntries,
   SetVPKLoadOrder,
@@ -739,6 +744,119 @@ function renderConflictResults(result) {
   }
 
   renderConflictOverrideSection(overrideGroups);
+  renderConflictModIgnoreSection(result);
+  void renderConflictFixSection();
+}
+
+const CONFLICT_FIX_LIMIT = 5;
+let currentConflictFixSuggestions = [];
+
+// renderConflictFixSection 展示变更驱动复检给出的"建议"。
+// 采纳按钮只保存分层（priority.json），不会重排 addonlist.txt。
+async function renderConflictFixSection() {
+  const section = document.getElementById("conflict-fix-section");
+  const list = document.getElementById("conflict-fix-list");
+  if (!section || !list) return;
+
+  currentConflictFixSuggestions = await loadConflictFixSuggestions();
+  if (!currentConflictFixSuggestions.length) {
+    section.classList.add("hidden");
+    list.replaceChildren();
+    return;
+  }
+
+  section.classList.remove("hidden");
+  const countEl = document.getElementById("conflict-fix-count");
+  if (countEl) countEl.textContent = `${currentConflictFixSuggestions.length} 条`;
+
+  list.replaceChildren();
+  currentConflictFixSuggestions.slice(0, CONFLICT_FIX_LIMIT).forEach((suggestion, index) => {
+    const row = document.createElement("div");
+    row.className = "conflict-fix-item";
+    const text = document.createElement("span");
+    text.className = "conflict-fix-summary";
+    text.textContent = String(suggestion?.summary || "");
+    row.appendChild(text);
+
+    if (suggestion?.action === "set-tier" && Number.isInteger(Number(suggestion.suggestedTier))) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-small btn-secondary conflict-fix-apply";
+      button.dataset.fixIndex = String(index);
+      button.textContent = `设置分层 ${suggestion.suggestedTier}`;
+      row.appendChild(button);
+    } else {
+      const hint = document.createElement("span");
+      hint.className = "conflict-fix-manual";
+      hint.textContent = "需手动处理";
+      row.appendChild(hint);
+    }
+    list.appendChild(row);
+  });
+
+  if (currentConflictFixSuggestions.length > CONFLICT_FIX_LIMIT) {
+    const more = document.createElement("div");
+    more.className = "conflict-fix-more";
+    more.textContent = `仅显示前 ${CONFLICT_FIX_LIMIT} 条，共 ${currentConflictFixSuggestions.length} 条`;
+    list.appendChild(more);
+  }
+
+  list.onclick = async (event) => {
+    const button = event.target.closest("[data-fix-index]");
+    if (!button) return;
+    const suggestion = currentConflictFixSuggestions[Number(button.dataset.fixIndex)];
+    if (!suggestion) return;
+    button.disabled = true;
+    const applied = await applyConflictFixSuggestion(suggestion);
+    if (!applied) button.disabled = false;
+  };
+}
+
+const CONFLICT_MOD_IGNORE_LIMIT = 50;
+
+// renderConflictModIgnoreSection 展示"因为某个 Mod 自己的忽略规则而被跳过"的重叠，
+// 让用户能解释结果变化，而不是怀疑冲突检测漏报。
+function renderConflictModIgnoreSection(result) {
+  const section = document.getElementById("conflict-mod-ignore-section");
+  const list = document.getElementById("conflict-mod-ignore-list");
+  if (!section || !list) return;
+
+  const annotations = Array.isArray(result?.mod_ignore_annotations) ? result.mod_ignore_annotations : [];
+  const total = Number(result?.total_mod_ignore_annotations || annotations.length);
+  if (!annotations.length) {
+    section.classList.add("hidden");
+    list.replaceChildren();
+    return;
+  }
+
+  section.classList.remove("hidden");
+  const countEl = document.getElementById("conflict-mod-ignore-count");
+  if (countEl) countEl.textContent = `${total} 项`;
+
+  list.replaceChildren();
+  annotations.slice(0, CONFLICT_MOD_IGNORE_LIMIT).forEach((annotation) => {
+    const item = document.createElement("div");
+    item.className = "conflict-mod-ignore-item";
+    const path = document.createElement("span");
+    path.className = "conflict-mod-ignore-file";
+    path.title = String(annotation?.file || "");
+    path.textContent = String(annotation?.file || "");
+    const owners = document.createElement("span");
+    owners.className = "conflict-mod-ignore-owners";
+    owners.textContent = (annotation?.vpk_files || [])
+      .map((vpk) => vpk?.name || vpk?.path || "")
+      .filter(Boolean)
+      .join("、");
+    item.append(path, owners);
+    list.appendChild(item);
+  });
+
+  if (annotations.length > CONFLICT_MOD_IGNORE_LIMIT || total > annotations.length) {
+    const more = document.createElement("div");
+    more.className = "conflict-mod-ignore-more";
+    more.textContent = `仅显示前 ${Math.min(annotations.length, CONFLICT_MOD_IGNORE_LIMIT)} 项，共 ${total} 项`;
+    list.appendChild(more);
+  }
 }
 
 function setConflictEmptyMessage(message) {
@@ -830,6 +948,10 @@ function createConflictGroupElement(group, renderOptions = {}) {
       const isDisabled = vpk.location === "disabled";
       const priority = getConflictPriority(vpk);
       const hasPriority = Number.isInteger(priority);
+      const layerTier = Number.isInteger(vpk.tier) ? vpk.tier : null;
+      const priorityLabel = hasPriority
+        ? formatPriorityLabel({ order: priority, tier: layerTier, known: true })
+        : formatPriorityLabel({ order: 0, known: false, tier: layerTier });
       const previousConflict = getConflictRelativeTarget(orderedVpkFiles, index, "before");
       const nextConflict = getConflictRelativeTarget(orderedVpkFiles, index, "after");
       const canMoveUp = !isDisabled && Boolean(previousConflict && Number.isInteger(getConflictPriority(previousConflict)));
@@ -846,7 +968,7 @@ function createConflictGroupElement(group, renderOptions = {}) {
           <div class="conflict-vpk-info">
             <span class="conflict-vpk-title" title="${escapeHtml(vpk.title || vpk.name)}">${escapeHtml(displayName)}</span>
             <span class="conflict-vpk-filename" title="${escapeHtml(vpk.name)}">${escapeHtml(fileName)}</span>
-            <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? "编号来自 addonlist.txt 加载顺序；数字越大通常越靠后加载，覆盖同一资源时更可能生效" : "该 Mod 尚未写入 addonlist.txt"}">${hasPriority ? `优先级 #${priority}` : "优先级：未写入"}</span>
+            <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? `顺序号来自 addonlist.txt（数字越大越靠后加载，覆盖同一资源时更可能生效）；有效分层 ${Number.isInteger(vpk.layer) && vpk.layer >= 0 ? vpk.layer : priority - 1}。未设置分层时有效分层等于顺序号` : "该 Mod 尚未写入 addonlist.txt"}">${escapeHtml(priorityLabel)}</span>
             ${isOverride ? `<span class="conflict-vpk-winner ${vpk.path === winnerPath ? "active" : ""}">${vpk.path === winnerPath ? "生效" : "被覆盖"}</span>` : ""}
           </div>
           <div class="conflict-vpk-actions" role="group" aria-label="Mod操作">
@@ -872,6 +994,11 @@ function createConflictGroupElement(group, renderOptions = {}) {
                     <div class="conflict-severity-row">
                         <span class="severity-badge ${severity}">${severityText}</span>
                         ${isOverride ? '<span class="severity-badge override">覆盖</span>' : ""}
+                        ${
+                          !isOverride && Number.isInteger(group.layer)
+                            ? `<span class="severity-badge layer" title="这些 Mod 的有效分层相同，先后顺序未定义，因此属于真冲突">同层 ${group.layer}</span>`
+                            : ""
+                        }
                         <span class="conflict-file-count">${fileCount} ${isOverride ? "个覆盖文件" : "个冲突文件"}</span>
                     </div>
                     <div class="conflict-vpk-names">

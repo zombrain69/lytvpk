@@ -68,6 +68,7 @@ import {
   closeConflictScopeModal,
   applyConflictScopeOptions,
 } from "./conflicts/conflicts.js";
+import { initConflictRecheck } from "./conflicts/conflict-recheck.js";
 import {
   configureSettings,
   showGlobalSettings,
@@ -181,6 +182,15 @@ import {
   GetWorkshopIPOptions,
   GetWorkshopMetaEnabled,
   GetWorkshopUpdateCheckEnabled,
+  GetWorkshopAutoRedownload,
+  ParseWorkshopID,
+  SetWorkshopAutoRedownload,
+  ListWorkshopCollections,
+  CaptureWorkshopCollection,
+  RefreshWorkshopCollection,
+  CheckWorkshopCollectionUpdates,
+  DownloadWorkshopCollection,
+  DeleteWorkshopCollection,
   GetWorkshopBrowserTarget,
   GetWorkshopTranslateProvider,
   GetWorkshopTranslateCustomBaseURL,
@@ -249,10 +259,16 @@ import {
   ExportModEnableProfile,
   ImportModEnableProfile,
   ListModStrategyGroups,
+  ReportFrontendError,
+  GetCrashReportDirectory,
+  ListCrashReports,
+  ListModStrategyGroupTree,
+  MoveModStrategyGroup,
   CaptureModStrategyGroup,
   ApplyModStrategyGroup,
   DeleteModStrategyGroup,
   SetModStrategyGroupEnforcement,
+  SetModStrategyGroupTier,
   RunModHealthCheck,
   RemoveDuplicateAddonListEntries,
   RemoveMissingFileAddonListEntries,
@@ -390,6 +406,15 @@ configureSettings({
   GetWorkshopIPOptions,
   GetWorkshopMetaEnabled,
   GetWorkshopUpdateCheckEnabled,
+  GetWorkshopAutoRedownload,
+  ParseWorkshopID,
+  SetWorkshopAutoRedownload,
+  ListWorkshopCollections,
+  CaptureWorkshopCollection,
+  RefreshWorkshopCollection,
+  CheckWorkshopCollectionUpdates,
+  DownloadWorkshopCollection,
+  DeleteWorkshopCollection,
   GetWorkshopBrowserTarget,
   GetWorkshopTranslateProvider,
   GetWorkshopTranslateCustomBaseURL,
@@ -428,10 +453,14 @@ configureSettings({
   ExportModEnableProfile,
   ImportModEnableProfile,
   ListModStrategyGroups,
+  ReportFrontendError,
+  ListModStrategyGroupTree,
+  MoveModStrategyGroup,
   CaptureModStrategyGroup,
   ApplyModStrategyGroup,
   DeleteModStrategyGroup,
   SetModStrategyGroupEnforcement,
+  SetModStrategyGroupTier,
   RunModHealthCheck,
   RemoveDuplicateAddonListEntries,
   RemoveMissingFileAddonListEntries,
@@ -475,6 +504,39 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24小时
+
+// installFrontendCrashReporting 把前端的未处理异常/未处理 Promise 拒绝
+// 交给后端写成与 Go panic 同格式的本地崩溃报告（不联网、不上传）。
+let frontendCrashReportingInstalled = false;
+let lastFrontendCrashSignature = "";
+function installFrontendCrashReporting() {
+  if (frontendCrashReportingInstalled) return;
+  frontendCrashReportingInstalled = true;
+
+  const report = (reason, stack) => {
+    const message = String(reason?.message || reason || "未知前端错误");
+    const detail = String(reason?.stack || stack || "");
+    // 同一处错误连续触发（例如渲染循环）时只上报一次，避免刷爆 crashes 目录。
+    const signature = `${message}\u0000${detail.slice(0, 200)}`;
+    if (signature === lastFrontendCrashSignature) return;
+    lastFrontendCrashSignature = signature;
+    try {
+      const result = ReportFrontendError(message, detail);
+      if (result && typeof result.catch === "function") {
+        result.catch((error) => console.warn("上报前端异常失败:", error));
+      }
+    } catch (error) {
+      console.warn("上报前端异常失败:", error);
+    }
+  };
+
+  window.addEventListener("error", (event) => {
+    report(event.error || event.message, event.error?.stack || "");
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    report(event.reason || "未处理的 Promise 拒绝", event.reason?.stack || "");
+  });
+}
 
 let _updateCheckTimer = null;
 
@@ -640,6 +702,9 @@ async function initializeApp() {
   setupSettingsAndAboutListeners();
   setupEventListeners();
   setupWailsEvents();
+  installFrontendCrashReporting();
+  // 变更驱动的冲突自动复检：只注册事件与首次拉取，重算由后端按需触发。
+  initConflictRecheck();
   setupInputContextMenu();
   disableGlobalContextMenu();
   await checkInitialDirectory();
@@ -717,6 +782,9 @@ function setupSettingsAndAboutListeners() {
         GetAppVersion,
         CheckUpdate,
         showUpdateModal,
+        GetCrashReportDirectory,
+        ListCrashReports,
+        OpenFileLocation,
       });
     }
   });

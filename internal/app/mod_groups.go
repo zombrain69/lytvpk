@@ -27,10 +27,17 @@ type ModStrategyGroup struct {
 	Strategy    string `json:"strategy"`
 	// Enforce 打开后，手动开关组内成员时会按策略自动联动其它成员。
 	// 默认关闭：策略组默认只作为显式动作使用。
-	Enforce   bool                     `json:"enforce"`
-	Members   []ModStrategyGroupMember `json:"members"`
-	CreatedAt string                   `json:"createdAt"`
-	UpdatedAt string                   `json:"updatedAt"`
+	Enforce bool                     `json:"enforce"`
+	Members []ModStrategyGroupMember `json:"members"`
+	// Tier 是组权重（对齐 FireAxe 的组优先级）：叠加到组内成员的有效分层。
+	// 必须是 *int：nil 表示"未设置"，不会参与 min 计算，从而保证未分层时行为不变。
+	// LytVPK 的策略组是可重叠集合，因此多个组同时设置权重时取最小值（只能抬高优先级）。
+	Tier *int `json:"tier,omitempty"`
+	// ParentID 是上级分组（树形层级）；为空表示顶层。
+	// 层级只影响展示与组织，不影响优先级（优先级只由 Tier 与 Mod 自身分层决定）。
+	ParentID  string `json:"parentId,omitempty"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
 }
 
 // ModStrategyGroupMember 记录单个成员：Key 用于匹配 addonlist 条目，
@@ -105,6 +112,7 @@ func (a *App) writeModStrategyGroupStore(store modStrategyGroupStore) error {
 	if store.Groups == nil {
 		store.Groups = []ModStrategyGroup{}
 	}
+	a.backupLocalStoreFileIfNeeded(path)
 	return writeJSONFile(a.configDir, path, store)
 }
 
@@ -229,6 +237,39 @@ func (a *App) SetModStrategyGroupEnforcement(id string, enforced bool) (ModStrat
 			continue
 		}
 		store.Groups[index].Enforce = enforced
+		store.Groups[index].UpdatedAt = time.Now().Format(time.RFC3339)
+		if err := a.writeModStrategyGroupStore(store); err != nil {
+			return ModStrategyGroup{}, fmt.Errorf("无法保存策略组: %w", err)
+		}
+		return store.Groups[index], nil
+	}
+	return ModStrategyGroup{}, fmt.Errorf("策略组不存在: %s", id)
+}
+
+// SetModStrategyGroupTier 设置（或清除）某个策略组的权重。
+// tier 为 nil 表示"未设置"，此时该组不参与有效分层的 min 计算。
+func (a *App) SetModStrategyGroupTier(id string, tier *int) (ModStrategyGroup, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ModStrategyGroup{}, fmt.Errorf("缺少策略组 ID")
+	}
+	var tierValue *int
+	if tier != nil {
+		value := *tier
+		tierValue = &value
+	}
+
+	a.groupsMu.Lock()
+	defer a.groupsMu.Unlock()
+	store, err := a.readModStrategyGroupStore()
+	if err != nil {
+		return ModStrategyGroup{}, err
+	}
+	for index := range store.Groups {
+		if store.Groups[index].ID != id {
+			continue
+		}
+		store.Groups[index].Tier = tierValue
 		store.Groups[index].UpdatedAt = time.Now().Format(time.RFC3339)
 		if err := a.writeModStrategyGroupStore(store); err != nil {
 			return ModStrategyGroup{}, fmt.Errorf("无法保存策略组: %w", err)

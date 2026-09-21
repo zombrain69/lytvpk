@@ -11,6 +11,7 @@ import {
   getCachedVPKPreview,
   loadVPKPreviewWithOptions,
 } from "../shared/vpk-preview-cache.js";
+import { initDetailIgnoreControls, syncDetailIgnoreEditor } from "./detail-ignore.js";
 
 let currentDetailFile = null;
 let detailPreviousFocus = null;
@@ -125,6 +126,9 @@ export function showFileDetail(filePath) {
   }
 
   currentDetailFile = file;
+  // 幂等绑定：放在打开详情时执行，避免依赖脚本与 DOM 的加载顺序。
+  initDetailIgnoreControls();
+  void syncDetailIgnoreEditor(file);
 
   const modal = document.getElementById("file-detail-modal");
   if (!modal) {

@@ -2,6 +2,7 @@ import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
 import { refreshLoadOrderMap } from "../file-list/sorting.js";
+import { initLoadOrderPriorityControls, syncLoadOrderPriorityPanel } from "./load-order-priority.js";
 import {
   ApplyAddonListLoadOrderPolicy,
   GetAddonListLoadOrderEntries,
@@ -193,6 +194,12 @@ function setupLoadOrderControls() {
   });
   document.getElementById("preview-load-order-policy-btn")?.addEventListener("click", previewLoadOrderPolicy);
   document.getElementById("apply-load-order-policy-btn")?.addEventListener("click", applyLoadOrderPolicy);
+  initLoadOrderPriorityControls(async () => {
+    await refreshModListAfterLoadOrderChange();
+    const operation = beginLoadOrderOperation();
+    await refreshLoadOrderModal(operation);
+    await syncLoadOrderPriorityPanel(currentLoadOrderFile);
+  });
   document.getElementById("load-order-root-first")?.addEventListener("change", (event) => {
     currentPolicy.rootFirst = event.target.checked;
     invalidateLoadOrderOperations();
@@ -533,13 +540,16 @@ function renderModalMode(file) {
   const contextNote = document.getElementById("load-order-context-note");
   const singleSection = document.getElementById("load-order-single-section");
   const confirmButton = document.getElementById("confirm-load-order-btn");
+  const priorityPanel = document.getElementById("load-order-priority-panel");
   if (title) title.textContent = isSingle ? "调整单个 Mod 加载顺序" : isSelection ? "批量调整 Mod 加载顺序" : "加载顺序优化";
   singleSection?.classList.toggle("hidden", !isSingle);
   confirmButton?.classList.toggle("hidden", !isSingle);
+  if (!isSingle) priorityPanel?.classList.add("hidden");
 
   if (isSingle) {
     if (filename) filename.textContent = file?.name || "当前 Mod";
     if (contextNote) contextNote.textContent = "单项模式：可上移、下移或指定现有条目的新序号。";
+    void syncLoadOrderPriorityPanel(file?.path || null);
     return;
   }
   if (isSelection) {

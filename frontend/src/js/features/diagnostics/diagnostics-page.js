@@ -1,5 +1,7 @@
 // The toolbox starts with an asynchronous problem-Mod session read.  Keep a
 // render identity so a slower earlier navigation cannot replace a newer page.
+import { t } from "../../core/i18n-runtime.js";
+
 let diagnosticsRenderGeneration = 0;
 
 export async function renderDiagnosticsPage({
@@ -42,27 +44,27 @@ export async function renderDiagnosticsPage({
     <div class="diagnostics-page-shell toolbox-page-shell">
       <div class="diagnostics-page-header">
         <div>
-          <h2>工具箱</h2>
-          <p>集中放置 Mod 排查、状态验证和常用维护工具。</p>
+          <h2>${t("toolbox.title")}</h2>
+          <p>${t("toolbox.subtitle")}</p>
         </div>
       </div>
 
       <section class="toolbox-section">
         <div class="toolbox-section-header">
-          <h3>诊断工具</h3>
-          <p>用于排查 Mod 问题、冲突和资源状态。</p>
+          <h3>${t("toolbox.section.diagnostics.title")}</h3>
+          <p>${t("toolbox.section.diagnostics.description")}</p>
         </div>
         <div class="diagnostics-tool-grid">
           <section class="diagnostics-tool-card">
             <div class="diagnostics-tool-icon">${boltIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>问题 Mod 查找</h3>
+                <h3>${t("toolbox.card.problemScan.title")}</h3>
                 <span class="diagnostics-status ${problemScanActive ? "is-active" : ""}">
-                  ${problemScanActive ? "查找中" : "待开始"}
+                  ${problemScanActive ? t("toolbox.card.problemScan.statusActive") : t("toolbox.card.problemScan.statusIdle")}
                 </span>
               </div>
-              <p>按二分法保留当前测试半区，逐轮缩小单个问题 Mod 的范围。</p>
+              <p>${t("toolbox.card.problemScan.description")}</p>
               ${
                 problemScanActive
                   ? `<div class="diagnostics-inline-status">第 ${problemScanSession.round || 1} 轮，剩余 ${problemScanSession.currentCandidates?.length || 0} 个候选</div>`
@@ -70,7 +72,7 @@ export async function renderDiagnosticsPage({
               }
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="diagnostics-problem-scan-btn">
-              ${problemScanActive ? "继续查找" : "打开查找工具"}
+              ${problemScanActive ? t("toolbox.card.problemScan.actionActive") : t("toolbox.card.problemScan.actionIdle")}
             </button>
           </section>
 
@@ -78,13 +80,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-warning">${conflictIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>Mod 冲突检测</h3>
-                <span class="diagnostics-status">可检测</span>
+                <h3>${t("toolbox.card.conflictCheck.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.conflictCheck.status")}</span>
               </div>
-              <p>扫描当前 Mod 文件覆盖关系，按严重程度查看可能冲突的文件组。</p>
+              <p>${t("toolbox.card.conflictCheck.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="diagnostics-conflict-check-btn">
-              开始检测
+              ${t("toolbox.card.conflictCheck.action")}
             </button>
           </section>
 
@@ -92,13 +94,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-model">${modelIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>Mod 模型面数检测 <span class="diagnostics-beta-badge">Beta</span></h3>
-                <span class="diagnostics-status">可检测</span>
+                <h3>${t("toolbox.card.modelStats.title")} <span class="diagnostics-beta-badge">Beta</span></h3>
+                <span class="diagnostics-status">${t("toolbox.card.modelStats.status")}</span>
               </div>
-              <p>读取启用和创意工坊 Mod 内模型的 LOD0 顶点数与三角形数量，快速定位高面数资源。</p>
+              <p>${t("toolbox.card.modelStats.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="diagnostics-model-stats-btn">
-              打开检测工具
+              ${t("toolbox.card.modelStats.action")}
             </button>
           </section>
         </div>

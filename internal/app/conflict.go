@@ -24,6 +24,11 @@ type ConflictVPKFile struct {
 	// Order 是该 VPK 在 addonlist.txt 中的 0 基顺序号；-1 表示未记录。
 	// 只有在优先级感知模式下才会填充真实值。
 	Order int `json:"order"`
+	// Layer 是该 VPK 的有效分层（0 基，越小越先加载）；-1 表示未计算。
+	// 未设置任何分层时 Layer == Order，判定结果因此与历史行为一致。
+	Layer int `json:"layer"`
+	// Tier 是该 Mod 的显式分层；nil 表示未设置（此时 base = 顺序号）。
+	Tier *int `json:"tier,omitempty"`
 }
 
 type ConflictGroup struct {
@@ -32,6 +37,9 @@ type ConflictGroup struct {
 	FileCount      int               `json:"file_count"`
 	FilesTruncated bool              `json:"files_truncated"`
 	Severity       string            `json:"severity"` // "critical", "warning", "info"
+	// Layer 是该组全部参与者共用的有效分层，仅在"同层冲突"时填充；
+	// nil 表示冲突来自存在未记录参与者，而不是分层相同。
+	Layer *int `json:"layer,omitempty"`
 }
 
 // ConflictOverrideGroup 描述一组"胜负已判定"的资源重叠：所有参与者都在
@@ -50,6 +58,19 @@ type ConflictResult struct {
 	ConflictGroups []ConflictGroup         `json:"conflict_groups"`
 	TotalOverrides int                     `json:"total_overrides"`
 	OverrideGroups []ConflictOverrideGroup `json:"override_groups"`
+	// ModIgnoreAnnotations 记录"因为某个 Mod 自己的忽略规则而被跳过的重叠"：
+	// 这些路径本来会进入冲突/覆盖统计，但该 Mod 用自己的清单声明"我不提供它"。
+	// 只有真正被其它 Mod 覆盖到的路径才会出现，避免把纯忽略清单刷屏。
+	ModIgnoreAnnotations      []ConflictModIgnoreAnnotation `json:"mod_ignore_annotations"`
+	TotalModIgnoreAnnotations int                           `json:"total_mod_ignore_annotations"`
+}
+
+// ConflictModIgnoreAnnotation 描述一次"被自身规则忽略"的重叠。
+type ConflictModIgnoreAnnotation struct {
+	// File 是归档内路径（归一化后的 "/" 分隔小写形式）。
+	File string `json:"file"`
+	// VpkFiles 是声明了该忽略规则、因而退出判定的 Mod。
+	VpkFiles []ConflictVPKFile `json:"vpk_files"`
 }
 
 // ConflictBaselineRule describes one condition used to select the Mods that
@@ -108,6 +129,8 @@ type conflictGroupAccumulator struct {
 	files     []string
 	fileCount int
 	severity  string
+	// layer 记录该组共用的有效分层（同层冲突），未记录参与者导致的冲突为 nil。
+	layer *int
 }
 
 // conflictOverrideAccumulator 与冲突累加器同构，额外记住胜者。
@@ -138,6 +161,15 @@ type conflictOwner struct {
 	Known bool
 	// Enabled 表示该条目在 addonlist.txt 中的开关值。
 	Enabled bool
+	// Tier 是该 Mod 的显式分层；GroupTier 是所属策略组权重的最小值。
+	// 两者都为 nil 时有效分层退化为顺序号，保证未分层时行为与历史一致。
+	Tier      *int
+	GroupTier *int
+}
+
+// effectiveLayer 是冲突判定使用的有效分层。
+func (o conflictOwner) effectiveLayer() int {
+	return computeEffectivePriority(o.Index, o.Tier, o.GroupTier)
 }
 
 type conflictDecisionKind string
@@ -153,17 +185,20 @@ type conflictDecision struct {
 	Owners      []conflictOwner
 	WinnerIndex int
 	WinnerPath  string
+	// Layer 仅在"同层冲突"（全部参与者有效分层相同）时填充，供前端显示"分层 T"。
+	Layer *int
 }
 
-// conflictOrderWins 判定两个加载顺序号谁最终生效。LytVPK 现有文档的语义是
-// “加载顺序越靠后，通常越容易覆盖前面的资源”，因此顺序号更大者获胜。
+// conflictOrderWins 判定两个有效分层谁最终生效。LytVPK 现有文档的语义是
+// “加载顺序越靠后，通常越容易覆盖前面的资源”，因此有效分层更大者获胜。
 // 方向尚待在游戏内做受控实验确认；结论出来后只需修改这一处。
 func conflictOrderWins(candidate, current int) bool {
 	return candidate > current
 }
 
-// decideConflictOwners 按加载顺序把一次资源重叠归类为忽略、覆盖或冲突。
-// 规则：未加载的条目不参与；顺序号未知的参与者会让重叠无法判定胜负。
+// decideConflictOwners 按有效分层把一次资源重叠归类为忽略、覆盖或冲突。
+// 规则：未加载的条目不参与；未记录的参与者会让重叠无法判定胜负；
+// 有效分层相同的重叠属于"意图上无法分辨谁该覆盖谁"的真冲突。
 func decideConflictOwners(owners []conflictOwner) conflictDecision {
 	participants := make([]conflictOwner, 0, len(owners))
 	for _, owner := range owners {
@@ -182,16 +217,18 @@ func decideConflictOwners(owners []conflictOwner) conflictDecision {
 		if !owner.Known {
 			return conflictDecision{Kind: conflictDecisionConflict, Owners: participants}
 		}
-		if _, duplicate := seen[owner.Index]; duplicate {
-			// 顺序号相同意味着先后关系未定义，仍按冲突处理。
-			return conflictDecision{Kind: conflictDecisionConflict, Owners: participants}
+		layer := owner.effectiveLayer()
+		if _, duplicate := seen[layer]; duplicate {
+			// 有效分层相同意味着先后关系未定义，按真冲突处理。
+			shared := layer
+			return conflictDecision{Kind: conflictDecisionConflict, Owners: participants, Layer: &shared}
 		}
-		seen[owner.Index] = owner.Path
+		seen[layer] = owner.Path
 	}
 
 	winner := participants[0]
 	for _, owner := range participants[1:] {
-		if conflictOrderWins(owner.Index, winner.Index) {
+		if conflictOrderWins(owner.effectiveLayer(), winner.effectiveLayer()) {
 			winner = owner
 		}
 	}
@@ -253,6 +290,28 @@ func (s conflictIgnoreSet) ShouldIgnore(normalizedPath string) bool {
 // IsEmpty 表示当前没有任何额外忽略规则。
 func (s conflictIgnoreSet) IsEmpty() bool {
 	return len(s.exact) == 0 && len(s.prefixes) == 0
+}
+
+// mergeConflictIgnoreSets 合并两份忽略集合：任一份命中即忽略。
+// 用于把"全局忽略清单"与"游戏原版文件白名单"取并集。
+func mergeConflictIgnoreSets(left conflictIgnoreSet, right conflictIgnoreSet) conflictIgnoreSet {
+	if right.IsEmpty() {
+		return left
+	}
+	if left.IsEmpty() {
+		return right
+	}
+	merged := conflictIgnoreSet{
+		exact:    make(map[string]struct{}, len(left.exact)+len(right.exact)),
+		prefixes: append(append([]string(nil), left.prefixes...), right.prefixes...),
+	}
+	for key := range left.exact {
+		merged.exact[key] = struct{}{}
+	}
+	for key := range right.exact {
+		merged.exact[key] = struct{}{}
+	}
+	return merged
 }
 
 // normalizeConflictIgnoreFileList 归一化用户维护的忽略清单：去掉空行与注释行，
@@ -319,15 +378,25 @@ func (t conflictLoadOrderTable) ForPath(rootDir, path string) (conflictLoadEntry
 	return entry, ok
 }
 
-func conflictOwnersFromPaths(rootDir string, paths []string, loadOrder conflictLoadOrderTable) []conflictOwner {
+func conflictOwnersFromPaths(rootDir string, paths []string, loadOrder conflictLoadOrderTable, layers modPriorityLayers) []conflictOwner {
 	owners := make([]conflictOwner, 0, len(paths))
 	for _, path := range paths {
 		entry, known := loadOrder.ForPath(rootDir, path)
+		var tier *int
+		var groupTier *int
+		if known {
+			if key, err := addonListKeyForManagedVPKPathFromRoot(rootDir, path); err == nil {
+				tier = layers.tierFor(key)
+				groupTier = layers.groupTierFor(key)
+			}
+		}
 		owners = append(owners, conflictOwner{
-			Path:    path,
-			Index:   entry.Index,
-			Known:   known,
-			Enabled: entry.Enabled,
+			Path:      path,
+			Index:     entry.Index,
+			Known:     known,
+			Enabled:   entry.Enabled,
+			Tier:      tier,
+			GroupTier: groupTier,
 		})
 	}
 	return owners
@@ -544,6 +613,10 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 	if ignoreFiles.IsEmpty() {
 		ignoreFiles = newConflictIgnoreSet(a.conflictIgnoreFilesSnapshot())
 	}
+	// 游戏原版文件白名单同样对所有入口生效：只用于忽略，不改写任何文件。
+	// 批次缺失或解析失败时自动降级（见 loadStockWhitelist）。
+	stockWhitelist, _ := a.loadStockWhitelist(false)
+	ignoreFiles = mergeConflictIgnoreSets(ignoreFiles, stockWhitelist)
 
 	var vpkPaths []string
 	var targetSet map[string]struct{}
@@ -580,6 +653,8 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 	// 文件路径 -> VPK列表（使用完整路径）
 	fileFirstOwner := make(map[string]string)
 	conflictOwners := make(map[string][]string)
+	// 归档路径 -> 因为"自己的忽略清单"而放弃提供该文件的 VPK 列表。
+	modIgnoredOwners := make(map[string][]string)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	workerCount := min(conflictWorkerLimit, rt.GOMAXPROCS(0))
@@ -587,6 +662,9 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 		workerCount = 1
 	}
 	workerSlots := make(chan struct{}, workerCount)
+
+	// 单 Mod 忽略清单在本次检测开始时读取一次，避免在并发扫描里重复读盘。
+	modIgnoreSets := a.modIgnoreSetsByPath(rootDir, vpkPaths)
 
 	// 进度计数器
 	var processedCount int
@@ -629,6 +707,13 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 				if isIgnoredConflictFile(lowerF) || ignoreFiles.ShouldIgnore(lowerF) {
 					continue
 				}
+				if ownSet, ok := modIgnoreSets[filepath.Clean(p)]; ok && ownSet.ShouldIgnore(lowerF) {
+					// 该 Mod 自己声明"不提供这个文件"：它退出本次重叠判定。
+					if !containsString(modIgnoredOwners[lowerF], p) {
+						modIgnoredOwners[lowerF] = append(modIgnoredOwners[lowerF], p)
+					}
+					continue
+				}
 
 				firstOwner, ok := fileFirstOwner[lowerF]
 				if !ok {
@@ -666,10 +751,12 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 	conflictMap := make(map[string]*conflictGroupAccumulator)
 	overrideMap := make(map[string]*conflictOverrideAccumulator)
 
-	// 只有开启优先级感知时才读取 addonlist，默认路径保持零额外 I/O。
+	// 只有开启优先级感知时才读取 addonlist 与分层记录，默认路径保持零额外 I/O。
 	var loadOrder conflictLoadOrderTable
+	var priorityLayers modPriorityLayers
 	if req.priorityAware {
 		loadOrder = a.conflictLoadOrderTable()
+		priorityLayers = a.loadModPriorityLayersBestEffort()
 	}
 
 	for f, vpks := range conflictOwners {
@@ -682,7 +769,7 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 		sort.Strings(vpks)
 
 		if req.priorityAware {
-			decision := decideConflictOwners(conflictOwnersFromPaths(rootDir, vpks, loadOrder))
+			decision := decideConflictOwners(conflictOwnersFromPaths(rootDir, vpks, loadOrder, priorityLayers))
 			switch decision.Kind {
 			case conflictDecisionIgnore:
 				continue
@@ -722,6 +809,14 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 				files:    make([]string, 0, min(conflictGroupFileListLimit, 16)),
 				severity: "info",
 			}
+			if req.priorityAware {
+				owners := conflictOwnersFromPaths(rootDir, vpks, loadOrder, priorityLayers)
+				decision := decideConflictOwners(owners)
+				if decision.Kind == conflictDecisionConflict && decision.Layer != nil {
+					layer := *decision.Layer
+					acc.layer = &layer
+				}
+			}
 			conflictMap[key] = acc
 		}
 		acc.fileCount++
@@ -740,11 +835,12 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 		sort.Strings(files) // 文件列表也排序
 
 		groups = append(groups, ConflictGroup{
-			VpkFiles:       a.conflictVPKFileInfos(rootDir, vpkFullPaths, loadOrder),
+			VpkFiles:       a.conflictVPKFileInfos(rootDir, vpkFullPaths, loadOrder, priorityLayers),
 			Files:          files,
 			FileCount:      acc.fileCount,
 			FilesTruncated: acc.fileCount > len(files),
 			Severity:       acc.severity,
+			Layer:          acc.layer,
 		})
 	}
 
@@ -754,8 +850,8 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 		vpkFullPaths := strings.Split(key, "|")
 		sort.Strings(files) // 文件列表也排序
 
-		vpkInfos := a.conflictVPKFileInfos(rootDir, vpkFullPaths, loadOrder)
-		winner := ConflictVPKFile{Order: -1}
+		vpkInfos := a.conflictVPKFileInfos(rootDir, vpkFullPaths, loadOrder, priorityLayers)
+		winner := ConflictVPKFile{Order: -1, Layer: -1}
 		for _, info := range vpkInfos {
 			if strings.EqualFold(filepath.Clean(info.Path), filepath.Clean(acc.winnerPath)) {
 				winner = info
@@ -781,17 +877,65 @@ func (a *App) checkConflicts(req conflictCheckRequest) (*ConflictResult, error) 
 		return conflictGroupLess(overrideGroups[i].Severity, overrideGroups[i].FileCount, overrideGroups[j].Severity, overrideGroups[j].FileCount)
 	})
 
+	annotations := a.conflictModIgnoreAnnotations(rootDir, fileFirstOwner, modIgnoredOwners, loadOrder, priorityLayers)
+
 	return &ConflictResult{
-		TotalConflicts: len(groups),
-		ConflictGroups: groups,
-		TotalOverrides: len(overrideGroups),
-		OverrideGroups: overrideGroups,
+		TotalConflicts:            len(groups),
+		ConflictGroups:            groups,
+		TotalOverrides:            len(overrideGroups),
+		OverrideGroups:            overrideGroups,
+		ModIgnoreAnnotations:      annotations,
+		TotalModIgnoreAnnotations: len(annotations),
 	}, nil
 }
 
+// conflictModIgnoreAnnotationLimit 限制单次检测返回的标注数量，
+// 避免一份过宽的忽略清单把结果刷屏；总数仍通过 TotalModIgnoreAnnotations 给出。
+const conflictModIgnoreAnnotationLimit = 200
+
+// conflictModIgnoreAnnotations 把"被自身规则忽略"的重叠整理成稳定顺序的标注：
+// 只保留确实被其它 Mod 提供、且被该 Mod 自己跳过的路径。
+func (a *App) conflictModIgnoreAnnotations(
+	rootDir string,
+	fileFirstOwner map[string]string,
+	modIgnoredOwners map[string][]string,
+	loadOrder conflictLoadOrderTable,
+	layers modPriorityLayers,
+) []ConflictModIgnoreAnnotation {
+	if len(modIgnoredOwners) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(modIgnoredOwners))
+	for path := range modIgnoredOwners {
+		if _, provided := fileFirstOwner[path]; !provided {
+			// 没有任何其它 Mod 提供该文件时不构成"重叠"，不产生噪音。
+			continue
+		}
+		paths = append(paths, path)
+	}
+	if len(paths) == 0 {
+		return nil
+	}
+	sort.Strings(paths)
+	if len(paths) > conflictModIgnoreAnnotationLimit {
+		paths = paths[:conflictModIgnoreAnnotationLimit]
+	}
+
+	annotations := make([]ConflictModIgnoreAnnotation, 0, len(paths))
+	for _, path := range paths {
+		owners := append([]string(nil), modIgnoredOwners[path]...)
+		sort.Strings(owners)
+		annotations = append(annotations, ConflictModIgnoreAnnotation{
+			File:     path,
+			VpkFiles: a.conflictVPKFileInfos(rootDir, owners, loadOrder, layers),
+		})
+	}
+	return annotations
+}
+
 // conflictVPKFileInfos 从缓存（或兜底元数据）构造前端展示用的 VPK 信息，
-// 并在优先级感知模式下附带 addonlist 顺序号。
-func (a *App) conflictVPKFileInfos(rootDir string, fullPaths []string, loadOrder conflictLoadOrderTable) []ConflictVPKFile {
+// 并在优先级感知模式下附带 addonlist 顺序号与有效分层。
+func (a *App) conflictVPKFileInfos(rootDir string, fullPaths []string, loadOrder conflictLoadOrderTable, layers modPriorityLayers) []ConflictVPKFile {
 	infos := make([]ConflictVPKFile, 0, len(fullPaths))
 	for _, fullPath := range fullPaths {
 		var info ConflictVPKFile
@@ -805,8 +949,15 @@ func (a *App) conflictVPKFileInfos(rootDir string, fullPaths []string, loadOrder
 			info = newConflictVPKFile(filepath.Base(fullPath), fullPath, filepath.Base(fullPath), a.getLocationFromPath(fullPath))
 		}
 		info.Order = -1
+		info.Layer = -1
 		if entry, known := loadOrder.ForPath(rootDir, fullPath); known {
 			info.Order = entry.Index
+			if key, err := addonListKeyForManagedVPKPathFromRoot(rootDir, fullPath); err == nil {
+				info.Tier = layers.tierFor(key)
+				info.Layer = layers.effective(key, entry.Index)
+			} else {
+				info.Layer = entry.Index
+			}
 		}
 		infos = append(infos, info)
 	}
@@ -1257,5 +1408,7 @@ func newConflictVPKFile(name, path, title, location string) ConflictVPKFile {
 		Path:     path,
 		Title:    title,
 		Location: location,
+		Order:    -1,
+		Layer:    -1,
 	}
 }

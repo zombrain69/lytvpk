@@ -10,6 +10,13 @@ import {
   formatStrategyGroupApplySummary,
   formatStrategyGroupStrategy,
 } from "./strategy-group-format.mjs";
+import { normalizePriorityTier } from "../file-list/priority-label.mjs";
+import {
+  formatCollectionQueueSummary,
+  formatCollectionRefreshSummary,
+  formatCollectionSummary,
+} from "./workshop-collection-format.mjs";
+import { buildParentOptions, flattenStrategyGroupTree } from "./strategy-group-tree.mjs";
 import {
   buildHealthIssueRows,
   formatHealthReportSummary,
@@ -169,6 +176,7 @@ export async function renderSettingsPage(deps) {
   // 以实际可执行的状态为准，避免禁用的开关仍显示内容和操作入口。
   const storedUpdateCheckEnabled = await readSetting("Mod 更新检测", GetWorkshopUpdateCheckEnabled, Boolean(config.workshopUpdateCheckEnabled));
   const updateCheckEnabled = Boolean(metaEnabled && storedUpdateCheckEnabled);
+  const autoRedownloadEnabled = await readSetting("自动重下", GetWorkshopAutoRedownload, false);
   const browserTarget = await readSetting("工坊跳转目标", GetWorkshopBrowserTarget, config.workshopBrowserTarget || "mirror");
   const translateProvider = await readSetting("翻译服务", GetWorkshopTranslateProvider, config.workshopTranslateProvider || "microsoft");
   const customBaseURL = await readSetting("自定义 AI Base URL", GetWorkshopTranslateCustomBaseURL, config.workshopTranslateCustomBaseURL || "");
@@ -181,6 +189,13 @@ export async function renderSettingsPage(deps) {
     ? await readSetting("当前优选 IP 地址", GetCurrentBestIP, "")
     : "");
   let addonListInfo = null;
+  let workshopCollections = [];
+  let workshopCollectionsError = "";
+  try {
+    workshopCollections = (await ListWorkshopCollections()) || [];
+  } catch (error) {
+    workshopCollectionsError = String(error?.message || error);
+  }
   let addonListBackups = [];
   let addonListError = "";
   try {
@@ -221,6 +236,17 @@ export async function renderSettingsPage(deps) {
   } catch (error) {
     modStrategyGroupsError = String(error?.message || error || "无法读取策略组");
   }
+  // 树形层级：后端按父子关系返回；没有任何上级分组时展开结果与扁平列表一致。
+  let modStrategyGroupTree = null;
+  if (typeof ListModStrategyGroupTree === "function") {
+    try {
+      modStrategyGroupTree = (await ListModStrategyGroupTree()) || null;
+    } catch (error) {
+      console.warn("读取策略组层级失败，退回扁平视图:", error);
+      modStrategyGroupTree = null;
+    }
+  }
+  const modStrategyGroupRows = flattenStrategyGroupTree(modStrategyGroupTree, modStrategyGroups);
   const selectedModCount = appState.selectedFiles ? appState.selectedFiles.size : 0;
   let modDependencies = [];
   let modDependenciesError = "";
@@ -414,6 +440,54 @@ export async function renderSettingsPage(deps) {
                 <span class="trigger-check-text">立即触发检测</span>
               </button>
             </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">下载失败后自动重下一次</div>
+                <div class="setting-row-desc">默认关闭。开启后，新下载任务在失败时会自动重试一次（用户主动取消不会重试）；也可以在下载任务列表里单独开关某个任务。</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="settings-auto-redownload" ${autoRedownloadEnabled ? "checked" : ""}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">工坊合集</div>
+                <div class="setting-row-desc">
+                  把工坊合集保存成一条本地记录：之后可以“跟随节点”检查合集新增/下架的成员，
+                  并一键把本地缺失的成员加入下载队列。删除记录不会删除已下载的 Mod。
+                </div>
+              </div>
+              <div class="addonlist-action-row settings-profile-capture-row">
+                <input
+                  type="text"
+                  id="settings-collection-input"
+                  class="settings-profile-name-input"
+                  placeholder="粘贴合集链接或合集 ID"
+                  autocomplete="off"
+                >
+                <button type="button" id="settings-collection-capture" class="trigger-check-btn addonlist-action-btn">保存合集</button>
+                <button type="button" id="settings-collection-check-all" class="trigger-check-btn addonlist-action-btn ${workshopCollections.length > 0 ? "" : "hidden"}">检查全部更新</button>
+              </div>
+              <p id="settings-collection-status" class="setting-row-status">${escapeHtml(workshopCollectionsError)}</p>
+              ${workshopCollections.length > 0 ? `
+                <div class="settings-profile-list">
+                  ${workshopCollections.map((link) => `
+                    <div class="settings-profile-item">
+                      <div class="settings-profile-main">
+                        <strong>${escapeHtml(link.title || link.collectionId)}</strong>
+                        <span>合集 ${escapeHtml(link.collectionId)} · ${escapeHtml(formatCollectionSummary(link))}${link.lastCheckedAt ? ` · 上次检查 ${escapeHtml(link.lastCheckedAt)}` : ""}</span>
+                      </div>
+                      <div class="settings-profile-actions">
+                        <button type="button" class="settings-collection-download" data-collection-id="${escapeAttr(link.id)}">下载缺失成员</button>
+                        <button type="button" class="settings-collection-refresh" data-collection-id="${escapeAttr(link.id)}">检查更新</button>
+                        <button type="button" class="settings-collection-delete" data-collection-id="${escapeAttr(link.id)}">删除记录</button>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              ` : `<div class="setting-row-desc">还没有保存过工坊合集。</div>`}
+            </div>
           </div>
           <div class="setting-card">
             <div class="setting-card-title">浏览器跳转</div>
@@ -604,6 +678,21 @@ export async function renderSettingsPage(deps) {
                 <span id="settings-conflict-ignore-status" class="setting-row-status"></span>
               </div>
             </div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">游戏原版文件白名单</div>
+                <div class="setting-row-desc">
+                  原版文件白名单用于降低“两个 Mod 各带一份原版文件”造成的误报，只影响忽略判定，不会改写任何文件。
+                  默认启用内置的引擎胶水批次；可按类别从本机原版 <code>pak01_dir.vpk</code> 生成增量批次，
+                  生成结果保存在配置目录的 <code>stock-files</code> 下，删除文件即可停用该类别。
+                </div>
+              </div>
+              <div class="addonlist-action-row">
+                <button type="button" id="settings-stock-whitelist-generate" class="trigger-check-btn addonlist-action-btn">从原版 pak01 生成批次</button>
+                <button type="button" id="settings-stock-whitelist-reload" class="trigger-check-btn addonlist-action-btn">刷新白名单状态</button>
+                <span id="settings-stock-whitelist-status" class="setting-row-status"></span>
+              </div>
+            </div>
           </div>
           <div class="setting-card">
             <div class="setting-card-title">启用方案</div>
@@ -650,12 +739,12 @@ export async function renderSettingsPage(deps) {
               <button type="button" id="settings-strategy-group-capture" class="trigger-check-btn addonlist-action-btn" ${selectedModCount > 0 ? "" : "disabled"}>用选中的 ${selectedModCount} 个 Mod 建组</button>
             </div>
             <p id="settings-strategy-group-status" class="setting-row-status">${escapeHtml(modStrategyGroupsError)}</p>
-            ${modStrategyGroups.length > 0 ? `
+            ${modStrategyGroupRows.length > 0 ? `
               <div class="settings-profile-list">
-                ${modStrategyGroups.map((group) => `
-                  <div class="settings-profile-item">
+                ${modStrategyGroupRows.map(({ group, depth }) => `
+                  <div class="settings-profile-item" style="margin-left: ${Math.max(depth - 1, 0) * 1.25}rem">
                     <div class="settings-profile-main">
-                      <strong>${escapeHtml(group.name)}</strong>
+                      <strong>${depth > 1 ? "└ " : ""}${escapeHtml(group.name)}</strong>
                       <span>${escapeHtml(formatStrategyGroupStrategy(group.strategy))} · ${(group.members || []).length} 个成员</span>
                     </div>
                     <div class="settings-profile-actions">
@@ -663,6 +752,25 @@ export async function renderSettingsPage(deps) {
                       <button type="button" class="settings-strategy-random" data-group-id="${escapeAttr(group.id)}">随机单选</button>
                       <button type="button" class="settings-strategy-off" data-group-id="${escapeAttr(group.id)}">全关</button>
                       <button type="button" class="settings-strategy-delete" data-group-id="${escapeAttr(group.id)}">删除</button>
+                      <span class="settings-strategy-parent" title="上级分组只影响这里的展示层级，不会改变优先级（优先级由组权重与 Mod 分层决定）">
+                        <select class="settings-strategy-parent-select" data-group-id="${escapeAttr(group.id)}" aria-label="上级分组">
+                          <option value="">（顶层）</option>
+                          ${buildParentOptions(modStrategyGroupRows, group.id)
+                            .map((option) => `<option value="${escapeAttr(option.id)}" ${option.id === group.parentId ? "selected" : ""}>${escapeHtml(option.label)}</option>`)
+                            .join("")}
+                        </select>
+                      </span>
+                      <span class="settings-strategy-tier" title="组权重：叠加到组内成员的有效分层；数值越小越先加载。留空表示未设置，多个组的权重取最小值。">
+                        <input
+                          type="number"
+                          class="settings-strategy-tier-input"
+                          data-group-id="${escapeAttr(group.id)}"
+                          value="${group.tier === null || group.tier === undefined ? "" : escapeAttr(String(group.tier))}"
+                          placeholder="权重"
+                          aria-label="策略组权重"
+                        >
+                        <button type="button" class="settings-strategy-tier-save" data-group-id="${escapeAttr(group.id)}">保存权重</button>
+                      </span>
                       <label class="settings-strategy-enforce" title="开启后，手动开关组内成员时会按策略自动联动其它成员">
                         <input type="checkbox" class="settings-strategy-enforce-toggle" data-group-id="${escapeAttr(group.id)}" ${group.enforce ? "checked" : ""}>
                         <span>自动联动</span>
@@ -1163,6 +1271,55 @@ function bindModStrategyGroupSettings(deps) {
       }
     });
   });
+
+  // 组权重是"统一优先级模型"里的可编辑分层：只写 groups.json，
+  // 只有用户显式点击加载顺序弹窗里的“按分层应用”才会重排 addonlist.txt。
+  document.querySelectorAll("#settings-page-content .settings-strategy-tier-save").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.groupId;
+      if (!id) return;
+      const input = document.querySelector(
+        `#settings-page-content .settings-strategy-tier-input[data-group-id="${CSS.escape(id)}"]`,
+      );
+      const raw = String(input?.value ?? "").trim();
+      const tier = normalizePriorityTier(raw);
+      if (raw !== "" && tier === null) {
+        setStatus("组权重必须是整数（可为负数；数值越小越先加载）");
+        return;
+      }
+      button.disabled = true;
+      try {
+        await deps.SetModStrategyGroupTier(id, tier);
+        deps.showNotification(
+          tier === null ? "已清除策略组权重" : `已保存策略组权重 ${tier}（需按分层应用才会重排）`,
+          "success",
+        );
+        refresh();
+      } catch (error) {
+        setStatus("保存策略组权重失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
+  });
+
+  // 树形层级：只调整展示层级，不影响优先级；后端会拒绝成环与超过深度的设置。
+  document.querySelectorAll("#settings-page-content .settings-strategy-parent-select").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const id = select.dataset.groupId;
+      if (!id) return;
+      const parentID = select.value || "";
+      select.disabled = true;
+      try {
+        await deps.MoveModStrategyGroup(id, parentID);
+        deps.showNotification(parentID ? "已设置上级分组" : "已移动到顶层", "success");
+        refresh();
+      } catch (error) {
+        setStatus("设置上级分组失败: " + String(error?.message || error));
+        select.disabled = false;
+        refresh();
+      }
+    });
+  });
 }
 
 function bindModEnableProfileSettings(deps) {
@@ -1326,6 +1483,138 @@ function bindConflictAnalysisSettings(deps) {
     } finally {
       saveButton.disabled = false;
     }
+  });
+
+  // 原版文件白名单：只读状态 + 按需生成增量批次（只写配置目录）。
+  const whitelistStatus = document.getElementById("settings-stock-whitelist-status");
+  const describeWhitelistStatus = (state) => {
+    if (!state) return "";
+    const userCount = (state.userBatches || []).length;
+    const degraded = state.degraded ? "（有批次解析失败，已跳过）" : "";
+    return `内置 ${(state.builtinBatches || []).length} 批 / 自定义 ${userCount} 批，共 ${state.totalPaths || 0} 条路径${degraded}`;
+  };
+  const reloadWhitelistStatus = async () => {
+    try {
+      const state = await deps.GetStockWhitelistStatus();
+      if (whitelistStatus) whitelistStatus.textContent = describeWhitelistStatus(state);
+    } catch (error) {
+      if (whitelistStatus) whitelistStatus.textContent = "读取白名单状态失败: " + String(error?.message || error);
+    }
+  };
+  void reloadWhitelistStatus();
+
+  const generateButton = document.getElementById("settings-stock-whitelist-generate");
+  generateButton?.addEventListener("click", async () => {
+    generateButton.disabled = true;
+    if (whitelistStatus) whitelistStatus.textContent = "正在解析原版 pak01_dir.vpk…";
+    try {
+      const state = await deps.GenerateStockWhitelistBatchesFromGame();
+      if (whitelistStatus) whitelistStatus.textContent = describeWhitelistStatus(state);
+      deps.showNotification("已按类别生成原版文件白名单批次", "success");
+    } catch (error) {
+      if (whitelistStatus) whitelistStatus.textContent = "生成失败: " + String(error?.message || error);
+    } finally {
+      generateButton.disabled = false;
+    }
+  });
+  document.getElementById("settings-stock-whitelist-reload")?.addEventListener("click", async () => {
+    try {
+      await deps.ReloadStockWhitelist();
+    } catch (error) {
+      console.warn("刷新原版白名单失败:", error);
+    }
+    await reloadWhitelistStatus();
+  });
+
+  // 工坊合集实体化：保存 / 跟随节点检查 / 下载缺失成员 / 删除记录。
+  const collectionStatus = document.getElementById("settings-collection-status");
+  const setCollectionStatus = (message) => {
+    if (collectionStatus) collectionStatus.textContent = message || "";
+  };
+  document.getElementById("settings-collection-capture")?.addEventListener("click", async (event) => {
+    const input = document.getElementById("settings-collection-input");
+    const raw = String(input?.value || "").trim();
+    if (!raw) {
+      setCollectionStatus("请先粘贴合集链接或合集 ID");
+      return;
+    }
+    const button = event.currentTarget;
+    button.disabled = true;
+    setCollectionStatus("正在解析合集…");
+    try {
+      const collectionId = await deps.ParseWorkshopID(raw);
+      const link = await deps.CaptureWorkshopCollection(collectionId);
+      if (input) input.value = "";
+      setCollectionStatus(`已保存合集「${link.title || link.collectionId}」：${formatCollectionSummary(link)}`);
+      deps.showNotification("工坊合集已保存", "success");
+      refresh();
+    } catch (error) {
+      setCollectionStatus("保存合集失败: " + String(error?.message || error));
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("settings-collection-check-all")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    setCollectionStatus("正在检查全部合集…");
+    try {
+      const results = (await deps.CheckWorkshopCollectionUpdates()) || [];
+      const changed = results.filter((result) => Number(result.addedCount || 0) + Number(result.removedCount || 0) > 0);
+      setCollectionStatus(
+        changed.length === 0
+          ? "所有合集都没有成员变化"
+          : changed.map((result) => `${result.title || result.collectionId}：${formatCollectionRefreshSummary(result)}`).join("；"),
+      );
+      refresh();
+    } catch (error) {
+      setCollectionStatus("检查合集更新失败: " + String(error?.message || error));
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-collection-refresh").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const result = await deps.RefreshWorkshopCollection(button.dataset.collectionId);
+        setCollectionStatus(`${result.title || result.collectionId}：${formatCollectionRefreshSummary(result)}`);
+        refresh();
+      } catch (error) {
+        setCollectionStatus("检查合集更新失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
+  });
+  document.querySelectorAll("#settings-page-content .settings-collection-download").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const queued = await deps.DownloadWorkshopCollection(button.dataset.collectionId);
+        setCollectionStatus(formatCollectionQueueSummary(queued));
+        deps.showNotification(formatCollectionQueueSummary(queued), "success");
+      } catch (error) {
+        setCollectionStatus("下载合集失败: " + String(error?.message || error));
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+  document.querySelectorAll("#settings-page-content .settings-collection-delete").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!window.confirm("删除这条合集记录？已下载的 Mod 文件不会被删除。")) return;
+      button.disabled = true;
+      try {
+        await deps.DeleteWorkshopCollection(button.dataset.collectionId);
+        setCollectionStatus("已删除合集记录");
+        refresh();
+      } catch (error) {
+        setCollectionStatus("删除合集记录失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
   });
 }
 
@@ -1783,6 +2072,25 @@ function bindSettingsPage(deps) {
   });
 
   document.getElementById("settings-manual-check-btn")?.addEventListener("click", async () => {
+
+  // 下载失败自动重下：默认关闭；只影响新建任务的默认值。
+  document.getElementById("settings-auto-redownload")?.addEventListener("change", async (event) => {
+    const toggle = event.currentTarget;
+    const enabled = toggle.checked;
+    toggle.disabled = true;
+    try {
+      await deps.SetWorkshopAutoRedownload(enabled);
+      deps.showNotification(
+        enabled ? "已开启：下载失败后自动重下一次" : "已关闭自动重下",
+        "success",
+      );
+    } catch (error) {
+      toggle.checked = !enabled;
+      deps.showNotification("保存自动重下设置失败: " + error, "error");
+    } finally {
+      toggle.disabled = false;
+    }
+  });
     const btn = document.getElementById("settings-manual-check-btn");
     if (!btn || btn.disabled) return;
     btn.disabled = true;

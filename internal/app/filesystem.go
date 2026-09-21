@@ -366,6 +366,7 @@ func (a *App) DeleteVPKFile(filePath string) error {
 	if err := a.cleanupAddonListForRemovedVPK(filePath, cachedFile); err != nil {
 		return fmt.Errorf("文件已移入回收站，但 addonlist.txt 同步失败: %w", err)
 	}
+	a.InvalidateConflictRecheck("Mod 文件已删除")
 
 	return nil
 }
@@ -398,6 +399,7 @@ func (a *App) DeleteVPKFiles(filePaths []string) error {
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("删除文件 %s 失败: %v", filePath, err))
 		} else {
+			a.InvalidateConflictRecheck("Mod 文件已删除")
 			a.vpkCache.Delete(filePath)
 			a.deleteVPKPreviewCaches(filePath)
 			// 同步删除同名图片

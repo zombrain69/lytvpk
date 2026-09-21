@@ -449,6 +449,9 @@ func (a *App) writeAddonListDocument(doc addonListDocument, content string) erro
 	if err := replaceFile(tempPath, doc.path); err != nil {
 		return fmt.Errorf("无法替换 addonlist.txt: %w", err)
 	}
+	// 游戏侧加载状态发生变化：把自动复检结果标记为脏。
+	// 真正的重算发生在需要结果时（列表角标 / 修复建议），不会在这里同步扫描。
+	a.markConflictRecheckDirtyAfterAddonListWrite()
 	return nil
 }
 

@@ -1,3 +1,9 @@
+import { buildSettingsDeps } from "./settings-deps.mjs";
+
+// settingsDeps 保存 configureSettings 注入的完整依赖对象。
+// renderSettingsPage 需要全部绑定（策略组权重、启用方案、依赖、体检…），
+// 只转发部分字面量会让未列出的绑定在运行时变成 undefined。
+let settingsDeps = {};
 let appState;
 let getConfig;
 let saveConfig;
@@ -48,7 +54,8 @@ let AnalyzeAutoexecCommands;
 let OpenFileLocation;
 
 export function configureSettings(deps) {
-  ({ appState, getConfig, saveConfig, renderFileList, renderTagFilters, refreshFilesKeepFilter, showNotification, renderSettingsPage, GetWorkshopPreferredIP, GetWorkshopFixedIP, GetWorkshopIPOptions, GetWorkshopMetaEnabled, GetWorkshopUpdateCheckEnabled, GetWorkshopBrowserTarget, GetWorkshopTranslateProvider, GetWorkshopTranslateCustomBaseURL, GetWorkshopTranslateCustomModelId, HasWorkshopTranslateCustomAPIKey, IsSelectingIP, GetCurrentBestIP, GetCurrentBestIPOption, SetWorkshopPreferredIP, SetWorkshopFixedIP, SetWorkshopMetaEnabled, SetWorkshopUpdateCheckEnabled, SetWorkshopBrowserTarget, SetWorkshopTranslateProvider, SetWorkshopTranslateCustomBaseURL, SetWorkshopTranslateCustomModelId, SetWorkshopTranslateCustomAPIKey, CheckModUpdates, EventsOn, switchAppPage, GetAddonListManagerState, SaveAddonListManagedSnapshot, CreateAddonListBackup, RestoreAddonListBackup, DeleteAddonListBackup, DeleteAddonList, SetAddonListGuardEnabled, SelectAddonListMergeSource, PreviewAddonListMerge, ApplyAddonListMerge, GetAutoexecConfig, SaveAutoexecConfig, GetAutoexecCommandHelp, AnalyzeAutoexecCommands, OpenFileLocation } = deps);
+  settingsDeps = deps && typeof deps === "object" ? deps : {};
+  ({ appState, getConfig, saveConfig, renderFileList, renderTagFilters, refreshFilesKeepFilter, showNotification, renderSettingsPage, GetWorkshopPreferredIP, GetWorkshopFixedIP, GetWorkshopIPOptions, GetWorkshopMetaEnabled, GetWorkshopUpdateCheckEnabled, GetWorkshopBrowserTarget, GetWorkshopTranslateProvider, GetWorkshopTranslateCustomBaseURL, GetWorkshopTranslateCustomModelId, HasWorkshopTranslateCustomAPIKey, IsSelectingIP, GetCurrentBestIP, GetCurrentBestIPOption, SetWorkshopPreferredIP, SetWorkshopFixedIP, SetWorkshopMetaEnabled, SetWorkshopUpdateCheckEnabled, SetWorkshopBrowserTarget, SetWorkshopTranslateProvider, SetWorkshopTranslateCustomBaseURL, SetWorkshopTranslateCustomModelId, SetWorkshopTranslateCustomAPIKey, CheckModUpdates, EventsOn, switchAppPage, GetAddonListManagerState, SaveAddonListManagedSnapshot, CreateAddonListBackup, RestoreAddonListBackup, DeleteAddonListBackup, DeleteAddonList, SetAddonListGuardEnabled, SelectAddonListMergeSource, PreviewAddonListMerge, ApplyAddonListMerge, GetAutoexecConfig, SaveAutoexecConfig, GetAutoexecCommandHelp, AnalyzeAutoexecCommands, OpenFileLocation } = settingsDeps);
 }
 
 export async function showGlobalSettings() {
@@ -58,55 +65,18 @@ export async function showGlobalSettings() {
 
 export async function renderSettingsPageWithDeps() {
   try {
-    await renderSettingsPage({
-      appState,
-      getConfig,
-      saveConfig,
-      renderFileList,
-      renderTagFilters,
-      refreshFilesKeepFilter,
-      showNotification,
-      GetWorkshopPreferredIP,
-      GetWorkshopFixedIP,
-      GetWorkshopIPOptions,
-      GetWorkshopMetaEnabled,
-      GetWorkshopUpdateCheckEnabled,
-      GetWorkshopBrowserTarget,
-      GetWorkshopTranslateProvider,
-      GetWorkshopTranslateCustomBaseURL,
-      GetWorkshopTranslateCustomModelId,
-      HasWorkshopTranslateCustomAPIKey,
-      IsSelectingIP,
-      GetCurrentBestIP,
-      GetCurrentBestIPOption,
-      SetWorkshopPreferredIP,
-      SetWorkshopFixedIP,
-      SetWorkshopMetaEnabled,
-      SetWorkshopUpdateCheckEnabled,
-      SetWorkshopBrowserTarget,
-      SetWorkshopTranslateProvider,
-      SetWorkshopTranslateCustomBaseURL,
-      SetWorkshopTranslateCustomModelId,
-      SetWorkshopTranslateCustomAPIKey,
-      CheckModUpdates,
-      EventsOn,
-      GetAddonListManagerState,
-      SaveAddonListManagedSnapshot,
-      CreateAddonListBackup,
-      RestoreAddonListBackup,
-      DeleteAddonListBackup,
-      DeleteAddonList,
-      SetAddonListGuardEnabled,
-      SelectAddonListMergeSource,
-      PreviewAddonListMerge,
-      ApplyAddonListMerge,
-      GetAutoexecConfig,
-      SaveAutoexecConfig,
-      GetAutoexecCommandHelp,
-      AnalyzeAutoexecCommands,
-      OpenFileLocation,
-      });
-    } catch (error) {
+    await renderSettingsPage(
+      buildSettingsDeps(settingsDeps, {
+        appState,
+        getConfig,
+        saveConfig,
+        renderFileList,
+        renderTagFilters,
+        refreshFilesKeepFilter,
+        showNotification,
+      }),
+    );
+  } catch (error) {
       console.error("设置页面渲染失败:", error);
       const container = document.getElementById("settings-page-content");
       if (container) {

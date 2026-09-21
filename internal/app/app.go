@@ -90,13 +90,18 @@ const (
 // unavailable pool must not strand WaitGroup-based callers: synchronous
 // fallback keeps scans and on-demand analysis correct during shutdown/tests.
 func (a *App) submitPoolTask(task func()) {
+	// 后台任务（扫描、下载、冲突检测）里的 panic 不再直接终止进程：
+	// 统一走崩溃上报，记录来源、堆栈与日志尾部。
+	guarded := func() {
+		a.runGuarded("协程池任务", task)
+	}
 	if a.goroutinePool == nil {
-		task()
+		guarded()
 		return
 	}
-	if err := a.goroutinePool.Submit(task); err != nil {
+	if err := a.goroutinePool.Submit(guarded); err != nil {
 		log.Printf("协程池无法接收任务，回退为同步执行: %v", err)
-		task()
+		guarded()
 	}
 }
 
@@ -143,6 +148,7 @@ type App struct {
 	workshopFixedIP                 string
 	workshopMetaEnabled             bool
 	workshopUpdateCheckEnabled      bool
+	workshopAutoRedownload          bool
 	workshopBrowserTarget           string
 	workshopTranslateProvider       string
 	workshopTranslateCustomBaseURL  string
@@ -174,6 +180,26 @@ type App struct {
 	groupsMu                        sync.Mutex
 	dependenciesPath                string
 	dependenciesMu                  sync.Mutex
+	priorityPath                    string
+	priorityMu                      sync.Mutex
+	ignorePath                      string
+	ignoreMu                        sync.Mutex
+	// localStoreBackup* 是本地记录备份轮转的可注入参数（测试用于控制时钟、间隔、上限与删除方式）。
+	localStoreBackupClock    func() time.Time
+	localStoreBackupInterval time.Duration
+	localStoreBackupMaxFiles int
+	localStoreBackupRemove   func(string) error
+	// conflictRecheck 保存"变更驱动自动复检"的脏标记与结果缓存。
+	conflictRecheck conflictRecheckState
+	// stockWhitelist 缓存游戏原版文件白名单（内置批次 + 用户增量批次）。
+	stockWhitelist stockWhitelistCache
+	// collectionsPath / collectionsMu 管理"工坊合集实体化"记录。
+	collectionsPath string
+	collectionsMu   sync.Mutex
+	// workshopDetailsFetcher 允许测试注入工坊详情获取器（默认走真实接口）。
+	workshopDetailsFetcher workshopDetailFetcher
+	// crashReporter 保存崩溃上报的状态（日志环形缓冲、报告目录、幂等安装）。
+	crashReporter crashReporter
 }
 
 // rootDirectorySnapshot returns a consistent directory value for background
@@ -200,6 +226,7 @@ type ConfigFile struct {
 	WorkshopFixedIP                 *string          `json:"workshopFixedIP,omitempty"`
 	WorkshopMetaEnabled             *bool            `json:"workshopMetaEnabled,omitempty"`
 	WorkshopUpdateCheckEnabled      *bool            `json:"workshopUpdateCheckEnabled,omitempty"`
+	WorkshopAutoRedownload          *bool            `json:"workshopAutoRedownload,omitempty"`
 	WorkshopBrowserTarget           *string          `json:"workshopBrowserTarget,omitempty"`
 	WorkshopTranslateProvider       *string          `json:"workshopTranslateProvider,omitempty"`
 	WorkshopTranslateCustomBaseURL  string           `json:"workshopTranslateCustomBaseURL,omitempty"`
@@ -322,6 +349,9 @@ func NewApp() *App {
 	profilesPath := filepath.Join(appConfigDir, "profiles.json")
 	groupsPath := filepath.Join(appConfigDir, "groups.json")
 	dependenciesPath := filepath.Join(appConfigDir, "dependencies.json")
+	priorityPath := filepath.Join(appConfigDir, "priority.json")
+	ignorePath := filepath.Join(appConfigDir, "ignore.json")
+	collectionsPath := filepath.Join(appConfigDir, "collections.json")
 
 	app := &App{
 		goroutinePool:                   pool,
@@ -335,6 +365,9 @@ func NewApp() *App {
 		profilesPath:                    profilesPath,
 		groupsPath:                      groupsPath,
 		dependenciesPath:                dependenciesPath,
+		priorityPath:                    priorityPath,
+		ignorePath:                      ignorePath,
+		collectionsPath:                 collectionsPath,
 		workshopPreferredIP:             true,     // 默认开启优选IP
 		workshopMetaEnabled:             true,     // 默认开启工坊meta信息存储
 		workshopBrowserTarget:           "mirror", // 默认使用镜像站

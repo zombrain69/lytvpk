@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -66,23 +67,133 @@ const (
 type workshopDetailFetcher func(payload string) ([]WorkshopFileDetails, error)
 
 type DownloadTask struct {
-	ID             string             `json:"id"`
-	WorkshopID     string             `json:"workshop_id"`
-	Title          string             `json:"title"`
-	Filename       string             `json:"filename"`
-	FilePath       string             `json:"file_path"`
-	PreviewUrl     string             `json:"preview_url"`
-	FileUrl        string             `json:"file_url"` // Added for retry
-	UseOptimizedIP bool               `json:"use_optimized_ip"`
-	Status         string             `json:"status"` // "pending", "downloading", "completed", "failed", "cancelled"
-	Progress       int                `json:"progress"`
-	TotalSize      int64              `json:"total_size"`
-	DownloadedSize int64              `json:"downloaded_size"`
-	Speed          string             `json:"speed"`
-	Error          string             `json:"error"`
-	Description    string             `json:"description"`
-	CreatedAt      string             `json:"created_at"`
-	cancelFunc     context.CancelFunc `json:"-"`
+	ID             string `json:"id"`
+	WorkshopID     string `json:"workshop_id"`
+	Title          string `json:"title"`
+	Filename       string `json:"filename"`
+	FilePath       string `json:"file_path"`
+	PreviewUrl     string `json:"preview_url"`
+	FileUrl        string `json:"file_url"` // Added for retry
+	UseOptimizedIP bool   `json:"use_optimized_ip"`
+	Status         string `json:"status"` // "pending", "downloading", "completed", "failed", "cancelled"
+	Progress       int    `json:"progress"`
+	TotalSize      int64  `json:"total_size"`
+	DownloadedSize int64  `json:"downloaded_size"`
+	Speed          string `json:"speed"`
+	Error          string `json:"error"`
+	Description    string `json:"description"`
+	CreatedAt      string `json:"created_at"`
+	// AutoRedownload 为真时，本任务在失败后自动重试一次；默认关闭。
+	// 下载失败仍然会把错误写进任务里，用户随时能看到发生了什么。
+	AutoRedownload bool `json:"auto_redownload"`
+	// RedownloadAttempts 记录已经自动重试的次数（上限 1，见 shouldAutoRedownload）。
+	RedownloadAttempts int                `json:"redownload_attempts"`
+	cancelFunc         context.CancelFunc `json:"-"`
+}
+
+// shouldAutoRedownload 判定一个失败任务是否应该触发"自动重下一次"。
+// 纯函数，便于在不动网络的情况下覆盖全部边界。
+func shouldAutoRedownload(task *DownloadTask) bool {
+	if task == nil {
+		return false
+	}
+	if !task.AutoRedownload {
+		return false
+	}
+	if task.RedownloadAttempts >= 1 {
+		return false
+	}
+	if task.Status != "failed" {
+		return false
+	}
+	if strings.HasPrefix(task.Error, "Cancelled") {
+		// 用户主动取消不应被自动重下覆盖。
+		return false
+	}
+	return true
+}
+
+// downloadTaskStarter 是"启动一次下载"的可注入入口，测试用它替换真实网络下载。
+// 默认 nil 表示走真实下载；显式赋值（测试）时优先使用注入实现。
+var downloadTaskStarter func(a *App, ctx context.Context, task *DownloadTask, url string)
+
+// startDownloadTask 统一入口：默认在协程里跑真实下载，测试可注入替身。
+func startDownloadTask(a *App, ctx context.Context, task *DownloadTask, url string) {
+	if downloadTaskStarter != nil {
+		downloadTaskStarter(a, ctx, task, url)
+		return
+	}
+	go a.processDownloadTask(ctx, task, url)
+}
+
+// emitTaskUpdated 广播任务状态；Wails 未就绪（测试或无界面调用）时静默跳过。
+func (a *App) emitTaskUpdated(task *DownloadTask) {
+	if a.ctx == nil || task == nil {
+		return
+	}
+	runtime.EventsEmit(a.ctx, "task_updated", task)
+}
+
+// maybeAutoRedownload 在任务失败后按策略自动重下一次。
+// 返回 true 表示已经安排了重试。计数与状态判断在同一把锁内完成，避免并发双开。
+func (a *App) maybeAutoRedownload(taskID string) bool {
+	taskManager.mu.Lock()
+	task, exists := taskManager.tasks[taskID]
+	if !exists || !shouldAutoRedownload(task) {
+		taskManager.mu.Unlock()
+		return false
+	}
+	task.RedownloadAttempts++
+	task.Status = "pending"
+	task.Progress = 0
+	task.DownloadedSize = 0
+	task.Error = ""
+	task.Speed = ""
+	task.FilePath = ""
+	ctx, cancel := context.WithCancel(context.Background())
+	task.cancelFunc = cancel
+	taskManager.mu.Unlock()
+
+	a.emitTaskUpdated(task)
+	log.Printf("下载任务 %s 失败，已自动重下一次", taskID)
+	startDownloadTask(a, ctx, task, task.FileUrl)
+	return true
+}
+
+// SetDownloadTaskAutoRedownload 打开/关闭某个任务的自动重下。
+func (a *App) SetDownloadTaskAutoRedownload(taskID string, enabled bool) error {
+	taskManager.mu.Lock()
+	task, exists := taskManager.tasks[taskID]
+	if !exists {
+		taskManager.mu.Unlock()
+		return fmt.Errorf("下载任务不存在: %s", taskID)
+	}
+	task.AutoRedownload = enabled
+	taskManager.mu.Unlock()
+	a.emitTaskUpdated(task)
+	return nil
+}
+
+// GetWorkshopAutoRedownload 返回"新建下载任务是否默认自动重下一次"的全局设置。
+func (a *App) GetWorkshopAutoRedownload() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.workshopAutoRedownload
+}
+
+// SetWorkshopAutoRedownload 保存全局默认值。默认关闭：只有用户显式打开才会自动重下。
+func (a *App) SetWorkshopAutoRedownload(enabled bool) error {
+	a.mu.Lock()
+	a.workshopAutoRedownload = enabled
+	a.mu.Unlock()
+	a.saveConfig()
+	return nil
+}
+
+func (a *App) workshopAutoRedownloadSnapshot() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.workshopAutoRedownload
 }
 
 // TaskManager manages download tasks
@@ -155,7 +266,7 @@ func (a *App) RetryDownloadTask(taskID string) {
 
 	runtime.EventsEmit(a.ctx, "task_updated", task)
 
-	go a.processDownloadTask(ctx, task, task.FileUrl)
+	downloadTaskStarter(a, ctx, task, task.FileUrl)
 }
 
 func parseFileSize(sizeStr string) int64 {

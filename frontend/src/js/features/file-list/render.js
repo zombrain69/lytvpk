@@ -15,6 +15,13 @@ import {
   cancelVPKCardPreview,
 } from "../shared/vpk-preview-cache.js";
 import { getGameStateDisplayModel } from "./unrecorded-game-state.mjs";
+import { formatPriorityLabel } from "./priority-label.mjs";
+import {
+  conflictBadgeLevel,
+  filePriorityKeys,
+  formatConflictBadgeLabel,
+  shouldShowConflictBadge,
+} from "../conflicts/conflict-badge.mjs";
 
 let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
@@ -70,9 +77,60 @@ function getGameStateBadge(file, className = "game-state-badge") {
 
 function getLoadOrderBadge(file, className = "load-order-badge") {
   const order = getLoadOrderValue(file);
+  const priority = getFilePriorityEntry(file);
+  if (priority) {
+    const label = formatPriorityLabel(priority);
+    const explanation = priority.source === "group" ? "（分层来自策略组权重）" : "";
+    return `<span class="${className}" title="编号来自 addonlist.txt 顺序；分层是显式设置的覆盖意图。数字越大表示越靠后加载，实际覆盖结果还取决于游戏资源与 Mod 规则${explanation}">${escapeHtml(label)}</span>`;
+  }
   return Number.isInteger(order)
     ? `<span class="${className}" title="编号来自 addonlist.txt 加载顺序；数字越大表示越靠后加载。实际覆盖结果还取决于游戏资源与 Mod 规则">优先级 #${order + 1}</span>`
     : "";
+}
+
+// getConflictRecheckBadge 显示变更驱动自动复检算出的冲突角标。
+// 没有角标（未复检过或该 Mod 不参与重叠）时返回空串，不占位。
+function getConflictRecheckBadge(file, className = "conflict-recheck-badge") {
+  const badge = findConflictRecheckBadge(file);
+  if (!shouldShowConflictBadge(badge)) return "";
+  const label = formatConflictBadgeLabel(badge);
+  if (!label) return "";
+  const level = conflictBadgeLevel(badge);
+  return `<span class="${className} ${level}" title="来自变更驱动的自动复检；打开“Mod 冲突检测”可查看详情与修复建议">${escapeHtml(label)}</span>`;
+}
+
+// findConflictRecheckBadge 先按完整路径命中，再按 addonlist 键命中。
+function findConflictRecheckBadge(file) {
+  const byPath = appState.conflictBadgeByPath;
+  const byKey = appState.conflictBadgeByKey;
+  if (!byPath?.size && !byKey?.size) return null;
+  const path = String(file?.path || "");
+  if (path && byPath?.get(path)) return byPath.get(path);
+  for (const key of filePriorityKeys(file, appState.currentDirectory)) {
+    const badge = byKey?.get(key);
+    if (badge) return badge;
+  }
+  return null;
+}
+
+// getFilePriorityEntry 查找该文件在统一优先级模型里的有效分层记录。
+// 未加载分层计划或该 Mod 未记录时返回 null，调用方退回纯顺序号展示。
+function getFilePriorityEntry(file) {
+  const plan = appState.priorityPlanMap;
+  if (!plan?.size) return null;
+  const name = String(file?.name || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
+  const path = String(file?.path || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
+  const root = String(appState.currentDirectory || "").trim().replaceAll("/", "\\").replace(/^\.\\/, "").toLowerCase();
+  const keys = [];
+  if (root && path.startsWith(`${root}\\`)) keys.push(path.slice(root.length + 1));
+  if (file?.location === "workshop" && name) keys.push(`workshop\\${name}`);
+  if (file?.location === "disabled" && name) keys.push(`disabled\\${name}`);
+  if (name) keys.push(name);
+  for (const key of [...new Set(keys)]) {
+    const entry = plan.get(key);
+    if (entry) return entry;
+  }
+  return null;
 }
 
 function getLoadOrderValue(file) {
@@ -446,7 +504,7 @@ export function createFileItem(file) {
         <span>${getLocationDisplayName(file.location)}</span>
       </span>
     </div>
-      <div class="file-game-state">${getGameStateBadge(file)}${getLoadOrderBadge(file)}</div>
+      <div class="file-game-state">${getGameStateBadge(file)}${getLoadOrderBadge(file)}${getConflictRecheckBadge(file)}</div>
     <div class="file-tags">
       ${formatTags(file.primaryTag, file.secondaryTags, file.voiceCharacters, file.subjectSummary, file.xdrSummary)}
       ${getConflictSummaryBadge(file)}
@@ -677,6 +735,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
         <span class="card-badge location-badge">${getLocationDisplayName(file.location)}</span>
         ${getGameStateBadge(file, "card-badge game-state-badge")}
         ${getLoadOrderBadge(file, "card-badge load-order-badge")}
+        ${getConflictRecheckBadge(file, "card-badge conflict-recheck-badge")}
         ${
           file.primaryTag
             ? `<span class="card-badge tag-badge" title="${escapeHtml(file.primaryTag)}">${escapeHtml(file.primaryTag)}</span>`

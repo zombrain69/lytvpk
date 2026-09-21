@@ -1,5 +1,12 @@
 # FireAxe 能力补齐执行计划
 
+> **执行状态（2026-09-22）**：Task 1–10 已全部落地，代码 + 自动化测试 + 文档同步完成。
+> 完整对照表与验证记录见 `docs/development/fireaxe-parity.md`；
+> 需要真实游戏 / 真实工坊的部分见 `docs/development/manual-verification.md`。
+> 与计划的一处偏差：原计划 Task 5 的白名单落在 `assets/stock-files/*.txt`，
+> 实际落在 `internal/stockfiles/assets/`（Go `embed` 不能引用包外目录），
+> 用户增量批次仍然放在配置目录的 `stock-files/`，分批与增量语义不变。
+
 > 对照基线：ktxiaok/FireAxe `f8aa1cf1391802c64525412fdf326dbe0ecc98b1`（v0.7.3，Apache-2.0）。
 >
 > **原则**：只补 FireAxe 的强项，不牺牲 LytVPK 已有优势——直接管理真实文件、

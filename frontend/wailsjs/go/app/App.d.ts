@@ -13,6 +13,8 @@ export function ApplyAddonListMerge(arg1:string,arg2:Array<string>):Promise<void
 
 export function ApplyModEnableProfile(arg1:string):Promise<app.ModEnableProfileApplyResult>;
 
+export function ApplyModPriorityLayers():Promise<app.AddonListLoadOrderPreview>;
+
 export function ApplyModStrategyGroup(arg1:string,arg2:app.ModStrategyGroupApplyOptions):Promise<app.ModStrategyGroupApplyResult>;
 
 export function AutoDiscoverAddons():Promise<string>;
@@ -26,6 +28,8 @@ export function CaptureModEnableProfile(arg1:string,arg2:string):Promise<app.Mod
 export function CaptureModEnableProfileWithAutomation(arg1:string,arg2:string,arg3:boolean):Promise<app.ModEnableProfile>;
 
 export function CaptureModStrategyGroup(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<app.ModStrategyGroup>;
+
+export function CaptureWorkshopCollection(arg1:string):Promise<app.WorkshopCollectionLink>;
 
 export function ChangePanelDifficulty(arg1:string,arg2:string):Promise<string>;
 
@@ -45,11 +49,17 @@ export function CheckModUpdates():Promise<app.UpdateCheckResult>;
 
 export function CheckUpdate():Promise<app.UpdateInfo>;
 
+export function CheckWorkshopCollectionUpdates():Promise<Array<app.WorkshopCollectionRefreshResult>>;
+
 export function ClearCompletedPanelMapUploads():Promise<void>;
 
 export function ClearCompletedTasks():Promise<void>;
 
+export function ClearModPriority(arg1:string):Promise<void>;
+
 export function ClearPanelMaps(arg1:string):Promise<string>;
+
+export function CloseCrashReporter():Promise<void>;
 
 export function ConnectToServer(arg1:string):Promise<void>;
 
@@ -59,19 +69,29 @@ export function DeleteAddonList():Promise<void>;
 
 export function DeleteAddonListBackup(arg1:string):Promise<void>;
 
+export function DeleteCrashReport(arg1:string):Promise<void>;
+
 export function DeleteModDependencies(arg1:string):Promise<void>;
 
 export function DeleteModEnableProfile(arg1:string):Promise<void>;
+
+export function DeleteModIgnoreFiles(arg1:string):Promise<void>;
 
 export function DeleteModStrategyGroup(arg1:string):Promise<void>;
 
 export function DeletePanelMapFile(arg1:string,arg2:string):Promise<string>;
 
+export function DeleteStockWhitelistBatch(arg1:string):Promise<void>;
+
 export function DeleteVPKFile(arg1:string):Promise<void>;
 
 export function DeleteVPKFiles(arg1:Array<string>):Promise<void>;
 
+export function DeleteWorkshopCollection(arg1:string):Promise<void>;
+
 export function DoUpdate(arg1:string):Promise<string>;
+
+export function DownloadWorkshopCollection(arg1:string):Promise<Array<string>>;
 
 export function EnableAllMissingModDependencies():Promise<app.ModDependencyEnableResult>;
 
@@ -115,6 +135,8 @@ export function FetchWorkshopList(arg1:app.WorkshopQueryOptions):Promise<app.Wor
 
 export function ForceExit():Promise<void>;
 
+export function GenerateStockWhitelistBatchesFromGame():Promise<app.StockWhitelistStatus>;
+
 export function GetAddonListInfo():Promise<app.AddonListInfo>;
 
 export function GetAddonListLoadOrderEntries():Promise<Array<app.AddonListLoadOrderEntry>>;
@@ -130,6 +152,14 @@ export function GetAutoexecCommandHelp(arg1:string):Promise<Array<app.AutoexecCo
 export function GetAutoexecConfig():Promise<app.AutoexecConfig>;
 
 export function GetConfigMigrationVersion():Promise<number>;
+
+export function GetConflictBadges():Promise<Array<app.ConflictBadge>>;
+
+export function GetConflictFixSuggestions():Promise<Array<app.ConflictFixSuggestion>>;
+
+export function GetConflictRecheckStatus():Promise<app.ConflictRecheckStatus>;
+
+export function GetCrashReportDirectory():Promise<string>;
 
 export function GetCurrentBestIP():Promise<string>;
 
@@ -147,6 +177,10 @@ export function GetMirrorsInitial():Promise<Array<app.MirrorWithLatency>>;
 
 export function GetMirrorsWithLatency():Promise<Array<app.MirrorWithLatency>>;
 
+export function GetModIgnoreFiles(arg1:string):Promise<Array<string>>;
+
+export function GetModPriorityPlan():Promise<Array<app.ModEffectivePriority>>;
+
 export function GetModRotation():Promise<app.RotationConfig>;
 
 export function GetModelStatsScanState():Promise<app.ModelStatsScanState>;
@@ -163,6 +197,8 @@ export function GetSecondaryTags(arg1:string):Promise<Array<string>>;
 
 export function GetServerStorage():Promise<app.ServerStorage>;
 
+export function GetStockWhitelistStatus():Promise<app.StockWhitelistStatus>;
+
 export function GetVPKCardPreviewImage(arg1:string):Promise<string>;
 
 export function GetVPKFiles():Promise<Array<parser.VPKFile>>;
@@ -174,6 +210,8 @@ export function GetVPKModelMetrics(arg1:Array<string>):Promise<Array<app.VPKMode
 export function GetVPKOperationWarning(arg1:string):Promise<app.VPKOperationWarning>;
 
 export function GetVPKPreviewImage(arg1:string):Promise<string>;
+
+export function GetWorkshopAutoRedownload():Promise<boolean>;
 
 export function GetWorkshopBrowserTarget():Promise<string>;
 
@@ -219,7 +257,11 @@ export function InspectVPKIntegrity(arg1:string):Promise<parser.VPKIntegrityRepo
 
 export function InspectVPKIntegrityBatch(arg1:Array<string>):Promise<Array<app.VPKIntegrityBatchResult>>;
 
+export function InstallCrashReporter():Promise<void>;
+
 export function InstallSprayVPK(arg1:app.SprayInstallRequest):Promise<app.SprayInstallResult>;
+
+export function InvalidateConflictRecheck(arg1:string):Promise<void>;
 
 export function IsSelectingIP():Promise<boolean>;
 
@@ -229,11 +271,23 @@ export function LaunchL4D2ForProblemScan():Promise<void>;
 
 export function ListAddonListBackups():Promise<Array<app.AddonListBackup>>;
 
+export function ListCrashReports():Promise<Array<app.CrashReport>>;
+
+export function ListLocalStoreBackups(arg1:string):Promise<Array<string>>;
+
 export function ListModDependencies():Promise<Array<app.ModDependencyRecord>>;
 
 export function ListModEnableProfiles():Promise<Array<app.ModEnableProfile>>;
 
+export function ListModIgnoreRecords():Promise<Array<app.ModIgnoreRecord>>;
+
+export function ListModPriorities():Promise<Array<app.ModPriorityEntry>>;
+
+export function ListModStrategyGroupTree():Promise<Array<app.ModStrategyGroupTreeNode>>;
+
 export function ListModStrategyGroups():Promise<Array<app.ModStrategyGroup>>;
+
+export function ListWorkshopCollections():Promise<Array<app.WorkshopCollectionLink>>;
 
 export function LoadSprayImportFiles(arg1:Array<string>):Promise<Array<app.SprayImportFilePayload>>;
 
@@ -244,6 +298,8 @@ export function ManualRotateMods(arg1:app.RotationConfig):Promise<void>;
 export function MigrateLocalStorageConfig(arg1:app.LocalStorageMigrationPayload):Promise<void>;
 
 export function MoveArchiveFiles(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
+
+export function MoveModStrategyGroup(arg1:string,arg2:string):Promise<app.ModStrategyGroup>;
 
 export function MoveVpkFiles(arg1:Array<string>,arg2:string):Promise<app.MoveResult>;
 
@@ -269,6 +325,14 @@ export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolic
 
 export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
 
+export function ReadCrashReport(arg1:string):Promise<app.CrashReport>;
+
+export function RecheckConflictsNow():Promise<app.ConflictRecheckStatus>;
+
+export function RefreshWorkshopCollection(arg1:string):Promise<app.WorkshopCollectionRefreshResult>;
+
+export function ReloadStockWhitelist():Promise<void>;
+
 export function RemoveDuplicateAddonListEntries():Promise<number>;
 
 export function RemoveMissingFileAddonListEntries():Promise<number>;
@@ -278,6 +342,8 @@ export function RenameVPKFile(arg1:string,arg2:string):Promise<string>;
 export function RepairVPKIntegrity(arg1:string):Promise<app.VPKRepairResult>;
 
 export function RepairVPKIntegrityBatch(arg1:Array<string>):Promise<Array<app.VPKRepairBatchResult>>;
+
+export function ReportFrontendError(arg1:string,arg2:string):Promise<string>;
 
 export function RestartApplication():Promise<void>;
 
@@ -343,11 +409,19 @@ export function SendPanelRconCommand(arg1:string,arg2:string):Promise<string>;
 
 export function SetAddonListGuardEnabled(arg1:boolean):Promise<app.AddonListInfo>;
 
+export function SetDownloadTaskAutoRedownload(arg1:string,arg2:boolean):Promise<void>;
+
 export function SetModDependencies(arg1:string,arg2:Array<string>):Promise<app.ModDependencyRecord>;
+
+export function SetModIgnoreFiles(arg1:string,arg2:string,arg3:Array<string>):Promise<app.ModIgnoreRecord>;
+
+export function SetModPriority(arg1:string,arg2:string,arg3:number):Promise<app.ModPriorityEntry>;
 
 export function SetModRotation(arg1:app.RotationConfig):Promise<void>;
 
 export function SetModStrategyGroupEnforcement(arg1:string,arg2:boolean):Promise<app.ModStrategyGroup>;
+
+export function SetModStrategyGroupTier(arg1:string,arg2:any):Promise<app.ModStrategyGroup>;
 
 export function SetRootDirectory(arg1:string):Promise<void>;
 
@@ -356,6 +430,8 @@ export function SetVPKGameEnabled(arg1:string,arg2:boolean):Promise<number>;
 export function SetVPKLoadOrder(arg1:string,arg2:number):Promise<void>;
 
 export function SetVPKTags(arg1:string,arg2:string,arg3:Array<string>):Promise<void>;
+
+export function SetWorkshopAutoRedownload(arg1:boolean):Promise<void>;
 
 export function SetWorkshopBrowserTarget(arg1:string):Promise<void>;
 

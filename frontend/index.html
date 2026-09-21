@@ -1047,6 +1047,26 @@
                 <!-- 动态生成详细标签 -->
               </div>
             </div>
+            <div id="detail-ignore-section" class="detail-section">
+              <h4>该 Mod 的冲突忽略文件</h4>
+              <p class="detail-ignore-description">
+                每行一个 VPK 内部路径，例如 materials/shared.vtf；以 / 结尾表示整个目录。
+                命中这些路径时，<strong>只有这个 Mod</strong> 不再参与对应资源的冲突判定，
+                内置规则与设置页的全局忽略清单始终生效。
+              </p>
+              <textarea
+                id="detail-ignore-input"
+                class="detail-ignore-input"
+                rows="4"
+                spellcheck="false"
+                placeholder="materials/shared.vtf&#10;scripts/vscripts/"
+              ></textarea>
+              <div class="detail-ignore-actions">
+                <button id="detail-ignore-save-btn" type="button" class="btn btn-small btn-primary">保存忽略清单</button>
+                <button id="detail-ignore-clear-btn" type="button" class="btn btn-small btn-outline">清空</button>
+                <span id="detail-ignore-status" class="detail-ignore-status" aria-live="polite"></span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1900,6 +1920,28 @@
                   下移一位（优先级更低）
                 </button>
               </div>
+
+              <div id="load-order-priority-panel" class="load-order-priority-panel">
+                <label for="load-order-tier-input" class="load-order-label">优先级分层（可选）</label>
+                <p class="load-order-control-help">
+                  分层是"想让谁覆盖谁"的意图：数值越小越先加载。未设置分层时优先级完全等同于
+                  addonlist.txt 的顺序号；设置分层本身不会改动文件，只有点击"按分层应用"才会重排。
+                </p>
+                <div class="load-order-priority-row">
+                  <button id="load-order-tier-minus-btn" type="button" class="btn btn-secondary" title="分层减 1">−1</button>
+                  <input
+                    type="number"
+                    id="load-order-tier-input"
+                    class="load-order-input no-arrow"
+                    placeholder="分层"
+                    aria-label="优先级分层数值"
+                  />
+                  <button id="load-order-tier-plus-btn" type="button" class="btn btn-secondary" title="分层加 1">+1</button>
+                  <button id="load-order-tier-apply-btn" type="button" class="btn btn-primary">保存分层</button>
+                  <button id="load-order-tier-clear-btn" type="button" class="btn btn-outline">清除分层</button>
+                </div>
+                <div id="load-order-priority-effective" class="load-order-priority-effective" aria-live="polite"></div>
+              </div>
             </section>
 
             <section class="load-order-policy-section" aria-labelledby="load-order-policy-title">
@@ -1908,6 +1950,9 @@
                   <label id="load-order-policy-title" class="load-order-label">选择性优化</label>
                   <p>先预览，再写入 addonlist.txt。仅重排已有条目，所有 Mod 的游戏内开关状态保持不变。</p>
                 </div>
+                <button id="apply-priority-layers-btn" type="button" class="btn btn-secondary">
+                  按分层应用（重排 addonlist.txt）
+                </button>
               </div>
 
               <section class="load-order-presets-section" aria-labelledby="load-order-presets-title">
@@ -2118,6 +2163,32 @@
               </p>
               <div id="conflict-override-list" class="conflict-list"></div>
               <p id="conflict-override-more" class="conflict-override-more hidden"></p>
+            </div>
+            <!-- 单 Mod 忽略清单：这些重叠因为 Mod 自己的规则被跳过 -->
+            <div id="conflict-mod-ignore-section" class="conflict-mod-ignore-section hidden">
+              <div class="conflict-mod-ignore-header">
+                <span class="severity-badge info">已忽略</span>
+                <span class="conflict-mod-ignore-title">因 Mod 自身的忽略规则跳过</span>
+                <span id="conflict-mod-ignore-count" class="conflict-mod-ignore-count">0 项</span>
+              </div>
+              <p class="conflict-mod-ignore-hint">
+                这些路径本来会参与重叠判定，但对应的 Mod 自己声明"不提供该文件"（对齐 FireAxe 的
+                ConflictIgnoringFiles 语义），因此退出了判定。可在 Mod 详情的"该 Mod 的冲突忽略文件"里调整。
+              </p>
+              <div id="conflict-mod-ignore-list" class="conflict-mod-ignore-list"></div>
+            </div>
+            <!-- 变更驱动复检给出的修复建议（仅建议，需要用户确认） -->
+            <div id="conflict-fix-section" class="conflict-fix-section hidden">
+              <div class="conflict-fix-header">
+                <span class="severity-badge info">建议</span>
+                <span class="conflict-fix-title">修复建议（需要你确认）</span>
+                <span id="conflict-fix-count" class="conflict-fix-count">0 条</span>
+              </div>
+              <p class="conflict-fix-hint">
+                这些建议只写入 <code>priority.json</code>；真正重排 <code>addonlist.txt</code> 仍需要你在
+                “编辑加载顺序”里点“按分层应用”。应用不会自动改动任何 Mod 文件。
+              </p>
+              <div id="conflict-fix-list" class="conflict-fix-list"></div>
             </div>
           </div>
 

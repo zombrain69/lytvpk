@@ -67,6 +67,15 @@ func (a *App) ensureConfigPaths() {
 	if a.dependenciesPath == "" {
 		a.dependenciesPath = filepath.Join(a.configDir, "dependencies.json")
 	}
+	if a.priorityPath == "" {
+		a.priorityPath = filepath.Join(a.configDir, "priority.json")
+	}
+	if a.ignorePath == "" {
+		a.ignorePath = filepath.Join(a.configDir, "ignore.json")
+	}
+	if a.collectionsPath == "" {
+		a.collectionsPath = filepath.Join(a.configDir, "collections.json")
+	}
 }
 
 func (a *App) loadConfig() {
@@ -101,6 +110,9 @@ func (a *App) loadConfig() {
 	}
 	if config.WorkshopUpdateCheckEnabled != nil {
 		a.workshopUpdateCheckEnabled = *config.WorkshopUpdateCheckEnabled
+	}
+	if config.WorkshopAutoRedownload != nil {
+		a.workshopAutoRedownload = *config.WorkshopAutoRedownload
 	}
 	if config.WorkshopBrowserTarget != nil {
 		a.workshopBrowserTarget = *config.WorkshopBrowserTarget
@@ -173,6 +185,7 @@ func (a *App) snapshotConfig() ConfigFile {
 	unrecordedModLoadOrderPlacement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
 	conflictPriorityAware := a.conflictPriorityAware
 	conflictIgnoreFiles := append([]string(nil), a.conflictIgnoreFiles...)
+	workshopAutoRedownload := a.workshopAutoRedownload
 
 	return ConfigFile{
 		ModRotationConfig:               a.modRotationConfig,
@@ -180,6 +193,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		WorkshopFixedIP:                 &fixedIP,
 		WorkshopMetaEnabled:             &metaEnabled,
 		WorkshopUpdateCheckEnabled:      &updateCheckEnabled,
+		WorkshopAutoRedownload:          &workshopAutoRedownload,
 		WorkshopBrowserTarget:           &browserTarget,
 		WorkshopTranslateProvider:       &translateProvider,
 		WorkshopTranslateCustomBaseURL:  a.workshopTranslateCustomBaseURL,

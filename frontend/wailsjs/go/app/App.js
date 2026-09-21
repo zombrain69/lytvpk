@@ -18,6 +18,10 @@ export function ApplyModEnableProfile(arg1) {
   return window['go']['app']['App']['ApplyModEnableProfile'](arg1);
 }
 
+export function ApplyModPriorityLayers() {
+  return window['go']['app']['App']['ApplyModPriorityLayers']();
+}
+
 export function ApplyModStrategyGroup(arg1, arg2) {
   return window['go']['app']['App']['ApplyModStrategyGroup'](arg1, arg2);
 }
@@ -44,6 +48,10 @@ export function CaptureModEnableProfileWithAutomation(arg1, arg2, arg3) {
 
 export function CaptureModStrategyGroup(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CaptureModStrategyGroup'](arg1, arg2, arg3, arg4);
+}
+
+export function CaptureWorkshopCollection(arg1) {
+  return window['go']['app']['App']['CaptureWorkshopCollection'](arg1);
 }
 
 export function ChangePanelDifficulty(arg1, arg2) {
@@ -82,6 +90,10 @@ export function CheckUpdate() {
   return window['go']['app']['App']['CheckUpdate']();
 }
 
+export function CheckWorkshopCollectionUpdates() {
+  return window['go']['app']['App']['CheckWorkshopCollectionUpdates']();
+}
+
 export function ClearCompletedPanelMapUploads() {
   return window['go']['app']['App']['ClearCompletedPanelMapUploads']();
 }
@@ -90,8 +102,16 @@ export function ClearCompletedTasks() {
   return window['go']['app']['App']['ClearCompletedTasks']();
 }
 
+export function ClearModPriority(arg1) {
+  return window['go']['app']['App']['ClearModPriority'](arg1);
+}
+
 export function ClearPanelMaps(arg1) {
   return window['go']['app']['App']['ClearPanelMaps'](arg1);
+}
+
+export function CloseCrashReporter() {
+  return window['go']['app']['App']['CloseCrashReporter']();
 }
 
 export function ConnectToServer(arg1) {
@@ -110,12 +130,20 @@ export function DeleteAddonListBackup(arg1) {
   return window['go']['app']['App']['DeleteAddonListBackup'](arg1);
 }
 
+export function DeleteCrashReport(arg1) {
+  return window['go']['app']['App']['DeleteCrashReport'](arg1);
+}
+
 export function DeleteModDependencies(arg1) {
   return window['go']['app']['App']['DeleteModDependencies'](arg1);
 }
 
 export function DeleteModEnableProfile(arg1) {
   return window['go']['app']['App']['DeleteModEnableProfile'](arg1);
+}
+
+export function DeleteModIgnoreFiles(arg1) {
+  return window['go']['app']['App']['DeleteModIgnoreFiles'](arg1);
 }
 
 export function DeleteModStrategyGroup(arg1) {
@@ -126,6 +154,10 @@ export function DeletePanelMapFile(arg1, arg2) {
   return window['go']['app']['App']['DeletePanelMapFile'](arg1, arg2);
 }
 
+export function DeleteStockWhitelistBatch(arg1) {
+  return window['go']['app']['App']['DeleteStockWhitelistBatch'](arg1);
+}
+
 export function DeleteVPKFile(arg1) {
   return window['go']['app']['App']['DeleteVPKFile'](arg1);
 }
@@ -134,8 +166,16 @@ export function DeleteVPKFiles(arg1) {
   return window['go']['app']['App']['DeleteVPKFiles'](arg1);
 }
 
+export function DeleteWorkshopCollection(arg1) {
+  return window['go']['app']['App']['DeleteWorkshopCollection'](arg1);
+}
+
 export function DoUpdate(arg1) {
   return window['go']['app']['App']['DoUpdate'](arg1);
+}
+
+export function DownloadWorkshopCollection(arg1) {
+  return window['go']['app']['App']['DownloadWorkshopCollection'](arg1);
 }
 
 export function EnableAllMissingModDependencies() {
@@ -222,6 +262,10 @@ export function ForceExit() {
   return window['go']['app']['App']['ForceExit']();
 }
 
+export function GenerateStockWhitelistBatchesFromGame() {
+  return window['go']['app']['App']['GenerateStockWhitelistBatchesFromGame']();
+}
+
 export function GetAddonListInfo() {
   return window['go']['app']['App']['GetAddonListInfo']();
 }
@@ -252,6 +296,22 @@ export function GetAutoexecConfig() {
 
 export function GetConfigMigrationVersion() {
   return window['go']['app']['App']['GetConfigMigrationVersion']();
+}
+
+export function GetConflictBadges() {
+  return window['go']['app']['App']['GetConflictBadges']();
+}
+
+export function GetConflictFixSuggestions() {
+  return window['go']['app']['App']['GetConflictFixSuggestions']();
+}
+
+export function GetConflictRecheckStatus() {
+  return window['go']['app']['App']['GetConflictRecheckStatus']();
+}
+
+export function GetCrashReportDirectory() {
+  return window['go']['app']['App']['GetCrashReportDirectory']();
 }
 
 export function GetCurrentBestIP() {
@@ -286,6 +346,14 @@ export function GetMirrorsWithLatency() {
   return window['go']['app']['App']['GetMirrorsWithLatency']();
 }
 
+export function GetModIgnoreFiles(arg1) {
+  return window['go']['app']['App']['GetModIgnoreFiles'](arg1);
+}
+
+export function GetModPriorityPlan() {
+  return window['go']['app']['App']['GetModPriorityPlan']();
+}
+
 export function GetModRotation() {
   return window['go']['app']['App']['GetModRotation']();
 }
@@ -318,6 +386,10 @@ export function GetServerStorage() {
   return window['go']['app']['App']['GetServerStorage']();
 }
 
+export function GetStockWhitelistStatus() {
+  return window['go']['app']['App']['GetStockWhitelistStatus']();
+}
+
 export function GetVPKCardPreviewImage(arg1) {
   return window['go']['app']['App']['GetVPKCardPreviewImage'](arg1);
 }
@@ -340,6 +412,10 @@ export function GetVPKOperationWarning(arg1) {
 
 export function GetVPKPreviewImage(arg1) {
   return window['go']['app']['App']['GetVPKPreviewImage'](arg1);
+}
+
+export function GetWorkshopAutoRedownload() {
+  return window['go']['app']['App']['GetWorkshopAutoRedownload']();
 }
 
 export function GetWorkshopBrowserTarget() {
@@ -430,8 +506,16 @@ export function InspectVPKIntegrityBatch(arg1) {
   return window['go']['app']['App']['InspectVPKIntegrityBatch'](arg1);
 }
 
+export function InstallCrashReporter() {
+  return window['go']['app']['App']['InstallCrashReporter']();
+}
+
 export function InstallSprayVPK(arg1) {
   return window['go']['app']['App']['InstallSprayVPK'](arg1);
+}
+
+export function InvalidateConflictRecheck(arg1) {
+  return window['go']['app']['App']['InvalidateConflictRecheck'](arg1);
 }
 
 export function IsSelectingIP() {
@@ -450,6 +534,14 @@ export function ListAddonListBackups() {
   return window['go']['app']['App']['ListAddonListBackups']();
 }
 
+export function ListCrashReports() {
+  return window['go']['app']['App']['ListCrashReports']();
+}
+
+export function ListLocalStoreBackups(arg1) {
+  return window['go']['app']['App']['ListLocalStoreBackups'](arg1);
+}
+
 export function ListModDependencies() {
   return window['go']['app']['App']['ListModDependencies']();
 }
@@ -458,8 +550,24 @@ export function ListModEnableProfiles() {
   return window['go']['app']['App']['ListModEnableProfiles']();
 }
 
+export function ListModIgnoreRecords() {
+  return window['go']['app']['App']['ListModIgnoreRecords']();
+}
+
+export function ListModPriorities() {
+  return window['go']['app']['App']['ListModPriorities']();
+}
+
+export function ListModStrategyGroupTree() {
+  return window['go']['app']['App']['ListModStrategyGroupTree']();
+}
+
 export function ListModStrategyGroups() {
   return window['go']['app']['App']['ListModStrategyGroups']();
+}
+
+export function ListWorkshopCollections() {
+  return window['go']['app']['App']['ListWorkshopCollections']();
 }
 
 export function LoadSprayImportFiles(arg1) {
@@ -480,6 +588,10 @@ export function MigrateLocalStorageConfig(arg1) {
 
 export function MoveArchiveFiles(arg1, arg2, arg3) {
   return window['go']['app']['App']['MoveArchiveFiles'](arg1, arg2, arg3);
+}
+
+export function MoveModStrategyGroup(arg1, arg2) {
+  return window['go']['app']['App']['MoveModStrategyGroup'](arg1, arg2);
 }
 
 export function MoveVpkFiles(arg1, arg2) {
@@ -530,6 +642,22 @@ export function PreviewAddonListMerge(arg1) {
   return window['go']['app']['App']['PreviewAddonListMerge'](arg1);
 }
 
+export function ReadCrashReport(arg1) {
+  return window['go']['app']['App']['ReadCrashReport'](arg1);
+}
+
+export function RecheckConflictsNow() {
+  return window['go']['app']['App']['RecheckConflictsNow']();
+}
+
+export function RefreshWorkshopCollection(arg1) {
+  return window['go']['app']['App']['RefreshWorkshopCollection'](arg1);
+}
+
+export function ReloadStockWhitelist() {
+  return window['go']['app']['App']['ReloadStockWhitelist']();
+}
+
 export function RemoveDuplicateAddonListEntries() {
   return window['go']['app']['App']['RemoveDuplicateAddonListEntries']();
 }
@@ -548,6 +676,10 @@ export function RepairVPKIntegrity(arg1) {
 
 export function RepairVPKIntegrityBatch(arg1) {
   return window['go']['app']['App']['RepairVPKIntegrityBatch'](arg1);
+}
+
+export function ReportFrontendError(arg1, arg2) {
+  return window['go']['app']['App']['ReportFrontendError'](arg1, arg2);
 }
 
 export function RestartApplication() {
@@ -678,8 +810,20 @@ export function SetAddonListGuardEnabled(arg1) {
   return window['go']['app']['App']['SetAddonListGuardEnabled'](arg1);
 }
 
+export function SetDownloadTaskAutoRedownload(arg1, arg2) {
+  return window['go']['app']['App']['SetDownloadTaskAutoRedownload'](arg1, arg2);
+}
+
 export function SetModDependencies(arg1, arg2) {
   return window['go']['app']['App']['SetModDependencies'](arg1, arg2);
+}
+
+export function SetModIgnoreFiles(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SetModIgnoreFiles'](arg1, arg2, arg3);
+}
+
+export function SetModPriority(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SetModPriority'](arg1, arg2, arg3);
 }
 
 export function SetModRotation(arg1) {
@@ -688,6 +832,10 @@ export function SetModRotation(arg1) {
 
 export function SetModStrategyGroupEnforcement(arg1, arg2) {
   return window['go']['app']['App']['SetModStrategyGroupEnforcement'](arg1, arg2);
+}
+
+export function SetModStrategyGroupTier(arg1, arg2) {
+  return window['go']['app']['App']['SetModStrategyGroupTier'](arg1, arg2);
 }
 
 export function SetRootDirectory(arg1) {
@@ -704,6 +852,10 @@ export function SetVPKLoadOrder(arg1, arg2) {
 
 export function SetVPKTags(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetVPKTags'](arg1, arg2, arg3);
+}
+
+export function SetWorkshopAutoRedownload(arg1) {
+  return window['go']['app']['App']['SetWorkshopAutoRedownload'](arg1);
 }
 
 export function SetWorkshopBrowserTarget(arg1) {

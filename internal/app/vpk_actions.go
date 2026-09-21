@@ -340,6 +340,9 @@ func (a *App) ToggleVPKFile(filePath string) error {
 	if err := a.updateAddonListEntries(values, removals); err != nil {
 		return fmt.Errorf("文件已移动，但 addonlist.txt 同步失败: %w", err)
 	}
+	// 文件在 addons / workshop / disabled 之间移动会改变游戏侧可用资源集合，
+	// 即使 addonlist.txt 内容没有变化也需要让自动复检结果失效。
+	a.InvalidateConflictRecheck("Mod 文件位置发生变化")
 
 	log.Printf("文件已移动: %s -> %s", filePath, newPath)
 
@@ -702,5 +705,7 @@ func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error)
 	}
 
 	a.updateCompletedDownloadTaskPath(filePath, newPath)
+	// VPK 改名会同时改变 addonlist 键与资源归属，复检结果必须失效。
+	a.InvalidateConflictRecheck("Mod 文件已重命名")
 	return newPath, nil
 }

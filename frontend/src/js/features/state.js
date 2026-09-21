@@ -30,6 +30,14 @@ export const appState = {
   sortType: "name",
   sortOrder: "asc",
   loadOrderMap: new Map(),
+  // priorityPlanMap: addonlist 归一化键 -> GetModPriorityPlan 的有效分层明细。
+  // 未加载时为 null，列表退回只显示顺序号。
+  priorityPlanMap: null,
+  // loadOrderPriorityFilePath: 加载顺序弹窗当前编辑的 Mod 路径（单项模式）。
+  loadOrderPriorityFilePath: null,
+  // conflictBadgeByPath / conflictBadgeByKey: 变更驱动自动复检产生的冲突角标索引。
+  conflictBadgeByPath: new Map(),
+  conflictBadgeByKey: new Map(),
   displayMode: getConfig().displayMode || "list",
   boxSelectionEnabled: getConfig().boxSelectionEnabled || false,
   ctrlClickSelectionEnabled: getConfig().ctrlClickSelectionEnabled || false,

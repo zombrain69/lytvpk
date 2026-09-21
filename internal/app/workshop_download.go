@@ -66,6 +66,9 @@ func (a *App) StartDownloadTask(details WorkshopFileDetails, useOptimizedIP bool
 		Progress:       0,
 		TotalSize:      totalSize,
 		CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
+		// 自动重下默认关闭，跟随全局默认设置；任务创建后仍可用
+		// SetDownloadTaskAutoRedownload 单独调整。
+		AutoRedownload: a.workshopAutoRedownloadSnapshot(),
 		cancelFunc:     cancel,
 	}
 
@@ -73,7 +76,7 @@ func (a *App) StartDownloadTask(details WorkshopFileDetails, useOptimizedIP bool
 	taskManager.tasks[taskID] = task
 	taskManager.mu.Unlock()
 
-	go a.processDownloadTask(ctx, task, details.FileUrl)
+	downloadTaskStarter(a, ctx, task, details.FileUrl)
 
 	return taskID
 }
@@ -85,6 +88,10 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		task.Error = err
 		taskManager.mu.Unlock()
 		runtime.EventsEmit(a.ctx, "task_updated", task)
+		if status == "failed" {
+			// 默认关闭；只有显式打开自动重下的任务才会在这里被安排一次重试。
+			a.maybeAutoRedownload(task.ID)
+		}
 	}
 
 	updateStatus("downloading", "")

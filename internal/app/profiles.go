@@ -27,6 +27,9 @@ type ModEnableProfile struct {
 	IncludesAutomation bool                  `json:"includesAutomation,omitempty"`
 	Groups             []ModStrategyGroup    `json:"groups,omitempty"`
 	Dependencies       []ModDependencyRecord `json:"dependencies,omitempty"`
+	// Priorities 是显式优先级分层的快照（对齐 FireAxe 把优先级随方案保存的语义）。
+	// 与 Groups 同时生效：只有 IncludesAutomation 为真时才会随方案恢复。
+	Priorities []ModPriorityEntry `json:"priorities,omitempty"`
 }
 
 // ModEnableProfileEntry 记录单个 addonlist 条目的目标开关。
@@ -48,6 +51,7 @@ type ModEnableProfileApplyResult struct {
 	// RestoredGroups / RestoredDependencies 只在方案包含自动化快照时大于 0。
 	RestoredGroups       int `json:"restoredGroups"`
 	RestoredDependencies int `json:"restoredDependencies"`
+	RestoredPriorities   int `json:"restoredPriorities"`
 }
 
 type modEnableProfileStore struct {
@@ -85,6 +89,7 @@ func (a *App) writeModEnableProfileStore(store modEnableProfileStore) error {
 	if store.Profiles == nil {
 		store.Profiles = []ModEnableProfile{}
 	}
+	a.backupLocalStoreFileIfNeeded(path)
 	return writeJSONFile(a.configDir, path, store)
 }
 
@@ -152,9 +157,14 @@ func (a *App) CaptureModEnableProfileWithAutomation(name string, description str
 		if dependencyErr != nil {
 			return ModEnableProfile{}, dependencyErr
 		}
+		priorities, priorityErr := a.ListModPriorities()
+		if priorityErr != nil {
+			return ModEnableProfile{}, priorityErr
+		}
 		profile.IncludesAutomation = true
 		profile.Groups = groups
 		profile.Dependencies = dependencies
+		profile.Priorities = priorities
 	}
 
 	a.profilesMu.Lock()
@@ -322,8 +332,22 @@ func (a *App) applyModEnableProfileLocked(profile ModEnableProfile) (ModEnablePr
 		}
 		a.dependenciesMu.Unlock()
 
+		priorities := make([]ModPriorityEntry, 0, len(profile.Priorities))
+		for _, entry := range profile.Priorities {
+			if normalized, ok := normalizeModPriorityEntry(entry); ok {
+				priorities = append(priorities, normalized)
+			}
+		}
+		a.priorityMu.Lock()
+		if err := a.writeModPriorityStore(modPriorityStore{Entries: priorities}); err != nil {
+			a.priorityMu.Unlock()
+			return result, fmt.Errorf("无法恢复优先级分层: %w", err)
+		}
+		a.priorityMu.Unlock()
+
 		result.RestoredGroups = len(profile.Groups)
 		result.RestoredDependencies = len(profile.Dependencies)
+		result.RestoredPriorities = len(priorities)
 	}
 	return result, nil
 }
@@ -431,8 +455,22 @@ func normalizeModEnableProfile(profile ModEnableProfile) (ModEnableProfile, erro
 			}
 			dependencies = append(dependencies, record)
 		}
+		priorities := make([]ModPriorityEntry, 0, len(profile.Priorities))
+		seenPriorities := make(map[string]struct{}, len(profile.Priorities))
+		for _, entry := range profile.Priorities {
+			normalized, ok := normalizeModPriorityEntry(entry)
+			if !ok {
+				continue
+			}
+			if _, duplicate := seenPriorities[normalized.Key]; duplicate {
+				continue
+			}
+			seenPriorities[normalized.Key] = struct{}{}
+			priorities = append(priorities, normalized)
+		}
 		profile.Groups = groups
 		profile.Dependencies = dependencies
+		profile.Priorities = priorities
 	}
 	return profile, nil
 }
