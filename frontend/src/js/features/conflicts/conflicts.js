@@ -1,4 +1,5 @@
 import { appState } from "../state.js";
+import { getConfig, saveConfig } from "../../core/config.js";
 import {
   GetAddonListLoadOrderEntries,
   SetVPKLoadOrder,
@@ -138,6 +139,8 @@ let currentSeverityFilter = "critical"; // 默认只显示严重
 let currentConflictPage = 1;
 
 const CONFLICT_PAGE_SIZE = 20;
+// 覆盖关系通常数量更多，且每条都是“胜负已判定”的普通重叠，做适度截断避免长列表卡顿。
+const CONFLICT_OVERRIDE_LIMIT = 50;
 
 const CONFLICT_SCOPE_RULES = [
   { type: "enabled", label: "游戏内开启", description: "addonlist.txt 为 1 且不在 disabled" },
@@ -154,6 +157,7 @@ function getConflictScopeOptions() {
   return {
     matchMode: configured.matchMode === "and" ? "and" : "or",
     baselineRules: rules.map((rule) => ({ type: rule.type, value: rule.value || "" })),
+    priorityAware: configured.priorityAware === true,
   };
 }
 
@@ -162,8 +166,10 @@ function getConflictScopeLabel(options = getConflictScopeOptions()) {
     if (rule.type === "tag") return `标签：${rule.value || "未指定"}`;
     return CONFLICT_SCOPE_RULES.find((item) => item.type === rule.type)?.label || rule.type;
   });
-  if (!labels.length) return "游戏内开启";
-  return `${options.matchMode === "and" ? "同时满足" : "满足任一"}：${labels.join(options.matchMode === "and" ? " + " : " / ")}`;
+  const base = labels.length
+    ? `${options.matchMode === "and" ? "同时满足" : "满足任一"}：${labels.join(options.matchMode === "and" ? " + " : " / ")}`
+    : "游戏内开启";
+  return options.priorityAware ? `${base} · 按加载顺序判定覆盖` : base;
 }
 
 function getAvailableConflictTags() {
@@ -204,6 +210,8 @@ function syncConflictScopeDialog() {
     button.classList.toggle("active", button.dataset.conflictMatchMode === options.matchMode);
     button.setAttribute("aria-pressed", button.dataset.conflictMatchMode === options.matchMode ? "true" : "false");
   });
+  const priorityAwareInput = document.getElementById("conflict-priority-aware");
+  if (priorityAwareInput) priorityAwareInput.checked = options.priorityAware === true;
   const targetCount = document.getElementById("conflict-scope-target-count");
   if (targetCount) targetCount.textContent = `${(appState.vpkFiles || []).length} 个当前筛选目标`;
   const preview = document.getElementById("conflict-scope-preview");
@@ -224,6 +232,7 @@ function readConflictScopeDialog() {
   return {
     matchMode: document.querySelector("[data-conflict-match-mode].active")?.dataset.conflictMatchMode || "or",
     baselineRules: rules.length ? rules : [{ type: "enabled" }],
+    priorityAware: Boolean(document.getElementById("conflict-priority-aware")?.checked),
   };
 }
 
@@ -243,10 +252,30 @@ export async function applyConflictScopeOptions() {
   appState.conflictAnalysisOptions = options;
   appState.conflictAnalysisScopeLabel = getConflictScopeLabel(options);
   closeConflictScopeModal();
+  persistConflictPriorityAware(options.priorityAware);
   if (appState.conflictAnalysisEnabled) {
     await runScopedConflictAnalysis();
   } else {
     await toggleScopedConflictAnalysis(true);
+  }
+}
+
+// persistConflictPriorityAware 把弹窗里的“按加载顺序判定胜负”写回 config.json，
+// 让设置页开关与下次启动保持一致。
+function persistConflictPriorityAware(priorityAware) {
+  const next = priorityAware === true;
+  try {
+    const config = getConfig();
+    if ((config.conflictPriorityAware === true) === next) {
+      return;
+    }
+    config.conflictPriorityAware = next;
+    Promise.resolve(saveConfig(config)).catch((error) => {
+      console.error("保存冲突分析设置失败:", error);
+      showError?.("保存冲突分析设置失败: " + error);
+    });
+  } catch (error) {
+    console.error("保存冲突分析设置失败:", error);
   }
 }
 
@@ -472,6 +501,7 @@ async function executeScopedConflictAnalysis({ silent = false } = {}) {
           targetPaths: files.map((file) => file.path),
           baselineRules: configured.baselineRules,
           matchMode: configured.matchMode,
+          priorityAware: configured.priorityAware === true,
         })
       : await CheckConflictsForPaths(files.map((file) => file.path));
     if (runId !== scopedConflictRunId || !appState.conflictAnalysisEnabled) return;
@@ -620,7 +650,12 @@ export async function startConflictCheck() {
   currentConflictResult = null;
 
   try {
-    const result = await CheckConflicts();
+    // 全量扫描默认沿用历史 API；开启覆盖判定后通过 fullScan 走同一套新选项。
+    const configured = getConflictScopeOptions();
+    const result =
+      typeof CheckConflictsWithOptions === "function" && configured.priorityAware
+        ? await CheckConflictsWithOptions({ targetPaths: [], fullScan: true, priorityAware: true })
+        : await CheckConflicts();
     if (runId !== conflictCheckRunId || !isConflictModalVisible) {
       currentConflictResult = null;
       return;
@@ -663,8 +698,12 @@ function renderConflictResults(result) {
 
   updateConflictScopeSummary();
 
-  if (!result || result.total_conflicts === 0) {
+  const totalConflicts = Number(result?.total_conflicts || 0);
+  const overrideGroups = getFilteredConflictOverrides(result);
+
+  if (totalConflicts === 0 && overrideGroups.length === 0) {
     document.getElementById("conflict-results")?.classList.add("hidden");
+    setConflictEmptyMessage("未发现Mod冲突");
     document.getElementById("conflict-empty")?.classList.remove("hidden");
     return;
   }
@@ -672,36 +711,88 @@ function renderConflictResults(result) {
   document.getElementById("conflict-empty")?.classList.add("hidden");
   document.getElementById("conflict-results")?.classList.remove("hidden");
 
-
   const list = document.getElementById("conflict-list");
-  if (!list) return;
-  list.replaceChildren();
-
-  const groups = getFilteredConflictGroups(result);
+  const groups = getFilteredConflictGroups(result || {});
   const countEl = document.getElementById("conflict-count");
   if (countEl) countEl.textContent = groups.length;
   renderConflictPagination(groups.length);
 
-  if (groups.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    const message = document.createElement("p");
-    message.textContent = "当前筛选条件下无冲突";
-    empty.appendChild(message);
-    list.appendChild(empty);
+  if (list) {
+    list.replaceChildren();
+    if (groups.length === 0) {
+      // 没有冲突但存在覆盖关系时，只在这里提示冲突列表为空。
+      list.appendChild(
+        createConflictEmptyState(totalConflicts === 0 ? "未发现冲突" : "当前筛选条件下无冲突"),
+      );
+    } else {
+      const pageCount = Math.ceil(groups.length / CONFLICT_PAGE_SIZE);
+      currentConflictPage = Math.min(Math.max(currentConflictPage, 1), pageCount);
+
+      const start = (currentConflictPage - 1) * CONFLICT_PAGE_SIZE;
+      const pageGroups = groups.slice(start, start + CONFLICT_PAGE_SIZE);
+
+      pageGroups.forEach((group) => {
+        const groupEl = createConflictGroupElement(group);
+        list.appendChild(groupEl);
+      });
+    }
+  }
+
+  renderConflictOverrideSection(overrideGroups);
+}
+
+function setConflictEmptyMessage(message) {
+  const textEl = document.getElementById("conflict-empty-text");
+  if (textEl) textEl.textContent = message;
+}
+
+function createConflictEmptyState(message) {
+  const empty = document.createElement("div");
+  empty.className = "empty-state";
+  const text = document.createElement("p");
+  text.textContent = message;
+  empty.appendChild(text);
+  return empty;
+}
+
+// getFilteredConflictOverrides 复用严重度筛选，让“严重/警告/普通”切换对覆盖列表同样生效。
+function getFilteredConflictOverrides(result) {
+  return (result?.override_groups || [])
+    .filter((group) => currentSeverityFilter === "all" || (group.severity || "info") === currentSeverityFilter)
+    .sort((a, b) => Number(b.file_count || 0) - Number(a.file_count || 0));
+}
+
+function renderConflictOverrideSection(groups) {
+  const section = document.getElementById("conflict-override-section");
+  const list = document.getElementById("conflict-override-list");
+  if (!section || !list) return;
+
+  if (!groups.length) {
+    section.classList.add("hidden");
+    list.replaceChildren();
     return;
   }
 
-  const pageCount = Math.ceil(groups.length / CONFLICT_PAGE_SIZE);
-  currentConflictPage = Math.min(Math.max(currentConflictPage, 1), pageCount);
+  section.classList.remove("hidden");
+  const countEl = document.getElementById("conflict-override-count");
+  if (countEl) countEl.textContent = `${groups.length} 组`;
 
-  const start = (currentConflictPage - 1) * CONFLICT_PAGE_SIZE;
-  const pageGroups = groups.slice(start, start + CONFLICT_PAGE_SIZE);
-
-  pageGroups.forEach((group) => {
-    const groupEl = createConflictGroupElement(group);
-    list.appendChild(groupEl);
+  list.replaceChildren();
+  groups.slice(0, CONFLICT_OVERRIDE_LIMIT).forEach((group) => {
+    list.appendChild(
+      createConflictGroupElement(group, {
+        override: true,
+        winnerPath: group.winner?.path || "",
+      }),
+    );
   });
+
+  const moreEl = document.getElementById("conflict-override-more");
+  if (moreEl) {
+    const hiddenCount = groups.length - CONFLICT_OVERRIDE_LIMIT;
+    moreEl.textContent = hiddenCount > 0 ? `仅显示前 ${CONFLICT_OVERRIDE_LIMIT} 组，另有 ${hiddenCount} 组覆盖关系未显示` : "";
+    moreEl.classList.toggle("hidden", hiddenCount <= 0);
+  }
 }
 
 function getFilteredConflictGroups(result) {
@@ -720,12 +811,14 @@ function getFilteredConflictGroups(result) {
   });
 }
 
-function createConflictGroupElement(group) {
+function createConflictGroupElement(group, renderOptions = {}) {
   const severity = group.severity || "info";
   const files = group.files || [];
   const fileCount = Number(group.file_count ?? files.length);
+  const isOverride = renderOptions.override === true;
+  const winnerPath = renderOptions.winnerPath || "";
   const groupEl = document.createElement("div");
-  groupEl.className = `conflict-group ${severity}`;
+  groupEl.className = `conflict-group ${severity}${isOverride ? " override" : ""}`;
 
   const orderedVpkFiles = sortConflictVPKs(group.vpk_files || []);
   const vpkListHtml = orderedVpkFiles
@@ -754,6 +847,7 @@ function createConflictGroupElement(group) {
             <span class="conflict-vpk-title" title="${escapeHtml(vpk.title || vpk.name)}">${escapeHtml(displayName)}</span>
             <span class="conflict-vpk-filename" title="${escapeHtml(vpk.name)}">${escapeHtml(fileName)}</span>
             <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? "编号来自 addonlist.txt 加载顺序；数字越大通常越靠后加载，覆盖同一资源时更可能生效" : "该 Mod 尚未写入 addonlist.txt"}">${hasPriority ? `优先级 #${priority}` : "优先级：未写入"}</span>
+            ${isOverride ? `<span class="conflict-vpk-winner ${vpk.path === winnerPath ? "active" : ""}">${vpk.path === winnerPath ? "生效" : "被覆盖"}</span>` : ""}
           </div>
           <div class="conflict-vpk-actions" role="group" aria-label="Mod操作">
             <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-target-path="${escapeHtml(previousConflict?.path || "")}" data-order-direction="before" data-default-label="↑ 提前" ${canMoveUp ? "" : "disabled"} title="${canMoveUp ? `提前到“${escapeHtml(previousLabel)}”之前` : isDisabled ? "disabled 目录中的 Mod 需先启用后调整优先级" : previousConflict ? "上方冲突 Mod 尚未取得有效优先级" : "已经是当前冲突列表最上方"}">↑ 提前</button>
@@ -777,7 +871,8 @@ function createConflictGroupElement(group) {
                 <div class="conflict-title-section">
                     <div class="conflict-severity-row">
                         <span class="severity-badge ${severity}">${severityText}</span>
-                        <span class="conflict-file-count">${fileCount} 个冲突文件</span>
+                        ${isOverride ? '<span class="severity-badge override">覆盖</span>' : ""}
+                        <span class="conflict-file-count">${fileCount} ${isOverride ? "个覆盖文件" : "个冲突文件"}</span>
                     </div>
                     <div class="conflict-vpk-names">
                         ${vpkListHtml}
@@ -832,7 +927,11 @@ function createConflictGroupElement(group) {
           if (action === "order") {
             const direction = btn.dataset.orderDirection;
             const targetPath = btn.dataset.targetPath;
-            const targetVpk = (currentConflictResult?.conflict_groups || [])
+            // 覆盖关系卡片同样提供“提前/延后”，因此两类分组都要参与查找。
+            const targetVpk = [
+              ...(currentConflictResult?.conflict_groups || []),
+              ...(currentConflictResult?.override_groups || []),
+            ]
               .flatMap((item) => item.vpk_files || [])
               .find((item) => item.path === targetPath);
             if (!targetVpk || (direction !== "before" && direction !== "after")) {

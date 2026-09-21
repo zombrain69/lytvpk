@@ -38,6 +38,9 @@ const DEFAULT_CONFIG = {
   addonListGuardEnabled: false,
   // 未记录 Mod 首次在游戏内开启时，不重排已有条目的默认插入位置。
   unrecordedModLoadOrderPlacement: "end",
+  // 冲突分析默认只报“无法判定胜负”的重叠；忽略清单由用户在设置页按需维护。
+  conflictPriorityAware: false,
+  conflictIgnoreFiles: [],
   theme: "",
   ignoredVersion: "",
   lastUpdateCheckTime: "",
@@ -146,6 +149,10 @@ function normalizeConfig(config = {}) {
     ? next.unrecordedModLoadOrderPlacement
     : DEFAULT_CONFIG.unrecordedModLoadOrderPlacement;
   next.migrationVersion = Number(next.migrationVersion) || 0;
+  next.conflictPriorityAware = next.conflictPriorityAware === true;
+  next.conflictIgnoreFiles = Array.isArray(next.conflictIgnoreFiles)
+    ? next.conflictIgnoreFiles.filter((entry) => typeof entry === "string" && entry.trim() !== "")
+    : [];
 
   return cloneConfig(next);
 }

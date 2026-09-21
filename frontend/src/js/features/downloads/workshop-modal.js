@@ -269,11 +269,14 @@ export async function checkWorkshopUrl() {
     const downloadBtn = document.getElementById("download-workshop-btn");
     const optimizedIpContainer = document.getElementById("optimized-ip-container");
     const downloadableItems = getAllDownloadableItems();
+    // 子合集嵌套过深时后端会截断，这里给出明确提示，避免用户以为已经解析完整。
+    const truncatedGroupCount = groups.filter((group) => group?.child_collections_truncated).length;
+    const truncatedHint = truncatedGroupCount > 0 ? `（${truncatedGroupCount} 个合集的子合集过多，仅展开到上限）` : "";
 
     downloadUrlInput.placeholder =
       downloadableItems.length > 0
-        ? `已解析 ${groups.length} 组 / ${downloadableItems.length} 个可下载文件`
-        : `已解析 ${groups.length} 组，但没有可下载文件`;
+        ? `已解析 ${groups.length} 组 / ${downloadableItems.length} 个可下载文件${truncatedHint}`
+        : `已解析 ${groups.length} 组，但没有可下载文件${truncatedHint}`;
     downloadBtn.innerHTML = DOWNLOAD_ICON_SVG + "<span>全部下载</span>";
 
     const hasSteamCDN = downloadableItems.some((details) =>

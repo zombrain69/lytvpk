@@ -1,6 +1,27 @@
 import { attachLineNumberGutter } from "../../core/line-number-editor.js";
 import { applyUIScale, MAX_UI_SCALE, MIN_UI_SCALE, normalizeUIScale, UI_SCALE_STEP } from "../../core/ui-scale.js";
 import { createAutoexecSettingsController } from "./autoexec-settings-controller.mjs";
+import {
+  CONFLICT_IGNORE_LIST_DESCRIPTION,
+  formatConflictIgnoreList,
+  parseConflictIgnoreList,
+} from "../conflicts/conflict-ignore-options.mjs";
+import {
+  formatStrategyGroupApplySummary,
+  formatStrategyGroupStrategy,
+} from "./strategy-group-format.mjs";
+import {
+  buildHealthIssueRows,
+  formatHealthReportSummary,
+} from "./health-report-format.mjs";
+import {
+  formatDependencyBatchEnableSummary,
+  formatDependencyEnableSummary,
+} from "./dependency-format.mjs";
+import { buildHealthReportMarkdown } from "./health-report-markdown.mjs";
+import { buildDependencyArgs, buildGroupMembersFromSelection } from "./selection-args.mjs";
+import { formatProfileApplySummary } from "./profile-format.mjs";
+import { copyTextToClipboard } from "../file-list/share.js";
 
 const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
@@ -87,6 +108,24 @@ export async function renderSettingsPage(deps) {
     SelectAddonListMergeSource,
     PreviewAddonListMerge,
     ApplyAddonListMerge,
+    ListModEnableProfiles,
+    CaptureModEnableProfile,
+    ApplyModEnableProfile,
+    DeleteModEnableProfile,
+    ExportModEnableProfile,
+    ImportModEnableProfile,
+    ListModStrategyGroups,
+    CaptureModStrategyGroup,
+    ApplyModStrategyGroup,
+    DeleteModStrategyGroup,
+    RunModHealthCheck,
+    RemoveDuplicateAddonListEntries,
+    RemoveMissingFileAddonListEntries,
+    ListModDependencies,
+    SetModDependencies,
+    EnableModDependencies,
+    DeleteModDependencies,
+    EnableAllMissingModDependencies,
     GetAutoexecConfig,
     SaveAutoexecConfig,
     GetAutoexecCommandHelp,
@@ -164,6 +203,38 @@ export async function renderSettingsPage(deps) {
   } catch (error) {
     autoexecError = String(error?.message || error || "无法读取 autoexec.cfg");
   }
+  let modEnableProfiles = [];
+  let modEnableProfilesError = "";
+  try {
+    if (typeof ListModEnableProfiles === "function") {
+      modEnableProfiles = (await ListModEnableProfiles()) || [];
+    }
+  } catch (error) {
+    modEnableProfilesError = String(error?.message || error || "无法读取启用方案");
+  }
+  let modStrategyGroups = [];
+  let modStrategyGroupsError = "";
+  try {
+    if (typeof ListModStrategyGroups === "function") {
+      modStrategyGroups = (await ListModStrategyGroups()) || [];
+    }
+  } catch (error) {
+    modStrategyGroupsError = String(error?.message || error || "无法读取策略组");
+  }
+  const selectedModCount = appState.selectedFiles ? appState.selectedFiles.size : 0;
+  let modDependencies = [];
+  let modDependenciesError = "";
+  try {
+    if (typeof ListModDependencies === "function") {
+      modDependencies = (await ListModDependencies()) || [];
+    }
+  } catch (error) {
+    modDependenciesError = String(error?.message || error || "无法读取依赖记录");
+  }
+  const selectedModOptions = [...(appState.selectedFiles || [])].map((path) => {
+    const file = (appState.allVpkFiles || []).find((item) => item.path === path);
+    return { path, label: file?.title || file?.name || path };
+  });
   if (addonListMergePreview && addonListInfo?.path && addonListMergePreview.targetPath?.toLowerCase() !== addonListInfo.path.toLowerCase()) {
     addonListMergePreview = null;
   }
@@ -510,6 +581,145 @@ export async function renderSettingsPage(deps) {
             </div>
             ${renderAddonListMergePreview(addonListMergePreview)}
           </div>
+          <div class="setting-card">
+            <div class="setting-card-title">Mod 冲突分析</div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">默认按加载顺序判定胜负</div>
+                <div class="setting-row-desc">开启后，能在 addonlist.txt 中判定先后顺序的重叠会归入“覆盖关系”，只有无法判定胜负的重叠才计为冲突。</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="settings-conflict-priority-aware" ${getConfig().conflictPriorityAware === true ? "checked" : ""}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">冲突忽略清单</div>
+                <div class="setting-row-desc">${escapeHtml(CONFLICT_IGNORE_LIST_DESCRIPTION)}清单对所有冲突检测入口生效。</div>
+              </div>
+              <textarea id="settings-conflict-ignore-files" class="settings-conflict-ignore-editor" rows="6" spellcheck="false" placeholder="materials/shared.vtf&#10;scripts/vscripts/">${escapeHtml(formatConflictIgnoreList(getConfig().conflictIgnoreFiles))}</textarea>
+              <div class="addonlist-action-row">
+                <button type="button" id="settings-conflict-save-ignore" class="trigger-check-btn addonlist-action-btn">保存忽略清单</button>
+                <span id="settings-conflict-ignore-status" class="setting-row-status"></span>
+              </div>
+            </div>
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">启用方案</div>
+            <div class="setting-row-desc">把当前 addonlist.txt 的开关与加载顺序保存为方案，之后可以一键切回；方案能导出成文件分享给别人。应用方案前会自动备份当前 addonlist.txt，方案未记录的 Mod 会保留原开关并排在最后。</div>
+            <div class="addonlist-action-row settings-profile-capture-row">
+              <input type="text" id="settings-profile-name" class="settings-profile-name-input" maxlength="60" placeholder="方案名称，例如 写实包">
+              <button type="button" id="settings-profile-capture" class="trigger-check-btn addonlist-action-btn" ${addonListInfo?.exists ? "" : "disabled"}>保存当前为方案</button>
+              <button type="button" id="settings-profile-import" class="trigger-check-btn addonlist-secondary-btn">导入方案</button>
+              <label class="settings-health-deep-toggle" title="勾选后，方案会一并保存当前策略组与依赖声明，应用时整体恢复">
+                <input type="checkbox" id="settings-profile-include-automation">
+                <span>同时保存策略组与依赖</span>
+              </label>
+            </div>
+            <p id="settings-profile-status" class="setting-row-status">${escapeHtml(modEnableProfilesError)}</p>
+            ${modEnableProfiles.length > 0 ? `
+              <div class="settings-profile-list">
+                ${modEnableProfiles.map((profile) => `
+                  <div class="settings-profile-item">
+                    <div class="settings-profile-main">
+                      <strong>${escapeHtml(profile.name)}</strong>
+                      <span>${(profile.entries || []).length} 个条目${profile.description ? ` · ${escapeHtml(profile.description)}` : ""}</span>
+                    </div>
+                    <div class="settings-profile-actions">
+                      <button type="button" class="settings-profile-apply" data-profile-id="${escapeAttr(profile.id)}">应用</button>
+                      <button type="button" class="settings-profile-export" data-profile-id="${escapeAttr(profile.id)}">导出</button>
+                      <button type="button" class="settings-profile-delete" data-profile-id="${escapeAttr(profile.id)}">删除</button>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            ` : `<div class="setting-row-desc">还没有保存任何方案。保存后这里会列出可一键切换的方案。</div>`}
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">策略组</div>
+            <div class="setting-row-desc">把选中的 Mod 保存成一组，一键应用策略：互斥单选只保留一个、随机单选每次换一个、全部开启或全部关闭。应用时只改组成员的开关，不重排其它 Mod，也不会自动改动未选中的文件。</div>
+            <div class="addonlist-action-row settings-profile-capture-row">
+              <input type="text" id="settings-strategy-group-name" class="settings-profile-name-input" maxlength="60" placeholder="策略组名称，例如 角色替换包">
+              <select id="settings-strategy-group-strategy" class="settings-strategy-select" aria-label="策略类型">
+                <option value="single">互斥单选（保留当前启用的一个）</option>
+                <option value="single_random">随机单选</option>
+                <option value="all">全部开启</option>
+                <option value="off">全部关闭</option>
+              </select>
+              <button type="button" id="settings-strategy-group-capture" class="trigger-check-btn addonlist-action-btn" ${selectedModCount > 0 ? "" : "disabled"}>用选中的 ${selectedModCount} 个 Mod 建组</button>
+            </div>
+            <p id="settings-strategy-group-status" class="setting-row-status">${escapeHtml(modStrategyGroupsError)}</p>
+            ${modStrategyGroups.length > 0 ? `
+              <div class="settings-profile-list">
+                ${modStrategyGroups.map((group) => `
+                  <div class="settings-profile-item">
+                    <div class="settings-profile-main">
+                      <strong>${escapeHtml(group.name)}</strong>
+                      <span>${escapeHtml(formatStrategyGroupStrategy(group.strategy))} · ${(group.members || []).length} 个成员</span>
+                    </div>
+                    <div class="settings-profile-actions">
+                      <button type="button" class="settings-strategy-apply" data-group-id="${escapeAttr(group.id)}">按策略应用</button>
+                      <button type="button" class="settings-strategy-random" data-group-id="${escapeAttr(group.id)}">随机单选</button>
+                      <button type="button" class="settings-strategy-off" data-group-id="${escapeAttr(group.id)}">全关</button>
+                      <button type="button" class="settings-strategy-delete" data-group-id="${escapeAttr(group.id)}">删除</button>
+                      <label class="settings-strategy-enforce" title="开启后，手动开关组内成员时会按策略自动联动其它成员">
+                        <input type="checkbox" class="settings-strategy-enforce-toggle" data-group-id="${escapeAttr(group.id)}" ${group.enforce ? "checked" : ""}>
+                        <span>自动联动</span>
+                      </label>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            ` : `<div class="setting-row-desc">还没有策略组。先在 Mod 管理页勾选几个 Mod，再回到这里建组。</div>`}
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">Mod 依赖</div>
+            <div class="setting-row-desc">依赖由你自己声明：在 Mod 管理页勾选一个“主 Mod”和它的依赖项，回到这里选择主 Mod 并保存。体检会提示“依赖被关闭”和“依赖文件缺失”，并支持一键启用依赖。</div>
+            <div class="addonlist-action-row settings-profile-capture-row">
+              <select id="settings-dependency-target" class="settings-strategy-select" aria-label="选择主 Mod" ${selectedModOptions.length > 0 ? "" : "disabled"}>
+                ${selectedModOptions.length > 0
+                  ? selectedModOptions.map((item) => `<option value="${escapeAttr(item.path)}">${escapeHtml(item.label)}</option>`).join("")
+                  : `<option value="">请先勾选 Mod</option>`}
+              </select>
+              <button type="button" id="settings-dependency-save" class="trigger-check-btn addonlist-action-btn" ${selectedModOptions.length > 1 ? "" : "disabled"}>把其它 ${Math.max(selectedModOptions.length - 1, 0)} 个设为依赖</button>
+            </div>
+            <p id="settings-dependency-status" class="setting-row-status">${escapeHtml(modDependenciesError)}</p>
+            ${modDependencies.length > 0 ? `
+              <div class="settings-profile-list">
+                ${modDependencies.map((record) => `
+                  <div class="settings-profile-item">
+                    <div class="settings-profile-main">
+                      <strong>${escapeHtml(record.name)}</strong>
+                      <span>依赖：${escapeHtml((record.dependencies || []).map((item) => item.name).join("、") || "无")}</span>
+                    </div>
+                    <div class="settings-profile-actions">
+                      <button type="button" class="settings-dependency-enable" data-dependency-key="${escapeAttr(record.key)}" data-dependency-name="${escapeAttr(record.name)}">启用依赖</button>
+                      <button type="button" class="settings-dependency-delete" data-dependency-key="${escapeAttr(record.key)}">删除</button>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            ` : `<div class="setting-row-desc">还没有声明任何依赖。</div>`}
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">Mod 体检</div>
+            <div class="setting-row-desc">只读检查 addonlist.txt 与磁盘文件是否一致：条目缺少文件、只剩 disabled 副本、未写入开关记录、重复条目；深度扫描还会逐个解析 VPK 找出损坏文件。</div>
+            <div class="addonlist-action-row settings-profile-capture-row">
+              <label class="settings-health-deep-toggle">
+                <input type="checkbox" id="settings-health-deep">
+                <span>深度扫描（较慢）</span>
+              </label>
+              <button type="button" id="settings-health-run" class="trigger-check-btn addonlist-action-btn">开始体检</button>
+              <button type="button" id="settings-health-fix-duplicates" class="trigger-check-btn addonlist-secondary-btn" disabled>清理重复条目</button>
+              <button type="button" id="settings-health-fix-missing" class="trigger-check-btn addonlist-secondary-btn" disabled>清理失效条目</button>
+              <button type="button" id="settings-health-fix-dependencies" class="trigger-check-btn addonlist-secondary-btn" disabled>启用缺失依赖</button>
+              <button type="button" id="settings-health-copy" class="trigger-check-btn addonlist-secondary-btn" disabled>复制报告</button>
+              <button type="button" id="settings-health-save" class="trigger-check-btn addonlist-secondary-btn" disabled>保存报告</button>
+            </div>
+            <p id="settings-health-summary" class="setting-row-status"></p>
+            <div id="settings-health-issues" class="settings-health-issues"></div>
+          </div>
         </div>
 
         </div>
@@ -561,6 +771,18 @@ export async function renderSettingsPage(deps) {
     SelectAddonListMergeSource,
     PreviewAddonListMerge,
     ApplyAddonListMerge,
+    ListModEnableProfiles,
+    CaptureModEnableProfile,
+    ApplyModEnableProfile,
+    DeleteModEnableProfile,
+    ExportModEnableProfile,
+    ImportModEnableProfile,
+    ListModStrategyGroups,
+    CaptureModStrategyGroup,
+    CaptureModEnableProfileWithAutomation,
+    ApplyModStrategyGroup,
+    DeleteModStrategyGroup,
+    SetModStrategyGroupEnforcement,
     GetAutoexecConfig,
     SaveAutoexecConfig,
     GetAutoexecCommandHelp,
@@ -568,12 +790,552 @@ export async function renderSettingsPage(deps) {
     OpenFileLocation,
     autoexecInfo,
     autoexecHelp,
+    modEnableProfiles,
+    modStrategyGroups,
+    modDependencies,
+    RunModHealthCheck,
+    RemoveDuplicateAddonListEntries,
+    RemoveMissingFileAddonListEntries,
+    SaveModHealthReport,
+    ListModDependencies,
+    SetModDependencies,
+    EnableModDependencies,
+    DeleteModDependencies,
+    EnableAllMissingModDependencies,
     refreshAddonListPanel: () => renderSettingsPage(deps),
+  });
+}
+
+const HEALTH_ISSUE_DISPLAY_LIMIT = 100;
+
+function renderModHealthIssues(container, report) {
+  if (!container) return;
+  container.replaceChildren();
+  const { rows, hiddenCount } = buildHealthIssueRows(report, HEALTH_ISSUE_DISPLAY_LIMIT);
+  if (rows.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "setting-row-desc";
+    empty.textContent = report ? "未发现问题。" : "点击“开始体检”运行检查。";
+    container.appendChild(empty);
+    return;
+  }
+
+  rows.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "settings-health-issue";
+
+    const badge = document.createElement("span");
+    badge.className = `severity-badge ${item.severity}`;
+    badge.textContent = item.severityLabel;
+
+    const main = document.createElement("div");
+    main.className = "settings-health-issue-main";
+    const title = document.createElement("div");
+    title.className = "settings-health-issue-title";
+    title.textContent = item.title;
+    const message = document.createElement("div");
+    message.className = "settings-health-issue-message";
+    message.textContent = item.message;
+    main.append(title, message);
+
+    row.append(badge, main);
+    container.appendChild(row);
+  });
+
+  if (hiddenCount > 0) {
+    const more = document.createElement("div");
+    more.className = "setting-row-desc";
+    more.textContent = `仅显示前 ${HEALTH_ISSUE_DISPLAY_LIMIT} 条，另有 ${hiddenCount} 条未显示。`;
+    container.appendChild(more);
+  }
+}
+
+function bindModDependencySettings(deps) {
+  const status = document.getElementById("settings-dependency-status");
+  const targetSelect = document.getElementById("settings-dependency-target");
+  const saveButton = document.getElementById("settings-dependency-save");
+
+  const setStatus = (message) => {
+    if (status) status.textContent = message;
+  };
+  const refresh = () => {
+    if (typeof deps.refreshAddonListPanel === "function") {
+      deps.refreshAddonListPanel();
+    }
+  };
+
+  saveButton?.addEventListener("click", async () => {
+    const { target, dependencies } = buildDependencyArgs(
+      [...(deps.appState.selectedFiles || [])],
+      targetSelect?.value || "",
+    );
+    if (!target || dependencies.length === 0) {
+      setStatus("请先在 Mod 管理页勾选一个主 Mod 和至少一个依赖项");
+      return;
+    }
+    saveButton.disabled = true;
+    try {
+      await deps.SetModDependencies(target, dependencies);
+      deps.showNotification(`已保存 ${dependencies.length} 个依赖`, "success");
+      refresh();
+    } catch (error) {
+      setStatus("保存依赖失败: " + String(error?.message || error));
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-dependency-enable").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const key = button.dataset.dependencyKey;
+      const name = button.dataset.dependencyName || key;
+      if (!key) return;
+      button.disabled = true;
+      try {
+        const result = await deps.EnableModDependencies(key);
+        deps.showNotification(
+          formatDependencyEnableSummary(name, result),
+          result?.missing?.length ? "warning" : "success",
+        );
+        deps.refreshFilesKeepFilter?.();
+        refresh();
+      } catch (error) {
+        setStatus("启用依赖失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-dependency-delete").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const key = button.dataset.dependencyKey;
+      if (!key) return;
+      if (!window.confirm("删除这条依赖声明？不会改动 addonlist.txt。")) return;
+      button.disabled = true;
+      try {
+        await deps.DeleteModDependencies(key);
+        deps.showNotification("依赖声明已删除", "success");
+        refresh();
+      } catch (error) {
+        setStatus("删除依赖失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
+  });
+}
+
+function bindModHealthCheckSettings(deps) {
+  const runButton = document.getElementById("settings-health-run");
+  const deepInput = document.getElementById("settings-health-deep");
+  const summary = document.getElementById("settings-health-summary");
+  const list = document.getElementById("settings-health-issues");
+  const fixButton = document.getElementById("settings-health-fix-duplicates");
+  const fixMissingButton = document.getElementById("settings-health-fix-missing");
+  const fixDependenciesButton = document.getElementById("settings-health-fix-dependencies");
+  const copyReportButton = document.getElementById("settings-health-copy");
+  const saveReportButton = document.getElementById("settings-health-save");
+  let currentReport = null;
+
+  renderModHealthIssues(list, null);
+
+  const applyReport = (report) => {
+    currentReport = report || null;
+    if (summary) summary.textContent = formatHealthReportSummary(report);
+    renderModHealthIssues(list, report);
+    const duplicates = Number(report?.counts?.duplicate_entry) || 0;
+    if (fixButton) fixButton.disabled = duplicates === 0;
+    const missing = Number(report?.counts?.missing_file) || 0;
+    if (fixMissingButton) fixMissingButton.disabled = missing === 0;
+    const dependencyIssues =
+      (Number(report?.counts?.dependency_disabled) || 0) + (Number(report?.counts?.dependency_missing) || 0);
+    if (fixDependenciesButton) fixDependenciesButton.disabled = dependencyIssues === 0;
+    if (copyReportButton) copyReportButton.disabled = !currentReport;
+    if (saveReportButton) saveReportButton.disabled = !currentReport;
+  };
+  const runCheck = async () => {
+    const report = await deps.RunModHealthCheck({ deepScan: Boolean(deepInput?.checked) });
+    applyReport(report);
+    return report;
+  };
+
+  runButton?.addEventListener("click", async () => {
+    runButton.disabled = true;
+    if (summary) summary.textContent = "正在体检…";
+    try {
+      const report = await runCheck();
+      deps.showNotification(
+        formatHealthReportSummary(report),
+        Number(report?.totalIssues) > 0 ? "warning" : "success",
+      );
+    } catch (error) {
+      if (summary) summary.textContent = "体检失败: " + String(error?.message || error);
+    } finally {
+      runButton.disabled = false;
+    }
+  });
+
+  fixButton?.addEventListener("click", async () => {
+    fixButton.disabled = true;
+    try {
+      const removed = await deps.RemoveDuplicateAddonListEntries();
+      deps.showNotification(
+        removed > 0 ? `已清理 ${removed} 条重复条目` : "没有需要清理的重复条目",
+        "success",
+      );
+      deps.refreshFilesKeepFilter?.();
+      await runCheck();
+    } catch (error) {
+      if (summary) summary.textContent = "清理重复条目失败: " + String(error?.message || error);
+    } finally {
+      fixButton.disabled = false;
+    }
+  });
+
+  fixMissingButton?.addEventListener("click", async () => {
+    if (
+      !window.confirm(
+        "删除那些在磁盘上已经找不到文件的 addonlist.txt 条目？写盘前会自动建立“体检修复前”备份。注意：工坊 Mod 在文件重新下载后会被游戏按默认状态加载。",
+      )
+    ) {
+      return;
+    }
+    fixMissingButton.disabled = true;
+    try {
+      const removed = await deps.RemoveMissingFileAddonListEntries();
+      deps.showNotification(
+        removed > 0 ? `已清理 ${removed} 条失效条目` : "没有需要清理的失效条目",
+        "success",
+      );
+      deps.refreshFilesKeepFilter?.();
+      await runCheck();
+    } catch (error) {
+      if (summary) summary.textContent = "清理失效条目失败: " + String(error?.message || error);
+    } finally {
+      fixMissingButton.disabled = false;
+    }
+  });
+
+  fixDependenciesButton?.addEventListener("click", async () => {
+    fixDependenciesButton.disabled = true;
+    try {
+      const result = await deps.EnableAllMissingModDependencies();
+      deps.showNotification(
+        formatDependencyBatchEnableSummary(result),
+        result?.missing?.length ? "warning" : "success",
+      );
+      deps.refreshFilesKeepFilter?.();
+      await runCheck();
+    } catch (error) {
+      if (summary) summary.textContent = "启用缺失依赖失败: " + String(error?.message || error);
+    } finally {
+      fixDependenciesButton.disabled = false;
+    }
+  });
+
+  const buildCurrentReportMarkdown = () =>
+    buildHealthReportMarkdown(currentReport, { generatedAt: new Date().toLocaleString("zh-CN") });
+
+  copyReportButton?.addEventListener("click", async () => {
+    if (!currentReport) return;
+    try {
+      await copyTextToClipboard(buildCurrentReportMarkdown());
+      deps.showNotification("体检报告已复制到剪贴板", "success");
+    } catch (error) {
+      if (summary) summary.textContent = "复制报告失败: " + String(error?.message || error);
+    }
+  });
+
+  saveReportButton?.addEventListener("click", async () => {
+    if (!currentReport) return;
+    saveReportButton.disabled = true;
+    try {
+      const path = await deps.SaveModHealthReport(buildCurrentReportMarkdown());
+      deps.showNotification(`体检报告已保存：${path}`, "success");
+      if (typeof deps.OpenFileLocation === "function") {
+        await deps.OpenFileLocation(path);
+      }
+    } catch (error) {
+      if (summary) summary.textContent = "保存报告失败: " + String(error?.message || error);
+    } finally {
+      saveReportButton.disabled = false;
+    }
+  });
+}
+
+function bindModStrategyGroupSettings(deps) {
+  const status = document.getElementById("settings-strategy-group-status");
+  const nameInput = document.getElementById("settings-strategy-group-name");
+  const strategySelect = document.getElementById("settings-strategy-group-strategy");
+  const captureButton = document.getElementById("settings-strategy-group-capture");
+
+  const setStatus = (message) => {
+    if (status) status.textContent = message;
+  };
+  const refresh = () => {
+    if (typeof deps.refreshAddonListPanel === "function") {
+      deps.refreshAddonListPanel();
+    }
+  };
+  const applyGroup = async (button, id, options) => {
+    if (!id) return;
+    button.disabled = true;
+    try {
+      const result = await deps.ApplyModStrategyGroup(id, options || {});
+      deps.showNotification(formatStrategyGroupApplySummary(result), "success");
+      deps.refreshFilesKeepFilter?.();
+      refresh();
+    } catch (error) {
+      setStatus("应用策略组失败: " + String(error?.message || error));
+      button.disabled = false;
+    }
+  };
+
+  captureButton?.addEventListener("click", async () => {
+    const name = (nameInput?.value || "").trim();
+    if (!name) {
+      setStatus("请先填写策略组名称");
+      nameInput?.focus();
+      return;
+    }
+    const members = buildGroupMembersFromSelection([...(deps.appState.selectedFiles || [])]);
+    if (members.length === 0) {
+      setStatus("请先在 Mod 管理页选中要归入策略组的 Mod");
+      return;
+    }
+    captureButton.disabled = true;
+    try {
+      await deps.CaptureModStrategyGroup(name, "", strategySelect?.value || "single", members);
+      if (nameInput) nameInput.value = "";
+      deps.showNotification(`已保存策略组“${name}”`, "success");
+      refresh();
+    } catch (error) {
+      setStatus("保存策略组失败: " + String(error?.message || error));
+    } finally {
+      captureButton.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-strategy-apply").forEach((button) => {
+    button.addEventListener("click", () => applyGroup(button, button.dataset.groupId, {}));
+  });
+  document.querySelectorAll("#settings-page-content .settings-strategy-random").forEach((button) => {
+    button.addEventListener("click", () =>
+      applyGroup(button, button.dataset.groupId, { strategy: "single_random" }),
+    );
+  });
+  document.querySelectorAll("#settings-page-content .settings-strategy-off").forEach((button) => {
+    button.addEventListener("click", () => applyGroup(button, button.dataset.groupId, { strategy: "off" }));
+  });
+  document.querySelectorAll("#settings-page-content .settings-strategy-delete").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.groupId;
+      if (!id) return;
+      if (!window.confirm("删除这个策略组？不会改动当前 addonlist.txt。")) return;
+      button.disabled = true;
+      try {
+        await deps.DeleteModStrategyGroup(id);
+        deps.showNotification("策略组已删除", "success");
+        refresh();
+      } catch (error) {
+        setStatus("删除策略组失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-strategy-enforce-toggle").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const id = input.dataset.groupId;
+      if (!id) return;
+      input.disabled = true;
+      try {
+        await deps.SetModStrategyGroupEnforcement(id, input.checked);
+        deps.showNotification(
+          input.checked ? "已开启策略组自动联动" : "已关闭策略组自动联动",
+          "success",
+        );
+        refresh();
+      } catch (error) {
+        input.checked = !input.checked;
+        setStatus("保存自动联动设置失败: " + String(error?.message || error));
+      } finally {
+        input.disabled = false;
+      }
+    });
+  });
+}
+
+function bindModEnableProfileSettings(deps) {
+  const status = document.getElementById("settings-profile-status");
+  const nameInput = document.getElementById("settings-profile-name");
+  const captureButton = document.getElementById("settings-profile-capture");
+  const importButton = document.getElementById("settings-profile-import");
+  const automationInput = document.getElementById("settings-profile-include-automation");
+
+  const setStatus = (message) => {
+    if (status) status.textContent = message;
+  };
+  const refresh = () => {
+    if (typeof deps.refreshAddonListPanel === "function") {
+      deps.refreshAddonListPanel();
+    }
+  };
+
+  captureButton?.addEventListener("click", async () => {
+    const name = (nameInput?.value || "").trim();
+    if (!name) {
+      setStatus("请先填写方案名称");
+      nameInput?.focus();
+      return;
+    }
+    captureButton.disabled = true;
+    try {
+      if (automationInput?.checked && typeof deps.CaptureModEnableProfileWithAutomation === "function") {
+        await deps.CaptureModEnableProfileWithAutomation(name, "", true);
+      } else {
+        await deps.CaptureModEnableProfile(name, "");
+      }
+      if (nameInput) nameInput.value = "";
+      deps.showNotification(`已保存方案“${name}”`, "success");
+      refresh();
+    } catch (error) {
+      setStatus("保存方案失败: " + String(error?.message || error));
+    } finally {
+      captureButton.disabled = false;
+    }
+  });
+
+  importButton?.addEventListener("click", async () => {
+    importButton.disabled = true;
+    try {
+      const imported = await deps.ImportModEnableProfile();
+      if (!imported?.id) {
+        return; // 用户取消
+      }
+      deps.showNotification(`已导入方案“${imported.name}”`, "success");
+      refresh();
+    } catch (error) {
+      setStatus("导入方案失败: " + String(error?.message || error));
+    } finally {
+      importButton.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-profile-apply").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.profileId;
+      if (!id) return;
+      if (!window.confirm("应用这个启用方案？当前 addonlist.txt 会先自动备份，然后按方案的开关与顺序重写。")) {
+        return;
+      }
+      button.disabled = true;
+      try {
+        const result = await deps.ApplyModEnableProfile(id);
+        deps.showNotification(formatProfileApplySummary(result), "success");
+        deps.refreshFilesKeepFilter?.();
+        refresh();
+      } catch (error) {
+        setStatus("应用方案失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-profile-export").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.profileId;
+      if (!id) return;
+      button.disabled = true;
+      try {
+        const targetPath = await deps.ExportModEnableProfile(id);
+        if (!targetPath) {
+          return; // 用户取消
+        }
+        deps.showNotification(`方案已导出到 ${targetPath}`, "success");
+      } catch (error) {
+        setStatus("导出方案失败: " + String(error?.message || error));
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll("#settings-page-content .settings-profile-delete").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.profileId;
+      if (!id) return;
+      if (!window.confirm("删除这个方案？该操作不可撤销，但不会改动当前 addonlist.txt。")) {
+        return;
+      }
+      button.disabled = true;
+      try {
+        await deps.DeleteModEnableProfile(id);
+        deps.showNotification("方案已删除", "success");
+        refresh();
+      } catch (error) {
+        setStatus("删除方案失败: " + String(error?.message || error));
+        button.disabled = false;
+      }
+    });
+  });
+}
+
+function bindConflictAnalysisSettings(deps) {
+  const priorityToggle = document.getElementById("settings-conflict-priority-aware");
+  priorityToggle?.addEventListener("change", async () => {
+    const enabled = priorityToggle.checked;
+    priorityToggle.disabled = true;
+    try {
+      const config = deps.getConfig();
+      config.conflictPriorityAware = enabled;
+      await deps.saveConfig(config);
+      deps.appState.conflictAnalysisOptions = {
+        ...deps.appState.conflictAnalysisOptions,
+        priorityAware: enabled,
+      };
+      deps.showNotification(
+        enabled ? "已开启：按加载顺序判定覆盖" : "已关闭：所有重叠都按冲突显示",
+        "success",
+      );
+    } catch (error) {
+      priorityToggle.checked = !enabled;
+      deps.showNotification("保存冲突分析设置失败: " + error, "error");
+    } finally {
+      priorityToggle.disabled = false;
+    }
+  });
+
+  const editor = document.getElementById("settings-conflict-ignore-files");
+  const saveButton = document.getElementById("settings-conflict-save-ignore");
+  const status = document.getElementById("settings-conflict-ignore-status");
+  saveButton?.addEventListener("click", async () => {
+    const entries = parseConflictIgnoreList(editor?.value || "");
+    saveButton.disabled = true;
+    try {
+      const config = deps.getConfig();
+      config.conflictIgnoreFiles = entries;
+      await deps.saveConfig(config);
+      if (editor) editor.value = formatConflictIgnoreList(entries);
+      if (status) {
+        status.textContent = entries.length ? `已保存 ${entries.length} 条忽略规则` : "已清空忽略清单";
+      }
+      deps.showNotification("冲突忽略清单已保存", "success");
+    } catch (error) {
+      if (status) status.textContent = "保存失败，请重试";
+      deps.showNotification("保存冲突忽略清单失败: " + error, "error");
+    } finally {
+      saveButton.disabled = false;
+    }
   });
 }
 
 function bindSettingsPage(deps) {
   enhanceSettingsNav();
+  bindConflictAnalysisSettings(deps);
+  bindModEnableProfileSettings(deps);
+  bindModStrategyGroupSettings(deps);
+  bindModDependencySettings(deps);
+  bindModHealthCheckSettings(deps);
 
   document.querySelectorAll("#settings-page-content .settings-nav-item").forEach((item) => {
     item.addEventListener("click", () => {
@@ -1856,6 +2618,8 @@ function formatAddonListBackupKind(kind) {
     external: "游戏覆盖前",
     "game-save": "旧版短时保护写入前",
     before: "恢复/删除前",
+    "before-profile-apply": "应用启用方案前",
+    "before-health-fix": "体检修复前",
   };
   return labels[String(kind || "")] || "历史备份";
 }

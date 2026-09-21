@@ -458,6 +458,205 @@
   background: var(--bg-muted);
 }
 
+.conflict-override-section {
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-2);
+  border-top: 1px dashed var(--border-default);
+}
+
+.conflict-override-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.conflict-override-title {
+  font-weight: 700;
+}
+
+.conflict-override-count {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.conflict-override-hint,
+.conflict-override-more {
+  margin: var(--spacing-2) 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.severity-badge.override {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.conflict-group.override {
+  border-left: 3px solid var(--primary);
+}
+
+.conflict-vpk-winner {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  background: var(--bg-muted);
+}
+
+.conflict-vpk-winner.active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.setting-row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-2);
+}
+
+.settings-conflict-ignore-editor {
+  width: 100%;
+  min-height: 7rem;
+  padding: var(--spacing-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.settings-conflict-ignore-editor:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.settings-profile-capture-row {
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.settings-profile-name-input {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  padding: var(--spacing-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.settings-strategy-select {
+  padding: var(--spacing-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.settings-health-deep-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.settings-strategy-enforce {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.settings-health-issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-2);
+}
+
+.settings-health-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.settings-health-issue-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-health-issue-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.settings-health-issue-message {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.settings-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+.settings-profile-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.settings-profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-profile-main strong {
+  font-weight: 700;
+}
+
+.settings-profile-main span {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.settings-profile-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--spacing-1);
+}
+
 .load-order-badge {
   display: inline-flex;
   align-items: center;

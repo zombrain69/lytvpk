@@ -2106,6 +2106,19 @@
             <div id="conflict-list" class="conflict-list">
               <!-- 动态生成冲突列表 -->
             </div>
+            <!-- 优先级感知模式：胜负已判定的覆盖关系，不计入冲突 -->
+            <div id="conflict-override-section" class="conflict-override-section hidden">
+              <div class="conflict-override-header">
+                <span class="severity-badge override">覆盖</span>
+                <span class="conflict-override-title">已判定覆盖关系</span>
+                <span id="conflict-override-count" class="conflict-override-count">0 组</span>
+              </div>
+              <p class="conflict-override-hint">
+                这些 Mod 共享同一资源，但都在 addonlist.txt 中记录了加载顺序，胜负已确定（顺序靠后者生效），因此不再计为冲突。
+              </p>
+              <div id="conflict-override-list" class="conflict-list"></div>
+              <p id="conflict-override-more" class="conflict-override-more hidden"></p>
+            </div>
           </div>
 
           <div id="conflict-empty" class="conflict-empty hidden">
@@ -2116,7 +2129,7 @@
                   <path d="M8 12.5 10.5 15 16 9"></path>
                 </svg>
               </span>
-              <p>未发现Mod冲突</p>
+              <p id="conflict-empty-text">未发现Mod冲突</p>
             </div>
           </div>
         </div>
@@ -2175,6 +2188,16 @@
               <button type="button" class="btn btn-small conflict-scope-mode-btn" data-conflict-match-mode="or" aria-pressed="false">满足任一（OR）</button>
             </div>
             <p class="conflict-scope-hint">例如“游戏内开启 + 创意工坊”可只比较已开启的工坊 Mod；“根目录或创意工坊”可覆盖两类来源。</p>
+          </fieldset>
+          <fieldset class="conflict-scope-fieldset">
+            <legend>覆盖判定</legend>
+            <label class="conflict-scope-rule-card">
+              <input type="checkbox" id="conflict-priority-aware" />
+              <span><strong>按加载顺序判定胜负</strong><small>能判定胜负的重叠归入“覆盖关系”，只有无法判定胜负的重叠才计为冲突</small></span>
+            </label>
+            <p class="conflict-scope-hint">
+              需要读取 addonlist.txt：其中标记为关闭的 Mod 不参与判定；未写入 addonlist.txt 的 Mod 无法判定胜负，相关重叠仍会保留为冲突。
+            </p>
           </fieldset>
         </div>
         <div class="modal-footer conflict-scope-footer">

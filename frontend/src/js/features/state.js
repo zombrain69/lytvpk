@@ -43,6 +43,8 @@ export const appState = {
   conflictAnalysisOptions: {
     matchMode: "or",
     baselineRules: [{ type: "enabled" }],
+    // 覆盖判定是持久化设置：弹窗里修改后会写回 config.json。
+    priorityAware: getConfig().conflictPriorityAware === true,
   },
   conflictAnalysisScopeLabel: "游戏内开启",
 };

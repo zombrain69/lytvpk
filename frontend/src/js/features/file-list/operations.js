@@ -11,6 +11,7 @@ import { beginMessageModalSession } from "../../core/message-modal.js";
 import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import { getFileLoadOrderIndex, refreshLoadOrderMap } from "./sorting.js";
 import { getUnrecordedGameStateOptions } from "./unrecorded-game-state.mjs";
+import { formatStrategyGroupEnforcementNotice } from "../settings/strategy-group-format.mjs";
 import {
   ToggleVPKFile,
   DeleteVPKFile,
@@ -92,7 +93,8 @@ export async function setGameState(filePath, state) {
 async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   if (nextEnabled && !(await confirmVPKOperationWarning(filePath, "启用游戏内 Mod"))) return;
   try {
-    await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);
+    // 返回值是策略组自动联动改动的其它成员数量（0 表示没有联动）。
+    const enforcedCount = await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);
 
     [appState.allVpkFiles, appState.vpkFiles].forEach((files) => {
       files.forEach((item) => {
@@ -115,6 +117,13 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
       ? `（新增为优先级 #${orderIndex + 1}）`
       : "";
     showNotification(nextEnabled ? `已在 addonlist.txt 中开启 Mod${priorityHint}` : "已在 addonlist.txt 中关闭 Mod", "success");
+
+    const enforcementNotice = formatStrategyGroupEnforcementNotice(enforcedCount);
+    if (enforcementNotice) {
+      showNotification(enforcementNotice, "success");
+      // 组内其它成员的开关状态已经变化，重新扫描一次让列表同步。
+      await refreshFilesKeepFilter();
+    }
   } catch (error) {
     console.error("切换游戏内开关失败:", error);
     const message = String(error || "");

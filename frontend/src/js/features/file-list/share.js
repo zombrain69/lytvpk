@@ -31,7 +31,7 @@ function getSelectedFilesInListOrder() {
   return files;
 }
 
-async function copyTextToClipboard(text) {
+export async function copyTextToClipboard(text) {
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
