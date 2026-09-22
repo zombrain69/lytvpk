@@ -74,6 +74,9 @@ export async function renderSettingsPageWithDeps() {
         renderTagFilters,
         refreshFilesKeepFilter,
         showNotification,
+        // 设置页在 addonlist 相关操作后需要重新渲染自己。
+        // 这个回调由本模块提供（后端绑定里没有它）。
+        refreshAddonListPanel: () => renderSettingsPageWithDeps(),
       }),
     );
   } catch (error) {

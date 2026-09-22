@@ -88,7 +88,7 @@ export async function renderAboutPage({
         <div class="about-info-panel about-action-panel">
           <div class="about-panel-title">崩溃报告</div>
           <p class="about-panel-desc">
-            本应用捕获自己的 panic 与前端未处理异常，写成**只保存在本机**的报告
+            本应用捕获自己的 panic 与前端未处理异常，写成只保存在本机的报告
             （版本、堆栈、日志尾部），不会联网上传。游戏/系统的原生崩溃转储仍用
             “工具箱 → 崩溃转储查看器”打开。
           </p>
@@ -142,7 +142,14 @@ function bindAboutActions({
   // 崩溃报告：只在本机，用户可自行打开目录查看/删除。
   const crashStatus = document.getElementById("about-crash-status");
   void (async () => {
-    if (typeof ListCrashReports !== "function" || !crashStatus) return;
+    if (!crashStatus) return;
+    // 静默 return 会让"绑定没注入"看起来像"功能正常但没数据"，
+    // 这里必须把缺失本身显示出来，方便一眼定位。
+    if (typeof ListCrashReports !== "function") {
+      crashStatus.textContent = "崩溃报告接口不可用：前端绑定缺失（请更新到最新版本）";
+      console.warn("ListCrashReports 未注入，跳过崩溃报告统计");
+      return;
+    }
     try {
       const reports = (await ListCrashReports()) || [];
       crashStatus.textContent =
@@ -154,7 +161,14 @@ function bindAboutActions({
     }
   })();
   document.getElementById("about-open-crash-dir-btn")?.addEventListener("click", async () => {
-    if (typeof GetCrashReportDirectory !== "function" || typeof OpenFileLocation !== "function") return;
+    if (typeof GetCrashReportDirectory !== "function" || typeof OpenFileLocation !== "function") {
+      if (crashStatus) crashStatus.textContent = "崩溃报告接口不可用：前端绑定缺失（请更新到最新版本）";
+      console.warn("崩溃报告目录接口未注入", {
+        GetCrashReportDirectory: typeof GetCrashReportDirectory,
+        OpenFileLocation: typeof OpenFileLocation,
+      });
+      return;
+    }
     try {
       const dir = await GetCrashReportDirectory();
       if (!dir) {

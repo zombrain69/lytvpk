@@ -4,7 +4,24 @@ let errorQueue = [];
 let errorTimer = null;
 
 export function handleError(errorInfo) {
-  console.error("应用错误:", errorInfo);
+  // 直接打印对象只会得到 "Object"，无法定位是哪个后端调用失败。
+  // 这里优先输出 type/message/file，其次退回字符串化结果。
+  let detail;
+  if (typeof errorInfo === "string") {
+    detail = errorInfo;
+  } else if (errorInfo && typeof errorInfo === "object") {
+    detail = [errorInfo.type, errorInfo.message, errorInfo.file].filter(Boolean).join(" | ");
+    if (!detail) {
+      try {
+        detail = JSON.stringify(errorInfo);
+      } catch {
+        detail = String(errorInfo);
+      }
+    }
+  } else {
+    detail = String(errorInfo);
+  }
+  console.error("应用错误:", detail);
   errorQueue.push(errorInfo);
 
   if (errorTimer) {
