@@ -215,7 +215,11 @@ func (a *App) LogError(errorType, message, file string) {
 	}
 
 	log.Printf("[%s] %s: %s", errorType, file, message)
-	runtime.EventsEmit(a.ctx, "error", errorInfo)
+	// 启动完成前（或没有 Wails 上下文的后台/测试场景）没有可用的 ctx，
+	// 此时必须只写日志：Wails 运行时会直接中断进程，把"记录一个错误"变成崩溃。
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "error", errorInfo)
+	}
 }
 
 // ValidateDirectory 验证目录是否有效

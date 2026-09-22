@@ -271,6 +271,400 @@
   font-size: 0.8rem;
 }
 
+/* 策略组：列表徽标、分组筛选与分组建议弹窗 */
+
+.mod-group-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mod-group-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--spacing-2);
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 0.72rem;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.mod-group-badge:hover {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.mod-group-filter {
+  position: relative;
+  display: inline-block;
+}
+
+/* 选择器需要压过 .dropdown-content 的 min-width，否则菜单会被压成一条窄柱。 */
+.dropdown-host .mod-group-filter-menu {
+  min-width: min(420px, calc(100vw - 3rem));
+  max-width: min(560px, calc(100vw - 3rem));
+  /* .dropdown-content 默认右对齐；菜单较宽时会往左溢出到 Mod 管理页之外，
+     而 .page-view 是 overflow: hidden，溢出的部分既看不到也点不到（会误点到底下元素）。
+     因此改为与按钮左对齐向右展开。 */
+  left: 0;
+  right: auto;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--spacing-3);
+  z-index: 60;
+}
+
+.mod-group-filter-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  padding-bottom: var(--spacing-3);
+  margin-bottom: var(--spacing-2);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.mod-group-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-2);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.mod-group-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 4px 0;
+}
+
+.mod-group-filter-name {
+  flex: 1;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mod-group-filter-actions {
+  display: inline-flex;
+  gap: var(--spacing-3);
+}
+
+.mod-group-filter-empty {
+  padding: var(--spacing-2) 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.mod-group-suggest-member-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-group-suggest-member-key {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+/* 分组建议弹窗按"冲突检测"那种大界面来做：能看到每个成员的详情与开关。
+   用 ID 作用域保证能压过 .modal-content 的通用宽度与其它后加载的规则。 */
+#mod-group-suggest-modal .mod-group-suggest-content {
+  width: min(1180px, 95vw);
+  max-width: min(1180px, 95vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#mod-group-suggest-modal .mod-group-suggest-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 成员列表放宽：默认 180px 高度 + 横向自动换行在大界面下反而更难读。 */
+#mod-group-suggest-modal .mod-group-suggest-members {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+  max-height: 320px;
+}
+
+#mod-group-suggest-modal .conflict-vpk-item,
+#mod-group-suggest-modal .mod-group-suggest-member {
+  width: 100%;
+  max-width: 100%;
+}
+
+#mod-group-suggest-modal .mod-group-suggest-member .conflict-vpk-info {
+  flex-wrap: wrap;
+  align-items: center;
+  overflow: visible;
+}
+
+#mod-group-suggest-modal .mod-group-suggest-member .conflict-vpk-title {
+  max-width: 34ch;
+}
+
+#mod-group-suggest-modal .mod-group-suggest-member .conflict-vpk-filename {
+  max-width: 28ch;
+}
+
+#mod-group-suggest-modal .mod-group-suggest-select-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.mod-group-suggest-source {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border-light));
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mod-group-suggest-member {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.mod-group-suggest-member:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.mod-group-suggest-member-pick {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.mod-group-suggest-member-info {
+  flex-wrap: wrap;
+  row-gap: 0.15rem;
+}
+
+.mod-group-suggest-member-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mod-group-suggest-member-badge.game-state {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-light));
+}
+
+.mod-group-suggest-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+/* 动作按钮必须按内容宽度显示，否则"复制到 addons"这类文案会被压窄换行。 */
+#mod-group-suggest-modal .mod-group-suggest-member-actions .btn {
+  white-space: nowrap;
+  min-width: max-content;
+  width: auto;
+  max-width: none;
+  flex: 0 0 auto;
+  overflow: visible;
+  text-overflow: clip;
+  padding: 0 0.6rem;
+}
+
+.mod-group-suggest-member-file-action {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border-light));
+  color: var(--primary);
+}
+
+.btn-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.mod-group-suggest-content {
+  width: min(920px, 94vw);
+}
+
+.mod-group-suggest-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.mod-group-suggest-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-2);
+}
+
+.mod-group-suggest-summary {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.mod-group-suggest-hint {
+  margin: 0 0 var(--spacing-4);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.mod-group-suggest-card {
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.mod-group-suggest-card.confidence-high {
+  border-color: var(--success, #3fb950);
+}
+
+.mod-group-suggest-card.confidence-medium {
+  border-color: var(--warning, #f5a524);
+}
+
+.mod-group-suggest-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-2);
+}
+
+.mod-group-suggest-name {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.mod-group-suggest-confidence {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.mod-group-suggest-confidence.high {
+  border-color: var(--success, #3fb950);
+  color: var(--success, #3fb950);
+}
+
+.mod-group-suggest-confidence.medium {
+  border-color: var(--warning, #f5a524);
+  color: var(--warning, #f5a524);
+}
+
+.mod-group-suggest-meta {
+  margin-bottom: var(--spacing-2);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.mod-group-suggest-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--spacing-3);
+}
+
+.mod-group-suggest-signal {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 0.72rem;
+}
+
+.mod-group-suggest-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: var(--spacing-2);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.mod-group-suggest-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.mod-group-suggest-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-3);
+}
+
+.mod-group-suggest-create-summary {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.mod-group-suggest-empty {
+  padding: var(--spacing-5);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .load-order-policy-section {
   margin-bottom: var(--spacing-6);
   padding: var(--spacing-5);
@@ -1332,7 +1726,7 @@
 }
 
 .load-order-locate-input {
-  width: 7.25rem;
+  width: 5.75rem;
   min-width: 5.5rem;
   min-height: 2.25rem;
   padding: 0 var(--spacing-2);
@@ -1392,6 +1786,12 @@
   font-size: var(--text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 关闭状态下的说明文案会长期占用工具栏宽度，挤压其它按钮；
+   开关本身已经能表达默认状态，因此只在开启/分析中显示状态文案。 */
+#conflict-analysis-checkbox:not(:checked) ~ #conflict-analysis-status {
+  display: none;
 }
 
 .conflict-analysis-status.active {

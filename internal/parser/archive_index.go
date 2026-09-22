@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"path/filepath"
 	"strings"
 
 	"l4d2-manager-next/pkg/valve/vpk"
@@ -19,6 +20,17 @@ type archivePathEntry struct {
 type archivePathIndex struct {
 	hasMap bool
 
+	// 结构摘要：给"分组推导 / 外部智能体"用的 VPK 内部结构信息。
+	// 这些数据在同一遍遍历里顺带统计，不需要额外读取 VPK。
+	topDirs      map[string]int
+	fileCount    int
+	totalSize    int64
+	samplePaths  []string
+	// 更紧凑的"替换目标"摘要（如 props_interiors/medicalcabinet02）：
+	// 给智能体判断"覆盖了哪些资源"，同时避免清单体积失控。
+	resourceTargets []string
+	targetSeen      map[string]struct{}
+
 	characterFiles  []archivePathEntry
 	weaponFiles     []archivePathEntry
 	missionFiles    []*vpk.File
@@ -35,6 +47,8 @@ type archivePathIndex struct {
 
 func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 	index := archivePathIndex{
+		topDirs:         make(map[string]int),
+		targetSeen:      make(map[string]struct{}, 16),
 		characterFiles:  make([]archivePathEntry, 0),
 		weaponFiles:     make([]archivePathEntry, 0),
 		missionFiles:    make([]*vpk.File, 0),
@@ -48,6 +62,10 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 		file := &archive.Files[i]
 		name := normalizeArchivePath(file.Name())
 		entry := archivePathEntry{name: name}
+
+		index.fileCount++
+		index.totalSize += int64(file.Size())
+		index.collectStructure(name)
 
 		if strings.HasSuffix(name, ".bsp") {
 			index.hasMap = true
@@ -80,6 +98,75 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 	}
 
 	return index
+}
+
+// 结构摘要的规模上限：清单要被大模型读进上下文，路径条数必须克制。
+const (
+	structureSamplePathLimit     = 5
+	structureResourceTargetLimit = 6
+	structureSamplePathMaxRunes  = 100
+)
+
+// collectStructure 统计顶层目录、条目数、体积，并挑选有代表性的资源路径。
+// 只在同一遍遍历里做，避免为了导出清单再读一次 VPK。
+func (index *archivePathIndex) collectStructure(name string) {
+	if name == "" {
+		return
+	}
+	if slash := strings.Index(name, "/"); slash > 0 {
+		index.topDirs[name[:slash]]++
+	} else {
+		index.topDirs["（根）"]++
+	}
+	if isStructureNoisePath(name) {
+		return
+	}
+	if len(index.samplePaths) < structureSamplePathLimit {
+		index.samplePaths = append(index.samplePaths, truncateRunes(name, structureSamplePathMaxRunes))
+	}
+	if target := structureResourceTarget(name); target != "" && len(index.resourceTargets) < structureResourceTargetLimit {
+		if _, seen := index.targetSeen[target]; !seen {
+			index.targetSeen[target] = struct{}{}
+			index.resourceTargets = append(index.resourceTargets, target)
+		}
+	}
+}
+
+func truncateRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit]) + "…"
+}
+
+// structureResourceTarget 把内部路径压缩成"替换目标"，例如
+// models/props_interiors/medicalcabinet02.mdl → props_interiors/medicalcabinet02
+// materials/honkai3/theresa/body.vmt          → honkai3/theresa
+func structureResourceTarget(name string) string {
+	parts := strings.Split(name, "/")
+	if len(parts) < 2 {
+		return ""
+	}
+	rest := parts[1:]
+	last := strings.TrimSuffix(rest[len(rest)-1], filepath.Ext(rest[len(rest)-1]))
+	segments := rest[:len(rest)-1]
+	if len(segments) > 2 {
+		segments = segments[len(segments)-2:]
+	}
+	values := append(append([]string(nil), segments...), last)
+	return strings.Trim(strings.Join(values, "/"), "/")
+}
+
+// isStructureNoisePath 过滤掉对"判断替换目标"没有帮助的条目（addoninfo / 预览图）。
+func isStructureNoisePath(name string) bool {
+	switch {
+	case name == "addoninfo.txt", name == "addonimage.jpg":
+		return true
+	case strings.HasPrefix(name, "addonimage"), strings.HasPrefix(name, "addonpreview"):
+		return true
+	}
+	return false
 }
 
 func normalizeArchivePath(name string) string {

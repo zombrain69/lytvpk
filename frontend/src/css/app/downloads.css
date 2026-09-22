@@ -445,6 +445,43 @@
   color: var(--text-primary);
   margin: 20px 0;
   line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* 文本输入弹窗（应用内 prompt） */
+.prompt-modal-content {
+  max-width: 460px;
+  width: 90%;
+}
+
+.prompt-modal-message {
+  margin: 12px 0 10px;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.prompt-modal-input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0 var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.prompt-modal-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+/* .modal-footer .btn 的基准宽度是 13rem；在 460px 宽的输入弹窗里两个按钮会换成两行。 */
+.prompt-modal-content .modal-footer {
+  flex-wrap: nowrap;
 }
 
 .modal-footer {

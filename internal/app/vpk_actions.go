@@ -478,6 +478,14 @@ func (a *App) ToggleVPKVisibility(filePath string) (string, error) {
 	// 同步重命名同名图片
 	a.handleSidecarFile(filePath, newPath, "move")
 
+	// 隐藏/显示会加/去掉 `_` 前缀，addonlist 键随之变化：
+	// 本地记录（策略组 / 分层 / 依赖 / 忽略清单）必须跟着改绑。
+	a.rebindModKeyOnRename(
+		a.addonListKeyForPath(filePath),
+		a.addonListKeyForPath(newPath),
+		filepath.Base(newPath),
+	)
+
 	return newPath, nil
 }
 
@@ -703,6 +711,14 @@ func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error)
 		// 如果不在缓存中，重新处理
 		a.processVPKFileWithCache(newPath)
 	}
+
+	// 改名后把本地记录（策略组 / 分层 / 依赖 / 忽略清单）里的旧键迁移到新键，
+	// 否则这些记录会变成指向旧文件名的悬空条目。
+	a.rebindModKeyOnRename(
+		a.addonListKeyForPath(filePath),
+		a.addonListKeyForPath(newPath),
+		filepath.Base(newPath),
+	)
 
 	a.updateCompletedDownloadTaskPath(filePath, newPath)
 	// VPK 改名会同时改变 addonlist 键与资源归属，复检结果必须失效。

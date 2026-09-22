@@ -1008,6 +1008,164 @@ export namespace app {
 	        this.error = source["error"];
 	    }
 	}
+	export class GroupSuggestionImportResult {
+	    file: string;
+	    generator?: string;
+	    generatedAt?: string;
+	    total: number;
+	    imported: number;
+	    skipped: number;
+	    memberCount: number;
+	    importedAt: string;
+	    warnings?: string[];
+	    resolvedMods: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GroupSuggestionImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.generator = source["generator"];
+	        this.generatedAt = source["generatedAt"];
+	        this.total = source["total"];
+	        this.imported = source["imported"];
+	        this.skipped = source["skipped"];
+	        this.memberCount = source["memberCount"];
+	        this.importedAt = source["importedAt"];
+	        this.warnings = source["warnings"];
+	        this.resolvedMods = source["resolvedMods"];
+	    }
+	}
+	export class GroupSuggestionValidationMember {
+	    raw: string;
+	    resolved?: string;
+	    matched: boolean;
+	    ambiguous?: boolean;
+	    note?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GroupSuggestionValidationMember(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.raw = source["raw"];
+	        this.resolved = source["resolved"];
+	        this.matched = source["matched"];
+	        this.ambiguous = source["ambiguous"];
+	        this.note = source["note"];
+	    }
+	}
+	export class GroupSuggestionValidationItem {
+	    label: string;
+	    valid: boolean;
+	    confidence?: string;
+	    strategy?: string;
+	    memberCount: number;
+	    members: GroupSuggestionValidationMember[];
+	    problems?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new GroupSuggestionValidationItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.valid = source["valid"];
+	        this.confidence = source["confidence"];
+	        this.strategy = source["strategy"];
+	        this.memberCount = source["memberCount"];
+	        this.members = this.convertValues(source["members"], GroupSuggestionValidationMember);
+	        this.problems = source["problems"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class GroupSuggestionValidation {
+	    file: string;
+	    generator?: string;
+	    total: number;
+	    valid: number;
+	    invalid: number;
+	    memberCount: number;
+	    items: GroupSuggestionValidationItem[];
+	    warnings?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new GroupSuggestionValidation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.generator = source["generator"];
+	        this.total = source["total"];
+	        this.valid = source["valid"];
+	        this.invalid = source["invalid"];
+	        this.memberCount = source["memberCount"];
+	        this.items = this.convertValues(source["items"], GroupSuggestionValidationItem);
+	        this.warnings = source["warnings"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	export class GroupingWorkspace {
+	    catalogPath: string;
+	    inboxPath: string;
+	    prompt: string;
+	    modCount: number;
+	    preparedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GroupingWorkspace(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.catalogPath = source["catalogPath"];
+	        this.inboxPath = source["inboxPath"];
+	        this.prompt = source["prompt"];
+	        this.modCount = source["modCount"];
+	        this.preparedAt = source["preparedAt"];
+	    }
+	}
 	export class LocalStorageMigrationPayload {
 	    config: string;
 	    theme: string;
@@ -1314,6 +1472,64 @@ export namespace app {
 	    }
 	}
 	
+	export class ModGroupMembership {
+	    key: string;
+	    groupId: string;
+	    groupName: string;
+	    strategy: string;
+	    enforce: boolean;
+	    tier?: number;
+	    memberCount: number;
+	    missing?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModGroupMembership(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.groupId = source["groupId"];
+	        this.groupName = source["groupName"];
+	        this.strategy = source["strategy"];
+	        this.enforce = source["enforce"];
+	        this.tier = source["tier"];
+	        this.memberCount = source["memberCount"];
+	        this.missing = source["missing"];
+	    }
+	}
+	export class ModGroupSuggestion {
+	    id: string;
+	    label: string;
+	    reason: string;
+	    confidence: string;
+	    score: number;
+	    signals: string[];
+	    memberKeys: string[];
+	    memberNames: string[];
+	    existingGroupId?: string;
+	    source?: string;
+	    strategy?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModGroupSuggestion(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.label = source["label"];
+	        this.reason = source["reason"];
+	        this.confidence = source["confidence"];
+	        this.score = source["score"];
+	        this.signals = source["signals"];
+	        this.memberKeys = source["memberKeys"];
+	        this.memberNames = source["memberNames"];
+	        this.existingGroupId = source["existingGroupId"];
+	        this.source = source["source"];
+	        this.strategy = source["strategy"];
+	    }
+	}
 	export class ModHealthCheckOptions {
 	    deepScan: boolean;
 	
@@ -1403,6 +1619,24 @@ export namespace app {
 	    }
 	}
 	
+	export class ModPriorityShiftItem {
+	    key: string;
+	    name: string;
+	    from: number;
+	    to: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModPriorityShiftItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.name = source["name"];
+	        this.from = source["from"];
+	        this.to = source["to"];
+	    }
+	}
 	
 	export class ModStrategyGroupApplyOptions {
 	    strategy: string;
@@ -1425,6 +1659,7 @@ export namespace app {
 	    enabled: string[];
 	    disabled: string[];
 	    pickedName: string;
+	    skipped?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ModStrategyGroupApplyResult(source);
@@ -1438,9 +1673,68 @@ export namespace app {
 	        this.enabled = source["enabled"];
 	        this.disabled = source["disabled"];
 	        this.pickedName = source["pickedName"];
+	        this.skipped = source["skipped"];
 	    }
 	}
 	
+	export class ModStrategyGroupMissingMembers {
+	    groupId: string;
+	    groupName: string;
+	    memberCount: number;
+	    missingCount: number;
+	    missingNames: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ModStrategyGroupMissingMembers(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groupId = source["groupId"];
+	        this.groupName = source["groupName"];
+	        this.memberCount = source["memberCount"];
+	        this.missingCount = source["missingCount"];
+	        this.missingNames = source["missingNames"];
+	    }
+	}
+	export class ModStrategyGroupPriorityShift {
+	    groupId: string;
+	    groupName: string;
+	    delta: number;
+	    moved: ModPriorityShiftItem[];
+	    skipped: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ModStrategyGroupPriorityShift(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groupId = source["groupId"];
+	        this.groupName = source["groupName"];
+	        this.delta = source["delta"];
+	        this.moved = this.convertValues(source["moved"], ModPriorityShiftItem);
+	        this.skipped = source["skipped"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ModStrategyGroupTreeNode {
 	    group: ModStrategyGroup;
 	    depth: number;
@@ -3913,6 +4207,11 @@ export namespace parser {
 	    subjectConfidence: string;
 	    xdrSlots: XDRSlotInfo[];
 	    xdrSummary: string;
+	    structureTopDirs: string[];
+	    structureFileCount: number;
+	    structureTotalSize: number;
+	    structureSamplePaths: string[];
+	    structureTargets: string[];
 	    location: string;
 	    enabled: boolean;
 	    gameEnabled: boolean;
@@ -3952,6 +4251,11 @@ export namespace parser {
 	        this.subjectConfidence = source["subjectConfidence"];
 	        this.xdrSlots = this.convertValues(source["xdrSlots"], XDRSlotInfo);
 	        this.xdrSummary = source["xdrSummary"];
+	        this.structureTopDirs = source["structureTopDirs"];
+	        this.structureFileCount = source["structureFileCount"];
+	        this.structureTotalSize = source["structureTotalSize"];
+	        this.structureSamplePaths = source["structureSamplePaths"];
+	        this.structureTargets = source["structureTargets"];
 	        this.location = source["location"];
 	        this.enabled = source["enabled"];
 	        this.gameEnabled = source["gameEnabled"];

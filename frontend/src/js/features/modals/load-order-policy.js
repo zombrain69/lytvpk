@@ -1,6 +1,7 @@
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
+import { renderFileList } from "../file-list/render.js";
 import { refreshLoadOrderMap } from "../file-list/sorting.js";
 import { initLoadOrderPriorityControls, syncLoadOrderPriorityPanel } from "./load-order-priority.js";
 import {
@@ -447,11 +448,16 @@ async function applyLoadOrderPolicy(options = {}) {
 // 只有用户当前正在按加载顺序查看列表时才重新扫描，避免普通排序场景产生不必要的
 // VPK 扫描开销；筛选条件、排序方向和选中项由 refreshFilesKeepFilter 负责保留。
 async function refreshModListAfterLoadOrderChange() {
-  if (appState.sortType !== "loadOrder") return;
-
   try {
+    // 顺序/分层映射总是要刷新：即使当前不是按加载顺序排序，
+    // 卡片上的「优先级 #N」「（分层 T）」角标也依赖这两个映射。
+    // 只有"重新排序列表"本身才需要按加载顺序排序时才做。
     await refreshLoadOrderMap();
-    await refreshFilesKeepFilter();
+    if (appState.sortType === "loadOrder") {
+      await refreshFilesKeepFilter();
+      return;
+    }
+    renderFileList();
   } catch (error) {
     // 写入已经成功，刷新失败不应被误报为“写入失败”；记录日志并给出可操作提示。
     console.error("加载顺序已写入，但 Mod 列表刷新失败:", error);

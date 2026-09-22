@@ -38,6 +38,7 @@ export default defineConfig({
         text: "功能说明",
         items: [
           { text: "MOD 管理", link: "/features/mod-management" },
+          { text: "分组建议与外部导入", link: "/features/group-suggestion-import" },
           { text: "导入与拖拽", link: "/features/import-drag-drop" },
           { text: "创意工坊浏览", link: "/features/workshop" },
           { text: "下载与解析", link: "/features/downloads" },

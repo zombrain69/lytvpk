@@ -338,5 +338,294 @@
   新建策略组、检查工坊合集更新），本轮只验证了读取路径与函数接线，未实际触发写入。
 - 界面视觉细节（间距、配色、长文案换行）仍需人眼确认。
 
+### 第二轮调试（打包 EXE，写入路径）发现并修复的三个缺陷
+
+1. **保存 / 清除分层后列表角标不刷新**：`load-order-priority.js` 只刷新了弹窗里的
+   "有效分层"文字；而宿主刷新函数 `refreshModListAfterLoadOrderChange()` 在
+   "不是按加载顺序排序"时直接 `return`（默认就是按文件名排序），列表根本没重绘。
+   更隐蔽的是该函数里调用的 `renderFileList` **漏了 import**，即使走到也会抛
+   ReferenceError 被 try/catch 吞掉。现在：保存/清除分层统一走
+   `refreshAfterTierChange()`，宿主函数在任何排序方式下都会刷新映射并重绘。
+2. **卡片复用导致角标永不更新**：`getFileCardRenderSignature()` 注释写着"包含卡片内
+   渲染的每个值"，但后加的「分层角标」与「变更驱动复检角标」没有进签名，
+   卡片被判定为未变化而跳过重绘。签名已补上这两项。
+3. **`filters.js` 漏 import `showNotification`**（既有缺陷）：在未选择目录时点击刷新
+   会抛 `ReferenceError` 而不是提示"请先选择目录"。
+
+新增的自动化守卫：
+
+- `features/file-list/render-signature.test.mjs`：签名必须覆盖分层与复检角标。
+- `features/modals/load-order-priority.test.mjs`：保存/清除分层必须刷新列表；
+  宿主刷新函数不得在非加载顺序排序时提前 return。
+- `core/cross-module-imports.test.mjs`：**全仓扫描**"调用了项目内导出的函数但没 import"
+  （已用"临时移除 import"验证过它会真实失败并精确指出文件与行号）。
+
+端到端结果（在本机打包 EXE 上用坐标点击验证）：给 `!!医疗箱-0主文件.vpk` 保存分层 42 →
+角标**立即**变为 `优先级 #998（分层 42）`；清除分层 → 角标**立即**回到 `优先级 #998`，
+`priority.json` 变为 `{ "entries": [] }`。
+
+### 第三轮调试（分组管理 + 分组推导，打包 EXE，真实 1968 个 Mod 数据）
+
+本轮桌面处于 Windows 锁屏状态（`LockApp.exe` / `LogonUI.exe` 在跑），`@oai/sky` 的坐标输入
+落在安全桌面上无法触达应用。因此改用两条不依赖前台的通道，并都记录在本节：
+
+1. **PrintWindow 抓真实像素**：`PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT)` 可以抓到
+   WebView2 的实际渲染结果，用来做视觉确认（脚本：`scripts/devtools/capture-window.ps1`）。
+2. **PostMessage 注入鼠标消息**：向 WebView2 子窗口 `Chrome_WidgetWin_1` 投递
+   `WM_MOUSEMOVE / WM_LBUTTONDOWN / WM_LBUTTONUP`（窗口内坐标，DPI=1 时与 CSS 像素一致），
+   应用侧等同于真实点击（脚本：`scripts/devtools/click-window-at.ps1`）。点击坐标都先用 DOM 的
+   `getBoundingClientRect()` 实测，而不是估计。
+3. **临时 JS 调试桥**（仅调试构建，验证后删除）：`internal/app/cua_bridge_debug.go` +
+   `LYTVPK_CUA_BRIDGE=1` 时在 `127.0.0.1:9223` 暴露 `POST /eval-sync`，
+   内部用 `runtime.WindowExecJS` 在页面里求值并把结果回传，用来读取真实 DOM、监听
+   `error` / `unhandledrejection` / `console.error`。
+
+### 已经自动化覆盖的部分
+
+- Go：`internal/app/mod_group_insights_test.go` 12 项，覆盖组归属、整组开关、整组平移、
+  推导信号、置信度分级、排序配方、混合包过滤、已建组沉底。
+- 前端：`features/mod-groups/*.test.mjs`（组视图纯函数、菜单宽度与对齐约束、禁用原生弹窗）、
+  `features/file-list/toolbar-layout.test.mjs`（工具栏换行与目录选择器最小宽度）、
+  `features/file-list/priority-sort.test.mjs`（默认按优先级排序）。
+
+### 已在打包 EXE 上驱动验证（真实数据）
+
+- **工具栏布局**：修复前 `.filter-actions` 实测宽 1306px 而可用宽度只有 1122px，
+  目录选择器被压成 0 宽度（`clientWidth=0`、`scrollWidth=347`）后溢出去压住动作按钮；
+  修复后 `document.querySelectorAll('.filter-row-tools button')` 无任何相交，
+  最右元素 1359px < 窗口 1400px。
+- **分组菜单**：修复前菜单实测 161px 宽（被 `.dropdown-content { min-width: 120px }` 覆盖），
+  且右对齐后左半截溢出到 Mod 管理页之外、被 `.page-view { overflow: hidden }` 裁剪——
+  点击"分组建议"实际落到侧边栏「下载与解析」，说明该区域**既看不见也点不到**；
+  修复后菜单 420px 宽、`elementFromPoint()` 命中 `#mod-group-suggest-btn`。
+- **分组推导**：真实 1968 个 Mod 上返回 40 条建议；修复前列表顶部全是 35–52 个成员的
+  "低置信度 · 主体：混合包（…）"，修复后为 2–4 个成员、带「共同标签 / 同一作者」的中置信度小组。
+- **创建为组**：真实点击「创建为组」→ `groups.json` 写入 `猎枪 武器`（root + `workshop\` 两份同名条目），
+  卡片立即出现 `组：猎枪 武器` 徽标，分组菜单出现 `猎枪 武器（2）`，
+  建议列表已把该条标记「已建组」并沉底。
+- **按组筛选**：勾选该组后列表从 1968 张卡片收敛到 2 张，筛选按钮文案变为 `猎枪 武器`；
+  点「清空」恢复 1968 张。
+- **整组开关（安全路径）**：真实点击组徽标 → 应用内确认弹窗出现
+  （标题「整组开关」+ 成员数 + 当前开关统计 + "只改 addonlist.txt 的 0/1"）；点「取消」后
+  `addonlist.txt` 的 SHA-256 保持 `f4ac529e…9df89b9` 不变，确认没有误写。
+- **整组优先级移动**：点「↑ 前移」→ `priority.json` 出现 `workshop\3245634710.vpk` 的 `tier: 490`，
+  卡片角标同步变为 `优先级 #486`，`addonlist.txt` 哈希不变（符合"只写分层、不重排"的设计）。
+  验证后已把 `priority.json` 还原为 `{ "entries": [] }`。
+- **应用内输入弹窗**：真实点击「用选中的 Mod 建组」→ 弹出应用内弹窗（不再是 `window.prompt`），
+  填入组名后「创建为组」成功写入 `groups.json`（测试组已用 `DeleteModStrategyGroup` 删除）。
+- **整站巡检**：用坐标点击依次进入 MOD 管理 / 创意工坊 / 下载与解析 / 收藏服务器 / 工具箱 /
+  设置（网络、界面、工坊、游戏配置四个分页）/ 使用说明 / 关于，全程
+  `window.onerror`、`unhandledrejection`、`console.error` **零新增**（截图见
+  `.tmp-cua/shots/sweep/`）。
+
+### 只能人工验证 / 仍未验证
+
+### 第四轮调试（分组推导的内容化与降噪，真实 1968 个 Mod）
+
+本轮把推导从"元数据启发式"改成"内容证据优先"，并用用户真实库做了整轮验证
+（临时 Go 用例直接把 `rootDir` 指向真实 `addons`，跑完即删）：
+
+- 扫描 1968 个文件用时 ≈2.2s；`SuggestModGroups()` 用时 ≈7ms。
+- 修改前的前 30 条里，内容是"混合包主体聚类 + 大量占位符/联名作者"
+  （`AUTHOR_NAME`、`Animal33/zmg/momo`、`Dazzle_白麒麟 + All_calm`）。
+- 修改后前 40 条**全部**是内容聚类：`Francis 语音`、`Coach 语音`、`Tank 模型`、
+  `Boomer 模型`、`吉他 武器`、`M16 武器`、`军狙 武器`、`sg552 武器`、`准星`、`煤气罐`、
+  `一代子弹堆`、`战役地图：…` 等，弱启发式（同作者 / 同前缀）被挤到 40 条之外。
+- 验证的三条降噪规则：占位符与多人联名作者被过滤、同一作者超过 12 个成员不成组、
+  横跨主分类（武器 + HUD）的候选整桶丢弃。
+
+同时修掉一个真实缺陷：`LogError` 在 `a.ctx == nil`（启动早期 / 后台任务 / 自动化场景）时调用
+`runtime.EventsEmit`，Wails 会用无效上下文直接中断进程；现在只写日志。新增
+`internal/app/log_error_guard_test.go` 守住。
+
+### 第五轮调试（推导更广更准 + 建议弹窗重做）
+
+先用真实库统计了各信号的数据可用性（临时用例，跑完即删）：
+
+```
+总文件 1968；语音角色 21；XDR 74；主体摘要 1968（高 1463 / 中 0 / 低 505）；
+有 ≥2 标签 1622；有作者 1689；有主分类 1968
+主分类分布: 武器 910 / 其他 670 / 人物 307 / 地图 59 / … 另有脏值（三角洲 4、Milfy 4、m16 1 …）
+```
+
+据此做了三类改动，并逐条加了 Go 回归测试：
+
+- **更广**：新增「语音角色」信号（`VoiceCharacters`）；「共同标签」从"只比前两个标签"
+  改成枚举**任意两个**标签（真实库里同一套件常出现标签顺序不同）。
+- **更准**：跳过解析器标注"低置信度"的主体（505 个，例如「脚本资源（无法确认具体对象）」）；
+  主分类字段里的脏值按"未知"处理，避免把同套件的 Mod 误判成跨分类而拆开。
+- **界面**：分组建议弹窗重做成冲突检测那种大界面，每个成员一行并带
+  详情 / 游戏开关 / 启用·禁用·复制到 addons 按钮，支持全选 / 全不选。
+
+真实数据复核（1968 个 Mod）：前 40 条全部是内容聚类，
+`Ellis 语音 / Nick 语音 / Francis 语音 / Coach 语音`（语音角色 + 主体 + 标签 多信号命中）
+排在前面，其余为 `M16 武器`、`吉它 武器`、`Tank 模型`、`准星`、`战役地图：…` 等。
+
+打包 EXE 视觉复核截图（PrintWindow）：弹窗宽度 1180px、每个成员行含
+`创意工坊 / 游戏开关：关 / 优先级 #221` 徽标与三个按钮，按钮无重叠、文字不截断。
+
+### 第六轮调试（外部组建议导入：让大模型 / 人工来推导）
+
+新增标准格式的「组建议导入」（格式说明见 `docs/features/group-suggestion-import.md`）：
+
+- 后端：`internal/app/mod_group_suggestion_import.go`，含
+  `GetExternalGroupSuggestions` / `ImportGroupSuggestionsFromFile` /
+  `ImportGroupSuggestionsOpenDialog` / `ClearExternalGroupSuggestions` /
+  `ExportGroupingCatalog` / `ExportGroupingCatalogDialog` / `GetGroupSuggestionInboxPath`；
+- 收件箱：`%AppData%\LytVPK\group_suggestions.json`，放进去后点「重新推导」即自动读取；
+- 合并策略：导入的建议带 `source=external`、分数 90，排在内置启发式之前，并同样参与
+  「已建组」判定与成员规模限制（300）。
+
+**已自动验证**（`internal/app/mod_group_suggestion_import_test.go` 7 项）：
+addonlist 键 / 裸文件名 / 绝对路径三种成员写法都能解析；裸文件名命中根目录与 workshop 两份时
+会同时纳入并给出提示；匹配不到的成员只记警告不阻断；有效成员不足、成员过多、重名标签、
+版本不支持、JSON 非法、`suggestions` 为空都会按预期拒绝或跳过；导出清单包含
+键 / 标题 / 作者 / 标签 / 主体 / 语音角色 / 工坊 ID；清除导入后不再返回外部建议；
+导入后的建议确实排在内置建议之前。
+
+**已在真实数据上端到端跑通**（1968 个 Mod）：
+
+1. 用真实库导出 `grouping_catalog.json`（907 KB，1968 条）；
+2. 由模型逐组核对后写出 6 条建议（`MAC-10 皮肤两个版本`、`肾上腺素塔菲/花来`、
+   `武士刀替换合集`、`Witch 模型替换`、`击中反馈 HUD 两份副本`、`玲纱 AA12 两个版本`），
+   放进收件箱；
+3. 打包 EXE 打开「分组建议」：概览显示 `共 40 条建议（其中 6 条来自导入的建议文件）`，
+   6 条导入建议排在最前并带「导入建议」徽标，成员行的位置 / 游戏开关 / 优先级 / 操作按钮
+   全部正常渲染（截图：`.tmp-cua/shots/import-demo.png`）。
+
+**只能人工验证**：
+
+- 「导入建议文件…」的**系统文件选择框**本身（本机桌面处于锁屏，无法点击原生对话框）；
+  同一条路径的后端方法 `ImportGroupSuggestionsFromFile` 已由 Go 测试覆盖。
+- 导入后点「创建为组」把建议落盘成策略组（会写 `groups.json`，未在本轮自动触发）。
+
+### 第七轮（智能体提示词 + 推导引擎重构）
+
+两块内容：
+
+1. **智能体提示词**（随 EXE 发布，`internal/app/assets/group_suggestion_agent_prompt.md`）：
+   弹窗新增「准备给智能体的材料」（导出清单 + 复制已填好路径的提示词 + 弹窗给出两条路径）、
+   「复制智能体提示词」「保存提示词…」；绑定 `GetGroupSuggestionAgentPrompt` /
+   `SaveGroupSuggestionAgentPromptDialog` / `PrepareGroupingWorkspace`。
+2. **推导引擎重构**：算法搬进独立纯逻辑包 `internal/grouping`
+   （`grouping.go` / `index.go` / `providers.go`），App 只做适配
+   （`internal/app/mod_group_suggest.go`）。信号集中登记（Catalog）、
+   一次遍历建倒排索引、合集与外部建议通过注入候选走同一条流水线、
+   新增单信号配额与推导统计、收件箱按 mtime+size 缓存。
+
+**已自动验证**：
+
+- `internal/grouping` 9 项测试：7 个信号都能产出候选、同成员集合合并并保留最强理由、
+  单信号配额生效、结果确定（两次推导一致）、Catalog 与展示名/ID 双向映射、
+  可信度分级、作者与主体过滤、排序配方（合集 120 / 主体 70 / 粗糙标签 49 / 弱启发式 45）。
+- `internal/app` 新增 3 项：提示词自包含（含格式、策略、硬性要求、真实路径，且占位符已替换）、
+  `PrepareGroupingWorkspace` 能导出清单并返回提示词、App 信号常量与 `internal/grouping`
+  目录一致（防漂移）。
+- 基准测试：2000 个合成 Mod（覆盖全部信号）单次推导 **≈6.9 ms**
+  （`go test ./internal/grouping -bench BenchmarkSuggest`）。
+
+**已在打包 EXE 上驱动验证**：点「准备给智能体的材料」→
+`%AppData%\LytVPK\grouping_catalog.json` 生成（939 KB / 1968 个 Mod），
+剪贴板拿到提示词，弹窗显示清单路径与建议文件路径（截图
+`.tmp-cua/shots/agent-prepared.png`）。
+
+**只能人工验证**：剪贴板内容在外部应用（Codex / Claude）里粘贴后的实际效果，
+以及「保存提示词…」的系统保存对话框。
+
+### 第八轮（清单信息补全：让智能体不用自己打开 VPK）
+
+在扫描阶段顺带统计 VPK 内部结构（零额外 IO），并把它写进导出的清单：
+
+- `structure.topDirs`（顶层目录 + 条目数）、`structure.fileCount` / `totalSize`；
+- `structure.targets`（压缩后的替换目标，如 `props_interiors/medicalcabinet02`，≤6 条）；
+- `structure.samplePaths`（≤5 条原始路径，截断到 100 字符，过滤 `addoninfo` / 预览图）；
+- 每个 Mod 追加 `contentSubjects` / `xdrSummary` / `modelCount` / `modelTriangles` / `campaign` /
+  `location` / `gameEnabled` / `gameStateKnown` / `loadOrder` / `effectiveLayer` /
+  `prioritySource` / `size` / `lastModified`；
+- 清单顶层追加 `clusterHints`（内置推导候选簇，约 8 KB）与 `duplicateGroups`
+  （`同名同体积` / `同名不同位置`，最多 400 组），`notes` 里写明"先读小段、再按需查明细"。
+
+规模与耗时（真实库 1968 个 Mod，临时用例，跑完即删）：
+
+```
+mods=1968 有结构摘要=1968 有代表性路径=1968 有有效分层=1679 重复组=400
+清单 3.05 MB（补结构前 0.94 MB；未压缩路径时 5.46 MB）
+clusterHints 60 条 = 8.3 KB，duplicateGroups 400 组
+样例 targets: doors/medkit_doors_open | props_interiors/medicalcabinet02 | theresa/shader/toon_normal …
+```
+
+**已自动验证**：`TestExportGroupingCatalogIncludesStructureAndState`（顶层目录、条目数、体积、
+替换目标、代表性路径、`addoninfo` 被过滤）、`TestExportGroupingCatalogPrecomputesDuplicateGroups`、
+`TestExportGroupingCatalogIncludesClusterHints`、提示词包含 `structure.targets` /
+`clusterHints` / "你不需要打开 VPK" 等关键说明。
+
+**只能人工验证**：智能体真实读这份清单后的分组质量（需要在外部 Codex / Claude 会话里跑一遍）。
+
+### 第十轮（按外部智能体实测反馈修正）
+
+反馈文件：`E:\SteamLibrary\steamapps\common\Left 4 Dead 2\program\LytVPK-分组建议-实测反馈-20260922.md`
+（外部 agent 用 1968 个 Mod 产出 187 组 / 1714 成员后的复盘）。本轮按"只处理 addons / workshop /
+disabled"的范围落地的项与证据：
+
+| 反馈项 | 处理 | 证据 |
+| --- | --- | --- |
+| P0-1 同 `version: 1` 字段扩张 | 清单升到 `version: 2` + `schemaRev` + `capabilities`（15 项能力） | CLI 导出：`version=2 schemaRev=2026-09-22.2` |
+| P0-2 `key` 不唯一 / location 矛盾 | 新增唯一 `entryId`（`root/…`、`disabled/…`、`workshop/…`）与 `relativePath`；location 改为按物理路径现算 | CLI 导出：**1968 条记录 / 1968 个唯一 entryId**，9 个同键多位置各有独立 entryId |
+| P0-2 假歧义警告（229 条） | `resolve()` 改为 entryId → 精确键 → 裸文件名，且同键多位置不算歧义；`members` 支持 `entryId` / `disabled\…` / `workshop\…` | CLI dry-run：该文件 **total=187 valid=187 invalid=0 members=1714 warnings=0** |
+| P0-3 扫描范围不透明 | 顶层 `scope` 给出覆盖位置 + 被排除子目录数与 VPK 数（本轮 110 个目录 / 1645 个 VPK） | CLI 导出 `scope` 字段 |
+| P2-1 `clusterHints` 覆盖太低（60 → 124） | 上限提升到 600（实测 481 条），并新增 `ungroupedKeys`（1738 条）供接力 | CLI 导出统计 |
+| P1-3 缺"主题套装 / 前置"表达 | 新增 `themeHints`（60 条，如 绣春刀/爱弥斯 类跨槽位套装）与 `preloadHints`（观察到的 xdReanimsBase / KSEP / 音频库等前置） | CLI 导出统计 |
+| P2-2 XDR 缺槽位 | 每条记录新增 `xdrSlots`（角色/模型/槽位/动作/置信度，67 条覆盖） | CLI 导出统计 |
+| P2-3 .vpk 实为 ZIP | 扫描时记录解析失败文件，清单 `unreadableMods` 显式列出（实测 1 条） | CLI 导出 `unreadable=1` |
+| P2-4 缺 dry-run 入口 | 新增 CLI `--validate-group-suggestions <文件> [--out <json>]`（逐成员 resolved/matched/ambiguous + 全部警告 + 退出码）与 `--export-grouping-catalog [路径]` | 上述 CLI 实跑；结果文件 `group_suggestions.json.validation.json` |
+
+**未做（有意）**：`addons` 下其它子目录的扫描（用户明确暂不处理，见 `scope.excluded*` 字段说明）。
+
+**已在打包 EXE 上验证**：导入外部 agent 的 187 组建议后，弹窗显示「共 40 条建议（其中 40 条来自导入的建议文件）」，
+导入建议排在最前并带「导入建议」徽标，成员行的位置 / 游戏开关 / 优先级 / 详情 / 启用·禁用按钮正常
+（截图 `.tmp-cua/shots/final-verify.png`）。
+
+### 第九轮（清单覆盖"LytVPK 已解析的全部信息"）
+
+在第八轮基础上继续补：
+
+- `addonInfo.*`：VPK 内 `addoninfo.txt` 的 `version` / `desc` / `url` / `hasUpdate` / `chapters` / `mode`；
+- `workshop.*`：本地 `.meta` 的工坊 `title` / `author` / `desc` / `tags` / `url` / `previewUrl` /
+  `timeUpdated` / `downloadedAt`，以及"稍后再看"里的 `views` / `subscriptions` / `favorited` / `fileType`；
+- `management.*`：`groups`（策略组）/ `profiles`（启用方案）/ `dependencies`（已声明依赖）/
+  `ignoredFiles`（冲突忽略清单）/ `collections`（已保存工坊合集）；
+- 顶层 `coverage`：各类信息的可用条数，供智能体判断数据是否充分。
+
+真实库统计（1968 个 Mod，配置目录指向本机 `%AppData%\LytVPK`）：
+
+```
+coverage = {"mods":1968,"withStructure":1968,"withStructureTargets":1968,"withAddonInfo":1590,
+            "withWorkshopMeta":13,"withWorkshopTags":0,"withWatchLaterStats":0,
+            "withVoiceCharacters":21,"withSubject":1968,"withManagement":2,
+            "withProfileOrGroup":2,"clusterHints":60,"duplicateGroups":400}
+清单 3.23 MB
+```
+
+注：`withWorkshopMeta` 只有 13 是因为本机 `addons` 目录里实际只有 18 个 `.meta`
+（工坊资料由 LytVPK 在下载/刷新时保存）；提示词里已说明这种缺失属于数据缺失，
+可改用文件名 / `structure.targets` / 标签 / 主体判断，或开启工坊信息存储后补齐。
+
+**已自动验证**：`TestExportGroupingCatalogIncludesWorkshopAndManagement`（`.meta` 的标题/作者/标签/
+详情页、稍后再看统计、addoninfo 版本与描述、策略组 / 依赖 / 忽略清单 / 合集全部出现在清单里）、
+提示词包含 `workshop.title` / `workshop.tags` / `addonInfo.desc` / `management.dependencies` /
+`management.collections` / `coverage` / `withWorkshopMeta` 等新字段说明。
+
+**注意：本轮明确不做 `addons` 其它子目录的扫描。** `ScanVPKFiles` 仍然只扫
+`addons` 根目录（不递归）+ `workshop` + `disabled`（后两者递归），
+因此像 `addons\Airi初代恶堕战斗员八人\...` 这种自建套件文件夹里的 VPK
+**不会出现在列表里，也不会参与推导**（实测磁盘上有 3614 个 .vpk，应用里是 1968 个）。
+
+- 真机游戏内加载顺序实测：`addonlist.txt` 顺序仍是游戏侧唯一权威，分层只在应用侧生效，
+  需要进游戏确认实际生效顺序。
+- 整组开关的**执行分支**：本轮真实点击只走到确认弹窗并取消（避免改动用户 Mod 开关），
+  写入语义由 `internal/app/mod_group_insights_test.go` 的 Go 端到端用例覆盖。
+- 蒸汽工坊合集的真实刷新 / 下载（需要真实合集链接与网络）。
+- 纯视觉判断（配色、间距在大字体 / 高分屏下的观感）仍建议人眼过一遍。
+
 发现不符时，请记录：操作步骤、界面截图、`addonlist.txt` 前后内容，以及应用日志中的报错行。
 这些信息足以定位是后端语义、绑定参数还是前端渲染的问题。

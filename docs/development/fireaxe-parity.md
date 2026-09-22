@@ -52,6 +52,7 @@ git -C FireAxe checkout f8aa1cf1391802c64525412fdf326dbe0ecc98b1
 | 工坊链路（翻译 / IP 优选 / 分块下载 / 转移 / 更新检测） | `workshop_*.go`、`workshop_translate.go` | FireAxe 使用 Steam 客户端回调，缺少翻译与转移链路 |
 | 服务器面板与工具箱 | `server_panel.go`、`archive_manager.go`、`model_stats_scan.go`、`autoexec.go` 等 | FireAxe 无对应能力 |
 | 体检与报告导出 | `health_check.go`、`problem_scan.go` | FireAxe 只有 Problem 体系，无报告导出 |
+| 策略组的可操作性（分组筛选 / 整组优先级移动 / 分组推导） | `mod_group_insights.go`、`frontend/src/js/features/mod-groups/` | FireAxe 的 `AddonGroup` 只有应用策略，没有"按组筛选列表""整组平移优先级""从合集/前缀/标签/作者/主体推导可能同组"的入口 |
 
 ## 3. 已知语义假设（必须显式记录）
 

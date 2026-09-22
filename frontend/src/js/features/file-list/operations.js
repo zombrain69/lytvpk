@@ -23,6 +23,8 @@ import {
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import { moveWorkshopFileWithConflictResolution } from "./file-move-conflicts.js";
 import { confirmVPKIntegrityWarning } from "./vpk-risk-warning.js";
+import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
+import { formatFileGroupImpact, normalizeGroupKey } from "../mod-groups/group-view.mjs";
 
 function getBackendMethod(name) {
   const method = window?.go?.app?.App?.[name];
@@ -323,11 +325,48 @@ export async function moveWorkshopFilesToAddons(filePaths) {
   }
 }
 
+// groupNamesForFilePath 返回该文件所属的策略组名（按 addonlist 键匹配）。
+function groupNamesForFilePath(filePath) {
+  const file =
+    (appState.allVpkFiles || []).find((item) => item.path === filePath) ||
+    (appState.vpkFiles || []).find((item) => item.path === filePath);
+  if (!file) return [];
+  const memberships = appState.modGroupMemberships || [];
+  if (memberships.length === 0) return [];
+  const keys = new Set(filePriorityKeys(file, appState.currentDirectory).map((key) => normalizeGroupKey(key)));
+  const names = [];
+  memberships.forEach((membership) => {
+    if (!keys.has(normalizeGroupKey(membership?.key))) return;
+    const name = String(membership?.groupName || membership?.groupId || "").trim();
+    if (name && !names.includes(name)) names.push(name);
+  });
+  return names;
+}
+
+// confirmGroupImpactForDelete 删除前提示"这个 Mod 还在哪些策略组里"：
+// 删除只影响文件，组成员会保留为缺失成员，放回同名文件即自动恢复。
+function confirmGroupImpactForDelete(filePath) {
+  const names = groupNamesForFilePath(filePath);
+  const message = formatFileGroupImpact(names);
+  if (!message) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    showConfirmModal(
+      "该 Mod 属于策略组",
+      message,
+      () => resolve(true),
+      false,
+      "",
+      () => resolve(false),
+    );
+  });
+}
+
 export function deleteFile(filePath) {
   showConfirmModal("确认删除", "确定要将此文件移至回收站吗？", async () => {
     try {
       console.log("删除文件:", filePath);
       if (!(await confirmVPKOperationWarning(filePath, "删除 Mod"))) return;
+      if (!(await confirmGroupImpactForDelete(filePath))) return;
       await DeleteVPKFile(filePath);
       await refreshFilesKeepFilter();
       showNotification("文件已移至回收站", "success");

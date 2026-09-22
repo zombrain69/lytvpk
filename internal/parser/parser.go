@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -30,6 +31,41 @@ func ParseVPKFileMetadata(filePath string) (*VPKFile, error) {
 	return parseVPKFile(filePath, false)
 }
 
+// applyStructureSummary 把一次遍历统计出的结构摘要写进 VPKFile：
+// 顶层目录（按条目数排序、带数量）、条目总数、体积合计与代表性资源路径。
+// 这些数据供分组推导与"交给智能体分析"的清单使用，不额外读取 VPK。
+func applyStructureSummary(vpkFile *VPKFile, index archivePathIndex) {
+	vpkFile.StructureFileCount = index.fileCount
+	vpkFile.StructureTotalSize = index.totalSize
+	if len(index.topDirs) > 0 {
+		type dirCount struct {
+			name  string
+			count int
+		}
+		dirs := make([]dirCount, 0, len(index.topDirs))
+		for name, count := range index.topDirs {
+			dirs = append(dirs, dirCount{name: name, count: count})
+		}
+		sort.Slice(dirs, func(i, j int) bool {
+			if dirs[i].count != dirs[j].count {
+				return dirs[i].count > dirs[j].count
+			}
+			return dirs[i].name < dirs[j].name
+		})
+		topDirs := make([]string, 0, len(dirs))
+		for _, item := range dirs {
+			topDirs = append(topDirs, fmt.Sprintf("%s(%d)", item.name, item.count))
+		}
+		vpkFile.StructureTopDirs = topDirs
+	}
+	if len(index.samplePaths) > 0 {
+		vpkFile.StructureSamplePaths = append([]string(nil), index.samplePaths...)
+	}
+	if len(index.resourceTargets) > 0 {
+		vpkFile.StructureTargets = append([]string(nil), index.resourceTargets...)
+	}
+}
+
 func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 打开VPK文件
 	opener := vpk.Single(filePath)
@@ -53,6 +89,7 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	index := buildArchivePathIndex(archive)
 	vpkType := determineVPKType(index)
 	vpkFile.VoiceCharacters = sortedTagSet(index.voiceCharacters)
+	applyStructureSummary(vpkFile, index)
 
 	// addoninfo is part of normal metadata. Preview image decoding is optional:
 	// it can allocate several MiB per VPK and is only needed when the UI displays

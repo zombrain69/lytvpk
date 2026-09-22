@@ -60,6 +60,17 @@ type ModStrategyGroupApplyResult struct {
 	Enabled    []string `json:"enabled"`
 	Disabled   []string `json:"disabled"`
 	PickedName string   `json:"pickedName"`
+	// Skipped 是"文件已不在列表里"的成员：不会往 addonlist 写条目，只报告给用户。
+	Skipped []string `json:"skipped,omitempty"`
+}
+
+// groupMemberDisplayName 取成员展示名（缺省回退到键）。
+func groupMemberDisplayName(member ModStrategyGroupMember) string {
+	name := strings.TrimSpace(member.Name)
+	if name == "" {
+		name = strings.TrimSpace(member.Key)
+	}
+	return name
 }
 
 type modStrategyGroupStore struct {
@@ -466,10 +477,22 @@ func (a *App) ApplyModStrategyGroup(id string, options ModStrategyGroupApplyOpti
 	}
 
 	result := ModStrategyGroupApplyResult{GroupID: group.ID, GroupName: group.Name, Strategy: strategy}
+	// 文件已经被删除/移出受管目录的成员：不往 addonlist 写幽灵条目，改为跳过并报告。
+	liveMembers := make([]ModStrategyGroupMember, 0, len(group.Members))
+	for _, member := range group.Members {
+		if !a.modKeyExistsInVault(member.Key) {
+			result.Skipped = append(result.Skipped, groupMemberDisplayName(member))
+			continue
+		}
+		liveMembers = append(liveMembers, member)
+	}
+	if len(liveMembers) == 0 {
+		return ModStrategyGroupApplyResult{}, fmt.Errorf("策略组「%s」的成员文件都不在当前列表中，未做任何修改", group.Name)
+	}
 	updated := doc.content
 	changed := false
 	placement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
-	for _, member := range group.Members {
+	for _, member := range liveMembers {
 		enabled := targets[member.Key]
 		value := "0"
 		if enabled {

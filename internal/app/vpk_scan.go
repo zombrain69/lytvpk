@@ -233,8 +233,10 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	vpkFile, err := parser.ParseVPKFileMetadata(filePath)
 	if err != nil {
 		a.LogError("VPK解析", describeVPKParseError(filePath, err), filePath)
+		a.recordUnreadableMod(filePath, describeVPKParseError(filePath, err))
 		return
 	}
+	a.clearUnreadableMod(filePath)
 	if hasPreviousGameState {
 		vpkFile.GameEnabled = previousGameEnabled
 		vpkFile.GameStateKnown = previousGameStateKnown

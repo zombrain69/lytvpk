@@ -17,6 +17,8 @@ import {
   formatCollectionSummary,
 } from "./workshop-collection-format.mjs";
 import { buildParentOptions, flattenStrategyGroupTree } from "./strategy-group-tree.mjs";
+import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
+import { formatGroupMissingNotice, normalizeGroupKey } from "../mod-groups/group-view.mjs";
 import {
   buildHealthIssueRows,
   formatHealthReportSummary,
@@ -256,6 +258,21 @@ export async function renderSettingsPage(deps) {
   }
   const modStrategyGroupRows = flattenStrategyGroupTree(modStrategyGroupTree, modStrategyGroups);
   const selectedModCount = appState.selectedFiles ? appState.selectedFiles.size : 0;
+  // 策略组里指向"当前列表里已经找不到"的成员（被删除/移走）：界面上标注出来，
+  // 提示用户放回同名文件即可自动回到组里。
+  const existingGroupKeys = (() => {
+    const files = appState.allVpkFiles?.length ? appState.allVpkFiles : appState.vpkFiles || [];
+    const keys = new Set();
+    files.forEach((file) => {
+      filePriorityKeys(file, appState.currentDirectory).forEach((key) => keys.add(normalizeGroupKey(key)));
+    });
+    return keys;
+  })();
+  const missingMemberNamesForGroup = (group) =>
+    (group?.members || [])
+      .filter((member) => !existingGroupKeys.has(normalizeGroupKey(member?.key)))
+      .map((member) => String(member?.name || member?.key || "").trim())
+      .filter(Boolean);
   let modDependencies = [];
   let modDependenciesError = "";
   try {
@@ -754,6 +771,12 @@ export async function renderSettingsPage(deps) {
                     <div class="settings-profile-main">
                       <strong>${depth > 1 ? "└ " : ""}${escapeHtml(group.name)}</strong>
                       <span>${escapeHtml(formatStrategyGroupStrategy(group.strategy))} · ${(group.members || []).length} 个成员</span>
+                      ${(() => {
+                        const notice = formatGroupMissingNotice(missingMemberNamesForGroup(group));
+                        return notice
+                          ? `<span class="settings-strategy-missing" title="组成员不会因为文件被删除而移除；放在 addons / workshop / disabled 的同名文件会自动回到组里">⚠️ ${escapeHtml(notice)}</span>`
+                          : "";
+                      })()}
                     </div>
                     <div class="settings-profile-actions">
                       <button type="button" class="settings-strategy-apply" data-group-id="${escapeAttr(group.id)}">按策略应用</button>

@@ -19,13 +19,18 @@ var assets embed.FS
 // UpdateRepo 默认为本 Community Fork，且可由 -ldflags 覆盖为同一 Fork 的
 // 迁移仓库；上游 LaoYutang/lytvpk 永远只用于署名，不会成为更新源。
 var (
-	AppVersion = "2.5.14-community.63"
+	AppVersion = "2.5.14-community.64"
 	UpdateRepo = "zombrain69/lytvpk"
 )
 
 func main() {
 	backend.AppVersion = AppVersion
 	backend.UpdateRepo = UpdateRepo
+
+	// 命令行子命令（供外部智能体/脚本做只读校验或导出清单，不需要启动界面）。
+	if backend.HandleCommandLine(os.Args) {
+		return
+	}
 
 	// 确保单例运行
 	// 如果已有实例运行，会将参数传递给已有实例并退出

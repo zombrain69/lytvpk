@@ -22,6 +22,11 @@ import {
   formatConflictBadgeLabel,
   shouldShowConflictBadge,
 } from "../conflicts/conflict-badge.mjs";
+import {
+  formatGroupChip,
+  formatGroupChipTitle,
+  groupsForFile,
+} from "../mod-groups/group-view.mjs";
 
 let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
@@ -113,6 +118,20 @@ function findConflictRecheckBadge(file) {
   return null;
 }
 
+// getModGroupBadge 显示该 Mod 所属的策略组；单击可整组开关（由 group-ui.js 代理点击）。
+function getModGroupBadge(file, className = "mod-group-badge") {
+  const groups = groupsForFile(file, appState.modGroupIndex, appState.currentDirectory);
+  if (groups.length === 0) return "";
+  const badges = groups
+    .map((membership) => {
+      const label = formatGroupChip(membership);
+      const title = formatGroupChipTitle(membership);
+      return `<button type="button" class="${className}" data-group-id="${escapeHtml(membership.groupId)}" data-file-path="${escapeHtml(file.path)}" title="${escapeHtml(title)}">${escapeHtml(label)}</button>`;
+    })
+    .join("");
+  return `<span class="mod-group-badges">${badges}</span>`;
+}
+
 // getFilePriorityEntry 查找该文件在统一优先级模型里的有效分层记录。
 // 未加载分层计划或该 Mod 未记录时返回 null，调用方退回纯顺序号展示。
 function getFilePriorityEntry(file) {
@@ -159,6 +178,14 @@ function getCardPreviewRevision(file) {
 // forcing Chromium to rebuild hundreds of unchanged image elements.
 function getFileCardRenderSignature(file, panelServersAvailable) {
   const conflict = appState.conflictByPath?.get(file.path);
+  // 角标内容同样参与签名：分层（优先级 #N（分层 T））与变更驱动复检角标
+  // 都是卡片里渲染出来的值，漏掉它们会导致卡片被复用、角标停留在旧状态。
+  const priority = getFilePriorityEntry(file);
+  const conflictRecheck = findConflictRecheckBadge(file);
+  // 组徽标同样参与签名：加入/移出分组、整组改名后卡片必须重绘。
+  const groupBadges = groupsForFile(file, appState.modGroupIndex, appState.currentDirectory)
+    .map((membership) => membership.groupId)
+    .sort();
   return JSON.stringify({
     name: file.name,
     title: file.title,
@@ -174,6 +201,11 @@ function getFileCardRenderSignature(file, panelServersAvailable) {
     xdrSummary: file.xdrSummary || "",
     previewRevision: getCardPreviewRevision(file),
     loadOrder: getLoadOrderValue(file),
+    priority: priority ? [priority.order ?? null, priority.tier ?? null, priority.effective ?? null, priority.source ?? null] : null,
+    conflictRecheck: conflictRecheck
+      ? [conflictRecheck.conflictFiles ?? 0, conflictRecheck.overrideFiles ?? 0, conflictRecheck.severity ?? ""]
+      : null,
+    groups: groupBadges,
     conflictEnabled: Boolean(appState.conflictAnalysisEnabled),
     conflictLoading: Boolean(appState.conflictAnalysisLoading),
     conflict: conflict
@@ -504,7 +536,7 @@ export function createFileItem(file) {
         <span>${getLocationDisplayName(file.location)}</span>
       </span>
     </div>
-      <div class="file-game-state">${getGameStateBadge(file)}${getLoadOrderBadge(file)}${getConflictRecheckBadge(file)}</div>
+      <div class="file-game-state">${getGameStateBadge(file)}${getLoadOrderBadge(file)}${getConflictRecheckBadge(file)}${getModGroupBadge(file, "mod-group-badge file-mod-group-badge")}</div>
     <div class="file-tags">
       ${formatTags(file.primaryTag, file.secondaryTags, file.voiceCharacters, file.subjectSummary, file.xdrSummary)}
       ${getConflictSummaryBadge(file)}
@@ -736,6 +768,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
         ${getGameStateBadge(file, "card-badge game-state-badge")}
         ${getLoadOrderBadge(file, "card-badge load-order-badge")}
         ${getConflictRecheckBadge(file, "card-badge conflict-recheck-badge")}
+        ${getModGroupBadge(file, "card-badge mod-group-badge")}
         ${
           file.primaryTag
             ? `<span class="card-badge tag-badge" title="${escapeHtml(file.primaryTag)}">${escapeHtml(file.primaryTag)}</span>`

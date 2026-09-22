@@ -69,6 +69,7 @@ import {
   applyConflictScopeOptions,
 } from "./conflicts/conflicts.js";
 import { initConflictRecheck } from "./conflicts/conflict-recheck.js";
+import { initModGroupUI, refreshModGroupMembership } from "./mod-groups/group-ui.js";
 import {
   configureSettings,
   showGlobalSettings,
@@ -711,6 +712,8 @@ async function initializeApp() {
   installFrontendCrashReporting();
   // 变更驱动的冲突自动复检：只注册事件与首次拉取，重算由后端按需触发。
   initConflictRecheck();
+  // 策略组：绑定分组筛选/建议弹窗，并拉取一次组归属（扫描完成后 filters 会再刷新）。
+  initModGroupUI();
   setupInputContextMenu();
   disableGlobalContextMenu();
   await checkInitialDirectory();

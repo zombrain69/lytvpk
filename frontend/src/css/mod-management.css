@@ -24,8 +24,11 @@
 }
 
 .mod-management-page .filter-row-tools {
-  flex-wrap: nowrap;
+  /* 工具栏曾经强制单行：窗口宽度不足时按钮会被压扁并互相压住。
+     改为允许换行，空间不足时整块动作区换到下一行。 */
+  flex-wrap: wrap;
   align-items: center;
+  row-gap: var(--spacing-2);
 }
 
 .mod-management-page .filter-row-tags {
@@ -153,6 +156,12 @@ html.dark-mode .multi-select-menu {
   flex: 0 1 26rem;
   min-width: 0;
   max-width: 26rem;
+}
+
+/* 目录选择器被压到 0 宽度时，内部按钮会溢出并盖住右侧动作按钮。 */
+.mod-management-page .toolbar-directory {
+  flex: 1 1 24rem;
+  min-width: 18rem;
 }
 
 .mod-management-page .directory-selector .btn {
@@ -472,6 +481,22 @@ html.dark-mode .multi-select-menu {
   gap: 0.55rem;
   flex: 0 0 auto;
   flex-wrap: nowrap;
+}
+
+.mod-management-page .filter-actions {
+  /* 动作区可以换行并允许收窄，避免以内容宽度撑破工具栏行。 */
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: var(--spacing-2);
+  justify-content: flex-end;
+  margin-left: 0;
+  /* 工具栏按钮数量多，收紧间距让动作区尽量少占一行。 */
+  column-gap: 0.45rem;
+}
+
+.mod-management-page .filter-actions .btn-small {
+  padding: 0 0.6rem;
 }
 
 .filter-actions > .btn,

@@ -3,6 +3,7 @@ import { showNotification, showError } from "../../core/toast.js";
 import { renderFileList } from "./render.js";
 import { GetAddonListOrder, GetModPriorityPlan } from "../../../../wailsjs/go/app/App";
 import { buildPriorityPlanMap } from "./priority-label.mjs";
+import { compareByPriority } from "./priority-sort.mjs";
 
 let loadOrderHighlightTimer = null;
 
@@ -119,7 +120,7 @@ export async function handleLoadOrderSort() {
     applySort(appState.vpkFiles);
     renderFileList();
 
-    showNotification("已按加载顺序排序", "success");
+    showNotification("已按优先级排序（分层优先，其次加载顺序）", "success");
   } catch (err) {
     console.error("获取加载顺序失败:", err);
     showError("addonlist.txt 错误: " + err);
@@ -265,6 +266,18 @@ export function getFileLoadOrderIndex(file) {
   return undefined;
 }
 
+// getFileEffectiveLayer 返回该 Mod 的有效分层（显式分层或组权重，来自 priority.json）。
+// 未加载分层计划或该 Mod 没有记录时返回 undefined，排序会退化为按顺序号。
+export function getFileEffectiveLayer(file) {
+  const plan = appState.priorityPlanMap;
+  if (!plan?.size) return undefined;
+  for (const key of getFileLoadOrderKeys(file)) {
+    const entry = plan.get(key);
+    if (entry && Number.isInteger(entry.effective)) return entry.effective;
+  }
+  return undefined;
+}
+
 export function updateSortButtonUI() {
   const btnText = document.getElementById("sort-btn-text");
   const nameBtn = document.getElementById("sort-name-btn");
@@ -283,7 +296,7 @@ export function updateSortButtonUI() {
     text = "更新时间排序";
     arrow = appState.sortOrder === "desc" ? "(最新)" : "(最旧)";
   } else if (appState.sortType === "loadOrder") {
-    text = "加载顺序排序";
+    text = "优先级排序";
     arrow = appState.sortOrder === "asc" ? "(顺序)" : "(倒序)";
   } else if (appState.sortType === "size") {
     text = "VPK 大小排序";
@@ -325,28 +338,12 @@ export function applySort(files) {
     } else if (appState.sortType === "modelComplexity") {
       result = Number(a.modelVertices || 0) - Number(b.modelVertices || 0);
     } else if (appState.sortType === "loadOrder") {
-      const orderA = getFileLoadOrderIndex(a);
-      const orderB = getFileLoadOrderIndex(b);
-      const inListA = orderA !== undefined;
-      const inListB = orderB !== undefined;
-
-      if (inListA && inListB) {
-        result = orderA - orderB;
-      } else if (!inListA && !inListB) {
-        const nameA = a.name.toLowerCase();
-        const nameB = b.name.toLowerCase();
-        result = nameA.localeCompare(nameB, "zh-CN", {
-          numeric: true,
-          sensitivity: "accent",
-        });
-      } else {
-        if (inListA) {
-          result = -1;
-        } else {
-          result = 1;
-        }
-      }
-      return result;
+      // 优先级排序：有效分层（含策略组权重）优先，同层按 addonlist 真实顺序，
+      // 未写入 addonlist 的 Mod 排末尾。没有分层记录时与旧的“按加载顺序”完全一致。
+      return compareByPriority(
+        { layer: getFileEffectiveLayer(a), order: getFileLoadOrderIndex(a), name: a.name },
+        { layer: getFileEffectiveLayer(b), order: getFileLoadOrderIndex(b), name: b.name },
+      );
     } else {
       const nameA = a.name.toLowerCase();
       const nameB = b.name.toLowerCase();

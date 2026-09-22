@@ -27,7 +27,9 @@ export const appState = {
   currentDirectory: "",
   isLoading: false,
   showHidden: false,
-  sortType: "name",
+  // 默认按优先级排序：有效分层（显式分层/策略组权重）优先，同层按 addonlist 顺序，
+  // 未写入 addonlist 的 Mod 排末尾。用户可在排序菜单里切换，切换后本次会话内生效。
+  sortType: "loadOrder",
   sortOrder: "asc",
   loadOrderMap: new Map(),
   // priorityPlanMap: addonlist 归一化键 -> GetModPriorityPlan 的有效分层明细。
@@ -38,6 +40,13 @@ export const appState = {
   // conflictBadgeByPath / conflictBadgeByKey: 变更驱动自动复检产生的冲突角标索引。
   conflictBadgeByPath: new Map(),
   conflictBadgeByKey: new Map(),
+  // 策略组：成员归属索引（addonlist 键 -> 组列表）、筛选选项与当前勾选的分组。
+  modGroupMemberships: [],
+  modGroupIndex: new Map(),
+  groupFilterOptions: [],
+  activeGroupFilter: new Set(),
+  // 分组推导建议（SuggestModGroups 的结果，按需刷新）。
+  groupSuggestions: [],
   displayMode: getConfig().displayMode || "list",
   boxSelectionEnabled: getConfig().boxSelectionEnabled || false,
   ctrlClickSelectionEnabled: getConfig().ctrlClickSelectionEnabled || false,

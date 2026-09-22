@@ -1,10 +1,12 @@
 import { appState, updateStatusBar, showFileListLoading, hideFileListLoading } from "../state.js";
-import { showError } from "../../core/toast.js";
+import { showError, showNotification } from "../../core/toast.js";
 import { renderFileList } from "./render.js";
 import { getLocationDisplayName, escapeHtml } from "../../core/utils.js";
 import { applySort, updateSortButtonUI, refreshLoadOrderMap } from "./sorting.js";
 import { resetBoxSelection } from "./box-selection.js";
 import { scheduleScopedConflictAnalysis } from "../conflicts/conflicts.js";
+import { fileMatchesGroupFilter } from "../mod-groups/group-view.mjs";
+import { refreshModGroupMembershipState } from "../mod-groups/group-state.mjs";
 import { GetPrimaryTags, GetSecondaryTags, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
 
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
@@ -232,6 +234,7 @@ function snapshotFilterState() {
     secondaryMatchMode: appState.secondaryMatchMode === "all" ? "all" : "any",
     locations: [...(appState.selectedLocations || [])],
     gameStates: [...(appState.selectedGameStates || [])],
+    groups: [...(appState.activeGroupFilter || [])],
     showHidden: Boolean(appState.showHidden),
   };
 }
@@ -245,7 +248,8 @@ function filterStateStillMatches(snapshot) {
     current.showHidden === snapshot.showHidden &&
     current.secondaryTags.join("\u0000") === snapshot.secondaryTags.join("\u0000") &&
     current.locations.join("\u0000") === snapshot.locations.join("\u0000") &&
-    current.gameStates.join("\u0000") === snapshot.gameStates.join("\u0000")
+    current.gameStates.join("\u0000") === snapshot.gameStates.join("\u0000") &&
+    current.groups.join("\u0000") === snapshot.groups.join("\u0000")
   );
 }
 
@@ -1525,6 +1529,18 @@ export async function performSearch() {
       );
     }
 
+    // 分组筛选：勾选策略组后只显示属于这些组的 Mod（组归属按 addonlist 键匹配）。
+    if ((appState.activeGroupFilter?.size || 0) > 0) {
+      files = files.filter((file) =>
+        fileMatchesGroupFilter(
+          file,
+          appState.groupFilterOptions || [],
+          appState.activeGroupFilter,
+          appState.currentDirectory,
+        ),
+      );
+    }
+
     if (filters.secondaryTags.length > 0 && filters.secondaryMatchMode === "all") {
       files = files.filter((file) => matchesSecondaryTags(file, filters.secondaryTags));
     }
@@ -1543,6 +1559,8 @@ export async function performSearch() {
     updateStatusBar();
     renderActiveFilterSummary();
     scheduleScopedConflictAnalysis();
+    // 组归属是异步附加信息：刷新完成后由 group-state 通知重绘徽标，不阻塞列表渲染。
+    void refreshModGroupMembershipState({ silent: true });
 
     console.log(`搜索完成，显示 ${appState.vpkFiles.length} 个文件`);
   } catch (error) {

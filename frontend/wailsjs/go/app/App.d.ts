@@ -55,6 +55,8 @@ export function ClearCompletedPanelMapUploads():Promise<void>;
 
 export function ClearCompletedTasks():Promise<void>;
 
+export function ClearExternalGroupSuggestions():Promise<void>;
+
 export function ClearModPriority(arg1:string):Promise<void>;
 
 export function ClearPanelMaps(arg1:string):Promise<string>;
@@ -64,6 +66,8 @@ export function CloseCrashReporter():Promise<void>;
 export function ConnectToServer(arg1:string):Promise<void>;
 
 export function CreateAddonListBackup():Promise<app.AddonListBackup>;
+
+export function CreateModStrategyGroupFromKeys(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<app.ModStrategyGroup>;
 
 export function DeleteAddonList():Promise<void>;
 
@@ -96,6 +100,10 @@ export function DownloadWorkshopCollection(arg1:string):Promise<Array<string>>;
 export function EnableAllMissingModDependencies():Promise<app.ModDependencyEnableResult>;
 
 export function EnableModDependencies(arg1:string):Promise<app.ModDependencyEnableResult>;
+
+export function ExportGroupingCatalog(arg1:string):Promise<string>;
+
+export function ExportGroupingCatalogDialog():Promise<string>;
 
 export function ExportModEnableProfile(arg1:string):Promise<string>;
 
@@ -167,7 +175,13 @@ export function GetCurrentBestIPOption():Promise<network.IPOption>;
 
 export function GetDownloadTasks():Promise<Array<app.DownloadTask>>;
 
+export function GetExternalGroupSuggestions():Promise<Array<app.ModGroupSuggestion>>;
+
 export function GetForkInfo():Promise<app.ForkInfo>;
+
+export function GetGroupSuggestionAgentPrompt():Promise<string>;
+
+export function GetGroupSuggestionInboxPath():Promise<string>;
 
 export function GetMapName(arg1:string):Promise<string>;
 
@@ -177,11 +191,15 @@ export function GetMirrorsInitial():Promise<Array<app.MirrorWithLatency>>;
 
 export function GetMirrorsWithLatency():Promise<Array<app.MirrorWithLatency>>;
 
+export function GetModGroupMembership():Promise<Array<app.ModGroupMembership>>;
+
 export function GetModIgnoreFiles(arg1:string):Promise<Array<string>>;
 
 export function GetModPriorityPlan():Promise<Array<app.ModEffectivePriority>>;
 
 export function GetModRotation():Promise<app.RotationConfig>;
+
+export function GetModStrategyGroupMissingMembers():Promise<Array<app.ModStrategyGroupMissingMembers>>;
 
 export function GetModelStatsScanState():Promise<app.ModelStatsScanState>;
 
@@ -248,6 +266,10 @@ export function HasActivePanelUploads():Promise<boolean>;
 export function HasWorkshopTranslateCustomAPIKey():Promise<boolean>;
 
 export function HotReloadPanelMaps(arg1:string):Promise<app.PanelMapHotReloadResult>;
+
+export function ImportGroupSuggestionsFromFile(arg1:string):Promise<app.GroupSuggestionImportResult>;
+
+export function ImportGroupSuggestionsOpenDialog():Promise<app.GroupSuggestionImportResult>;
 
 export function ImportModEnableProfile():Promise<app.ModEnableProfile>;
 
@@ -321,6 +343,8 @@ export function ParseMDMPFile(arg1:string):Promise<minidump.Report>;
 
 export function ParseWorkshopID(arg1:string):Promise<string>;
 
+export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
+
 export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
 
 export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
@@ -366,6 +390,8 @@ export function SaveAddonListManagedSnapshot():Promise<app.AddonListInfo>;
 export function SaveAppConfig(arg1:app.ConfigFile):Promise<void>;
 
 export function SaveAutoexecConfig(arg1:string):Promise<void>;
+
+export function SaveGroupSuggestionAgentPromptDialog():Promise<string>;
 
 export function SaveModHealthReport(arg1:string):Promise<string>;
 
@@ -419,6 +445,8 @@ export function SetModPriority(arg1:string,arg2:string,arg3:number):Promise<app.
 
 export function SetModRotation(arg1:app.RotationConfig):Promise<void>;
 
+export function SetModStrategyGroupEnabled(arg1:string,arg2:boolean):Promise<app.ModStrategyGroupApplyResult>;
+
 export function SetModStrategyGroupEnforcement(arg1:string,arg2:boolean):Promise<app.ModStrategyGroup>;
 
 export function SetModStrategyGroupTier(arg1:string,arg2:any):Promise<app.ModStrategyGroup>;
@@ -451,6 +479,8 @@ export function SetWorkshopTranslateProvider(arg1:string):Promise<void>;
 
 export function SetWorkshopUpdateCheckEnabled(arg1:boolean):Promise<void>;
 
+export function ShiftModStrategyGroupPriorities(arg1:string,arg2:number):Promise<app.ModStrategyGroupPriorityShift>;
+
 export function StartDownloadTask(arg1:app.WorkshopFileDetails,arg2:boolean):Promise<string>;
 
 export function StartModelStatsScan():Promise<app.ModelStatsScanState>;
@@ -460,6 +490,8 @@ export function StartPanelMapUpload(arg1:string,arg2:Array<string>):Promise<Arra
 export function StartProblemModScan():Promise<app.ProblemModScanSession>;
 
 export function SubmitProblemModScanResult(arg1:string):Promise<app.ProblemModScanSession>;
+
+export function SuggestModGroups():Promise<Array<app.ModGroupSuggestion>>;
 
 export function TestMirrorsLatency():Promise<void>;
 
@@ -472,3 +504,5 @@ export function TranslateWorkshopDescription(arg1:string):Promise<app.WorkshopTr
 export function UnpackVPKFile(arg1:string,arg2:string):Promise<app.VPKUnpackResult>;
 
 export function ValidateDirectory(arg1:string):Promise<void>;
+
+export function ValidateGroupSuggestionsFile(arg1:string):Promise<app.GroupSuggestionValidation>;

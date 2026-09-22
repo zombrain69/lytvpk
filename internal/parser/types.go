@@ -32,6 +32,12 @@ type VPKFile struct {
 	SubjectConfidence string                 `json:"subjectConfidence"` // 主体证据置信度：高/中/低
 	XDRSlots          []XDRSlotInfo          `json:"xdrSlots"`          // xdReanimsBase 角色/模型与 slot 证据
 	XDRSummary        string                 `json:"xdrSummary"`        // 面向用户的 XDR 精确摘要
+	// VPK 内部结构摘要（扫描时顺带统计，供分组推导与外部智能体分析使用）。
+	StructureTopDirs     []string `json:"structureTopDirs"`     // 顶层目录及条目数（按名称排序）
+	StructureFileCount   int      `json:"structureFileCount"`   // 条目总数
+	StructureTotalSize   int64    `json:"structureTotalSize"`   // 条目大小合计（压缩前）
+	StructureSamplePaths []string `json:"structureSamplePaths"` // 有代表性的资源路径（截断）
+	StructureTargets     []string `json:"structureTargets"`     // 压缩后的替换目标（如 props_interiors/medicalcabinet02）
 	Location          string                 `json:"location"`          // "root", "workshop", "disabled"
 	Enabled           bool                   `json:"enabled"`
 	GameEnabled       bool                   `json:"gameEnabled"`    // addonlist.txt 中的游戏内开关

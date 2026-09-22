@@ -134,6 +134,11 @@ type App struct {
 	addonListMonitorMu      sync.Mutex
 	addonListMonitorStop    chan struct{}
 	configWriteMu           sync.Mutex
+	// externalCache 缓存"组建议收件箱"的解析结果，避免每次推导都重新解析文件与建索引。
+	externalCache externalSuggestionCache
+	// unreadableMods 记录"磁盘上存在但解析失败"的 VPK（例如扩展名是 .vpk 实为 ZIP），
+	// 供导出清单时说明"扫描范围里少了哪些文件"。
+	unreadableMods sync.Map // map[string]string，key 是文件路径，value 是原因
 	addonListGuardEnabled   bool
 	addonListLastRestore    string
 	addonListLastError      string

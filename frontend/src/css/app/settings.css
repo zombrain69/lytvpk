@@ -1162,3 +1162,10 @@ html.dark-mode .autoexec-analysis.is-warning {
     padding: 16px;
   }
 }
+.settings-strategy-missing {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--warning, #f5a524);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}

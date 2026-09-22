@@ -102,6 +102,10 @@ export function ClearCompletedTasks() {
   return window['go']['app']['App']['ClearCompletedTasks']();
 }
 
+export function ClearExternalGroupSuggestions() {
+  return window['go']['app']['App']['ClearExternalGroupSuggestions']();
+}
+
 export function ClearModPriority(arg1) {
   return window['go']['app']['App']['ClearModPriority'](arg1);
 }
@@ -120,6 +124,10 @@ export function ConnectToServer(arg1) {
 
 export function CreateAddonListBackup() {
   return window['go']['app']['App']['CreateAddonListBackup']();
+}
+
+export function CreateModStrategyGroupFromKeys(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['CreateModStrategyGroupFromKeys'](arg1, arg2, arg3, arg4);
 }
 
 export function DeleteAddonList() {
@@ -184,6 +192,14 @@ export function EnableAllMissingModDependencies() {
 
 export function EnableModDependencies(arg1) {
   return window['go']['app']['App']['EnableModDependencies'](arg1);
+}
+
+export function ExportGroupingCatalog(arg1) {
+  return window['go']['app']['App']['ExportGroupingCatalog'](arg1);
+}
+
+export function ExportGroupingCatalogDialog() {
+  return window['go']['app']['App']['ExportGroupingCatalogDialog']();
 }
 
 export function ExportModEnableProfile(arg1) {
@@ -326,8 +342,20 @@ export function GetDownloadTasks() {
   return window['go']['app']['App']['GetDownloadTasks']();
 }
 
+export function GetExternalGroupSuggestions() {
+  return window['go']['app']['App']['GetExternalGroupSuggestions']();
+}
+
 export function GetForkInfo() {
   return window['go']['app']['App']['GetForkInfo']();
+}
+
+export function GetGroupSuggestionAgentPrompt() {
+  return window['go']['app']['App']['GetGroupSuggestionAgentPrompt']();
+}
+
+export function GetGroupSuggestionInboxPath() {
+  return window['go']['app']['App']['GetGroupSuggestionInboxPath']();
 }
 
 export function GetMapName(arg1) {
@@ -346,6 +374,10 @@ export function GetMirrorsWithLatency() {
   return window['go']['app']['App']['GetMirrorsWithLatency']();
 }
 
+export function GetModGroupMembership() {
+  return window['go']['app']['App']['GetModGroupMembership']();
+}
+
 export function GetModIgnoreFiles(arg1) {
   return window['go']['app']['App']['GetModIgnoreFiles'](arg1);
 }
@@ -356,6 +388,10 @@ export function GetModPriorityPlan() {
 
 export function GetModRotation() {
   return window['go']['app']['App']['GetModRotation']();
+}
+
+export function GetModStrategyGroupMissingMembers() {
+  return window['go']['app']['App']['GetModStrategyGroupMissingMembers']();
 }
 
 export function GetModelStatsScanState() {
@@ -488,6 +524,14 @@ export function HasWorkshopTranslateCustomAPIKey() {
 
 export function HotReloadPanelMaps(arg1) {
   return window['go']['app']['App']['HotReloadPanelMaps'](arg1);
+}
+
+export function ImportGroupSuggestionsFromFile(arg1) {
+  return window['go']['app']['App']['ImportGroupSuggestionsFromFile'](arg1);
+}
+
+export function ImportGroupSuggestionsOpenDialog() {
+  return window['go']['app']['App']['ImportGroupSuggestionsOpenDialog']();
 }
 
 export function ImportModEnableProfile() {
@@ -634,6 +678,10 @@ export function ParseWorkshopID(arg1) {
   return window['go']['app']['App']['ParseWorkshopID'](arg1);
 }
 
+export function PrepareGroupingWorkspace() {
+  return window['go']['app']['App']['PrepareGroupingWorkspace']();
+}
+
 export function PreviewAddonListLoadOrderPolicy(arg1) {
   return window['go']['app']['App']['PreviewAddonListLoadOrderPolicy'](arg1);
 }
@@ -724,6 +772,10 @@ export function SaveAppConfig(arg1) {
 
 export function SaveAutoexecConfig(arg1) {
   return window['go']['app']['App']['SaveAutoexecConfig'](arg1);
+}
+
+export function SaveGroupSuggestionAgentPromptDialog() {
+  return window['go']['app']['App']['SaveGroupSuggestionAgentPromptDialog']();
 }
 
 export function SaveModHealthReport(arg1) {
@@ -830,6 +882,10 @@ export function SetModRotation(arg1) {
   return window['go']['app']['App']['SetModRotation'](arg1);
 }
 
+export function SetModStrategyGroupEnabled(arg1, arg2) {
+  return window['go']['app']['App']['SetModStrategyGroupEnabled'](arg1, arg2);
+}
+
 export function SetModStrategyGroupEnforcement(arg1, arg2) {
   return window['go']['app']['App']['SetModStrategyGroupEnforcement'](arg1, arg2);
 }
@@ -894,6 +950,10 @@ export function SetWorkshopUpdateCheckEnabled(arg1) {
   return window['go']['app']['App']['SetWorkshopUpdateCheckEnabled'](arg1);
 }
 
+export function ShiftModStrategyGroupPriorities(arg1, arg2) {
+  return window['go']['app']['App']['ShiftModStrategyGroupPriorities'](arg1, arg2);
+}
+
 export function StartDownloadTask(arg1, arg2) {
   return window['go']['app']['App']['StartDownloadTask'](arg1, arg2);
 }
@@ -912,6 +972,10 @@ export function StartProblemModScan() {
 
 export function SubmitProblemModScanResult(arg1) {
   return window['go']['app']['App']['SubmitProblemModScanResult'](arg1);
+}
+
+export function SuggestModGroups() {
+  return window['go']['app']['App']['SuggestModGroups']();
 }
 
 export function TestMirrorsLatency() {
@@ -936,4 +1000,8 @@ export function UnpackVPKFile(arg1, arg2) {
 
 export function ValidateDirectory(arg1) {
   return window['go']['app']['App']['ValidateDirectory'](arg1);
+}
+
+export function ValidateGroupSuggestionsFile(arg1) {
+  return window['go']['app']['App']['ValidateGroupSuggestionsFile'](arg1);
 }

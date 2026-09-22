@@ -248,6 +248,37 @@
               >
                 <span class="icon">☷</span> 加载顺序
               </button>
+              <div class="mod-group-filter dropdown-host">
+                <button
+                  id="mod-group-filter-btn"
+                  class="btn btn-small btn-outline"
+                  title="按策略组筛选 Mod；策略组内的 Mod 会在卡片上显示组徽标"
+                  type="button"
+                >
+                  <span class="icon">▣</span> <span id="mod-group-filter-text">全部分组</span>
+                </button>
+                <div id="mod-group-filter-menu" class="dropdown-content mod-group-filter-menu hidden">
+                  <div class="mod-group-filter-tools">
+                    <button
+                      id="mod-group-suggest-btn"
+                      class="btn btn-small btn-outline"
+                      title="根据工坊合集、文件名前缀、共同标签、同一作者、相同主体推导可能属于同一组的 Mod"
+                      type="button"
+                    >
+                      <span class="icon">✦</span> 分组建议
+                    </button>
+                    <button
+                      id="mod-group-capture-btn"
+                      class="btn btn-small btn-outline"
+                      title="把当前勾选的 Mod 保存成一个新的策略组"
+                      type="button"
+                    >
+                      <span class="icon">▣</span> 用选中的 Mod 建组
+                    </button>
+                  </div>
+                  <div id="mod-group-filter-list" class="mod-group-filter-list"></div>
+                </div>
+              </div>
               <div class="load-order-locate-control" title="输入 addonlist.txt 中显示的优先级编号，可在任意当前排序方式下定位对应 Mod">
                 <input
                   id="load-order-locate-input"
@@ -476,7 +507,7 @@
                         <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path>
                       </svg>
                     </span>
-                    加载顺序排序
+                    优先级排序（分层优先，其次加载顺序）
                   </button>
                 </div>
               </div>
@@ -2091,6 +2122,65 @@
       </div>
     </div>
     <!-- 冲突检测弹窗 -->
+    <!-- 分组推导建议弹窗 -->
+    <div id="mod-group-suggest-modal" class="modal hidden">
+      <div class="modal-content mod-group-suggest-content">
+        <div class="modal-header">
+          <h3>分组建议</h3>
+          <button id="mod-group-suggest-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+        </div>
+        <div class="mod-group-suggest-body">
+          <div class="mod-group-suggest-toolbar">
+            <button id="mod-group-suggest-refresh-btn" class="btn btn-small btn-outline" type="button">重新推导</button>
+            <button
+              id="mod-group-suggest-import-btn"
+              class="btn btn-small btn-outline"
+              type="button"
+              title="导入标准格式的组建议文件（大模型 / 人工 / 外部脚本写好的结果）"
+            >
+              导入建议文件…
+            </button>
+            <button
+              id="mod-group-suggest-export-btn"
+              class="btn btn-small btn-outline"
+              type="button"
+              title="导出当前 Mod 的分组用元数据（键、标题、作者、标签、主体、语音角色），交给大模型分析"
+            >
+              导出 Mod 清单…
+            </button>
+            <button
+              id="mod-group-suggest-prepare-btn"
+              class="btn btn-small btn-primary"
+              type="button"
+              title="一步到位：导出 Mod 清单 + 复制交给智能体（agent）的提示词，提示词里已填好清单路径与建议文件路径"
+            >
+              准备给智能体的材料
+            </button>
+            <button
+              id="mod-group-suggest-clear-btn"
+              class="btn btn-small btn-outline"
+              type="button"
+              title="移除已导入的建议文件；不会删除任何 Mod 或已创建的策略组"
+            >
+              清除导入
+            </button>
+            <span id="mod-group-suggest-summary" class="mod-group-suggest-summary" aria-live="polite"></span>
+          </div>
+          <p class="mod-group-suggest-hint">
+            下面是"可能属于同一组"的候选：可以取消勾选个别 Mod、修改组名，确认后再点“创建为组”。
+            推导只做只读扫描（工坊合集成员、文件夹结构、同名文件的不同版本、文件名前缀、共同标签、
+            同一作者、相同主体、语音角色），也可以「导入建议文件…」把大模型 / 人工整理好的结果
+            按标准格式导入（见文档「分组建议与外部导入」），
+            不会改动任何 Mod 文件，也不会改动 addonlist.txt。
+          </p>
+          <div id="mod-group-suggest-list" class="mod-group-suggest-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="mod-group-suggest-close-footer-btn" class="btn btn-secondary" type="button">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <div id="conflict-modal" class="modal hidden">
       <div class="modal-content conflict-modal-content">
         <div class="modal-header">
@@ -2746,6 +2836,32 @@
             取消
           </button>
           <button id="confirm-ok-btn" class="btn btn-primary">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 应用内文本输入弹窗（替代 WebView2 下不可靠的 window.prompt） -->
+    <div id="prompt-modal" class="modal hidden" style="z-index: 20001">
+      <div class="modal-content prompt-modal-content">
+        <div class="modal-header">
+          <h2 id="prompt-modal-title">输入</h2>
+          <button id="close-prompt-modal-btn" class="close-btn" type="button" aria-label="关闭">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="prompt-modal-message" class="prompt-modal-message"></p>
+          <input
+            id="prompt-modal-input"
+            class="prompt-modal-input"
+            type="text"
+            maxlength="120"
+            autocomplete="off"
+          />
+        </div>
+        <div class="modal-footer">
+          <button id="prompt-modal-cancel-btn" class="btn btn-secondary" type="button">取消</button>
+          <button id="prompt-modal-ok-btn" class="btn btn-primary" type="button">确定</button>
         </div>
       </div>
     </div>

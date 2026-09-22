@@ -13,6 +13,8 @@ import {
   GetModPriorityPlan,
   SetModPriority,
 } from "../../../../wailsjs/go/app/App";
+import { refreshLoadOrderMap } from "../file-list/sorting.js";
+import { renderFileList } from "../file-list/render.js";
 import {
   buildPriorityPlanMap,
   formatEffectiveLayer,
@@ -72,6 +74,23 @@ function readTierInput() {
   return normalizePriorityTier(input.value);
 }
 
+// 保存/清除分层都会改变"有效分层"，列表角标必须跟着更新，
+// 否则用户看到的是过期标签（例如已设置分层 42 却仍显示「优先级 #998」）。
+// 宿主弹窗提供了统一的刷新回调（同时刷新列表与弹窗），没有回调时退化为只刷列表。
+async function refreshAfterTierChange() {
+  if (typeof onAppliedCallback === "function") {
+    await onAppliedCallback();
+    return;
+  }
+  try {
+    await refreshLoadOrderMap({ silent: true });
+    renderFileList();
+  } catch (error) {
+    console.warn("保存分层后刷新列表失败:", error);
+  }
+  await refreshPriorityPanel();
+}
+
 async function saveCurrentTier() {
   const file = currentFileFromState();
   const key = addonListKeyForFile(file);
@@ -86,7 +105,7 @@ async function saveCurrentTier() {
   }
   try {
     await SetModPriority(key, file?.name || key, tier);
-    await refreshPriorityPanel();
+    await refreshAfterTierChange();
     showNotification("已保存分层；点击“按分层应用”后才会重排 addonlist.txt", "success");
   } catch (err) {
     console.error("保存优先级分层失败:", err);
@@ -103,7 +122,7 @@ async function clearCurrentTier() {
   }
   try {
     await ClearModPriority(key);
-    await refreshPriorityPanel();
+    await refreshAfterTierChange();
     showNotification("已清除分层，该 Mod 回到按顺序号判定", "success");
   } catch (err) {
     console.error("清除优先级分层失败:", err);
