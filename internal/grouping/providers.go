@@ -14,6 +14,7 @@ func Providers() []providerFunc {
 		{ID: "same-filename", Signals: []string{"同名文件（不同目录）"}, Run: runSameFileNameSignal},
 		{ID: "filename-prefix", Signals: []string{"文件名前缀"}, Run: runFilenamePrefixSignal},
 		{ID: "shared-tags", Signals: []string{"共同标签"}, Run: runSharedTagsSignal},
+		{ID: "suite-namespace", Signals: []string{suiteSignalLabel}, Run: runSuiteNamespaceSignal},
 		{ID: "same-author", Signals: []string{"同一作者"}, Run: runSameAuthorSignal},
 		{ID: "voice-character", Signals: []string{"语音角色"}, Run: runVoiceSignal},
 		{ID: "subject", Signals: []string{"主体识别"}, Run: runSubjectSignal},
@@ -79,16 +80,75 @@ func runFilenamePrefixSignal(index *Index, options Options) []Candidate {
 		return nil
 	}
 	keys := sortedKeys(index.byPrefix)
-	candidates := make([]Candidate, 0, len(keys))
+	// 先收集满足条件的桶，再按"成员多 → 前缀长 → 字典序"排序：
+	// 真实数据里 `白银审判`（4 个成员）必须胜过它自己的子前缀 `白银审判里内衣`（2 个成员），
+	// 否则同一套会被拆成好几条互相重叠的建议。
+	type prefixBucket struct {
+		prefix  string
+		members []Mod
+	}
+	buckets := make([]prefixBucket, 0, len(keys))
 	for _, prefix := range keys {
 		bucket := index.byPrefix[prefix]
-		if len(bucket) < options.MinMembers || !SharesPrimaryTag(bucket) {
+		if len(bucket) < options.MinMembers || len(bucket) > options.MaxCuratedMembers {
 			continue
 		}
-		candidates = append(candidates, newCandidate("filename-prefix", "文件名前缀", prefix,
-			fmt.Sprintf("文件名前缀相同：%s", prefix), PrefixScore, bucket))
+		if !SharesPrimaryTag(bucket) {
+			continue
+		}
+		buckets = append(buckets, prefixBucket{prefix: prefix, members: bucket})
+	}
+	sort.SliceStable(buckets, func(i, j int) bool {
+		if len(buckets[i].members) != len(buckets[j].members) {
+			return len(buckets[i].members) > len(buckets[j].members)
+		}
+		left, right := []rune(buckets[i].prefix), []rune(buckets[j].prefix)
+		if len(left) != len(right) {
+			return len(left) > len(right)
+		}
+		return buckets[i].prefix < buckets[j].prefix
+	})
+
+	candidates := make([]Candidate, 0, len(buckets))
+	accepted := make([]map[string]struct{}, 0, len(buckets))
+	for _, bucket := range buckets {
+		memberSet := make(map[string]struct{}, len(bucket.members))
+		for _, mod := range bucket.members {
+			memberSet[mod.Key] = struct{}{}
+		}
+		// 已经整批被更大的桶覆盖（子前缀）→ 跳过，避免同一条系列出现多条重叠建议。
+		covered := false
+		for _, bigger := range accepted {
+			if subsetOf(memberSet, bigger) {
+				covered = true
+				break
+			}
+		}
+		if covered {
+			continue
+		}
+		accepted = append(accepted, memberSet)
+		label := index.prefixLabels[bucket.prefix]
+		if label == "" {
+			label = bucket.prefix
+		}
+		candidates = append(candidates, newCandidate("filename-prefix", "文件名前缀", label,
+			fmt.Sprintf("文件名前缀相同：%s", label), PrefixScore, bucket.members))
 	}
 	return candidates
+}
+
+// subsetOf 判断 small 的成员是否全部包含在 big 里。
+func subsetOf(small, big map[string]struct{}) bool {
+	if len(small) > len(big) {
+		return false
+	}
+	for key := range small {
+		if _, ok := big[key]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func runSharedTagsSignal(index *Index, options Options) []Candidate {

@@ -582,6 +582,20 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	}
 
 	a.updateCompletedDownloadTaskPath(filePath, newPath)
+	// 标签写在文件名里（[标签]名字.vpk），所以"打标签"同样会改变 addonlist 键。
+	// 和重命名一样，必须把策略组 / 分层 / 依赖 / 冲突忽略清单里的旧键迁移到新键，
+	// 否则给组内 Mod 打标签会让它从组里"消失"。
+	// 注意：这里仍然持有 a.mu，不能调用 addonListKeyForPath（它会再取读锁 → 死锁），
+	// 直接用当前已知的根目录换算键。
+	oldKey, _ := addonListKeyForManagedVPKPathFromRoot(a.rootDir, filePath)
+	newKey, _ := addonListKeyForManagedVPKPathFromRoot(a.rootDir, newPath)
+	a.rebindModKeyOnRename(
+		oldKey,
+		newKey,
+		filepath.Base(newPath),
+	)
+	// 键变了，冲突复检结果同样失效。
+	a.InvalidateConflictRecheck("Mod 标签已更新")
 	return nil
 }
 

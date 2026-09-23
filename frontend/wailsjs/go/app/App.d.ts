@@ -5,6 +5,8 @@ import {network} from '../models';
 import {parser} from '../models';
 import {minidump} from '../models';
 
+export function AddModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
+
 export function AnalyzeAutoexecCommands(arg1:string):Promise<Array<app.AutoexecCommandMatch>>;
 
 export function ApplyAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
@@ -17,7 +19,11 @@ export function ApplyModPriorityLayers():Promise<app.AddonListLoadOrderPreview>;
 
 export function ApplyModStrategyGroup(arg1:string,arg2:app.ModStrategyGroupApplyOptions):Promise<app.ModStrategyGroupApplyResult>;
 
+export function ApplyTagToModKeys(arg1:string,arg2:Array<string>):Promise<app.ModTagApplyResult>;
+
 export function AutoDiscoverAddons():Promise<string>;
+
+export function BatchUpdateModStrategyGroups(arg1:Array<string>,arg2:string,arg3:any):Promise<app.ModStrategyGroupBatchResult>;
 
 export function CancelDownloadTask(arg1:string):Promise<void>;
 
@@ -181,7 +187,11 @@ export function GetForkInfo():Promise<app.ForkInfo>;
 
 export function GetGroupSuggestionAgentPrompt():Promise<string>;
 
+export function GetGroupSuggestionAgentPromptState():Promise<app.ModGroupPromptState>;
+
 export function GetGroupSuggestionInboxPath():Promise<string>;
+
+export function GetGroupTagSuggestions():Promise<Array<app.ModGroupTagSuggestion>>;
 
 export function GetMapName(arg1:string):Promise<string>;
 
@@ -323,6 +333,8 @@ export function MoveArchiveFiles(arg1:Array<string>,arg2:string,arg3:string):Pro
 
 export function MoveModStrategyGroup(arg1:string,arg2:string):Promise<app.ModStrategyGroup>;
 
+export function MoveModStrategyGroupMembers(arg1:string,arg2:string,arg3:Array<string>):Promise<app.ModStrategyGroupMoveResult>;
+
 export function MoveVpkFiles(arg1:Array<string>,arg2:string):Promise<app.MoveResult>;
 
 export function MoveVpkFilesWithConflictAction(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
@@ -361,6 +373,10 @@ export function RemoveDuplicateAddonListEntries():Promise<number>;
 
 export function RemoveMissingFileAddonListEntries():Promise<number>;
 
+export function RemoveModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
+
+export function RenameModStrategyGroup(arg1:string,arg2:string,arg3:string):Promise<app.ModStrategyGroup>;
+
 export function RenameVPKFile(arg1:string,arg2:string):Promise<string>;
 
 export function RepairVPKIntegrity(arg1:string):Promise<app.VPKRepairResult>;
@@ -368,6 +384,8 @@ export function RepairVPKIntegrity(arg1:string):Promise<app.VPKRepairResult>;
 export function RepairVPKIntegrityBatch(arg1:Array<string>):Promise<Array<app.VPKRepairBatchResult>>;
 
 export function ReportFrontendError(arg1:string,arg2:string):Promise<string>;
+
+export function ResetGroupSuggestionAgentPrompt():Promise<void>;
 
 export function RestartApplication():Promise<void>;
 
@@ -390,6 +408,8 @@ export function SaveAddonListManagedSnapshot():Promise<app.AddonListInfo>;
 export function SaveAppConfig(arg1:app.ConfigFile):Promise<void>;
 
 export function SaveAutoexecConfig(arg1:string):Promise<void>;
+
+export function SaveGroupSuggestionAgentPrompt(arg1:string):Promise<void>;
 
 export function SaveGroupSuggestionAgentPromptDialog():Promise<string>;
 
@@ -449,11 +469,15 @@ export function SetModStrategyGroupEnabled(arg1:string,arg2:boolean):Promise<app
 
 export function SetModStrategyGroupEnforcement(arg1:string,arg2:boolean):Promise<app.ModStrategyGroup>;
 
+export function SetModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
+
 export function SetModStrategyGroupTier(arg1:string,arg2:any):Promise<app.ModStrategyGroup>;
 
 export function SetRootDirectory(arg1:string):Promise<void>;
 
 export function SetVPKGameEnabled(arg1:string,arg2:boolean):Promise<number>;
+
+export function SetVPKGameEnabledBatch(arg1:Array<string>,arg2:boolean):Promise<app.BatchGameStateResult>;
 
 export function SetVPKLoadOrder(arg1:string,arg2:number):Promise<void>;
 

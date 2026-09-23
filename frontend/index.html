@@ -275,6 +275,14 @@
                     >
                       <span class="icon">▣</span> 用选中的 Mod 建组
                     </button>
+                    <button
+                      id="mod-group-manager-btn"
+                      class="btn btn-small btn-outline"
+                      title="打开「策略组管理」窗口：应用策略、组权重与上级分组、多选批量删除 / 开关自动联动，全生命周期都在这个窗口里"
+                      type="button"
+                    >
+                      <span class="icon">≣</span> 策略组管理…
+                    </button>
                   </div>
                   <div id="mod-group-filter-list" class="mod-group-filter-list"></div>
                 </div>
@@ -570,6 +578,32 @@
                   <rect x="4" y="4" width="16" height="16" rx="2"></rect>
                 </svg>
               </span> 取消全选
+            </button>
+            <!-- 只改 addonlist.txt 的 0/1（游戏内开关），与下面搬文件的「批量启用 / 批量禁用」区分开。 -->
+            <button
+              id="game-enable-selected-btn"
+              class="btn btn-small btn-outline"
+              title="把选中的 Mod 设为「游戏内启用」：只改 addonlist.txt 的 0/1，不移动、不删除文件"
+            >
+              <span class="icon">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3v8"></path>
+                  <path d="M6.5 7a7.5 7.5 0 1 0 11 0"></path>
+                </svg>
+              </span> 游戏内启用
+            </button>
+            <button
+              id="game-disable-selected-btn"
+              class="btn btn-small btn-outline"
+              title="把选中的 Mod 设为「游戏内关闭」：只改 addonlist.txt 的 0/1，不移动、不删除文件"
+            >
+              <span class="icon">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3v8"></path>
+                  <path d="M6.5 7a7.5 7.5 0 1 0 11 0"></path>
+                  <path d="m4 4 16 16"></path>
+                </svg>
+              </span> 游戏内关闭
             </button>
             <button id="enable-selected-btn" class="btn btn-small btn-success">
               <span class="icon">
@@ -2122,6 +2156,170 @@
       </div>
     </div>
     <!-- 冲突检测弹窗 -->
+    <!-- 编辑交给智能体的提示词（默认 = LytVPK 内置，可保存自定义 / 恢复默认） -->
+    <div id="agent-prompt-modal" class="modal hidden">
+      <div class="modal-content agent-prompt-content">
+        <div class="modal-header">
+          <h3>编辑智能体提示词</h3>
+          <button id="agent-prompt-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+        </div>
+        <div class="agent-prompt-body">
+          <p id="agent-prompt-status" class="agent-prompt-status" aria-live="polite"></p>
+          <div class="agent-prompt-placeholders">
+            <span class="agent-prompt-placeholders-label">插入占位符（发送时自动替换成真实路径）：</span>
+            <span id="agent-prompt-placeholder-list" class="agent-prompt-placeholder-list"></span>
+          </div>
+          <textarea
+            id="agent-prompt-text"
+            class="agent-prompt-textarea"
+            spellcheck="false"
+            aria-label="提示词内容"
+          ></textarea>
+          <p class="agent-prompt-hint">
+            默认那一套已经写明：处理范围只限 <code>addons</code> 根目录 + <code>workshop</code> +
+            <code>disabled</code>、建议文件的 JSON 格式（含 <code>tag</code> / <code>memberTags</code>）、
+            以及"写完先用 <code>--validate-group-suggestions</code> 自检"。你可以按自己的习惯改，
+            改完点「保存」；「恢复默认」随时可以回到 LytVPK 的这一套。
+          </p>
+        </div>
+        <div class="modal-footer agent-prompt-footer">
+          <button id="agent-prompt-reset-btn" class="btn btn-secondary" type="button">恢复默认</button>
+          <span class="agent-prompt-footer-spacer"></span>
+          <button id="agent-prompt-cancel-btn" class="btn btn-secondary" type="button">取消</button>
+          <button id="agent-prompt-save-btn" class="btn btn-primary" type="button">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 给策略组 / 建议补统一标签（组 → 标签方向） -->
+    <div id="group-tag-modal" class="modal hidden">
+      <div class="modal-content group-tag-content">
+        <div class="modal-header">
+          <h3 id="group-tag-title">给这组打标签</h3>
+          <button id="group-tag-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+        </div>
+        <div class="group-tag-body">
+          <p id="group-tag-summary" class="group-tag-summary" aria-live="polite"></p>
+          <label class="group-tag-field">
+            <span>标签</span>
+            <input
+              id="group-tag-input"
+              class="group-tag-input"
+              type="text"
+              maxlength="60"
+              placeholder="例如：M16 武器"
+            >
+          </label>
+          <p class="group-tag-hint">
+            标签会写进文件名（`[标签]名字.vpk`，工坊 Mod 写进同名 `.meta`）：这会改变 addonlist 键，
+            工具会自动把策略组 / 分层 / 依赖 / 忽略清单里的旧键改绑到新键。已经带该标签的成员会被跳过。
+          </p>
+          <div id="group-tag-preview" class="group-tag-preview"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="group-tag-cancel-btn" class="btn btn-secondary" type="button">取消</button>
+          <button id="group-tag-apply-btn" class="btn btn-primary" type="button">给这组打标签</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加入 / 移出 / 移动到策略组（单文件菜单与多选菜单共用） -->
+    <div id="group-picker-modal" class="modal hidden">
+      <div class="modal-content group-picker-content">
+        <div class="modal-header">
+          <h3 id="group-picker-title">加入策略组</h3>
+          <button id="group-picker-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+        </div>
+        <!-- 工具条固定在滚动区之外：组多的时候搜索框与筛选也要一眼可见。 -->
+        <div class="group-picker-toolbar">
+          <input
+            id="group-picker-search"
+            class="group-picker-search"
+            type="search"
+            autocomplete="off"
+            placeholder="搜索策略组（名称 / 上级分组 / 策略）…"
+            aria-label="搜索策略组"
+          >
+          <label class="group-picker-relevant" title="只显示包含这些 Mod 的策略组（移出 / 换组时最常用）">
+            <input type="checkbox" id="group-picker-relevant-only">
+            <span>只看相关</span>
+          </label>
+        </div>
+        <div class="group-picker-body">
+          <p id="group-picker-summary" class="group-picker-summary" aria-live="polite"></p>
+          <p id="group-picker-visible" class="group-picker-visible" aria-live="polite"></p>
+          <div id="group-picker-list" class="group-picker-list"></div>
+        </div>
+        <!-- 「新建并加入」放在滚动区之外：策略组很多时也要一眼能看到。 -->
+        <div id="group-picker-new-row" class="group-picker-new-row hidden">
+          <input
+            id="group-picker-new-name"
+            class="group-picker-new-input"
+            type="text"
+            maxlength="60"
+            placeholder="或者新建一个组，把这些 Mod 直接放进去"
+          >
+          <button id="group-picker-new-btn" class="btn btn-small btn-outline" type="button">新建并加入</button>
+        </div>
+        <p class="group-picker-hint">↑↓ 选择 · Enter 确认 · 双击直接执行 · Esc 关闭</p>
+        <div class="modal-footer">
+          <button id="group-picker-cancel-btn" class="btn btn-secondary" type="button">取消</button>
+          <button id="group-picker-confirm-btn" class="btn btn-primary" type="button">加入这个组</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 策略组管理窗口：策略组的完整生命周期都在这个独立窗口里，不再塞进设置页 -->
+    <div id="strategy-group-modal" class="modal hidden">
+      <div class="modal-content strategy-group-content">
+        <div class="modal-header">
+          <h3>策略组管理</h3>
+          <button id="strategy-group-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+        </div>
+        <div class="strategy-group-body">
+          <!-- 浮动 / 停靠开关由 core/floating-modal.js 统一插到标题栏（与其它管理窗口一致）。 -->
+          <p class="strategy-group-hint">
+            策略组只写 groups.json：不改动任何 Mod 文件，也不改 addonlist.txt 的开关与顺序。
+            「按策略应用 / 随机单选 / 全关」只切换组成员的开关；「组权重」是本地分层，
+            需要在「加载顺序」窗口里点「按分层应用」才会重排游戏内优先级。
+          </p>
+          <div class="addonlist-action-row settings-profile-capture-row">
+            <input type="text" id="strategy-group-name" class="settings-profile-name-input" maxlength="60" placeholder="策略组名称，例如 角色替换包">
+            <select id="strategy-group-strategy" class="settings-strategy-select" aria-label="策略类型">
+              <option value="single">互斥单选（保留当前启用的一个）</option>
+              <option value="single_random">随机单选</option>
+              <option value="all">全部开启</option>
+              <option value="off">全部关闭</option>
+            </select>
+            <button type="button" id="strategy-group-capture" class="btn btn-small btn-primary" disabled>用选中的 Mod 建组</button>
+          </div>
+          <p id="strategy-group-status" class="setting-row-status" aria-live="polite"></p>
+          <div class="settings-strategy-batch hidden" id="strategy-group-batch">
+            <label class="settings-strategy-batch-pick-all" title="全选 / 取消全选下面列出的策略组">
+              <input type="checkbox" id="strategy-group-select-all">
+              <span>全选</span>
+            </label>
+            <span id="strategy-group-selection" class="settings-strategy-selection" aria-live="polite"></span>
+            <button type="button" id="strategy-group-batch-delete" class="settings-strategy-batch-btn is-danger" disabled>批量删除</button>
+            <button type="button" id="strategy-group-batch-enforce-on" class="settings-strategy-batch-btn" disabled>开启自动联动</button>
+            <button type="button" id="strategy-group-batch-enforce-off" class="settings-strategy-batch-btn" disabled>关闭自动联动</button>
+            <span class="settings-strategy-batch-tier" title="批量设置组权重：叠加到组内成员的有效分层；数值越小越先加载。留空并点「清除权重」表示取消权重。">
+              <input type="number" id="strategy-group-batch-tier-input" class="settings-strategy-tier-input" placeholder="权重" aria-label="批量组权重">
+              <button type="button" id="strategy-group-batch-tier-save" class="settings-strategy-batch-btn" disabled>设置权重</button>
+            <button type="button" id="strategy-group-batch-tier-clear" class="settings-strategy-batch-btn" disabled>清除权重</button>
+            </span>
+            <button type="button" id="strategy-group-batch-filter" class="settings-strategy-batch-btn" title="只显示属于这些组的 Mod（等同于主界面「按分组筛选」勾上同样几个组）" disabled>用选中的组筛选</button>
+            <button type="button" id="strategy-group-batch-filter-clear" class="settings-strategy-batch-btn" title="恢复显示全部 Mod（清除「按分组筛选」）" disabled>清除筛选</button>
+            <span id="strategy-group-filter-state" class="strategy-group-filter-state" aria-live="polite"></span>
+          </div>
+          <div id="strategy-group-list" class="settings-profile-list strategy-group-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="strategy-group-close-footer-btn" class="btn btn-secondary" type="button">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 分组推导建议弹窗 -->
     <div id="mod-group-suggest-modal" class="modal hidden">
       <div class="modal-content mod-group-suggest-content">
@@ -2144,7 +2342,7 @@
               id="mod-group-suggest-export-btn"
               class="btn btn-small btn-outline"
               type="button"
-              title="导出当前 Mod 的分组用元数据（键、标题、作者、标签、主体、语音角色），交给大模型分析"
+              title="先重新扫描一遍 mod 目录（保证清单是最新状态），再导出当前 Mod 的分组用元数据（键、标题、作者、标签、主体、语音角色），交给大模型分析"
             >
               导出 Mod 清单…
             </button>
@@ -2152,9 +2350,17 @@
               id="mod-group-suggest-prepare-btn"
               class="btn btn-small btn-primary"
               type="button"
-              title="一步到位：导出 Mod 清单 + 复制交给智能体（agent）的提示词，提示词里已填好清单路径与建议文件路径"
+              title="一步到位：先重新扫描一遍 mod 目录（保证材料是最新状态），再导出 Mod 清单 + 复制交给智能体（agent）的提示词，提示词里已填好清单路径与建议文件路径"
             >
               准备给智能体的材料
+            </button>
+            <button
+              id="mod-group-suggest-prompt-btn"
+              class="btn btn-small btn-outline"
+              type="button"
+              title="编辑交给智能体的提示词：默认用 LytVPK 填好的一套，可以改成你自己的，也可以随时恢复默认"
+            >
+              编辑提示词…
             </button>
             <button
               id="mod-group-suggest-clear-btn"
@@ -2166,14 +2372,57 @@
             </button>
             <span id="mod-group-suggest-summary" class="mod-group-suggest-summary" aria-live="polite"></span>
           </div>
+          <div class="mod-group-suggest-filters">
+            <input
+              id="mod-group-suggest-search"
+              class="mod-group-suggest-search"
+              type="search"
+              placeholder="搜索组建议（组名 / 成员名 / 信号）…"
+              aria-label="搜索分组建议"
+            >
+            <select id="mod-group-suggest-confidence" class="mod-group-suggest-select" aria-label="按置信度筛选">
+              <option value="">全部置信度</option>
+              <option value="high">仅高置信度</option>
+              <option value="medium">仅中置信度</option>
+              <option value="low">仅低置信度</option>
+            </select>
+            <select id="mod-group-suggest-source" class="mod-group-suggest-select" aria-label="按来源筛选">
+              <option value="">全部来源</option>
+              <option value="external">仅导入建议</option>
+              <option value="builtin">仅内置推导</option>
+            </select>
+            <select id="mod-group-suggest-sort" class="mod-group-suggest-select" aria-label="排序方式">
+              <option value="recommended">推荐顺序</option>
+              <option value="confidence">置信度优先</option>
+              <option value="members">成员多优先</option>
+              <option value="name">名称顺序</option>
+            </select>
+            <select
+              id="mod-group-suggest-tag-covered"
+              class="mod-group-suggest-select"
+              aria-label="标签已覆盖的建议"
+              title="标签恰好只能筛出这一批 Mod 时，直接用标签筛选即可，不必再建组"
+            >
+              <option value="hide">隐藏标签已覆盖</option>
+              <option value="show">显示全部</option>
+              <option value="only">只看标签已覆盖</option>
+            </select>
+            <button id="mod-group-suggest-expand-all-btn" class="btn btn-small btn-outline" type="button" title="展开全部建议的成员列表">全部展开</button>
+            <button id="mod-group-suggest-collapse-all-btn" class="btn btn-small btn-outline" type="button" title="只保留每条建议的摘要，方便快速浏览">全部折叠</button>
+            <span id="mod-group-suggest-filter-summary" class="mod-group-suggest-summary" aria-live="polite"></span>
+          </div>
           <p class="mod-group-suggest-hint">
             下面是"可能属于同一组"的候选：可以取消勾选个别 Mod、修改组名，确认后再点“创建为组”。
+            默认只显示每条建议的摘要，点「展开」查看成员与逐个操作；窗口右下角可以拖动缩放。
             推导只做只读扫描（工坊合集成员、文件夹结构、同名文件的不同版本、文件名前缀、共同标签、
             同一作者、相同主体、语音角色），也可以「导入建议文件…」把大模型 / 人工整理好的结果
             按标准格式导入（见文档「分组建议与外部导入」），
             不会改动任何 Mod 文件，也不会改动 addonlist.txt。
           </p>
           <div id="mod-group-suggest-list" class="mod-group-suggest-list"></div>
+          <div class="mod-group-suggest-more-row">
+            <button id="mod-group-suggest-more-btn" class="btn btn-small btn-outline hidden" type="button">显示更多建议</button>
+          </div>
         </div>
         <div class="modal-footer">
           <button id="mod-group-suggest-close-footer-btn" class="btn btn-secondary" type="button">关闭</button>

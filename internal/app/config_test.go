@@ -727,3 +727,27 @@ func legacyMigrationPayload() LocalStorageMigrationPayload {
 		WatchLaterItems:     `[{"publishedfileid":"123","title":"Item","preview_url":"https://example.test/a.jpg","views":10,"subscriptions":20,"favorited":30,"file_type":0,"addedAt":"2026-05-19T00:00:00.000Z"}]`,
 	}
 }
+
+// 「策略组管理」窗口的浮动偏好要能落盘：前端把它放进 config.json，
+// Go 端结构体缺字段时会被静默丢弃（真实缺陷：停靠过的窗口重启后又变回浮动）。
+func TestSaveAppConfigPersistsStrategyGroupFloating(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.loadConfig()
+
+	docked := false
+	if err := app.SaveAppConfig(ConfigFile{StrategyGroupFloating: &docked}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if got := app.GetAppConfig().StrategyGroupFloating; got == nil || *got {
+		t.Fatalf("停靠偏好应落盘为 false: %#v", got)
+	}
+
+	// 重新读盘（模拟重启）后仍然保持停靠。
+	restored := newConfigTestApp(t)
+	restored.configDir = app.configDir
+	restored.configPath = app.configPath
+	restored.loadConfig()
+	if got := restored.GetAppConfig().StrategyGroupFloating; got == nil || *got {
+		t.Fatalf("重启后停靠偏好应保持 false: %#v", got)
+	}
+}

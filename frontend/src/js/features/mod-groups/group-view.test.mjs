@@ -12,6 +12,7 @@ import {
   formatGroupChipTitle,
   formatGroupFilterLabel,
   formatGroupMissingNotice,
+  formatGroupOptionIndent,
   formatGroupOptionLabel,
   formatGroupStrategy,
   formatFileGroupImpact,
@@ -19,6 +20,7 @@ import {
   formatSuggestionSummary,
   groupsForFile,
   normalizeGroupKey,
+  sortGroupFilterOptions,
   suggestionMemberRows,
 } from "./group-view.mjs";
 
@@ -137,6 +139,85 @@ test("buildGroupFilterOptions 去重并按组聚合成员键", () => {
   assert.deepEqual(options.map((item) => item.id), ["g1", "g2"]);
   assert.equal(options[0].keys.size, 3);
   assert.equal(options[0].memberCount, 3);
+});
+
+// —— 「按分组筛选」的顺序：由组权重（组内那格"权重"）决定，未设置权重的排在最后 ——
+
+const hierarchyMemberships = [
+  { key: "a.vpk", groupId: "root-b", groupName: "乙组", strategy: "all", memberCount: 1 },
+  { key: "b.vpk", groupId: "child-b1", groupName: "乙-子组", strategy: "all", memberCount: 1, parentId: "root-b", tier: 5 },
+  { key: "c.vpk", groupId: "root-a", groupName: "甲组", strategy: "all", memberCount: 1, tier: 9 },
+  { key: "d.vpk", groupId: "child-a1", groupName: "甲-子组", strategy: "all", memberCount: 1, parentId: "root-a" },
+  { key: "e.vpk", groupId: "root-c", groupName: "丙组", strategy: "all", memberCount: 1, tier: 1 },
+];
+
+test("buildGroupFilterOptions 透出层级与组权重（筛选菜单排序要用）", () => {
+  const options = buildGroupFilterOptions(hierarchyMemberships);
+  const byId = new Map(options.map((item) => [item.id, item]));
+  assert.equal(byId.get("child-b1").parentId, "root-b");
+  assert.equal(byId.get("child-b1").parentName, "乙组");
+  assert.equal(byId.get("child-b1").tier, 5);
+  assert.equal(byId.get("child-b1").depth, 2);
+  assert.equal(byId.get("root-b").tier, null, "未设置权重时给 null，便于排序时排在最后");
+  assert.equal(byId.get("root-a").depth, 1);
+});
+
+test("sortGroupFilterOptions 按组权重升序 + 子树整体移动（子组不跟父组脱开）", () => {
+  const options = buildGroupFilterOptions(hierarchyMemberships);
+  const sorted = sortGroupFilterOptions(options).map((item) => item.id);
+  // 子组 5 的权重把「乙组」整棵子树抬起来（整棵树的最小权重=5），排在「甲组(9)」前面；
+  // 未设置权重的「甲-子组」跟着自己的父组「甲组」走。
+  assert.deepEqual(sorted, ["root-c", "root-b", "child-b1", "root-a", "child-a1"]);
+  assert.equal(
+    sorted.indexOf("root-b") + 1,
+    sorted.indexOf("child-b1"),
+    "子组紧跟父组（父组在前，子组紧随其后），不能各排各的",
+  );
+  // 权重更小的组（-1）排最前，权重优先于名称。
+  assert.equal(sortGroupFilterOptions(buildGroupFilterOptions([
+    { key: "x.vpk", groupId: "g", groupName: "G", strategy: "all", memberCount: 1, tier: -1 },
+    ...hierarchyMemberships,
+  ]))[0].id, "g");
+});
+
+test("子树整体移动：名字前缀不同的子组不会再被甩到列表另一头", () => {
+  // 真实数据形状：父组 `!!医疗箱`，子组里既有 `!花火` 也有 `【BA桶】`；
+  // 按纯名称排序时 `【` 会沉到最后，子组就和父组脱开了。
+  const memberships = [
+    { key: "a.vpk", groupId: "box", groupName: "!!医疗箱", strategy: "all", memberCount: 6 },
+    { key: "b.vpk", groupId: "fire", groupName: "!花火零食", strategy: "all", memberCount: 9, parentId: "box" },
+    { key: "c.vpk", groupId: "bin", groupName: "【BA垃圾桶】", strategy: "all", memberCount: 5, parentId: "box" },
+    { key: "d.vpk", groupId: "other", groupName: "Chiffon 下午茶", strategy: "all", memberCount: 13 },
+  ];
+  const sorted = sortGroupFilterOptions(buildGroupFilterOptions(memberships)).map((item) => item.id);
+  assert.equal(sorted[0], "box", "父组在最前");
+  assert.deepEqual(
+    [...sorted.slice(1, 3)].sort(),
+    ["bin", "fire"],
+    "两个子组都要紧跟父组（名字前缀不同也不再被拆开）",
+  );
+  assert.equal(sorted[3], "other", "其它顶层组排在整棵子树之后");
+  const rows = buildGroupFilterOptions(memberships);
+  const byId = new Map(rows.map((item) => [item.id, item]));
+  assert.equal(byId.get("bin").depth, 2, "子组仍要缩进显示");
+});
+
+test("sortGroupFilterOptions 对成环的层级不递归（按顶层降级处理）", () => {
+  const options = [
+    { id: "x", name: "X", parentId: "y", depth: 1, tier: null },
+    { id: "y", name: "Y", parentId: "x", depth: 1, tier: null },
+  ];
+  const sorted = sortGroupFilterOptions(options).map((item) => item.id);
+  assert.equal(sorted.length, 2, "成环时不能丢组，也不能无限递归");
+  assert.deepEqual([...sorted].sort(), ["x", "y"]);
+});
+
+test("formatGroupOptionIndent / formatGroupOptionLabel 体现层级与权重", () => {
+  assert.equal(formatGroupOptionIndent({ depth: 1 }), "");
+  assert.equal(formatGroupOptionIndent({ depth: 2 }), "└ ");
+  assert.equal(formatGroupOptionIndent({ depth: 3 }), "　└ ");
+  assert.equal(formatGroupOptionLabel({ name: "甲组", memberCount: 3, tier: 9 }), "甲组（3） · 权重 9");
+  assert.equal(formatGroupOptionLabel({ name: "甲组", memberCount: 3, tier: null }), "甲组（3）");
 });
 
 test("fileMatchesGroupFilter 按勾选的分组过滤", () => {

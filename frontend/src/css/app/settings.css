@@ -1169,3 +1169,63 @@ html.dark-mode .autoexec-analysis.is-warning {
   font-size: 0.75rem;
   line-height: 1.4;
 }
+/* 策略组批量管理工具条（多选组 → 批量删除 / 自动联动 / 权重）。 */
+.settings-strategy-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.25rem 0 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+
+.settings-strategy-batch-pick-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.settings-strategy-selection {
+  color: var(--text-secondary);
+}
+
+.settings-strategy-batch-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted, transparent);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.settings-strategy-batch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-strategy-batch-btn.is-danger {
+  border-color: color-mix(in srgb, var(--danger, #f85149) 45%, var(--border-default));
+  color: var(--danger, #f85149);
+}
+
+.settings-strategy-batch-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.settings-strategy-batch-tier .settings-strategy-tier-input {
+  width: 5.5rem;
+}
+
+.settings-strategy-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}

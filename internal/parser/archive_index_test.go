@@ -167,6 +167,77 @@ func testArchive(dir, base, ext string) *vpk.Archive {
 	return testArchiveFiles(vpk.File{Dir: dir, Base: base, Ext: ext})
 }
 
+// 「套件命名空间」：materials/models/<作者>/<套件>/… 或 models/<作者>/<套件>/…
+// 是判断"同一套件的多个模块"的关键证据（例如 l4n 的 airi_evilfall、codm 的 ice）。
+func TestStructureSuiteNamespaceDetectsAuthorSuiteRoots(t *testing.T) {
+	archive := testArchiveFiles(
+		vpk.File{Dir: "materials/models/913limod/airi_evilfall/swtich", Base: "lightmainarmglove", Ext: "vmt"},
+		vpk.File{Dir: "materials/models/913limod/airi_evilfall/swtich", Base: "metalmainarmglove", Ext: "vmt"},
+		vpk.File{Dir: "materials/models/codm/ice", Base: "codm_ice", Ext: "vmt"},
+		// 官方目录不能被当成套件命名空间
+		vpk.File{Dir: "materials/models/weapons/rifle_ak47", Base: "w_rifle_ak47", Ext: "vmt"},
+		vpk.File{Dir: "materials/models/survivors/survivor_coach", Base: "coach", Ext: "vmt"},
+		// 目录里只有一层（没有套件段）时不算
+		vpk.File{Dir: "materials/models/honkai3", Base: "body", Ext: "vmt"},
+	)
+	index := buildArchivePathIndex(archive)
+	file := &VPKFile{}
+	applyStructureSummary(file, index)
+
+	roots := file.StructureResourceRoots
+	if !containsString(roots, "913limod/airi_evilfall") {
+		t.Fatalf("应识别出 913limod/airi_evilfall: %#v", roots)
+	}
+	if !containsString(roots, "codm/ice") {
+		t.Fatalf("应识别出 codm/ice: %#v", roots)
+	}
+	for _, banned := range []string{"weapons/rifle_ak47", "survivors/survivor_coach", "honkai3"} {
+		if containsString(roots, banned) {
+			t.Fatalf("官方目录或只有一层的目录不应出现 %q: %#v", banned, roots)
+		}
+	}
+}
+
+// 内部路径不统一时也要能收敛到同一个套件候选：
+//
+//	materials/sikushui/mo/white_2.vtf      → sikushui
+//	materials/qkl/mo/sikushui/waitao.vtf    → sikushui
+//
+// （死库水套件的真实形态；没有 models 段）
+func TestStructureSuiteNamespaceFromMaterialsBranch(t *testing.T) {
+	cases := map[string]string{
+		"materials/sikushui/mo/white_2.vtf":             "sikushui",
+		"materials/qkl/mo/sikushui/waitao.vtf":          "sikushui",
+		"materials/models/913limod/airi_evilfall/a.vmt": "913limod/airi_evilfall",
+	}
+	for path, want := range cases {
+		got := structureSuiteNamespace(path)
+		if got != want {
+			t.Fatalf("structureSuiteNamespace(%q) = %q, want %q", path, got, want)
+		}
+	}
+	// 官方 materials 子目录不能被当成套件
+	for _, path := range []string{
+		"materials/models/weapons/rifle_ak47/a.vmt",
+		"materials/vgui/hud/crosshair.vtf",
+		"materials/props/crates/crate.vtf",
+		"materials/particle/smoke.vtf",
+	} {
+		if got := structureSuiteNamespace(path); got != "" {
+			t.Fatalf("官方目录不应产出套件候选 %q => %q", path, got)
+		}
+	}
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
 func testArchiveFiles(files ...vpk.File) *vpk.Archive {
 	return &vpk.Archive{Files: files}
 }

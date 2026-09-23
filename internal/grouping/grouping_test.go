@@ -285,3 +285,40 @@ func BenchmarkSuggest(b *testing.B) {
 		}
 	}
 }
+
+// 用户实测：`[Milfy]白银审判…` 这一套（角色本体 + 上衣关 + 内衣关，中文名里没有分隔符）
+// 明明是同一套，却一条建议都没有——因为老的前缀实现要求"文件名至少两个词"，
+// 中文名（`[Milfy]白银审判里内衣关.vpk`）只有一个词，直接被判空。
+func TestFilenamePrefixGroupsSeriesWithoutSeparators(t *testing.T) {
+	mods := []Mod{
+		{Key: "[Milfy]白银审判_Rochelle.vpk", Name: "[Milfy]白银审判_Rochelle.vpk", PrimaryTag: "人物"},
+		{Key: "[Milfy]白银审判里内衣关.vpk", Name: "[Milfy]白银审判里内衣关.vpk", PrimaryTag: "人物"},
+		{Key: "[Milfy]白银审判上衣关.vpk", Name: "[Milfy]白银审判上衣关.vpk", PrimaryTag: "人物"},
+		{Key: "[Milfy]白银审判里内衣关-2.vpk", Name: "[Milfy]白银审判里内衣关-2.vpk", PrimaryTag: "人物"},
+	}
+	suggestions, _ := Suggest(mods, DefaultOptions())
+	prefix := findSuggestion(suggestions, "文件名前缀")
+	if prefix == nil {
+		t.Fatalf("同一套中文名（无分隔符）应给出文件名前缀建议: %#v", suggestions)
+	}
+	if len(prefix.MemberKeys) != 4 {
+		t.Fatalf("这一套 4 个 Mod 应全部进同一条建议: %#v", prefix)
+	}
+	if prefix.Label != "白银审判" {
+		t.Fatalf("组名应取去掉 [标签] 之后的系列名: %#v", prefix.Label)
+	}
+}
+
+// 反向保护：`[标签]` 里的工坊作者/标签不能自己变成系列名，
+// 否则所有同一标签的 Mod 会被凑成一条超大建议。
+func TestFilenamePrefixIgnoresBracketTagAsSeries(t *testing.T) {
+	mods := []Mod{
+		{Key: "[Milfy]白银审判_Rochelle.vpk", Name: "[Milfy]白银审判_Rochelle.vpk", PrimaryTag: "人物"},
+		{Key: "[Milfy]猎魔人_Rochelle.vpk", Name: "[Milfy]猎魔人_Rochelle.vpk", PrimaryTag: "人物"},
+		{Key: "[Milfy]泳装_Rochelle.vpk", Name: "[Milfy]泳装_Rochelle.vpk", PrimaryTag: "人物"},
+	}
+	suggestions, _ := Suggest(mods, DefaultOptions())
+	if prefix := findSuggestion(suggestions, "文件名前缀"); prefix != nil && len(prefix.MemberKeys) == 3 {
+		t.Fatalf("只共享 [Milfy] 标签的三套不同内容不应被当成同一系列: %#v", prefix)
+	}
+}

@@ -64,6 +64,32 @@ func applyStructureSummary(vpkFile *VPKFile, index archivePathIndex) {
 	if len(index.resourceTargets) > 0 {
 		vpkFile.StructureTargets = append([]string(nil), index.resourceTargets...)
 	}
+	if len(index.sourceRoots) > 0 {
+		type rootCount struct {
+			name  string
+			count int
+		}
+		roots := make([]rootCount, 0, len(index.sourceRoots))
+		for name, count := range index.sourceRoots {
+			roots = append(roots, rootCount{name: name, count: count})
+		}
+		// 出现次数多的更可能是"这个 VPK 的主套件"，计数相同则按名字排序保证确定性。
+		sort.Slice(roots, func(i, j int) bool {
+			if roots[i].count != roots[j].count {
+				return roots[i].count > roots[j].count
+			}
+			return roots[i].name < roots[j].name
+		})
+		limit := structureResourceRootLimit
+		if len(roots) < limit {
+			limit = len(roots)
+		}
+		names := make([]string, 0, limit)
+		for _, item := range roots[:limit] {
+			names = append(names, item.name)
+		}
+		vpkFile.StructureResourceRoots = names
+	}
 }
 
 func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {

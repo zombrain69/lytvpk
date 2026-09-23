@@ -402,6 +402,26 @@ export namespace app {
 	        this.lineEnding = source["lineEnding"];
 	    }
 	}
+	export class BatchGameStateResult {
+	    requested: number;
+	    updated: string[];
+	    unchanged: string[];
+	    skipped: string[];
+	    enforced: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BatchGameStateResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.requested = source["requested"];
+	        this.updated = source["updated"];
+	        this.unchanged = source["unchanged"];
+	        this.skipped = source["skipped"];
+	        this.enforced = source["enforced"];
+	    }
+	}
 	export class SavedDirectory {
 	    path: string;
 	    lastUsed: string;
@@ -458,6 +478,7 @@ export namespace app {
 	    migrationVersion: number;
 	    conflictPriorityAware?: boolean;
 	    conflictIgnoreFiles?: string[];
+	    strategyGroupFloating?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ConfigFile(source);
@@ -492,6 +513,7 @@ export namespace app {
 	        this.migrationVersion = source["migrationVersion"];
 	        this.conflictPriorityAware = source["conflictPriorityAware"];
 	        this.conflictIgnoreFiles = source["conflictIgnoreFiles"];
+	        this.strategyGroupFloating = source["strategyGroupFloating"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1065,6 +1087,9 @@ export namespace app {
 	    strategy?: string;
 	    memberCount: number;
 	    members: GroupSuggestionValidationMember[];
+	    tag?: string;
+	    tagReason?: string;
+	    memberTags?: number;
 	    problems?: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -1079,6 +1104,9 @@ export namespace app {
 	        this.strategy = source["strategy"];
 	        this.memberCount = source["memberCount"];
 	        this.members = this.convertValues(source["members"], GroupSuggestionValidationMember);
+	        this.tag = source["tag"];
+	        this.tagReason = source["tagReason"];
+	        this.memberTags = source["memberTags"];
 	        this.problems = source["problems"];
 	    }
 	
@@ -1107,6 +1135,8 @@ export namespace app {
 	    valid: number;
 	    invalid: number;
 	    memberCount: number;
+	    withTags: number;
+	    taggedMembers: number;
 	    items: GroupSuggestionValidationItem[];
 	    warnings?: string[];
 	
@@ -1122,6 +1152,8 @@ export namespace app {
 	        this.valid = source["valid"];
 	        this.invalid = source["invalid"];
 	        this.memberCount = source["memberCount"];
+	        this.withTags = source["withTags"];
+	        this.taggedMembers = source["taggedMembers"];
 	        this.items = this.convertValues(source["items"], GroupSuggestionValidationItem);
 	        this.warnings = source["warnings"];
 	    }
@@ -1152,6 +1184,7 @@ export namespace app {
 	    prompt: string;
 	    modCount: number;
 	    preparedAt: string;
+	    notice: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GroupingWorkspace(source);
@@ -1164,6 +1197,7 @@ export namespace app {
 	        this.prompt = source["prompt"];
 	        this.modCount = source["modCount"];
 	        this.preparedAt = source["preparedAt"];
+	        this.notice = source["notice"];
 	    }
 	}
 	export class LocalStorageMigrationPayload {
@@ -1480,6 +1514,7 @@ export namespace app {
 	    enforce: boolean;
 	    tier?: number;
 	    memberCount: number;
+	    parentId?: string;
 	    missing?: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -1495,7 +1530,30 @@ export namespace app {
 	        this.enforce = source["enforce"];
 	        this.tier = source["tier"];
 	        this.memberCount = source["memberCount"];
+	        this.parentId = source["parentId"];
 	        this.missing = source["missing"];
+	    }
+	}
+	export class ModGroupPromptState {
+	    text: string;
+	    defaultText: string;
+	    isCustom: boolean;
+	    path: string;
+	    savedAt?: string;
+	    placeholders: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ModGroupPromptState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.defaultText = source["defaultText"];
+	        this.isCustom = source["isCustom"];
+	        this.path = source["path"];
+	        this.savedAt = source["savedAt"];
+	        this.placeholders = source["placeholders"];
 	    }
 	}
 	export class ModGroupSuggestion {
@@ -1510,6 +1568,13 @@ export namespace app {
 	    existingGroupId?: string;
 	    source?: string;
 	    strategy?: string;
+	    tagKey?: string;
+	    tagScope?: string;
+	    tagInSet?: number;
+	    tagOutside?: number;
+	    tag?: string;
+	    tagReason?: string;
+	    memberTags?: Record<string, Array<string>>;
 	
 	    static createFrom(source: any = {}) {
 	        return new ModGroupSuggestion(source);
@@ -1528,6 +1593,49 @@ export namespace app {
 	        this.existingGroupId = source["existingGroupId"];
 	        this.source = source["source"];
 	        this.strategy = source["strategy"];
+	        this.tagKey = source["tagKey"];
+	        this.tagScope = source["tagScope"];
+	        this.tagInSet = source["tagInSet"];
+	        this.tagOutside = source["tagOutside"];
+	        this.tag = source["tag"];
+	        this.tagReason = source["tagReason"];
+	        this.memberTags = source["memberTags"];
+	    }
+	}
+	export class ModGroupTagSuggestion {
+	    groupId?: string;
+	    suggestionId?: string;
+	    source: string;
+	    name: string;
+	    tag: string;
+	    tagOrigin: string;
+	    tagReason?: string;
+	    memberCount: number;
+	    alreadyTagged: number;
+	    missingCount: number;
+	    keys: string[];
+	    names: string[];
+	    memberTags?: Record<string, Array<string>>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModGroupTagSuggestion(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groupId = source["groupId"];
+	        this.suggestionId = source["suggestionId"];
+	        this.source = source["source"];
+	        this.name = source["name"];
+	        this.tag = source["tag"];
+	        this.tagOrigin = source["tagOrigin"];
+	        this.tagReason = source["tagReason"];
+	        this.memberCount = source["memberCount"];
+	        this.alreadyTagged = source["alreadyTagged"];
+	        this.missingCount = source["missingCount"];
+	        this.keys = source["keys"];
+	        this.names = source["names"];
+	        this.memberTags = source["memberTags"];
 	    }
 	}
 	export class ModHealthCheckOptions {
@@ -1676,6 +1784,30 @@ export namespace app {
 	        this.skipped = source["skipped"];
 	    }
 	}
+	export class ModStrategyGroupBatchResult {
+	    action: string;
+	    updated: string[];
+	    deleted: string[];
+	    skipped: string[];
+	    detachedChildren?: string[];
+	    remaining: number;
+	    tier?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModStrategyGroupBatchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.action = source["action"];
+	        this.updated = source["updated"];
+	        this.deleted = source["deleted"];
+	        this.skipped = source["skipped"];
+	        this.detachedChildren = source["detachedChildren"];
+	        this.remaining = source["remaining"];
+	        this.tier = source["tier"];
+	    }
+	}
 	
 	export class ModStrategyGroupMissingMembers {
 	    groupId: string;
@@ -1695,6 +1827,36 @@ export namespace app {
 	        this.memberCount = source["memberCount"];
 	        this.missingCount = source["missingCount"];
 	        this.missingNames = source["missingNames"];
+	    }
+	}
+	export class ModStrategyGroupMoveResult {
+	    sourceId: string;
+	    sourceName: string;
+	    targetId: string;
+	    targetName: string;
+	    removedFromSource: string[];
+	    addedToTarget: string[];
+	    moved: string[];
+	    alreadyInTarget: string[];
+	    sourceRemaining: number;
+	    targetTotal: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModStrategyGroupMoveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourceId = source["sourceId"];
+	        this.sourceName = source["sourceName"];
+	        this.targetId = source["targetId"];
+	        this.targetName = source["targetName"];
+	        this.removedFromSource = source["removedFromSource"];
+	        this.addedToTarget = source["addedToTarget"];
+	        this.moved = source["moved"];
+	        this.alreadyInTarget = source["alreadyInTarget"];
+	        this.sourceRemaining = source["sourceRemaining"];
+	        this.targetTotal = source["targetTotal"];
 	    }
 	}
 	export class ModStrategyGroupPriorityShift {
@@ -1768,6 +1930,28 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class ModTagApplyResult {
+	    tag: string;
+	    applied: string[];
+	    skipped: string[];
+	    missing: string[];
+	    failed: string[];
+	    reasons?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ModTagApplyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tag = source["tag"];
+	        this.applied = source["applied"];
+	        this.skipped = source["skipped"];
+	        this.missing = source["missing"];
+	        this.failed = source["failed"];
+	        this.reasons = source["reasons"];
+	    }
 	}
 	export class ProgressInfo {
 	    current: number;
@@ -4212,6 +4396,7 @@ export namespace parser {
 	    structureTotalSize: number;
 	    structureSamplePaths: string[];
 	    structureTargets: string[];
+	    structureResourceRoots: string[];
 	    location: string;
 	    enabled: boolean;
 	    gameEnabled: boolean;
@@ -4256,6 +4441,7 @@ export namespace parser {
 	        this.structureTotalSize = source["structureTotalSize"];
 	        this.structureSamplePaths = source["structureSamplePaths"];
 	        this.structureTargets = source["structureTargets"];
+	        this.structureResourceRoots = source["structureResourceRoots"];
 	        this.location = source["location"];
 	        this.enabled = source["enabled"];
 	        this.gameEnabled = source["gameEnabled"];

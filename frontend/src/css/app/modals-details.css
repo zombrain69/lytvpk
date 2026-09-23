@@ -25,6 +25,57 @@
   visibility: visible;
 }
 
+/* 浮动窗口：不遮挡主界面。
+   ① 去掉遮罩色与 backdrop-filter 虚化 —— 用户反馈"打开管理窗口后主界面变模糊看不见"；
+   ② 容器 pointer-events: none、窗口本体 auto —— 主界面（列表 / 分组 / 筛选）照样点得到；
+   ③ 标题栏变成拖动把手（配合 core/floating-modal.js）。
+   缩放不用在这里做：core/modal-resizer.js 已经给每个 .modal-content 装了八个把手。 */
+.modal.is-floating {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.modal.is-floating .modal-content {
+  pointer-events: auto;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.modal.is-floating .modal-header {
+  cursor: move;
+}
+
+body.is-modal-dragging,
+body.is-modal-dragging * {
+  cursor: move !important;
+  user-select: none !important;
+}
+
+/* 标题栏上的「浮动窗口 / 停靠窗口」开关（由 floating-modal.js 自动插入）。 */
+.modal-float-toggle {
+  margin-left: auto;
+  margin-right: 0.5rem;
+  padding: 2px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-muted, transparent);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.modal-float-toggle:hover {
+  color: var(--text-primary);
+}
+
+.modal-float-toggle.is-active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-weight: 700;
+}
+
 /* 从其他弹窗打开详情时，确保详情层位于来源弹窗之上。关闭时由 detail.js 移除。 */
 .modal.modal-overlay-top {
   /* 详情从其他模态窗口打开时，使用独立顶层，避免被来源窗口遮挡。 */

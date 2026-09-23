@@ -12,7 +12,9 @@ param(
     [string]$ChildClass = 'Chrome_WidgetWin_1',
     [int]$ClickCount = 1,
     [int]$DelayMs = 220,
-    [switch]$DoubleClick
+    [switch]$DoubleClick,
+    # 右键点击：用来触发 WebView2 的 contextmenu（卡片菜单）。
+    [switch]$RightButton
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,6 +60,8 @@ $WM_MOUSEMOVE = 0x0200
 $WM_LBUTTONDOWN = 0x0201
 $WM_LBUTTONUP = 0x0202
 $WM_LBUTTONDBLCLK = 0x0203
+$WM_RBUTTONDOWN = 0x0204
+$WM_RBUTTONUP = 0x0205
 
 $lParam = [IntPtr](($Y -shl 16) -bor ($X -band 0xFFFF))
 
@@ -66,11 +70,19 @@ Start-Sleep -Milliseconds 80
 
 $clicks = if ($DoubleClick) { 2 } else { [Math]::Max(1, $ClickCount) }
 for ($i = 0; $i -lt $clicks; $i++) {
-    $downMsg = if ($DoubleClick -and $i -eq 1) { $WM_LBUTTONDBLCLK } else { $WM_LBUTTONDOWN }
+    $downMsg = if ($RightButton) {
+        $WM_RBUTTONDOWN
+    } elseif ($DoubleClick -and $i -eq 1) {
+        $WM_LBUTTONDBLCLK
+    } else {
+        $WM_LBUTTONDOWN
+    }
+    $upMsg = if ($RightButton) { $WM_RBUTTONUP } else { $WM_LBUTTONUP }
     [InputWin32]::PostMessageW($target, $downMsg, [IntPtr]1, $lParam) | Out-Null
     Start-Sleep -Milliseconds 40
-    [InputWin32]::PostMessageW($target, $WM_LBUTTONUP, [IntPtr]::Zero, $lParam) | Out-Null
+    [InputWin32]::PostMessageW($target, $upMsg, [IntPtr]::Zero, $lParam) | Out-Null
     Start-Sleep -Milliseconds $DelayMs
 }
 
-"clicked $clicks time(s) at $X,$Y on hwnd $target"
+$buttonName = if ($RightButton) { "right-clicked" } else { "clicked" }
+"$buttonName $clicks time(s) at $X,$Y on hwnd $target"

@@ -2,6 +2,7 @@ package app
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"vpk-manager/internal/grouping"
@@ -26,6 +27,17 @@ type ModGroupSuggestion struct {
 	Source string `json:"source,omitempty"`
 	// Strategy 是外部建议给出的建组策略（single/single_random/all/off），空表示默认互斥单选。
 	Strategy string `json:"strategy,omitempty"`
+	// TagKey / TagScope / TagInSet / TagOutside 描述"已有标签能多大程度代表这一批 Mod"。
+	// scope=exact（标签恰好只筛出这一批）时建议会被降权并沉到后面：直接用标签筛选即可。
+	TagKey     string `json:"tagKey,omitempty"`
+	TagScope   string `json:"tagScope,omitempty"`
+	TagInSet   int    `json:"tagInSet,omitempty"`
+	TagOutside int    `json:"tagOutside,omitempty"`
+	// Tag / TagReason / MemberTags 来自外部建议文件：智能体给这批 Mod 的标签提案。
+	// 有它时"给这组打标签"优先采用；没有则降级到规则推导（共同标签 / 组名 / 主体识别）。
+	Tag        string              `json:"tag,omitempty"`
+	TagReason  string              `json:"tagReason,omitempty"`
+	MemberTags map[string][]string `json:"memberTags,omitempty"`
 }
 
 // 信号名与限制值：与 internal/grouping 的信号目录保持一致，
@@ -97,6 +109,13 @@ func (a *App) SuggestModGroups() ([]ModGroupSuggestion, error) {
 			ExistingGroupID: existingGroupIDForKeys(existingByKey, item.MemberKeys),
 			Source:          item.Source,
 			Strategy:        item.Strategy,
+			TagKey:          item.TagKey,
+			TagScope:        item.TagScope,
+			TagInSet:        item.TagInSet,
+			TagOutside:      item.TagOutside,
+			Tag:             item.Tag,
+			TagReason:       item.TagReason,
+			MemberTags:      item.MemberTags,
 		})
 	}
 
@@ -126,22 +145,47 @@ func (a *App) SuggestModGroups() ([]ModGroupSuggestion, error) {
 }
 
 // sortSuggestionsForDisplay 把"已建组"的建议沉到末尾，其余保持引擎给出的排序。
+//
+// "标签已经能精确筛出这一批 Mod"的建议不在这里下沉：引擎的排序语义是"它有多像一个
+// 真实的组"，而"要不要看这类建议"由前端的筛选器决定（默认隐藏，可一键显示）。
 func sortSuggestionsForDisplay(suggestions []ModGroupSuggestion) {
-	stablePartition(suggestions, func(item ModGroupSuggestion) bool { return item.ExistingGroupID != "" })
+	tieredStablePartition(suggestions, func(item ModGroupSuggestion) int {
+		if item.ExistingGroupID != "" {
+			return 1
+		}
+		return 0
+	})
 }
 
-// stablePartition 把满足 moveToEnd 的条目稳定地移到切片末尾。
-func stablePartition[T any](items []T, moveToEnd func(T) bool) {
-	kept := make([]T, 0, len(items))
-	moved := make([]T, 0, len(items))
+// tieredStablePartition 按 tier 稳定分桶后按 tier 升序拼回（tier 越小越靠前）。
+func tieredStablePartition[T any](items []T, tierOf func(T) int) {
+	buckets := make(map[int][]T, 4)
+	order := make([]int, 0, 4)
 	for _, item := range items {
-		if moveToEnd(item) {
-			moved = append(moved, item)
-			continue
+		tier := tierOf(item)
+		if _, exists := buckets[tier]; !exists {
+			order = append(order, tier)
 		}
-		kept = append(kept, item)
+		buckets[tier] = append(buckets[tier], item)
 	}
-	copy(items, append(kept, moved...))
+	sort.Ints(order)
+	position := 0
+	for _, tier := range order {
+		for _, item := range buckets[tier] {
+			items[position] = item
+			position++
+		}
+	}
+}
+
+// stablePartition 把满足 moveToEnd 的条目稳定地移到切片末尾（保留给其它调用方）。
+func stablePartition[T any](items []T, moveToEnd func(T) bool) {
+	tieredStablePartition(items, func(item T) int {
+		if moveToEnd(item) {
+			return 1
+		}
+		return 0
+	})
 }
 
 // groupingMods 把 VPK 缓存翻译成推导引擎的输入（一次遍历）。
@@ -170,6 +214,7 @@ func (a *App) groupingMods() []grouping.Mod {
 			VoiceCharacters:   normalizeVoiceCharacterList(file.VoiceCharacters),
 			Folder:            groupingDirForPath(rootDir, file.Path),
 			WorkshopID:        strings.TrimSpace(file.WorkshopID),
+			ResourceRoots:     normalizeResourceRoots(file.StructureResourceRoots),
 			SourcePath:        file.Path,
 		})
 		return true
@@ -281,6 +326,29 @@ func groupingDirForPath(rootDir, filePath string) string {
 }
 
 // normalizeVoiceCharacterList 规范化语音角色名（去重、去空、保留原始大小写）。
+
+// normalizeResourceRoots 规范化"作者/套件命名空间"（去重、去空、小写、去前后斜杠）。
+func normalizeResourceRoots(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		root := strings.Trim(strings.TrimSpace(value), "/")
+		if root == "" {
+			continue
+		}
+		key := strings.ToLower(root)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, key)
+	}
+	return result
+}
+
 func normalizeVoiceCharacterList(values []string) []string {
 	if len(values) == 0 {
 		return nil

@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,28 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// refreshCatalogSource 在导出"给智能体的材料"之前重新扫描目录，保证材料反映最新状态。
+//
+// 没有配置根目录时直接返回 nil：此时导出本来就只能是空的，不需要报错。
+// ScanVPKFiles 是增量实现（未变化的文件走缓存），所以这里不会带来明显的额外开销。
+func (a *App) refreshCatalogSource() error {
+	if strings.TrimSpace(a.rootDirectorySnapshot()) == "" {
+		return nil
+	}
+	return a.ScanVPKFiles()
+}
+
+// exportGroupingCatalogFresh 是"面向用户"的导出：先重新扫描一遍目录，再写清单。
+//
+// 用户往 mod 目录里加/删文件后即使忘了点刷新，拿到的材料也必须是最新的；
+// 扫描失败不阻断导出（例如还没选目录）：记一条日志后用现有缓存继续，清单里的 Mod 数会立刻暴露问题。
+func (a *App) exportGroupingCatalogFresh(path string) (string, error) {
+	if err := a.refreshCatalogSource(); err != nil {
+		log.Printf("导出清单前重新扫描失败（使用现有缓存）: %v", err)
+	}
+	return a.ExportGroupingCatalog(path)
+}
 
 // 外部组建议（模型 / 人工 / 脚本）导入。
 //
@@ -39,7 +62,7 @@ const (
 	groupSuggestionInboxFileName = "group_suggestions.json"
 	// groupingCatalogVersion 是"导出给推导方"的清单格式版本。
 	// 与建议文件格式版本解耦：清单只增字段，但一旦字段含义变化就 bump 这里。
-	groupingCatalogVersion  = 2
+	groupingCatalogVersion   = 2
 	groupingCatalogSchemaRev = "2026-09-22.2"
 
 	// modGroupSignalExternal 标记建议来自外部文件（模型 / 人工），前端会单独展示。
@@ -54,11 +77,11 @@ const (
 
 // externalGroupSuggestionFile 是导入文件的顶层结构。
 type externalGroupSuggestionFile struct {
-	Version     int                        `json:"version"`
-	Generator   string                     `json:"generator,omitempty"`
-	GeneratedAt string                     `json:"generatedAt,omitempty"`
-	Notes       string                     `json:"notes,omitempty"`
-	Suggestions []externalGroupSuggestion  `json:"suggestions"`
+	Version     int                       `json:"version"`
+	Generator   string                    `json:"generator,omitempty"`
+	GeneratedAt string                    `json:"generatedAt,omitempty"`
+	Notes       string                    `json:"notes,omitempty"`
+	Suggestions []externalGroupSuggestion `json:"suggestions"`
 }
 
 type externalGroupSuggestion struct {
@@ -69,6 +92,12 @@ type externalGroupSuggestion struct {
 	Signals    []string          `json:"signals,omitempty"`
 	Members    []string          `json:"members"`
 	MemberNote map[string]string `json:"memberNotes,omitempty"`
+	// Tag 是"整组统一标签"：智能体判断这批 Mod 属于同一类时给出，用户一键就能给整组打上。
+	// 没给也不影响导入：LytVPK 会降级用"共同标签 / 组名 / 主体识别"来推导（见 GetGroupTagSuggestions）。
+	Tag       string `json:"tag,omitempty"`
+	TagReason string `json:"tagReason,omitempty"`
+	// MemberTags 是逐成员标签（可选，比 Tag 更细）：{"a.vpk": ["sg552", "皮肤"]}。
+	MemberTags map[string][]string `json:"memberTags,omitempty"`
 }
 
 // GroupSuggestionImportResult 汇总一次导入的结果，便于前端提示"导入了什么、跳过了什么"。
@@ -108,14 +137,14 @@ func (a *App) GetGroupSuggestionInboxPath() string {
 // modKeyIndex 建立"可匹配键 → 缓存里的 Mod"索引，覆盖
 // addonlist 键（相对 addons 路径）与裸文件名两种写法。
 type modKeyIndex struct {
-	byKey    map[string]VPKFile
-	byName   map[string][]string // 文件名（小写）→ 所有命中键
+	byKey  map[string]VPKFile
+	byName map[string][]string // 文件名（小写）→ 所有命中键
 	// byEntryID 用 `<location>/<key>` 精确定位（root/123.vpk、disabled/123.vpk）。
 	byEntryID map[string]string
 	// keysPerName 记录"同一个键在不同位置出现的次数"，用于区分真歧义与同键多副本。
 	entryIDByKey map[string][]string
-	keyOrder []string
-	rootDir  string
+	keyOrder     []string
+	rootDir      string
 }
 
 func (a *App) buildModKeyIndex() modKeyIndex {
@@ -402,18 +431,27 @@ func (a *App) convertExternalSuggestions(parsed externalGroupSuggestionFile) ([]
 		}
 
 		_ = confidence // 置信度由信号目录统一判定（high），不再逐条保存
+		// 整组标签（可选）：智能体给的标签比规则推导更准，这里原样带上，
+		// 供"给这组打标签"优先采用；没给则后续降级到规则推导。
+		candidateTag := strings.TrimSpace(raw.Tag)
+		if candidateTag != "" && validateSuggestedTag(candidateTag) != "" {
+			candidateTag = ""
+		}
 		suggestions = append(suggestions, grouping.Candidate{
 			Provider: "external",
 			Label:    label,
 			Reason:   reason,
 			// 分数按文件顺序递减：外部建议是"逐条写过"的，展示顺序应保留作者的编排，
 			// 同时仍高于内置启发式（90 → 89 → …，外部信号属于 curated，不做规模降权）。
-			Score:    externalSuggestionScore(position),
-			Signals:  signals,
-			Keys:     keys,
-			Names:    names,
-			Source:   modGroupSuggestionSourceExternal,
-			Strategy: strategy,
+			Score:      externalSuggestionScore(position),
+			Signals:    signals,
+			Keys:       keys,
+			Names:      names,
+			Source:     modGroupSuggestionSourceExternal,
+			Strategy:   strategy,
+			Tag:        candidateTag,
+			TagReason:  strings.TrimSpace(raw.TagReason),
+			MemberTags: normalizeExternalMemberTags(raw.MemberTags),
 		})
 		result.Imported++
 		result.MemberCount += len(keys)
@@ -523,9 +561,47 @@ func (a *App) GetExternalGroupSuggestions() ([]ModGroupSuggestion, error) {
 			MemberNames: candidate.Names,
 			Source:      candidate.Source,
 			Strategy:    candidate.Strategy,
+			Tag:         candidate.Tag,
+			TagReason:   candidate.TagReason,
+			MemberTags:  candidate.MemberTags,
 		})
 	}
 	return suggestions, nil
+}
+
+// normalizeExternalMemberTags 清洗逐成员标签：去空、去重（忽略大小写）、丢掉非法标签。
+func normalizeExternalMemberTags(raw map[string][]string) map[string][]string {
+	if len(raw) == 0 {
+		return nil
+	}
+	result := make(map[string][]string, len(raw))
+	for key, tags := range raw {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			continue
+		}
+		cleaned := make([]string, 0, len(tags))
+		seen := make(map[string]struct{}, len(tags))
+		for _, tag := range tags {
+			value := strings.TrimSpace(tag)
+			if value == "" || validateSuggestedTag(value) != "" {
+				continue
+			}
+			folded := strings.ToLower(value)
+			if _, duplicate := seen[folded]; duplicate {
+				continue
+			}
+			seen[folded] = struct{}{}
+			cleaned = append(cleaned, value)
+		}
+		if len(cleaned) > 0 {
+			result[trimmedKey] = cleaned
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 // ImportGroupSuggestionsFromFile 校验一个建议文件并复制到收件箱，
@@ -579,7 +655,18 @@ func (a *App) ImportGroupSuggestionsOpenDialog() (GroupSuggestionImportResult, e
 	if strings.TrimSpace(sourcePath) == "" {
 		return GroupSuggestionImportResult{}, nil
 	}
-	return a.ImportGroupSuggestionsFromFile(sourcePath)
+	return a.importGroupSuggestionsFresh(sourcePath)
+}
+
+// importGroupSuggestionsFresh 供界面入口使用：先按当前磁盘状态重新扫描一遍，再导入。
+//
+// 否则"导出材料 → 用户在资源管理器里加/删了 Mod → 导入"时，新加的成员会被误判成"未匹配"。
+// 低层 ImportGroupSuggestionsFromFile 保持"按当前缓存解析"的语义（CLI、测试与内部复用）。
+func (a *App) importGroupSuggestionsFresh(path string) (GroupSuggestionImportResult, error) {
+	if err := a.refreshCatalogSource(); err != nil {
+		log.Printf("导入建议前重新扫描失败（使用现有缓存）: %v", err)
+	}
+	return a.ImportGroupSuggestionsFromFile(path)
 }
 
 // GroupSuggestionValidationMember 是 dry-run 校验里单个成员的解析结果。
@@ -599,19 +686,25 @@ type GroupSuggestionValidationItem struct {
 	Strategy    string                            `json:"strategy,omitempty"`
 	MemberCount int                               `json:"memberCount"`
 	Members     []GroupSuggestionValidationMember `json:"members"`
+	Tag         string                            `json:"tag,omitempty"`
+	TagReason   string                            `json:"tagReason,omitempty"`
+	MemberTags  int                               `json:"memberTags,omitempty"`
 	Problems    []string                          `json:"problems,omitempty"`
 }
 
 // GroupSuggestionValidation 是 dry-run 的完整结果：逐条建议 + 逐成员 + 全部警告。
 type GroupSuggestionValidation struct {
-	File        string                          `json:"file"`
-	Generator   string                          `json:"generator,omitempty"`
-	Total       int                             `json:"total"`
-	Valid       int                             `json:"valid"`
-	Invalid     int                             `json:"invalid"`
-	MemberCount int                             `json:"memberCount"`
-	Items       []GroupSuggestionValidationItem `json:"items"`
-	Warnings    []string                        `json:"warnings,omitempty"`
+	File        string `json:"file"`
+	Generator   string `json:"generator,omitempty"`
+	Total       int    `json:"total"`
+	Valid       int    `json:"valid"`
+	Invalid     int    `json:"invalid"`
+	MemberCount int    `json:"memberCount"`
+	// WithTags / TaggedMembers 让外部智能体自检"标签覆盖到没到"。
+	WithTags      int                             `json:"withTags"`
+	TaggedMembers int                             `json:"taggedMembers"`
+	Items         []GroupSuggestionValidationItem `json:"items"`
+	Warnings      []string                        `json:"warnings,omitempty"`
 }
 
 // ValidateGroupSuggestionsFile 只读校验建议文件（dry-run）：不写收件箱、不改任何文件，
@@ -652,6 +745,31 @@ func (a *App) ValidateGroupSuggestionsFile(path string) (GroupSuggestionValidati
 				item.Strategy = normalized
 			}
 		}
+		// 标签是可选的：给了就校验（过长 / 含分隔符都会破坏文件名或导入格式），
+		// 没给就交给 LytVPK 的规则推导兜底。
+		if tag := strings.TrimSpace(raw.Tag); tag != "" {
+			item.Tag = tag
+			item.TagReason = strings.TrimSpace(raw.TagReason)
+			if problem := validateSuggestedTag(tag); problem != "" {
+				item.Problems = append(item.Problems, problem)
+			} else {
+				result.WithTags++
+			}
+		}
+		if len(raw.MemberTags) > 0 {
+			item.MemberTags = len(raw.MemberTags)
+			for rawKey, tags := range raw.MemberTags {
+				if strings.TrimSpace(rawKey) == "" {
+					item.Problems = append(item.Problems, "memberTags 里有空的成员键")
+					continue
+				}
+				for _, tag := range tags {
+					if problem := validateSuggestedTag(tag); problem != "" {
+						item.Problems = append(item.Problems, "memberTags："+problem)
+					}
+				}
+			}
+		}
 
 		seenKeys := make(map[string]struct{}, len(raw.Members))
 		for _, member := range raw.Members {
@@ -681,6 +799,7 @@ func (a *App) ValidateGroupSuggestionsFile(path string) (GroupSuggestionValidati
 		}
 
 		item.MemberCount = len(seenKeys)
+		result.TaggedMembers += item.MemberTags
 		if item.MemberCount < modGroupSuggestionMinMembers {
 			item.Problems = append(item.Problems, fmt.Sprintf("有效成员不足 %d 个", modGroupSuggestionMinMembers))
 		}
@@ -698,17 +817,29 @@ func (a *App) ValidateGroupSuggestionsFile(path string) (GroupSuggestionValidati
 	}
 
 	// 完整警告（不再只保留前 3 条）：未匹配成员逐个列出。
+	unmatched := 0
 	for _, item := range result.Items {
 		for _, member := range item.Members {
 			if member.Matched {
 				continue
 			}
+			unmatched++
 			result.Warnings = append(result.Warnings,
 				fmt.Sprintf("「%s」找不到成员：%s", item.Label, member.Raw))
 		}
 	}
+	if unmatched > 0 {
+		// 最常见的原因不是文件写错，而是"导出材料之后 Mod 目录又被改动过"：
+		// 这类漂移要说清楚怎么修，否则会被误判成建议文件的问题。
+		result.Warnings = append(result.Warnings,
+			fmt.Sprintf("共有 %d 个成员未匹配：如果这份建议是根据早先导出的清单写的，"+
+				"而之后又往 mod 目录里加/删/移动过文件，请**重新导出材料**再让智能体更新成员引用"+
+				"（点「准备给智能体的材料」即可，导出前会自动重新扫描）；"+
+				"确实已删除的成员请从建议里去掉。", unmatched))
+	}
 	return result, nil
 }
+
 // ClearExternalGroupSuggestions 移除收件箱文件（不会删除任何 Mod 或已创建的策略组）。
 func (a *App) ClearExternalGroupSuggestions() error {
 	path := a.groupSuggestionInboxPath()
@@ -723,6 +854,10 @@ func (a *App) ClearExternalGroupSuggestions() error {
 
 // ExportGroupingCatalog 导出当前已扫描 Mod 的"分组用元数据"，
 // 供外部推导方（大模型 / 人工 / 脚本）分析后写出建议文件。
+//
+// 这是**低层**导出：只把当前缓存写出来，不扫描。面向用户的入口
+// （「导出 Mod 清单…」「准备给智能体的材料」）请用 exportGroupingCatalogFresh，
+// 它保证"先重新扫描、再导出"。
 func (a *App) ExportGroupingCatalog(path string) (string, error) {
 	target := strings.TrimSpace(path)
 	if target == "" {
@@ -783,19 +918,20 @@ func (a *App) ExportGroupingCatalog(path string) (string, error) {
 	clusterHints := a.catalogClusterHints(mods, entryIDByKey)
 	duplicateGroups := buildDuplicateGroups(entries)
 	payload := groupingCatalogFile{
-		Version:     groupingCatalogVersion,
-		SchemaRev:   groupingCatalogSchemaRev,
+		Version:   groupingCatalogVersion,
+		SchemaRev: groupingCatalogSchemaRev,
 		Capabilities: []string{
 			"entryId", "structure", "structure.targets", "workshopMeta", "addonInfo",
 			"management", "coverage", "scope", "clusterHints.full", "ungroupedKeys",
 			"duplicateGroups", "xdrSlots", "unreadableMods", "themeHints", "preloadHints",
+			"structure.resourceRoots",
 		},
-		GeneratedAt: time.Now().Format(time.RFC3339),
-		Generator:   "LytVPK " + AppVersion,
-		ModCount:    len(entries),
-		Mods:        entries,
-		Scope:       a.catalogScope(),
-		UnreadableMods: a.unreadableModSnapshot(),
+		GeneratedAt:     time.Now().Format(time.RFC3339),
+		Generator:       "LytVPK " + AppVersion,
+		ModCount:        len(entries),
+		Mods:            entries,
+		Scope:           a.catalogScope(),
+		UnreadableMods:  a.unreadableModSnapshot(),
 		DuplicateGroups: duplicateGroups,
 		ClusterHints:    clusterHints,
 		UngroupedKeys:   ungroupedKeys(entries, clusterHints),
@@ -840,7 +976,7 @@ func (a *App) ExportGroupingCatalogDialog() (string, error) {
 	if strings.TrimSpace(target) == "" {
 		return "", nil
 	}
-	return a.ExportGroupingCatalog(target)
+	return a.exportGroupingCatalogFresh(target)
 }
 
 type groupingCatalogFile struct {
@@ -849,10 +985,10 @@ type groupingCatalogFile struct {
 	SchemaRev string `json:"schemaRev"`
 	// Capabilities 声明本版清单具备的能力，避免"同 version 但字段完全不同"的情况。
 	Capabilities []string               `json:"capabilities"`
-	GeneratedAt string                 `json:"generatedAt"`
-	Generator   string                 `json:"generator"`
-	ModCount    int                    `json:"modCount"`
-	Mods        []groupingCatalogEntry `json:"mods"`
+	GeneratedAt  string                 `json:"generatedAt"`
+	Generator    string                 `json:"generator"`
+	ModCount     int                    `json:"modCount"`
+	Mods         []groupingCatalogEntry `json:"mods"`
 	// Scope 说明本次扫描覆盖哪些位置、哪些位置被有意排除。
 	Scope *groupingCatalogScope `json:"scope,omitempty"`
 	// UnreadableMods 是"磁盘上有、但解析失败"的文件（例如扩展名是 .vpk 实为 ZIP）。
@@ -916,21 +1052,27 @@ type groupingCatalogCluster struct {
 // 同一主题名出现在多个不同替换目标上（例如同一把近战/武器皮肤 + 通用材质），
 // 这类集合更适合用 all（整套一起启用）。
 type groupingCatalogThemeHint struct {
-	Theme      string   `json:"theme"`
+	Theme string `json:"theme"`
 	// MemberEntryIDs 用 entryId 寻址（同键多位置也能区分）。
 	MemberEntryIDs []string `json:"memberEntryIds"`
 	MemberKeys     []string `json:"memberKeys,omitempty"`
-	Subjects   []string `json:"subjects,omitempty"`
-	Reason     string   `json:"reason,omitempty"`
+	Subjects       []string `json:"subjects,omitempty"`
+	Reason         string   `json:"reason,omitempty"`
 }
 
 // groupingCatalogPreloadHint 是"可能是前置库"的候选：
 // 名称/标题里带有 库 / 前置 / Base / lib / xdReanimsBase / KSEP 等特征，
 // 这类 Mod 通常被别的 Mod 依赖，适合单独成组或用 all 常开。
 type groupingCatalogPreloadHint struct {
-	Key    string `json:"key"`
-	Title  string `json:"title"`
-	Reason string `json:"reason"`
+	Key   string `json:"key"`
+	Title string `json:"title"`
+	// EntryID / MemberEntryIDs 与其它 hint 对齐：root 与 disabled 同名共用 key 时也能精确定位。
+	EntryID string `json:"entryId"`
+	// EntryIDs 是 EntryID 的数组形式：为了与 duplicateGroups[].entryIds 命名一致，
+	// 让外部推导方用同一套字段名处理所有 hint（前置库通常只有一个条目，所以长度为 1）。
+	EntryIDs       []string `json:"entryIds"`
+	MemberEntryIDs []string `json:"memberEntryIds"`
+	Reason         string   `json:"reason"`
 }
 
 // priorityLayer 记录某个 Mod 的有效分层与来源。
@@ -1462,9 +1604,12 @@ func buildPreloadHints(entries []groupingCatalogEntry) []groupingCatalogPreloadH
 				continue
 			}
 			hints = append(hints, groupingCatalogPreloadHint{
-				Key:    entry.Key,
-				Title:  entry.Title,
-				Reason: fmt.Sprintf("名称包含「%s」，可能是被其它 Mod 依赖的前置库（建议单独成组并用 all 常开）", keyword),
+				Key:            entry.Key,
+				Title:          entry.Title,
+				EntryID:        entry.EntryID,
+				EntryIDs:       []string{entry.EntryID},
+				MemberEntryIDs: []string{entry.EntryID},
+				Reason:         fmt.Sprintf("名称包含「%s」，可能是被其它 Mod 依赖的前置库（建议单独成组并用 all 常开）", keyword),
 			})
 			break
 		}
@@ -1505,11 +1650,12 @@ func catalogStructureFor(file parser.VPKFile) *groupingCatalogStructure {
 		return nil
 	}
 	return &groupingCatalogStructure{
-		TopDirs:     file.StructureTopDirs,
-		FileCount:   file.StructureFileCount,
-		TotalSize:   file.StructureTotalSize,
-		SamplePaths: file.StructureSamplePaths,
-		Targets:     file.StructureTargets,
+		TopDirs:       file.StructureTopDirs,
+		FileCount:     file.StructureFileCount,
+		TotalSize:     file.StructureTotalSize,
+		SamplePaths:   file.StructureSamplePaths,
+		Targets:       file.StructureTargets,
+		ResourceRoots: file.StructureResourceRoots,
 	}
 }
 
@@ -1562,12 +1708,24 @@ func buildDuplicateGroups(entries []groupingCatalogEntry) []groupingCatalogDupli
 			}
 			seen[signature] = struct{}{}
 			sort.Strings(memberKeys)
-			groups = append(groups, groupingCatalogDuplicateGroup{
+			record := groupingCatalogDuplicateGroup{
 				Reason:   reason,
 				EntryIDs: entryIDs,
 				Keys:     memberKeys,
 				Names:    names,
-			})
+			}
+			// 归一化后是同一个 addonlist 键 → 应用侧会合并成一个成员，无法成组。
+			distinctKeys := make(map[string]struct{}, len(memberKeys))
+			for _, key := range memberKeys {
+				distinctKeys[strings.ToLower(strings.TrimSpace(key))] = struct{}{}
+			}
+			if len(distinctKeys) < len(memberKeys) {
+				record.SingleAddonListKey = true
+				record.Note = "这些文件解析后是同一个 addonlist 键（同一 Mod 的两份文件），应用会把它们视为同一个成员，" +
+					"因此不能用来创建 ≥2 成员的策略组，也不存在「二选一」；" +
+					"真要二选一请直接删掉其中一份（游戏只认得一个 addonlist 条目）。"
+			}
+			groups = append(groups, record)
 			if len(groups) >= 400 {
 				return
 			}
@@ -1601,14 +1759,14 @@ type groupingCatalogEntry struct {
 	Folder            string   `json:"folder,omitempty"`
 	Location          string   `json:"location,omitempty"`
 	// RelativePath 是相对 addons 根目录的物理路径（保留 disabled / workshop 前缀）。
-	RelativePath      string   `json:"relativePath,omitempty"`
-	GameEnabled       bool     `json:"gameEnabled"`
-	GameStateKnown    bool     `json:"gameStateKnown"`
-	Size              int64    `json:"size,omitempty"`
-	LastModified      string   `json:"lastModified,omitempty"`
-	LoadOrder         int      `json:"loadOrder,omitempty"`
-	EffectiveLayer    *int     `json:"effectiveLayer,omitempty"`
-	PrioritySource    string   `json:"prioritySource,omitempty"`
+	RelativePath   string `json:"relativePath,omitempty"`
+	GameEnabled    bool   `json:"gameEnabled"`
+	GameStateKnown bool   `json:"gameStateKnown"`
+	Size           int64  `json:"size,omitempty"`
+	LastModified   string `json:"lastModified,omitempty"`
+	LoadOrder      int    `json:"loadOrder,omitempty"`
+	EffectiveLayer *int   `json:"effectiveLayer,omitempty"`
+	PrioritySource string `json:"prioritySource,omitempty"`
 	// Structure 是 VPK 内部结构摘要（顶层目录、条目数、体积、代表性资源路径）。
 	Structure *groupingCatalogStructure `json:"structure,omitempty"`
 	// AddonInfo 来自 VPK 内的 addoninfo.txt（版本、描述、主页、更新标记等）。
@@ -1673,12 +1831,21 @@ type groupingCatalogStructure struct {
 	// Targets 是压缩后的"替换目标"（如 props_interiors/medicalcabinet02），
 	// 比原始路径更适合直接给大模型比较。
 	Targets []string `json:"targets,omitempty"`
+	// ResourceRoots 是"作者/套件命名空间"（models/<作者>/<套件>，如 913limod/airi_evilfall、
+	// codm/ice）：同一个套件的本体 / 配件 / 贴图包 / 参数包共享它，是"需要一起启用"的结构证据。
+	ResourceRoots []string `json:"resourceRoots,omitempty"`
 }
 
 type groupingCatalogDuplicateGroup struct {
-	Reason string   `json:"reason"`
+	Reason string `json:"reason"`
 	// EntryIDs 用 entryId 寻址；Keys 仅作为兼容展示。
 	EntryIDs []string `json:"entryIds"`
 	Keys     []string `json:"keys,omitempty"`
 	Names    []string `json:"names,omitempty"`
+	// SingleAddonListKey 表示这一组副本解析后其实是**同一个 addonlist 键**
+	// （典型情况：同一文件在 root 与 disabled 各有一份）。
+	// 应用侧会把它们视为同一个成员，所以它**不能**用来建 ≥2 成员的策略组，
+	// 只能作为"同一 Mod 的两份文件"的信息参考。
+	SingleAddonListKey bool   `json:"singleAddonListKey,omitempty"`
+	Note               string `json:"note,omitempty"`
 }

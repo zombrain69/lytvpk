@@ -118,6 +118,7 @@ func runExportGroupingCatalog(target string) int {
 		writeCLIError(err)
 		return 2
 	}
+	// newHeadlessApp 启动时已经扫过一次，这里直接用低层导出，避免重复扫描。
 	written, err := a.ExportGroupingCatalog(target)
 	if err != nil {
 		writeCLIError(err)

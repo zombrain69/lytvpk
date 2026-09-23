@@ -334,9 +334,19 @@
   font-size: 0.8rem;
 }
 
+/* 顺序说明：告诉用户这份列表是按组权重排的（未设置排最后），子组跟随父组。 */
+.mod-group-filter-order-hint {
+  margin: -2px 0 var(--spacing-2);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
 .mod-group-filter-row {
   display: flex;
   align-items: center;
+  /* 组行带 7 个动作（前移/后移/开关/加入/移出/重命名/删除），窄窗口下换行显示。 */
+  flex-wrap: wrap;
   gap: var(--spacing-2);
   padding: 4px 0;
 }
@@ -354,7 +364,494 @@
 
 .mod-group-filter-actions {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-2) var(--spacing-3);
+}
+
+.mod-group-filter-actions .btn-link {
+  font-size: 0.78rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.mod-group-filter-actions .btn-link:disabled {
+  color: var(--text-secondary);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mod-group-filter-actions .btn-link.is-danger {
+  color: var(--danger, #f85149);
+}
+
+/* 折叠卡片的标题按钮：看起来像标题，点一下展开。 */
+.mod-group-suggest-title {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mod-group-suggest-title:hover {
+  color: var(--primary);
+}
+
+.mod-group-suggest-count {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* 加入 / 移出 / 移动到策略组的选择器 */
+.group-picker-content {
+  width: min(760px, 94vw);
+  min-width: min(560px, 90vw);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 搜索 + 筛选：固定在滚动区外，组一多也不用先滚上去找搜索框。 */
+.group-picker-toolbar {
+  display: flex;
+  align-items: center;
   gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-5) 0;
+}
+
+.group-picker-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.group-picker-relevant {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.group-picker-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.group-picker-summary {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+
+.group-picker-visible {
+  margin: 0 0 var(--spacing-3);
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+
+.group-picker-hint {
+  margin: 0;
+  padding: 0 var(--spacing-5) var(--spacing-2);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.group-picker-empty {
+  padding: 18px 4px;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  text-align: center;
+}
+
+/* 键盘高亮行：与鼠标 hover 区分开，方向键导航时能一眼看到落点。 */
+.group-picker-row.is-active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.group-picker-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.group-picker-row-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.group-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.group-picker-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.group-picker-row:hover {
+  border-color: var(--primary);
+}
+
+.group-picker-row.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.group-picker-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.group-picker-row-meta {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.group-picker-new-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  /* 位于滚动区之外：策略组很多、列表需要滚动时也要常显。 */
+  flex: 0 0 auto;
+  padding: var(--spacing-3) var(--spacing-5);
+  border-top: 1px dashed var(--border-default);
+}
+
+.group-picker-new-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+/* 「策略组管理」独立窗口：策略组的完整生命周期都在这里，设置页不再放这一块。
+   用 ID 作用域保证能压过 .modal-content 的通用宽度，并允许用户拖动边缘自由缩放。 */
+#strategy-group-modal .strategy-group-content {
+  width: min(1100px, 94vw);
+  max-width: min(1100px, 94vw);
+  min-width: min(680px, 90vw);
+  min-height: 380px;
+  max-height: 88vh;
+  height: 78vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#strategy-group-modal .strategy-group-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.strategy-group-hint {
+  margin: 0 0 var(--spacing-3);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+/* 浮动窗口的通用样式在 app/modals-details.css 的 .modal.is-floating（所有管理窗口共用）。 */
+/* 组列表：一行一个组，操作按钮换行排布，窗口拉宽后能一眼看更多组。 */
+.strategy-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#strategy-group-modal .settings-profile-item {
+  flex-wrap: wrap;
+}
+
+/* 「展开成员」后的成员明细：占满整行，行内按钮复用分组建议的样式。 */
+.strategy-group-members {
+  flex: 1 0 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.5rem 0.15rem;
+  border-left: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
+}
+
+.strategy-group-members[hidden] {
+  display: none;
+}
+
+#strategy-group-modal .mod-member-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+#strategy-group-modal .mod-member-actions .btn {
+  white-space: nowrap;
+  min-width: max-content;
+}
+
+.settings-strategy-member-remove {
+  border-color: color-mix(in srgb, var(--danger, #f85149) 35%, var(--border-light));
+  color: var(--danger, #f85149);
+}
+
+/* 「筛选这组」：点亮表示该组正在作为主界面的分组筛选。 */
+.settings-strategy-filter {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border-default));
+  color: var(--text-primary);
+}
+
+.settings-strategy-filter.is-active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* 正在筛选的组整行给一点底色，方便一眼看出"主界面现在只看这些组"。 */
+#strategy-group-modal .settings-profile-item.is-filtered {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border-default));
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.strategy-group-filter-state {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+/* 「标签已覆盖」徽标：说明这条建议可以直接用标签筛选代替 */
+.mod-group-suggest-tag-badge {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border-default));
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* 「导入标签」徽标：这条建议来自外部文件，且文件里已经带了标签提案 */
+.mod-group-suggest-import-tag {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--success, #3fb950) 45%, var(--border-default));
+  background: color-mix(in srgb, var(--success, #3fb950) 12%, transparent);
+  color: var(--success, #3fb950);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* 「给这组打标签」对话框 */
+.group-tag-content {
+  width: min(620px, 92vw);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.group-tag-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.group-tag-summary {
+  margin: 0 0 var(--spacing-3);
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+
+.group-tag-field {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+  font-size: 0.85rem;
+}
+
+.group-tag-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.group-tag-hint {
+  margin: 0 0 var(--spacing-3);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.group-tag-preview-line {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.group-tag-preview-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.group-tag-preview-name {
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+/* 「编辑智能体提示词」对话框 */
+/* 入口在「分组建议」弹窗的工具栏里，所以必须比普通模态框（--z-modal）更高一层，
+   否则会被后出现在 DOM 里的分组建议弹窗盖住。 */
+#agent-prompt-modal {
+  z-index: var(--z-popover);
+}
+
+.agent-prompt-content {
+  width: min(980px, 94vw);
+  min-height: 520px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  /* 提示词很长，允许拖动缩放（尺寸不持久化：这是低频操作）。 */
+  resize: both;
+  overflow: hidden;
+}
+
+.agent-prompt-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.agent-prompt-status {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.agent-prompt-placeholders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.agent-prompt-placeholder-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-prompt-placeholder {
+  padding: 1px 8px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.agent-prompt-textarea {
+  flex: 1 1 auto;
+  min-height: 320px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.agent-prompt-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.agent-prompt-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.agent-prompt-footer-spacer {
+  flex: 1;
 }
 
 .mod-group-filter-empty {
@@ -385,15 +882,111 @@
 #mod-group-suggest-modal .mod-group-suggest-content {
   width: min(1180px, 95vw);
   max-width: min(1180px, 95vw);
+  min-width: min(760px, 92vw);
+  min-height: 460px;
   max-height: 88vh;
+  height: 86vh;
   display: flex;
   flex-direction: column;
+  /* 右下角可拖动缩放：用户可以把窗口拉大，一次看更多建议。 */
+  resize: both;
+  overflow: hidden;
 }
 
 #mod-group-suggest-modal .mod-group-suggest-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* 筛选栏：搜索 + 置信度 / 来源 / 排序 + 展开折叠，永远在滚动区之外。 */
+.mod-group-suggest-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: var(--spacing-3);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px solid var(--border-default);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-surface);
+}
+
+.mod-group-suggest-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.mod-group-suggest-select {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.mod-group-suggest-more-row {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-3) 0 var(--spacing-2);
+}
+
+/* 折叠态卡片：一行摘要 + 成员预览，用来"先扫一遍"。 */
+.mod-group-suggest-card.is-collapsed {
+  padding: var(--spacing-3) var(--spacing-4);
+}
+
+.mod-group-suggest-card.is-collapsed .mod-group-suggest-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.mod-group-suggest-preview-item {
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+}
+
+.mod-group-suggest-preview-more {
+  color: var(--text-secondary);
+  align-self: center;
+}
+
+.mod-group-suggest-summary {
+  font-size: 0.78rem;
+}
+
+.mod-group-suggest-toggle {
+  flex: 0 0 auto;
+}
+
+/* 折叠时只显示摘要行，隐藏成员明细与操作区。 */
+.mod-group-suggest-card.is-collapsed .mod-group-suggest-members,
+.mod-group-suggest-card.is-collapsed .mod-group-suggest-actions {
+  display: none;
+}
+
+/* 展开后成员明细已经给出完整信息，摘要里的成员预览就不必重复。 */
+.mod-group-suggest-card:not(.is-collapsed) .mod-group-suggest-preview {
+  display: none;
 }
 
 /* 成员列表放宽：默认 180px 高度 + 横向自动换行在大界面下反而更难读。 */
@@ -2322,6 +2915,8 @@
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: translateY(-65%) rotate(45deg);
+  /* 装饰性箭头：不吃点击（历史上 .btn::before 就因此截走了左侧按钮的点击）。 */
+  pointer-events: none;
   opacity: 0.7;
 }
 
@@ -2476,6 +3071,7 @@
   border-right: 2px solid white;
   border-bottom: 2px solid white;
   transform: rotate(45deg);
+  pointer-events: none;
 }
 
 /* 固定的内容预设：完整分类不受当前目录实际扫描结果影响。 */
@@ -2796,6 +3392,7 @@
   border-right: 2px solid white;
   border-bottom: 2px solid white;
   transform: rotate(45deg);
+  pointer-events: none;
 }
 
 .preset-tag-option span {
@@ -3408,6 +4005,8 @@
   background: transparent;
   transition: background var(--duration-200) var(--ease-out);
   z-index: 1; /* 确保在内容之上 */
+  /* 只是选中态的左侧色条，不能拦截卡片本身的点击。 */
+  pointer-events: none;
 }
 
 .file-item:nth-child(even) {
@@ -3560,6 +4159,7 @@
   color: white;
   font-size: var(--text-xs);
   font-weight: 600;
+  pointer-events: none;
 }
 
 .file-checkbox:hover {

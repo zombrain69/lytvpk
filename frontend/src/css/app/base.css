@@ -253,6 +253,9 @@ body {
   left: -100%;
   width: 100%;
   height: 100%;
+  /* 纯装饰的扫光：必须不吃点击。否则它停在按钮左侧、与按钮同宽，
+     会把左边那个按钮（例如"详情"）的点击全部截走 —— 表现为"按钮有偏移"。 */
+  pointer-events: none;
   background: linear-gradient(
     90deg,
     transparent,

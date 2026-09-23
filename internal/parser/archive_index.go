@@ -22,14 +22,16 @@ type archivePathIndex struct {
 
 	// 结构摘要：给"分组推导 / 外部智能体"用的 VPK 内部结构信息。
 	// 这些数据在同一遍遍历里顺带统计，不需要额外读取 VPK。
-	topDirs      map[string]int
-	fileCount    int
-	totalSize    int64
-	samplePaths  []string
+	topDirs     map[string]int
+	fileCount   int
+	totalSize   int64
+	samplePaths []string
 	// 更紧凑的"替换目标"摘要（如 props_interiors/medicalcabinet02）：
 	// 给智能体判断"覆盖了哪些资源"，同时避免清单体积失控。
 	resourceTargets []string
 	targetSeen      map[string]struct{}
+	// 作者/套件命名空间（models/<作者>/<套件>）的出现次数：同一个套件的多个 VPK 会共享它。
+	sourceRoots map[string]int
 
 	characterFiles  []archivePathEntry
 	weaponFiles     []archivePathEntry
@@ -49,6 +51,7 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 	index := archivePathIndex{
 		topDirs:         make(map[string]int),
 		targetSeen:      make(map[string]struct{}, 16),
+		sourceRoots:     make(map[string]int),
 		characterFiles:  make([]archivePathEntry, 0),
 		weaponFiles:     make([]archivePathEntry, 0),
 		missionFiles:    make([]*vpk.File, 0),
@@ -105,6 +108,8 @@ const (
 	structureSamplePathLimit     = 5
 	structureResourceTargetLimit = 6
 	structureSamplePathMaxRunes  = 100
+	// 一个 VPK 最多记录 6 个套件命名空间（清单要被读进上下文，必须克制）。
+	structureResourceRootLimit = 6
 )
 
 // collectStructure 统计顶层目录、条目数、体积，并挑选有代表性的资源路径。
@@ -130,6 +135,113 @@ func (index *archivePathIndex) collectStructure(name string) {
 			index.resourceTargets = append(index.resourceTargets, target)
 		}
 	}
+	if root := structureSuiteNamespace(name); root != "" {
+		index.sourceRoots[root]++
+	}
+}
+
+// structureSuiteNamespace 识别"作者/套件命名空间"：
+//
+//	materials/models/<作者>/<套件>/…  → <作者>/<套件>
+//	models/<作者>/<套件>/…            → <作者>/<套件>
+//
+// 官方根（weapons/survivors/w_models/v_models/infected/props… 等）不算 —— 它们下面共享的是
+// "同一个游戏对象的多个替换"，属于互斥候选，而不是同一套件的配套模块。
+// 套件段明显是文件名残留（例如 `rescue_pilot_01.vvd`）时也丢弃。
+func structureSuiteNamespace(name string) string {
+	parts := strings.Split(name, "/")
+	modelsIndex := -1
+	for i, part := range parts {
+		if part == "models" {
+			modelsIndex = i
+			break
+		}
+	}
+	if modelsIndex >= 0 && len(parts) >= modelsIndex+3 {
+		root := parts[modelsIndex+1]
+		suite := parts[modelsIndex+2]
+		if root != "" && suite != "" &&
+			!isOfficialResourceRoot(root) && !isGenericSuiteSegment(suite) && !looksLikeAssetFileName(suite) {
+			return root + "/" + suite
+		}
+		return ""
+	}
+	// 没有 models 段时（真实例子：死库水套件在 materials 下且层级不统一）：
+	//   materials/sikushui/mo/white_2.vtf   → sikushui
+	//   materials/qkl/mo/sikushui/waitao.vtf → sikushui
+	// 取 materials 之后**第一个长度 ≥4、非通用的目录段**作为套件候选片段，
+	// 这样不同层级的同名套件目录也能收敛到同一个值。
+	if len(parts) < 3 || parts[0] != "materials" {
+		return ""
+	}
+	for _, segment := range parts[1 : len(parts)-1] {
+		if segment == "" || looksLikeAssetFileName(segment) {
+			continue
+		}
+		// 一旦走进官方/通用资源树（props / vgui / models / particle…），后面的段都是
+		// 游戏对象名（crates、hud、crosshair…），不能再当套件命名空间 —— 直接放弃。
+		if isOfficialResourceRoot(segment) || isGenericSuiteSegment(segment) {
+			return ""
+		}
+		if len([]rune(segment)) >= 4 {
+			return segment
+		}
+	}
+	return ""
+}
+
+// officialResourceRoots 是游戏自带资源树的根：这些目录下的多个替换是"互斥候选"，
+// 不是"同一套件的配套模块"。
+var officialResourceRoots = map[string]struct{}{
+	"weapons": {}, "survivors": {}, "w_models": {}, "v_models": {},
+	"infected": {}, "zombie": {}, "zombie_classic": {}, "humans": {}, "player": {},
+	"props": {}, "props_unique": {}, "props_junk": {}, "props_vehicles": {},
+	"props_equipment": {}, "props_interiors": {}, "props_urban": {}, "props_office": {},
+	"props_doors": {}, "props_placeable": {}, "props_debris": {}, "props_downtown": {},
+	"props_foliage": {}, "props_street": {}, "props_misc": {}, "props_industrial": {},
+	"props_energy": {}, "props_crates": {}, "deadbodies": {}, "error": {},
+	"lights": {}, "detail": {}, "overlay": {}, "shared": {}, "hybridphysx": {},
+	"xdreanims": {},
+	// 地图/临时容器：里面的目录是地图道具，不是套件（真实误报：
+	// `static/nmrih_officeboxes1` 把两个地图 Mod 凑成了"套装"）。
+	"static": {}, "tmp_mod": {}, "graffiti": {}, "brick": {},
+}
+
+// genericSuiteSegments 是出现频率极高、没有区分度的目录名（materials 分支用）。
+var genericSuiteSegments = map[string]struct{}{
+	"models": {}, "materials": {}, "weapons": {}, "w_models": {}, "v_models": {},
+	"props": {}, "props_unique": {}, "survivors": {}, "infected": {}, "zombie": {},
+	"vgui": {}, "ui": {}, "gui": {}, "hud": {}, "particle": {}, "particles": {},
+	"effects": {}, "decals": {}, "sprites": {}, "skybox": {}, "console": {},
+	"detail": {}, "overlay": {}, "lights": {}, "tools": {}, "toolstextures": {},
+	"scripts": {}, "sound": {}, "sounds": {}, "shared": {}, "common": {}, "default": {},
+	"base": {}, "body": {}, "face": {}, "hair": {}, "cloth": {}, "clothes": {},
+	"texture": {}, "textures": {}, "icon": {}, "icons": {}, "temp": {}, "tmp": {},
+	// 地图道具容器（真实误报：`ill_hanger/props`）。
+	"static": {}, "tmp_mod": {},
+}
+
+func isOfficialResourceRoot(segment string) bool {
+	_, official := officialResourceRoots[segment]
+	return official
+}
+
+func isGenericSuiteSegment(segment string) bool {
+	_, generic := genericSuiteSegments[segment]
+	return generic
+}
+
+// looksLikeAssetFileName 判断这一段是不是"具体文件名"（而不是目录名）。
+func looksLikeAssetFileName(segment string) bool {
+	if !strings.Contains(segment, ".") {
+		return false
+	}
+	switch filepath.Ext(segment) {
+	case ".vmt", ".vtf", ".mdl", ".vvd", ".vtx", ".phy", ".wav", ".mp3", ".txt",
+		".res", ".png", ".jpg", ".jpeg", ".gif", ".ani", ".bsp", ".vbsp", ".nav", ".pcf":
+		return true
+	}
+	return false
 }
 
 func truncateRunes(value string, limit int) string {

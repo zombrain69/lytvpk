@@ -42,6 +42,10 @@ export const appState = {
   conflictBadgeByKey: new Map(),
   // 策略组：成员归属索引（addonlist 键 -> 组列表）、筛选选项与当前勾选的分组。
   modGroupMemberships: [],
+  // 「策略组管理」窗口的批量管理选中集合（组 ID，窗口重画后保留）
+  strategyGroupSelection: new Set(),
+  // 「策略组管理」窗口里已经展开成员明细的组（组 ID，重画后保留）
+  strategyGroupExpanded: new Set(),
   modGroupIndex: new Map(),
   groupFilterOptions: [],
   activeGroupFilter: new Set(),
@@ -84,9 +88,31 @@ export function toggleFileSelection(filePath, selected) {
   updateSelectedFilesStatus();
 }
 
+// 勾选变化订阅：「策略组管理」窗口的「用选中的 N 个 Mod 建组」要跟着勾选实时更新，
+// 而勾选会被就地修改（清空 / 框选 / 刷新筛选），所以统一在状态刷新函数里广播。
+const fileSelectionListeners = new Set();
+
+/** onFileSelectionChanged 注册勾选变化回调，返回取消函数。 */
+export function onFileSelectionChanged(listener) {
+  if (typeof listener !== "function") return () => {};
+  fileSelectionListeners.add(listener);
+  return () => fileSelectionListeners.delete(listener);
+}
+
+function notifyFileSelectionChanged() {
+  fileSelectionListeners.forEach((listener) => {
+    try {
+      listener(appState.selectedFiles);
+    } catch (error) {
+      console.warn("勾选变化回调失败:", error);
+    }
+  });
+}
+
 export function updateSelectedFilesStatus() {
   const selectedEl = document.getElementById("selected-files");
   if (selectedEl) selectedEl.textContent = `已选择: ${appState.selectedFiles.size}`;
+  notifyFileSelectionChanged();
 }
 
 // 应用常见桌面文件选择手势：普通点击单选/取消，Ctrl（或 macOS 的
@@ -159,6 +185,7 @@ export function updateStatusBar() {
   if (gameEnabledEl) gameEnabledEl.textContent = `游戏内开启: ${gameEnabledFiles}`;
   if (gameDisabledEl) gameDisabledEl.textContent = `游戏内关闭: ${gameDisabledFiles}`;
   if (selectedEl) selectedEl.textContent = `已选择: ${selectedCount}`;
+  notifyFileSelectionChanged();
 }
 
 export function showFileListLoading(message = "正在加载...") {
@@ -184,6 +211,8 @@ function disableActionButtons() {
     "deselect-all-btn",
     "enable-selected-btn",
     "disable-selected-btn",
+    "game-enable-selected-btn",
+    "game-disable-selected-btn",
     "batch-disable-menu-btn",
     "transfer-workshop-selected-btn",
   ];
@@ -206,6 +235,8 @@ export function enableActionButtons() {
     "deselect-all-btn",
     "enable-selected-btn",
     "disable-selected-btn",
+    "game-enable-selected-btn",
+    "game-disable-selected-btn",
     "batch-disable-menu-btn",
     "transfer-workshop-selected-btn",
   ];

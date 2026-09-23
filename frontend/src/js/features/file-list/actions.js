@@ -11,6 +11,7 @@ import { showConfirmModal } from "../modals/confirm.js";
 import { renderFileList, iconSvg, getLocationSvg, getGameStateActionControls } from "./render.js";
 import { refreshFilesKeepFilter } from "./filters.js";
 import {
+  SetVPKGameEnabledBatch,
   ToggleVPKFile,
   ExportVPKFilesToZip,
   DeleteVPKFiles,
@@ -21,6 +22,55 @@ import {
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import { moveVpkFilesWithConflictResolution } from "./file-move-conflicts.js";
 import { confirmVPKOperationWarning, moveWorkshopFilesToAddons } from "./operations.js";
+import {
+  formatBatchGameStateConfirm,
+  formatBatchGameStateSummary,
+} from "./batch-game-state-format.mjs";
+
+/**
+ * setSelectedGameEnabled 批量设置"游戏内开关"（addonlist.txt 的 0/1）。
+ *
+ * 与 enableSelected / disableSelected 的区别：那两个在 addons 与 disabled 目录之间搬文件，
+ * 这个只改游戏读取 addonlist.txt 时用的开关，不动任何文件。
+ */
+export async function setSelectedGameEnabled(enabled) {
+  if (appState.selectedFiles.size === 0) {
+    showNotification("请先选择文件", "info");
+    return;
+  }
+  const files = Array.from(appState.selectedFiles)
+    .map(
+      (filePath) =>
+        appState.vpkFiles.find((file) => file.path === filePath) ||
+        appState.allVpkFiles?.find((file) => file.path === filePath) ||
+        null,
+    )
+    .filter(Boolean);
+  const targets = files.filter((file) => file.location !== "disabled");
+  const skipped = files.length - targets.length;
+  if (targets.length === 0) {
+    showNotification("没有可设置的 Mod（disabled 目录里的先用「批量启用」放回 addons）", "info");
+    return;
+  }
+  const unrecorded = targets.filter((file) => !file.gameStateKnown).length;
+  showConfirmModal(
+    `批量${enabled ? "游戏内启用" : "游戏内关闭"}`,
+    formatBatchGameStateConfirm({ total: targets.length, skipped, unrecorded }, enabled),
+    async () => {
+      try {
+        const result = await SetVPKGameEnabledBatch(
+          targets.map((file) => file.path),
+          enabled,
+        );
+        await refreshFilesKeepFilter();
+        const updated = (result?.updated || []).length;
+        showNotification(formatBatchGameStateSummary(result, enabled), updated > 0 ? "success" : "info");
+      } catch (error) {
+        showError("批量设置游戏内开关失败: " + String(error?.message || error));
+      }
+    },
+  );
+}
 
 export function selectAll() {
   const checkboxes = document.querySelectorAll(".file-checkbox");

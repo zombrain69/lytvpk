@@ -153,6 +153,10 @@ func (a *App) loadConfig() {
 		a.conflictPriorityAware = *config.ConflictPriorityAware
 	}
 	a.conflictIgnoreFiles = normalizeConflictIgnoreFileList(config.ConflictIgnoreFiles)
+	if config.StrategyGroupFloating != nil {
+		value := *config.StrategyGroupFloating
+		a.strategyGroupFloating = &value
+	}
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
 	a.migrationVersion = config.MigrationVersion
 	a.mu.Unlock()
@@ -186,6 +190,12 @@ func (a *App) snapshotConfig() ConfigFile {
 	conflictPriorityAware := a.conflictPriorityAware
 	conflictIgnoreFiles := append([]string(nil), a.conflictIgnoreFiles...)
 	workshopAutoRedownload := a.workshopAutoRedownload
+	// strategyGroupFloating 保持"没设置过就是 nil"，前端据此走默认值（浮动）。
+	var strategyGroupFloating *bool
+	if a.strategyGroupFloating != nil {
+		value := *a.strategyGroupFloating
+		strategyGroupFloating = &value
+	}
 
 	return ConfigFile{
 		ModRotationConfig:               a.modRotationConfig,
@@ -211,6 +221,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		UnrecordedModLoadOrderPlacement: &unrecordedModLoadOrderPlacement,
 		ConflictPriorityAware:           &conflictPriorityAware,
 		ConflictIgnoreFiles:             conflictIgnoreFiles,
+		StrategyGroupFloating:           strategyGroupFloating,
 		Theme:                           a.theme,
 		IgnoredVersion:                  a.ignoredVersion,
 		LastUpdateCheckTime:             a.lastUpdateCheckTime,
@@ -286,6 +297,10 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	}
 	if config.ConflictIgnoreFiles != nil {
 		a.conflictIgnoreFiles = normalizeConflictIgnoreFileList(config.ConflictIgnoreFiles)
+	}
+	if config.StrategyGroupFloating != nil {
+		value := *config.StrategyGroupFloating
+		a.strategyGroupFloating = &value
 	}
 	a.defaultDirectory = config.DefaultDirectory
 	a.savedDirectories = cloneSavedDirectories(config.SavedDirectories)

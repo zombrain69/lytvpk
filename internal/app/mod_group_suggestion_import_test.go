@@ -202,6 +202,7 @@ func TestSuggestModGroupsPreservesExternalOrderAndShowsAll(t *testing.T) {
 		}
 	}
 }
+
 // 导入后的建议必须出现在分组建议列表最前面，并带上来源标记。
 func TestSuggestModGroupsIncludesExternalSuggestionsFirst(t *testing.T) {
 	a, addonsDir := newPriorityTestApp(t)
@@ -284,11 +285,11 @@ func TestExportGroupingCatalogIncludesStructureAndState(t *testing.T) {
 	a, addonsDir := newPriorityTestApp(t)
 	packPath := filepath.Join(addonsDir, "structure.vpk")
 	writeTestVPK(t, packPath, map[string][]byte{
-		"models/v_models/v_rifle.mdl":      []byte("model"),
-		"materials/models/v_rifle/00.vtf":  []byte("texture"),
-		"scripts/vscripts/weapon.nut":      []byte("script"),
-		"sound/weapons/rifle/fire.wav":     []byte("sound"),
-		"addoninfo.txt":                    []byte("\"addontitle\" \"结构测试\"\n"),
+		"models/v_models/v_rifle.mdl":     []byte("model"),
+		"materials/models/v_rifle/00.vtf": []byte("texture"),
+		"scripts/vscripts/weapon.nut":     []byte("script"),
+		"sound/weapons/rifle/fire.wav":    []byte("sound"),
+		"addoninfo.txt":                   []byte("\"addontitle\" \"结构测试\"\n"),
 	})
 	seedCachedMod(a, packPath, VPKFile{Name: "structure.vpk", Title: "结构测试", Location: "root"})
 	if err := a.ScanVPKFiles(); err != nil {
@@ -352,6 +353,49 @@ func TestExportGroupingCatalogIncludesStructureAndState(t *testing.T) {
 	targets := strings.Join(entry.Structure.Targets, ",")
 	if !strings.Contains(targets, "props_interiors") && !strings.Contains(targets, "rifle") {
 		t.Fatalf("替换目标不合理: %#v", entry.Structure.Targets)
+	}
+	if entry.Structure.ResourceRoots != nil {
+		t.Fatalf("该夹具不应有套件命名空间: %#v", entry.Structure.ResourceRoots)
+	}
+}
+
+// 套件命名空间（l4n 的 airi 包、武器贴图/参数包这种）要一路走到清单里：
+// 解析 VPK → 缓存 → grouping 输入 → 清单 structure.resourceRoots。
+func TestExportGroupingCatalogIncludesSuiteResourceRoots(t *testing.T) {
+	a, addonsDir := newPriorityTestApp(t)
+	packPath := filepath.Join(addonsDir, "suite.vpk")
+	writeTestVPK(t, packPath, map[string][]byte{
+		"materials/models/913limod/airi_evilfall/swtich/lightmainarmglove.vmt": []byte("m"),
+		"materials/models/913limod/airi_evilfall/swtich/metalmainarmglove.vmt": []byte("m"),
+		"models/survivors/survivor_coach.mdl":                                  []byte("x"),
+	})
+	if err := a.ScanVPKFiles(); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	target := filepath.Join(t.TempDir(), "catalog.json")
+	if _, err := a.ExportGroupingCatalog(target); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload groupingCatalogFile
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatal(err)
+	}
+	var entry *groupingCatalogEntry
+	for index := range payload.Mods {
+		if payload.Mods[index].Name == "suite.vpk" {
+			entry = &payload.Mods[index]
+			break
+		}
+	}
+	if entry == nil || entry.Structure == nil {
+		t.Fatalf("清单里没有 suite.vpk 的结构摘要: %#v", payload.Mods)
+	}
+	if !containsString(entry.Structure.ResourceRoots, "913limod/airi_evilfall") {
+		t.Fatalf("清单必须带上套件命名空间: %#v", entry.Structure.ResourceRoots)
 	}
 }
 

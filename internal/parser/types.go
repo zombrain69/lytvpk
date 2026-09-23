@@ -21,37 +21,41 @@ type XDRSlotInfo struct {
 
 // VPKFile 表示一个VPK文件的信息
 type VPKFile struct {
-	Name              string                 `json:"name"`
-	Path              string                 `json:"path"`
-	Size              int64                  `json:"size"`
-	PrimaryTag        string                 `json:"primaryTag"`        // 一级标签: "地图", "人物", "武器", "其他"
-	SecondaryTags     []string               `json:"secondaryTags"`     // 二级标签: ["ellis", "ak47", "versus"] 等
-	VoiceCharacters   []string               `json:"voiceCharacters"`   // 从标准 sound/player 语音目录识别出的替换角色
-	ContentSubjects   []string               `json:"contentSubjects"`   // 基于资源路径证据识别出的实际主体
-	SubjectSummary    string                 `json:"subjectSummary"`    // 面向用户的主体摘要
-	SubjectConfidence string                 `json:"subjectConfidence"` // 主体证据置信度：高/中/低
-	XDRSlots          []XDRSlotInfo          `json:"xdrSlots"`          // xdReanimsBase 角色/模型与 slot 证据
-	XDRSummary        string                 `json:"xdrSummary"`        // 面向用户的 XDR 精确摘要
+	Name              string        `json:"name"`
+	Path              string        `json:"path"`
+	Size              int64         `json:"size"`
+	PrimaryTag        string        `json:"primaryTag"`        // 一级标签: "地图", "人物", "武器", "其他"
+	SecondaryTags     []string      `json:"secondaryTags"`     // 二级标签: ["ellis", "ak47", "versus"] 等
+	VoiceCharacters   []string      `json:"voiceCharacters"`   // 从标准 sound/player 语音目录识别出的替换角色
+	ContentSubjects   []string      `json:"contentSubjects"`   // 基于资源路径证据识别出的实际主体
+	SubjectSummary    string        `json:"subjectSummary"`    // 面向用户的主体摘要
+	SubjectConfidence string        `json:"subjectConfidence"` // 主体证据置信度：高/中/低
+	XDRSlots          []XDRSlotInfo `json:"xdrSlots"`          // xdReanimsBase 角色/模型与 slot 证据
+	XDRSummary        string        `json:"xdrSummary"`        // 面向用户的 XDR 精确摘要
 	// VPK 内部结构摘要（扫描时顺带统计，供分组推导与外部智能体分析使用）。
 	StructureTopDirs     []string `json:"structureTopDirs"`     // 顶层目录及条目数（按名称排序）
 	StructureFileCount   int      `json:"structureFileCount"`   // 条目总数
 	StructureTotalSize   int64    `json:"structureTotalSize"`   // 条目大小合计（压缩前）
 	StructureSamplePaths []string `json:"structureSamplePaths"` // 有代表性的资源路径（截断）
 	StructureTargets     []string `json:"structureTargets"`     // 压缩后的替换目标（如 props_interiors/medicalcabinet02）
-	Location          string                 `json:"location"`          // "root", "workshop", "disabled"
-	Enabled           bool                   `json:"enabled"`
-	GameEnabled       bool                   `json:"gameEnabled"`    // addonlist.txt 中的游戏内开关
-	GameStateKnown    bool                   `json:"gameStateKnown"` // addonlist.txt 是否包含此 Mod
-	ModelStatsKnown   bool                   `json:"modelStatsKnown"`
-	ModelCount        int                    `json:"modelCount"`
-	ModelVertices     int                    `json:"modelVertices"`
-	ModelTriangles    int                    `json:"modelTriangles"`
-	Campaign          string                 `json:"campaign"`
-	Chapters          map[string]ChapterInfo `json:"chapters"` // key: 章节代码, value: 章节信息
-	Mode              string                 `json:"mode"`
-	PreviewImage      string                 `json:"previewImage"`    // Base64编码的预览图
-	PreviewRevision   string                 `json:"previewRevision"` // 预览源签名；用于前端跨刷新/移动复用已解码图片
-	LastModified      string                 `json:"lastModified"`
+	// StructureResourceRoots 是"作者/套件命名空间"（如 913limod/airi_evilfall、codm/ice）：
+	// 同一个套件常拆成很多 VPK（本体 + 配件 / 贴图包 / 参数包），它们共享这个目录，
+	// 是判断"需要一起启用"的结构性证据。只收非官方根，最多 6 条。
+	StructureResourceRoots []string               `json:"structureResourceRoots"`
+	Location               string                 `json:"location"` // "root", "workshop", "disabled"
+	Enabled                bool                   `json:"enabled"`
+	GameEnabled            bool                   `json:"gameEnabled"`    // addonlist.txt 中的游戏内开关
+	GameStateKnown         bool                   `json:"gameStateKnown"` // addonlist.txt 是否包含此 Mod
+	ModelStatsKnown        bool                   `json:"modelStatsKnown"`
+	ModelCount             int                    `json:"modelCount"`
+	ModelVertices          int                    `json:"modelVertices"`
+	ModelTriangles         int                    `json:"modelTriangles"`
+	Campaign               string                 `json:"campaign"`
+	Chapters               map[string]ChapterInfo `json:"chapters"` // key: 章节代码, value: 章节信息
+	Mode                   string                 `json:"mode"`
+	PreviewImage           string                 `json:"previewImage"`    // Base64编码的预览图
+	PreviewRevision        string                 `json:"previewRevision"` // 预览源签名；用于前端跨刷新/移动复用已解码图片
+	LastModified           string                 `json:"lastModified"`
 	// addoninfo.txt 相关信息
 	Title      string `json:"title"`      // addontitle (必有)
 	Author     string `json:"author"`     // addonauthor (若有)

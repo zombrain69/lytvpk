@@ -30,6 +30,10 @@ type Mod struct {
 	VoiceCharacters   []string
 	Folder            string
 	WorkshopID        string
+	// ResourceRoots 是 VPK 内部路径里的"作者/套件命名空间"（models/<作者>/<套件>，
+	// 例如 913limod/airi_evilfall、codm/ice）：同一个套件常拆成很多 VPK
+	// （本体 + 配件 / 贴图包 / 参数包），它们共享这个目录，是"需要一起启用"的结构性证据。
+	ResourceRoots []string
 	// SourcePath 是调用方自己的寻址信息（物理路径）。
 	// 推导引擎完全不使用它，只保证"同一个物理文件"能被调用方区分开：
 	// addonlist 键在 root 与 disabled 同名时会重复，物理路径才唯一。
@@ -49,6 +53,17 @@ type Candidate struct {
 	// Source 为空表示内置推导；"external" 表示来自外部建议文件（模型 / 人工）。
 	Source   string
 	Strategy string
+	// TagKey / TagScope / TagInSet / TagOutside 由 annotateTagCoverage 填充：
+	// 描述"已有标签能否精确选出这一批 Mod"（见 tags.go）。
+	TagKey     string
+	TagScope   string
+	TagInSet   int
+	TagOutside int
+	// Tag / TagReason / MemberTags 是"调用方（外部建议文件）给的标签提案"，
+	// 引擎原样透传：有它时优先于按规则推导出来的标签。
+	Tag        string
+	TagReason  string
+	MemberTags map[string][]string
 }
 
 // Suggestion 是引擎输出的建议（与前端 JSON 模型一致）。
@@ -65,6 +80,17 @@ type Suggestion struct {
 	ExistingGroupID string `json:"existingGroupId,omitempty"`
 	Source          string `json:"source,omitempty"`
 	Strategy        string `json:"strategy,omitempty"`
+	// TagKey / TagScope / TagInSet / TagOutside 描述"已有标签能多大程度代表这一组"：
+	// scope=exact 表示该标签恰好只能筛出这一批 Mod —— 这时建组的增量价值很低
+	// （直接用标签筛选即可），列表里会被降权，并在界面上标注。
+	TagKey     string `json:"tagKey,omitempty"`
+	TagScope   string `json:"tagScope,omitempty"`
+	TagInSet   int    `json:"tagInSet,omitempty"`
+	TagOutside int    `json:"tagOutside,omitempty"`
+	// Tag / TagReason / MemberTags：来自外部建议文件的标签提案（可空）。
+	Tag        string              `json:"tag,omitempty"`
+	TagReason  string              `json:"tagReason,omitempty"`
+	MemberTags map[string][]string `json:"memberTags,omitempty"`
 }
 
 // Stats 汇总一次推导的规模，便于诊断与前端展示（哪个信号贡献了多少）。
@@ -191,6 +217,10 @@ func Suggest(mods []Mod, options Options) ([]Suggestion, Stats) {
 	merged := mergeCandidates(candidates, options, &stats)
 	stats.Merged = len(merged)
 	merged = applyProviderQuota(merged, options)
+	// 贴上"标签覆盖"标注供调用方使用。这里**不改排序**：引擎的排序语义是
+	// "这条建议有多像一个真实的组"，而"用户能不能用标签代替它"是展示层的事
+	// （app 层会把标签已精确覆盖的建议单独下沉一层，见 sortSuggestionsForDisplay）。
+	annotateTagCoverage(merged, index)
 
 	suggestions := make([]Suggestion, 0, len(merged))
 	for _, candidate := range merged {
@@ -205,6 +235,13 @@ func Suggest(mods []Mod, options Options) ([]Suggestion, Stats) {
 			MemberNames: candidate.Names,
 			Source:      candidate.Source,
 			Strategy:    candidate.Strategy,
+			TagKey:      candidate.TagKey,
+			TagScope:    candidate.TagScope,
+			TagInSet:    candidate.TagInSet,
+			TagOutside:  candidate.TagOutside,
+			Tag:         candidate.Tag,
+			TagReason:   candidate.TagReason,
+			MemberTags:  candidate.MemberTags,
 		})
 	}
 	if len(suggestions) > options.Limit {
@@ -275,6 +312,23 @@ func mergeCandidates(candidates []Candidate, options Options, stats *Stats) []Ca
 	return merged
 }
 
+// annotateTagCoverage 给每条合并后的建议贴上"标签覆盖率"，供排序与界面展示使用。
+func annotateTagCoverage(merged []Candidate, index *Index) {
+	if index == nil {
+		return
+	}
+	for i := range merged {
+		coverage, ok := TagCoverageFor(index.mods, merged[i].Keys)
+		if !ok {
+			continue
+		}
+		merged[i].TagKey = coverage.Tag
+		merged[i].TagScope = coverage.Scope
+		merged[i].TagInSet = coverage.InSet
+		merged[i].TagOutside = coverage.Outside
+	}
+}
+
 // applyProviderQuota 限制单个信号占用的条目数：任何一个信号都不应该刷屏，
 // 这样"文件夹 / 合集 / 前缀 / 作者"等其它信号也有机会出现在前 40 条里。
 // applyProviderQuota 限制单个信号占用的条目数，并返回裁剪后的切片。
@@ -332,7 +386,13 @@ const (
 	TagScore          = 45
 	AuthorScore       = 45
 	ExternalScore     = 90
+	// SuiteNamespaceScore 是"同一套件命名空间下的多个模块"（models/<作者>/<套件>）的基准分：
+	// 结构证据很硬，但低于用户显式维护的合集 / 文件夹。
+	SuiteNamespaceScore = 74
 )
+
+// suiteSignalLabel 是套件信号的展示名（提示词与文档里用同一个词）。
+const suiteSignalLabel = "套装资源目录"
 
 var signalCatalog = []signalSpec{
 	{ID: "folder", Label: "同一文件夹", Confidence: "high", Curated: true},
@@ -342,6 +402,8 @@ var signalCatalog = []signalSpec{
 	{ID: "same-author", Label: "同一作者", Confidence: "low"},
 	{ID: "voice-character", Label: "语音角色", Confidence: "medium"},
 	{ID: "subject", Label: "主体识别", Confidence: "medium"},
+	// 结构证据属于"内容证据"档（与主体识别同级）：比前缀/作者硬，但不是用户显式维护的结构。
+	{ID: "suite-namespace", Label: suiteSignalLabel, Confidence: "medium"},
 	{ID: "collection", Label: "工坊合集成员", Confidence: "high", Curated: true},
 	{ID: "external", Label: "外部建议", Confidence: "high", Curated: true},
 }
@@ -583,6 +645,114 @@ func NamePrefix(name string) string {
 		}
 	}
 	return prefix
+}
+
+// PrefixKey 是"系列前缀"索引键：Key 小写用于比较，Label 保留原始大小写用于当组名。
+type PrefixKey struct {
+	Key   string
+	Label string
+}
+
+// NamePrefixKeys 生成一个文件名的全部"系列前缀"键。
+//
+// 为什么需要多个键（真实缺陷）：`[Milfy]白银审判_Rochelle.vpk` 与
+// `[Milfy]白银审判里内衣关.vpk` 明明是同一套，但名字里只有 `_` 一处分隔，
+// 中文名整体是一个"词"，旧实现要求"至少两个词"于是直接判空，一条建议都出不来。
+//
+// 规则：
+//  1. 旧语义保留：完整的第一段（含 `[标签]`）作为一个精确键，`series_a/b/c` 这类仍然照旧；
+//  2. 新增：去掉 `[标签]` / `【标签】` 之后的系列名，按 4~12 字生成前缀键，
+//     这样 `白银审判`、`白银审判里内衣关` 会落进同一个桶；
+//  3. 纯数字前缀（工坊 ID）不产出键，避免出现 `3788635187` 这种组名。
+func NamePrefixKeys(name string) []PrefixKey {
+	value := strings.TrimSpace(name)
+	if value == "" {
+		return nil
+	}
+	if index := strings.LastIndex(value, "."); index > 0 {
+		value = value[:index]
+	}
+	if index := strings.Index(strings.ToLower(value), "_addon"); index > 0 {
+		value = value[:index]
+	}
+	words := strings.Fields(strings.NewReplacer("_", " ", "-", " ", ".", " ").Replace(value))
+	if len(words) == 0 {
+		return nil
+	}
+
+	keys := make([]PrefixKey, 0, 6)
+	seen := make(map[string]struct{}, 6)
+	push := func(key, label string) {
+		key = strings.ToLower(strings.TrimSpace(key))
+		if len([]rune(key)) < 4 || numericOnly(key) {
+			return
+		}
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, PrefixKey{Key: key, Label: strings.TrimSpace(label)})
+	}
+
+	// 1) 旧语义整条保留：`NamePrefix` 的"首个词≥4 字，否则前两词≥6 字"。
+	//    真实回归：漏掉这条以后 `Hit Marker Overhaul*`（首词 hit 只有 3 字，靠前两词成键）
+	//    与 `fm_alpha_*` 都不再有前缀建议。
+	if legacy := NamePrefix(value); legacy != "" {
+		push(legacy, legacy)
+	}
+
+	// 2) 完整的第一段（含 `[标签]`）。
+	raw := words[0]
+	push(raw, raw)
+
+	// 3) 新语义：去掉标签后的系列名，按 4~12 字生成前缀。
+	series := stripBracketTags(raw)
+	seriesRunes := []rune(series)
+	if len(seriesRunes) >= 4 {
+		limit := len(seriesRunes)
+		if limit > 12 {
+			limit = 12
+		}
+		for length := 4; length <= limit; length++ {
+			push(string(seriesRunes[:length]), string(seriesRunes[:length]))
+		}
+	}
+	return keys
+}
+
+// stripBracketTags 反复去掉名字开头的 `[标签]` / `【标签】` / `（标签）` / `(标签)` / `《标签》`。
+func stripBracketTags(value string) string {
+	trimmed := strings.TrimSpace(value)
+	pairs := [][2]string{{"[", "]"}, {"【", "】"}, {"（", "）"}, {"(", ")"}, {"《", "》"}}
+	for changed := true; changed; {
+		changed = false
+		for _, pair := range pairs {
+			if !strings.HasPrefix(trimmed, pair[0]) {
+				continue
+			}
+			if end := strings.Index(trimmed, pair[1]); end > 0 {
+				trimmed = strings.TrimSpace(trimmed[end+len(pair[1]):])
+				changed = true
+			}
+		}
+	}
+	return trimmed
+}
+
+// numericOnly 判断前缀是不是纯数字（工坊 ID / 时间戳），这种不能当系列名。
+func numericOnly(value string) bool {
+	hasDigit := false
+	for _, r := range value {
+		if r >= '0' && r <= '9' {
+			hasDigit = true
+			continue
+		}
+		if r == ' ' || r == '_' || r == '-' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return hasDigit
 }
 
 // FolderDisplay 把 "Airi包\开关" 变成 "Airi包 / 开关"。

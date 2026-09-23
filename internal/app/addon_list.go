@@ -928,6 +928,168 @@ func (a *App) SetVPKGameEnabled(filePath string, enabled bool) (int, error) {
 	return a.setVPKGameEnabledLocked(filePath, enabled)
 }
 
+// BatchGameStateResult 是"批量设置游戏内开关"的结果统计。
+type BatchGameStateResult struct {
+	// Requested 是去重后的请求数量。
+	Requested int `json:"requested"`
+	// Updated 是真正被改写的文件路径（顺序与请求一致）。
+	Updated []string `json:"updated"`
+	// Unchanged 是本来就已经处于目标状态的路径。
+	Unchanged []string `json:"unchanged"`
+	// Skipped 是无法处理的路径（不在扫描缓存里 / 位于 disabled 目录 / 取不到 addonlist 键）。
+	Skipped []string `json:"skipped"`
+	// Enforced 是通过策略组"自动联动"连带改动的其它成员数量。
+	Enforced int `json:"enforced"`
+}
+
+// SetVPKGameEnabledBatch 一次加锁、一次写盘地批量设置游戏内开关。
+//
+// 与单个 SetVPKGameEnabled 的区别只是"把 N 次读写合成 1 次"：
+//   - 只改 addonlist.txt 的 0/1，不移动文件、不改 disabled 目录的启用状态；
+//   - 已经处于目标状态的条目跳过（Unchanged），disabled 目录里的跳过（Skipped）；
+//   - 未记录在 addonlist.txt 的条目按"未记录插入位置"设置写入；
+//   - 策略组自动联动照常生效，联动数量累计在 Enforced。
+func (a *App) SetVPKGameEnabledBatch(filePaths []string, enabled bool) (BatchGameStateResult, error) {
+	result := BatchGameStateResult{
+		Updated:   []string{},
+		Unchanged: []string{},
+		Skipped:   []string{},
+	}
+	a.addonListGuardMu.Lock()
+	defer a.addonListGuardMu.Unlock()
+
+	type pendingEntry struct {
+		filePath  string
+		key       string
+		entryName string
+		insert    bool
+	}
+	pending := make([]pendingEntry, 0, len(filePaths))
+	seen := make(map[string]struct{}, len(filePaths))
+	a.mu.RLock()
+	placement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
+	a.mu.RUnlock()
+
+	for _, raw := range filePaths {
+		filePath := strings.TrimSpace(raw)
+		if filePath == "" {
+			continue
+		}
+		if _, ok := seen[filePath]; ok {
+			continue
+		}
+		seen[filePath] = struct{}{}
+		result.Requested++
+
+		a.mu.RLock()
+		cached, ok := a.vpkCache.Load(filePath)
+		a.mu.RUnlock()
+		if !ok {
+			result.Skipped = append(result.Skipped, filePath)
+			continue
+		}
+		cache := cached.(*VPKFileCache)
+		if cache.File.Location == "disabled" {
+			result.Skipped = append(result.Skipped, filePath)
+			continue
+		}
+		if cache.File.GameStateKnown && cache.File.GameEnabled == enabled {
+			result.Unchanged = append(result.Unchanged, filePath)
+			continue
+		}
+		vpkPath := cache.File.Path
+		if vpkPath == "" {
+			vpkPath = filePath
+		}
+		key, err := a.addonListKeyForVPKPath(vpkPath)
+		if err != nil {
+			result.Skipped = append(result.Skipped, filePath)
+			continue
+		}
+		entryName, err := a.addonListDisplayKeyForVPKPath(vpkPath)
+		if err != nil {
+			result.Skipped = append(result.Skipped, filePath)
+			continue
+		}
+		pending = append(pending, pendingEntry{
+			filePath:  filePath,
+			key:       key,
+			entryName: entryName,
+			// 未记录的条目要按"插入位置"写进去；已有条目的值就地替换。
+			insert: enabled && !cache.File.GameStateKnown,
+		})
+	}
+	if len(pending) == 0 {
+		return result, nil
+	}
+
+	doc, err := a.readAddonListDocument()
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return result, err
+		}
+		path, pathErr := a.addonListPath()
+		if pathErr != nil {
+			return result, pathErr
+		}
+		doc = addonListDocument{
+			path:     path,
+			content:  "\"AddonList\"\n{\n}\n",
+			encoding: addonListEncodingUTF8,
+		}
+	}
+
+	value := "0"
+	if enabled {
+		value = "1"
+	}
+	content := doc.content
+	enforced := 0
+	for _, item := range pending {
+		var updatedContent string
+		if item.insert {
+			updatedContent, _, err = replaceAddonListValueWithPlacementAndName(content, item.key, item.entryName, value, placement)
+		} else {
+			updatedContent, _, err = replaceAddonListValueWithName(content, item.key, item.entryName, value)
+		}
+		if err != nil {
+			result.Skipped = append(result.Skipped, item.filePath)
+			continue
+		}
+		content = updatedContent
+		if count, enforceErr := a.applyStrategyGroupEnforcementLocked(&content, item.key, enabled); enforceErr == nil {
+			enforced += count
+		}
+		result.Updated = append(result.Updated, item.filePath)
+	}
+	if len(result.Updated) == 0 {
+		return result, nil
+	}
+	if err := a.writeAddonListDocument(doc, content); err != nil {
+		return result, err
+	}
+	result.Enforced = enforced
+
+	// 组内联动改写了别的成员 → 直接从文件刷新全部缓存；否则只更新这批条目的状态。
+	if enforced > 0 {
+		a.applyAddonListGameStates()
+	}
+	a.mu.Lock()
+	for _, filePath := range result.Updated {
+		if latest, found := a.vpkCache.Load(filePath); found {
+			cache := latest.(*VPKFileCache)
+			cache.File.GameEnabled = enabled
+			cache.File.GameStateKnown = true
+			a.vpkCache.Store(filePath, cache)
+		}
+	}
+	a.mu.Unlock()
+	if err := a.syncManagedAddonListSnapshotLocked(doc.path); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
 func (a *App) setVPKGameEnabledLocked(filePath string, enabled bool) (int, error) {
 	a.mu.RLock()
 	cached, ok := a.vpkCache.Load(filePath)

@@ -31,12 +31,73 @@ import { openVPKIntegrityForPaths } from "../diagnostics/vpk-integrity.js";
 import { getServers } from "../servers/servers.js";
 import { StartPanelMapUpload } from "../../../../wailsjs/go/app/App";
 import { showNotification } from "../../core/toast.js";
+import {
+  groupIdsForPaths,
+  keysForPaths,
+  openGroupPicker,
+} from "../mod-groups/group-picker.js";
+import { GROUP_PICKER_MODES } from "../mod-groups/group-picker-view.mjs";
+import { refreshFilesKeepFilter } from "./filters.js";
+import { renderFileList } from "./render.js";
 
 let currentContextMenu = null;
 let currentServerSubmenu = null;
 
 const loadOrderIconSvg = `<svg class="icon-svg" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>`;
 const integrityIconSvg = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-3z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg>`;
+const groupIconSvg = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6v6H4z"></path><path d="M14 5h6v6h-6z"></path><path d="M4 13h6v6H4z"></path><path d="M14 13h6v6h-6z"></path></svg>`;
+
+// refreshAfterGroupChange 把"组归属变了"反映到列表与筛选结果上。
+// 放在调用方（而不是 group-picker.js）是为了避免 mod-groups 与 file-list 互相 import。
+function refreshAfterGroupChange() {
+  try {
+    renderFileList();
+  } catch (error) {
+    console.warn("刷新组徽标失败:", error);
+  }
+  void refreshFilesKeepFilter();
+}
+
+// appendGroupMenuItems 在单文件 / 多选菜单里追加策略组相关入口。
+// paths 为空或没有可用键时只保留「加入策略组…」的提示性入口。
+function appendGroupMenuItems(menu, paths) {
+  const keys = keysForPaths(paths);
+  if (keys.length === 0) return;
+  const groupIds = groupIdsForPaths(paths);
+  menu.appendChild(createDivider());
+  menu.appendChild(
+    createMenuItem("加入策略组…", groupIconSvg, () => {
+      void openGroupPicker({
+        mode: GROUP_PICKER_MODES.add,
+        keys,
+        onDone: refreshAfterGroupChange,
+      });
+    }),
+  );
+  if (groupIds.length > 0) {
+    menu.appendChild(
+      createMenuItem("从策略组移出…", groupIconSvg, () => {
+        void openGroupPicker({
+          mode: GROUP_PICKER_MODES.remove,
+          keys,
+          onDone: refreshAfterGroupChange,
+        });
+      }),
+    );
+    menu.appendChild(
+      createMenuItem("移动到其它策略组…", groupIconSvg, () => {
+        // 只属于一个组时直接带上源组（一步选目标）；分布在多个组时
+        // 选择器会先让用户挑"从哪个组移动"。
+        void openGroupPicker({
+          mode: GROUP_PICKER_MODES.move,
+          keys,
+          sourceGroupId: groupIds.length === 1 ? groupIds[0] : "",
+          onDone: refreshAfterGroupChange,
+        });
+      }),
+    );
+  }
+}
 
 function createMenuItem(text, iconHtml, onClick, options = {}) {
   const item = document.createElement("button");
@@ -188,6 +249,7 @@ function buildSingleMenu(menu, file) {
     menu.appendChild(createMenuItem("分享物品", iconSvg("share"), () => shareWorkshopItem(file)));
   }
   menu.appendChild(createMenuItem("设置标签", iconSvg("tag"), () => openSetTagsModal(file.path)));
+  appendGroupMenuItems(menu, [file.path]);
 
   const panelServers = getPanelServers();
   if (panelServers.length > 0) {
@@ -259,6 +321,7 @@ function buildBatchMenu(menu) {
   menu.appendChild(createDivider());
   menu.appendChild(createMenuItem("分享物品", iconSvg("share"), () => shareSelectedWorkshopItems()));
   menu.appendChild(createMenuItem("设置标签", iconSvg("tag"), () => openBatchSetTagsModal()));
+  appendGroupMenuItems(menu, selectedPaths);
   menu.appendChild(
     createMenuItem("调整加载顺序", loadOrderIconSvg, () =>
       openLoadOrderModal({ mode: "selection", selectedPaths: Array.from(appState.selectedFiles) })

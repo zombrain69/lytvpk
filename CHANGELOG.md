@@ -1,5 +1,527 @@
 # Changelog
 
+## 2.5.14-community.65 — 2026-09-23
+
+### 多选可批量「游戏内启用 / 游戏内关闭」
+
+**用户反馈**：多选之后不能批量"游戏内启用"——工具栏上只有搬文件的「批量启用 / 批量禁用」。
+
+- **新增两个批量按钮**（工具栏，紧挨「取消全选」）：
+  - **「游戏内启用」/「游戏内关闭」**：只写 `addonlist.txt` 的 `0/1`，
+    **不移动、不删除任何文件**（tooltip 里写明与右侧「批量启用/禁用」的区别）；
+  - 原来的「批量启用 / 批量禁用」保持原样：它们在 `addons` 与 `disabled` 目录之间搬文件。
+  所以现在确实是"两组按钮"：**一组管游戏内开关，一组管文件启用状态**。
+- **后端新增 `SetVPKGameEnabledBatch(paths, enabled)`**：一次加锁、**一次写盘**，
+  比逐个调用少 N 次读写（每个 Mod 的 `SetVPKGameEnabled` 都会单独读/写 addonlist.txt）；
+  返回 `requested / updated / unchanged / skipped / enforced`：
+  已经是目标状态的记入 `unchanged`，`disabled` 目录或不在扫描缓存里的记入 `skipped`，
+  策略组"自动联动"连带改动的数量记入 `enforced`；未记录在 addonlist.txt 的条目
+  按「未记录 Mod 插入位置」设置写入。
+- **交互**：点击后弹应用内确认（列出数量、说明只改 addonlist、指出其中多少个未记录、
+  多少个在 disabled 目录会被跳过），完成后的提示会汇总
+  「已把 N 个 Mod 设为游戏内启用；M 个本来就是这个状态；K 个跳过；并按策略组自动联动另外 X 个」。
+- **测试**：Go `TestSetVPKGameEnabledBatchWritesOnceAndReportsCounts`（去重、unchanged、
+  disabled 跳过、反向批量）与 `TestSetVPKGameEnabledBatchInsertsUnrecordedEntries`；
+  前端 `batch-game-state-format.test.mjs`（确认文案/结果文案）+ `batch-game-state.test.mjs`
+  （两个按钮、绑定、选择相关启停清单）。`node --test` 194 项。
+- **真机验证（沙箱）**：多选 3 个 Mod → 「游戏内启用」→ 前 3 张卡片立刻显示"游戏内开"；
+  → 「游戏内关闭」→ 8 个全部"游戏内关"；沙箱 `addonlist.txt` 里两个原本未记录的
+  条目被正确插入为 `"0"`。
+
+### 文件名前缀识别：中文系列名（无分隔符）也能成组
+
+**用户问题**：`[Milfy]白银审判…` 这一套（角色本体 + 上衣关 + 内衣关）明明是一套，
+为什么没进分组建议？
+
+**两个原因，都已处理**
+
+1. **它是被"标签已覆盖"筛选藏起来了**（不是没推导出来）：
+   `[Milfy]` 正好能把这一批 Mod 精确筛出来，而分组建议弹窗的
+   「标签已覆盖」下拉**默认是"隐藏标签已覆盖"**，摘要行只会写
+   `N 条标签已覆盖（可直接用标签筛选）`。把下拉改成「显示全部」就能看到，
+   卡片上还有「用标签筛选」一键跳转。
+2. **引擎确实漏了这类命名**（真实缺口，已修）：
+   旧的前缀实现要求"文件名至少两个词"（`_` / 空格 / `-` 分隔），
+   `[Milfy]白银审判里内衣关.vpk` 这种**中文名整体就是一个词**，直接返回空 ——
+   `[Milfy]白银审判_Rochelle.vpk` 的键是 `[milfy]白银审判`，其余三个连键都没有，
+   所以一条建议都出不来。
+
+**修复**（`internal/grouping/`）：
+
+- 新增 `NamePrefixKeys()`：除保留旧的"完整首段"精确键外，**去掉 `[标签]` / `【标签】` 等前缀后
+  按 4~12 字生成系列前缀键**，`白银审判`、`白银审判里内衣关` 于是落进同一个桶；
+  `【BA垃姬桶】垃圾桶系列` 这类也按去掉标签后的 `垃圾桶系列` 归并；
+  纯数字前缀（工坊 ID）不产出键，`3788635187` 这种不会被当成组名。
+- `filename-prefix` 信号改为**取"极大成员集合"**：先按成员数（再按前缀长度）排序，
+  跳过被更大集合完全覆盖的子前缀，避免同一套被拆成多条互相重叠的建议
+  （否则 `白银审判里内衣`（2 个）会抢在 `白银审判`（4 个）前面）。
+- 测试：新增 `TestFilenamePrefixGroupsSeriesWithoutSeparators`（这 4 个 Mod 必须聚成一条、
+  组名为去掉标签后的 `白银审判`）与 `TestFilenamePrefixIgnoresBracketTagAsSeries`
+  （只共享 `[Milfy]` 标签的三套不同内容不能被凑成一组）；`go test ./...` 全绿。
+- **真机验证（沙箱）**：造出这 4 个同名 VPK → 分组建议里出现 **1 条建议「白银审判」· 4 个 Mod ·
+  文件名前缀**，并标注 `标签已覆盖：Milfy`；把「标签已覆盖」切到「显示全部」即可见。
+
+### 按分组筛选的排序修正：子树整体移动 + 保存后立即生效
+
+**用户反馈**：截图里「按分组筛选」的排序对吗？
+
+- **确实不对**：上一版规则是"完全按权重、层级不参与排序"，子组只靠名字排序。
+  你的数据里「医疗箱」的 5 个子组中，`【BA垃姬桶】`、`【牢本】户外厕所` 因为名字以 `【` 开头，
+  被甩到列表最底部，跟父组和兄弟组彻底脱开（截图里只能看到 3 个子组）。
+- **修正后的规则**（`group-view.mjs` 的 `sortGroupFilterOptions`）：
+  1. 仍按**组权重升序**（未设置排最后，同权重按名称）；
+  2. **子组永远紧跟自己的上级分组** —— 一棵分组树整体上下移动，`【…】` 这种前缀不会再拆散它；
+  3. 子树的位置取**子树里最小的权重**：给子组设权重，整棵树一起上浮（子组仍缩进显示在父组下面），
+     所以"常编辑的子组"照样能一键排到前面；
+  4. 父链成环 / 父组缺失时按顶层处理，绝不丢组。
+  菜单里的说明改成「顺序＝组权重（未设置排最后）· 子组紧跟上级分组」，悬停有完整解释。
+- **顺带修掉一个真缺陷**：在管理窗口里点「保存权重 / 修改上级分组 / 重命名 / 自动联动」，
+  以前只刷新了管理窗口自己，外面「按分组筛选」的顺序与列表角标要手动点工具栏「刷新」才更新。
+  现在这几个动作都会 `refreshAfterChange()`（重画文件列表 + 重新筛选 + 刷新组归属）。
+- **真机验证（沙箱，复刻你的数据结构：`!!医疗箱` + 子组 `!花火零食` / `【BA垃姬桶】` / `【牢本】户外厕所`）**：
+  - 基线（都未设权重）：`!!医疗箱` → `└ !花火零食` → `└ 【BA垃姬桶】` → `└ 【牢本】户外厕所` → `Chiffon 下午茶`
+    （两个 `【…】` 子组现在紧跟父组 ✅，以前沉到最后）；
+  - 给顶层 `Chiffon` 设 `-5`：它排到最前并显示「· 权重 -5」，且**保存后菜单立刻更新**（无需手动刷新）✅；
+  - 再给子组 `【BA垃姬桶】` 设 `-9`：整棵「医疗箱」子树被抬到最前，
+    该子组在子树内排第一、仍缩进显示；Chiffon（-5）落到后面 ✅；
+  - 清掉权重后回到基线 ✅；`errors=[]`。
+- **测试**：`node --test` 188 项（新增"子树整体移动"与"名字前缀不同不再拆散"两项，
+  以及"窗口里改组后必须刷新外部列表"的回归守卫；原有"成环降级"仍通过）。
+
+### 策略组管理窗口改用通用浮动开关 + 修复偏好没落盘
+
+**用户反馈**：策略组管理窗口里还在用老的勾选框行，应该跟其它窗口用同一套通用设计。
+
+- **统一设计**：删掉窗口里那行自定义的「浮动窗口（可直接操作主界面）」勾选框与拖动提示，
+  改由 `core/floating-modal.js` 在**标题栏自动插入「浮动窗口 / 停靠窗口」按钮** ——
+  与分组建议 / 加载顺序优化 / 冲突检测 / 文件冲突 / 模型统计完全一致；
+  `mods.css` 里对应的 `.strategy-group-toolbar*` 死样式一并删除。
+- **顺带修掉一个真问题**：策略组窗口的浮动偏好此前写进 `config.json`，
+  但 **Go 端 `ConfigFile` 结构体里没有这个字段**，保存时被 `encoding/json` 静默丢弃
+  （表现为：停靠过窗口，重启后又变回浮动）。现在补上
+  `StrategyGroupFloating *bool`（nil = 没设置过，按默认浮动），
+  并在 `loadConfig` / `SaveAppConfig` / `snapshotConfig` 三处接线，
+  `wails generate module` 后 `models.ts` 已带 `strategyGroupFloating`。
+- **真机验证（沙箱）**：
+  - 窗口标题栏子元素实测 `[H3, modal-float-toggle is-active, close-btn]`，
+    自定义行 `customRow=false`；
+  - 点「停靠窗口」→ 窗口变模态（`backdrop-filter: blur(8px)` 恢复）、按钮文字变「浮动窗口」，
+    且 `config.json` 写入 `strategyGroupFloating = False`；
+  - **重启应用后**打开策略组窗口 → `afterRestartFloating=false`（保持上次的停靠），
+    再点回浮动 → `config.json` 变回 `True`；
+  - `errors=[]`。
+- **测试**：Go 新增 `TestSaveAppConfigPersistsStrategyGroupFloating`（保存 → 重新读盘仍为停靠）；
+  前端 `core/floating-modal.test.mjs` 与 `strategy-group-batch.test.mjs` 更新为"统一设计"断言
+  （不再有自定义勾选框、按钮由通用模块插入、偏好写回 config）。`node --test` 186 项全绿。
+
+### 修复：停靠状态下点窗口外关不掉
+
+**用户反馈**：有的窗口在停靠状态下点窗口外还是没有关闭。
+
+- **根因**：「点窗口外关闭」以前是**每个窗口在 `app-runtime.js` 里各写一段**
+  （info / load-order / conflict / …），后来新接入浮动能力的那批窗口没有各自的处理器，
+  于是停靠（模态）状态下点遮罩什么都不会发生。
+- **修复**：把这条行为收进 `frontend/src/js/core/floating-modal.js` 统一提供 ——
+  停靠状态下 `mousedown` 落在遮罩本身（`event.target === modal`）时，
+  **点击该窗口自己的关闭按钮**（`.close-btn`），这样各窗口的收尾逻辑（停任务、复位状态、
+  resolve 对话框的 Promise）照常执行；浮动状态直接放行（容器 `pointer-events: none`，事件到不了）。
+  策略组管理窗口原本自带的那份已删除，避免两处维护。
+- **例外（有意保留）**：`问题 Mod 查找`（体检切换模式）会真的改 Mod 开关，它自己的底部文案写明
+  "查找模式进行中，弹框会保持打开"，因此显式传 `closeOnBackdrop: false`。
+- **真机验证（7 个窗口逐个测：先停靠，再向遮罩派发真实 mousedown）**：
+  策略组管理 / 分组建议 / 加载顺序优化 / Mod冲突检测 / 文件冲突 / 模型统计 **全部立即关闭**；
+  其中「文件冲突」的关闭按钮只在真实弹窗流程里通过 `onclick` 绑定，验证时复刻了那条绑定，
+  确认走的是窗口自己的 `cleanup("cancel")`（以前点外面完全没反应）；
+  问题 Mod 查找按设计保持打开。
+- **测试**：`core/floating-modal.test.mjs` 新增一项（统一提供、复用窗口关闭按钮、只在停靠态生效、
+  问题查找显式关闭该行为、策略组窗口不再自带一份），全仓 186 项。
+
+### 修复：停靠后「浮动窗口」按钮被挤出视口点不到
+
+**用户反馈**：有的窗口点「停靠窗口」后，切回浮动的按钮被挤到边上点不到了。
+
+- **根因**：浮动时给窗口内容设了内联 `max-width/max-height: none`，停靠时用
+  `style.removeProperty("maxWidth")` 清理——**`removeProperty` 只认连字符写法**，驼峰写法静默失败，
+  于是 `max-height: none` 残留。对「加载顺序优化」这类内容很高的窗口，停靠后内容撑到 **1901px 高**，
+  被 flex 居中顶成 `top = -500px`，标题栏（连同「浮动窗口」按钮）跑到视口外，再也点不回来。
+- **修复**（`frontend/src/js/core/floating-modal.js`）：
+  - 清理内联样式改用连字符属性名（`max-width` / `max-height` …）；
+  - 增加兜底：停靠后如果内容仍然高于视口（`top < 0`），把容器改成顶部对齐，
+    保证标题栏与开关永远留在可视区。
+- **真机验证（全部 7 个管理窗口逐一测量，浮动态 / 停靠态各一次）**：
+  - 修复前 `load-order-modal` 停靠后 `contentRect=[55,-500,1280,1901]`、按钮 `hitSelf=false`；
+    修复后 `contentRect=[55,6,1280,888]`、按钮 `insideContent=true`、`hitSelf=true`；
+  - 策略组管理窗口停靠后内联样式清空（`inline=""`）、恢复 `blur(8px)` 遮罩、开关仍在窗口内可点，
+    再切回浮动时恢复到记忆的位置；
+  - 其余窗口（分组建议 / 冲突检测 / 文件冲突 / 体检 / 模型统计）两种状态按钮都在窗口内且可点。
+- **测试**：`core/floating-modal.test.mjs` 新增回归项，断言清理列表必须是连字符写法、
+  不得出现驼峰，并要求存在顶部对齐兜底。
+
+### 浮动窗口通用化：背景不再虚化，管理类窗口都能浮动 + 任意拉伸
+
+**用户反馈**：浮动窗口还要再优化 —— 打开管理窗口后主界面被"虚化"看不清；其它复杂的管理窗口
+是不是也应该能浮动、能随便拉伸、背景不虚化？
+
+- **根因**：遮罩的模糊来自 `.modal` 自身的 `backdrop-filter: blur(8px)` + `rgba(15,23,42,.5)` 底色。
+  上一轮浮动模式只把底色设成透明，**没有关掉 blur**，所以主界面还是糊的。
+  现在 `.modal.is-floating` 同时关掉 `-webkit-backdrop-filter` / `backdrop-filter`，并把容器设为
+  `pointer-events: none`（窗口本体 `auto`）——主界面既看得清，也能直接点。
+- **抽成通用能力 `frontend/src/js/core/floating-modal.js`**（策略组管理窗口原来那套已迁移过来，不再各写一份）：
+  - `setupFloatingModal()`：给任意弹窗装上「浮动 / 停靠」；
+  - 没有开关的窗口会在标题栏**自动插入一个「浮动窗口 / 停靠窗口」按钮**（自动适配
+    `.modal-header`、`.load-order-header` 等不同标题栏）；
+  - **标题栏可拖动**移动窗口，位置按窗口记住（`localStorage`）；
+  - 打开弹窗时自动重新应用偏好（`MutationObserver`）；
+  - **缩放不用新写代码**：`core/modal-resizer.js` 早就给每个 `.modal-content` 装了八个方向的把手。
+- **其它复杂管理窗口一并接入，默认浮动**：`分组建议`、`加载顺序优化`、`Mod冲突检测`、
+  `文件冲突`、`问题 Mod 查找（体检）`、`Mod 模型面数检测`；策略组管理窗口沿用
+  `config.json` 的 `strategyGroupFloating`（默认开）并保留窗口里那个勾选框。
+  关掉浮动就恢复原来的居中模态（遮罩 + 模糊 + 点窗口外关闭），偏好逐窗口记住。
+- **测试**：新增 `core/floating-modal.test.mjs`（虚化是否真的关掉、模块四件事、六个窗口是否都接上），
+  更新 `group-menu-layout.test.mjs`（浮动样式已通用化）与 `strategy-group-batch.test.mjs`（改走通用模块）；
+  `node --test` 184 项全绿。
+
+### 策略组管理窗口内直接筛选 + 筛选顺序按组权重
+
+**用户问题**：管理窗口里的「上级分组（顶层）」跟外面的「按分组筛选」是什么关系？筛选顺序为什么固定不变？
+能不能在管理窗口里就把某些组变成筛选？
+
+- **「按分组筛选」的顺序改为由组权重决定**（原来是固定按组名排）：
+  - 顺序 = **组权重升序**，未设置权重的组排在最后（同权重按名称）；
+  - 想常编辑的组排前面：在管理窗口给它填一个更小的 `权重` 即可；
+  - 子组仍然用 `└ ` 缩进显示层级，但**层级不再参与排序**（`上级分组` 只决定归属与缩进，
+    不影响排序，也不影响优先级）——菜单顶部新增一行说明，悬停有完整解释。
+- **在「策略组管理」窗口里就能把组变成筛选**（新增，回答"随时点按分组筛选"）：
+  - 组行新增 **「筛选这组 / 取消筛选」**；
+  - 批量工具条新增 **「用选中的组筛选」** 与 **「清除筛选」**；
+  - 窗口内实时显示 **「当前筛选：A、B」**，正在筛选的组整行高亮、按钮点亮；
+  - 筛选只改视图（`appState.activeGroupFilter` + 重新筛选列表），**不写任何文件**，
+    与主界面「按分组筛选」是同一份状态，两边随时同步。
+- **管理窗口默认以"浮动窗口"打开**：窗口不再挡住主界面（容器 `pointer-events: none`、
+  窗口本体 `pointer-events: auto`），所以能一边看管理窗口一边点「分组 / 按分组筛选」；
+  新增 **「浮动窗口（可直接操作主界面）」** 开关（写入 `config.json` 的 `strategyGroupFloating`，
+  默认开），标题栏可拖动（默认停靠在工具栏下方、分组菜单右侧，拖动后会记住位置）；
+  关掉浮动即恢复原来的模态行为（点窗口外关闭）。
+- **后端**：`ModGroupMembership` 新增 `parentId`（层级信息透出给前端排序/缩进用），
+  Go 测试 `TestGetModGroupMembershipReportsGroupInfo` 增补 parentId 断言。
+- **测试**：`group-view.test.mjs` 增补 4 项（层级/权重透出、权重排序、成环降级、缩进与标签），
+  `strategy-group-format.test.mjs` 增补 `formatStrategyGroupFilterState`，
+  `group-menu-layout.test.mjs` / `strategy-group-batch.test.mjs` 增补顺序说明、浮动模式、窗口内筛选接线。
+
+### 策略组管理窗口可直接配置 Mod 选项（展开成员）
+
+- **「策略组管理」窗口的每个组都能展开成员明细**（用户反馈：管理组的时候也该能随时配置 Mod 选项，
+  跟「分组建议」窗口一样展开看详情）：
+  - 组行新增 **「展开成员（N）」/「收起成员」**；展开后逐行列出成员，并带上与分组建议一致的
+    **位置徽标**（根目录 / 创意工坊 / 已禁用）、**游戏开关徽标**、**优先级 / 未写入 addonlist**；
+  - 每个成员都有 **详情 / 游戏开关 / 启用·禁用 / 复制到 addons / 移出本组** 五个动作
+    （`workshop` 只能"复制到 addons"、`disabled` 只能"启用"等禁用条件与冲突检测界面一致）；
+  - 展开状态存在 `appState.strategyGroupExpanded`，重画 / 刷新后保持；被删除的组会自动从集合里剔除；
+  - 成员改动（移出本组、游戏开关、启用禁用）后窗口会重画，文件列表与组归属一起刷新。
+- **成员行只有一份实现**：新增 `frontend/src/js/features/mod-groups/member-row.js`，
+  「分组建议」卡片与「策略组管理」窗口共用 `buildModMemberRow()`，
+  避免两处各写一遍导致按钮语义/禁用条件走样（建议卡片原有的 DOM 拼装代码已删除）；
+  成员行保留历史类名 `mod-group-suggest-member*`，折叠隐藏等既有 CSS 规则不受影响。
+- **新增测试**：`frontend/src/js/features/mod-groups/member-row.test.mjs`（共享行契约：四种操作、
+  历史类名、两处消费者）+ `strategy-group-batch.test.mjs` 增补「展开成员」接线断言；
+  `node --test` 172 项全绿。
+
+### 组选择器（加入 / 移出 / 移动）更好用
+
+- **「加入 / 从策略组移出 / 移动到其它策略组」选择器全面优化**（用户反馈：组选择界面要更便捷）：
+  - **搜索框**（固定在滚动区之外，打开即自动聚焦）：按 **组名 / 上级分组名 / 策略名** 实时过滤，
+    支持中文；搜不到时给出明确空状态文案；
+  - **「只看相关」开关**：只列包含选中 Mod 的组。**移出模式默认开启**（组一多时"不在组里"的行只是噪音），
+    加入模式默认关闭；
+  - **智能排序**：可点的组优先 → 含选中 Mod 的优先 → 按名称（中文拼音），已禁用/无意义的行沉底；
+  - **行详情更全**：显示策略（互斥单选 / 全部开启 / …）、成员数、`权重 N`、`自动联动`、`上级：X`
+    等标签，鼠标不用悬停也能分辨"这是哪一组"；
+  - **键盘操作**：`↑` / `↓` 在可点行之间循环移动高亮（高亮行会滚进视野）、`Enter` 确认、
+    `Esc` 关闭；在「新建并加入」输入框里回车直接建组；
+  - **双击直接执行**：行上双击 = 选中并确认（不再需要"点单选 + 点确认"两步）；
+  - **防误操作**：打开时**不预选任何行**，`Enter` 只在真有高亮行时才生效；"已全部在组里 / 会把整组移空"
+    这类行仍然禁用并写明原因（真实缺陷：行详情里曾把同一条原因写两遍，已改为只由禁用原因说明）；
+  - 窗口更宽（`min(760px, 94vw)`，可拖动缩放），底部补了一行键盘提示。
+- **新增纯逻辑与测试**：`filterGroupPickerRows` / `sortGroupPickerRows` / `groupPickerRowTags` /
+  `groupPickerRowDetail` / `groupPickerRowSearchText` / `formatGroupPickerVisibleSummary` /
+  `nextSelectableRowId`（`node --test` 覆盖 12 项，含搜索、只看相关、排序、键盘落点、文案）。
+
+### 策略组管理改成独立窗口（不再塞进设置页）
+
+- **策略组的完整生命周期搬到独立窗口** `#strategy-group-modal`（用户反馈：编辑组生命周期的界面不该塞在设置里）：
+  - 新模块 `frontend/src/js/features/mod-groups/strategy-group-manager.js`，窗口内提供
+    **用选中的 Mod 建组 / 按策略应用 / 随机单选 / 全关 / 重命名 / 删除 / 上级分组（树形层级）/
+    组权重 / 自动联动**，以及**多选批量管理**（批量删除、批量开关自动联动、批量设置·清除权重）；
+  - 窗口按"大界面"来做：`.strategy-group-content` 默认 `min(1100px, 94vw)` 宽、78vh 高，
+    可拖动任意边缘自由缩放（复用 `core/modal-resizer.js`），组列表在窗口内滚动；
+  - 三个入口：Mod 管理页「分组」菜单 →「策略组管理…」、设置页卡片里保留的一个指针按钮、
+    以及组数量为 0 时分组菜单的提示文案；
+  - ESC 或点击窗口外遮罩关闭；窗口开着时，勾选变化（`onFileSelectionChanged`）与组归属变化
+    （`onModGroupMembershipChanged`）都会自动同步（建组按钮显示「用选中的 N 个 Mod 建组」）。
+- **设置页不再自带策略组管理界面**：原来的整块卡片（建组输入、组列表、权限/权重/层级/批量工具条）
+  已删除，只留一行说明 +「打开策略组管理窗口…」按钮，避免同一套生命周期在两处各维护一份
+  （历史上正是这里漏转发绑定导致「设置页面加载失败：missingMemberNamesForGroup is not defined」）。
+- **新增/调整的测试**：`features/mod-groups/strategy-group-batch.test.mjs`（9 项：窗口结构、
+  批量工具条与后端动作接线、选中集合持久化、设置页回归守卫"不能再出现策略组管理界面"、
+  入口接线、勾选与归属变化驱动刷新）；`node --test` 全绿（162 项）。
+
+### 策略组批量管理（多选后批量删除等）
+
+- **设置页「策略组」列表新增多选 + 批量工具条**：每个组前有勾选框，工具条显示
+  「全选 / 已选 N 个组（M 个成员，含 K 个缺失）」并支持一次对选中的组执行：
+  - **批量删除**（应用内确认弹窗，列出组名与影响：只删 `groups.json` 记录、不动 `addonlist.txt`、
+    不删 Mod 文件、已写入的分层保留、被删组的下级分组回到顶层）；
+  - **开启 / 关闭自动联动**；
+  - **设置权重 / 清除权重**（批量填同一个组权重，仍需「按分层应用」才重排）。
+  - 选中集合存在 `appState.strategyGroupSelection`，重新渲染设置页后仍然保留（不存在的组自动剔除）；
+    没有任何选中时批量按钮保持禁用。
+- **后端新增 `BatchUpdateModStrategyGroups(ids, action, tier)`**：一次加锁、一次写盘完成整批操作，
+  去重保序、未知 ID 记入 `skipped` 而不报错、没有任何改动时不写盘；
+  返回值带 `updated / deleted / skipped / detachedChildren / remaining`，供界面提示。
+  新增 5 项 Go 测试（批量删除并提升下级、批量开关联动、批量权重与清除、非法输入、
+  `addonlist.txt` 逐字节不变）。
+- **修复本轮引入的回归**：批量代码最初在 `bindModStrategyGroupSettings` 里直接调用了只在
+  `renderSettingsPage` 闭包内可见的 `missingMemberNamesForGroup()`，导致整页
+  「设置页面加载失败：missingMemberNamesForGroup is not defined」。现在缺失数由 render 阶段
+  预先算成 `missingMemberCountByGroupId` 传下去；并新增结构测试禁止 bind 里再引用 render 作用域的函数。
+
+### 修复按钮点击被伪元素截走 + 套件识别再校准
+
+- **修复真实缺陷：所有 `.btn` 的点击可能被"左边的按钮"截走**（用户报告「点 mod 选项的按钮有偏移」）。
+  根因在 `frontend/src/css/app/base.css`：给所有按钮加的装饰性扫光
+  `.btn::before { position:absolute; left:-100%; width:100%; height:100% }` **没有 `pointer-events:none`**，
+  它停在按钮左侧、与按钮同宽，于是会吃掉左边按钮的点击 ——
+  实测点「详情」命中的是右边 83px 宽的「游戏开关」，横向从 x=1100 起就被它接管。
+  修好后逐个按钮中心命中自己（`elementFromPoint === 自身`）。
+  顺带把全仓同类隐患一并加上 `pointer-events:none`（`.select-trigger::after`、
+  `.multi-select-option input:checked::after`、`.preset-tag-option input:checked::after`、
+  `.file-item::before`、`.file-checkbox:checked::before`、`.spray-select-trigger::after`），
+  并新增测试 `core/button-pseudo-hit-test.test.mjs`（守住 `.btn::before` 与全仓装饰性绝对定位伪元素）。
+- **套件识别再校准**（用户反馈：死库水被归进 shinano 套装、shinano 的 8 个替换角色没进组）：
+  - **本体按"套件名关键词"附着**：套件段 ≥6 字符时，用它与文件名开头匹配
+    （`limod/shinano` → `shinano维纳斯bill.vpk` … 8 个本体）。此前只用"文件名公共前缀"，
+    而 `neko.vpk` / `油光渲染.vpk` 与本体没有任何公共前缀，所以 8 个本体被漏掉；
+  - **支持 `materials` 下的套件**：没有 `models` 段时，取 `materials` 之后**第一个长度 ≥4 的非通用目录段**
+    作为候选（`materials/sikushui/mo/…` 与 `materials/qkl/mo/sikushui/…` 都收敛到 `sikushui`），
+    且单段候选必须同时满足"簇内文件名有 ≥3 字符公共前缀"（死库水 ✓）才成组；
+  - **排除地图/临时容器**（`static`、`tmp_mod`、`graffiti`、`brick`）与通用子目录名
+    （`props` / `models` / `textures` / `vgui`…），避免把两个地图 Mod 凑成"套装"；
+  - 本体前缀阈值从 4 放宽到 3 个字符（`死库水` 这类 3 字中文系列名）。
+  - 真实库实测（2018 个 Mod）：**34 个套件组 / 202 个成员**，`airi初代 套装` 35（8 本体 + 24 配件 + 材质件）、
+    `shinano 套装` **14（6 配件 + 8 本体）**、`死库水 套装` **4（3 材质 + 本体，不再混进 shinano）**、
+    `ice 套装` 5、`hyxc 套装` 4；`weapons 套装` / `characters 套装` / `3788 套装` / `xx_p_codm 套装`
+    等误报在过滤后全部消失。
+- **提示词**：明确"本体关联的两条线索"（文件名公共前缀 ≥3 字符 / 套件名关键词 ≥6 字符并出现在文件名开头），
+  并要求**绝对不要跨套件合并**（举了 `死库水`（`sikushui`）不属于 `limod/shinano` 的例子）。
+
+### 内置「套装资源目录」信号：用 VPK 内部文件树把套件收成一组
+
+- **新增内置信号 `suite-namespace`（展示名「套装资源目录」）**：解析 VPK 时顺带提取
+  `materials/models/<作者>/<套件>/…` 或 `models/<作者>/<套件>/…` 里的"作者/套件命名空间"
+  （写进 `mods[].structure.resourceRoots`），同一个命名空间下 ≥3 个模块就产出一条 **`all` 组**，
+  并把"只替换官方目标的本体"按**文件名公共前缀**附着进来。
+  - 只收非官方根；通用目录名（`weapons` / `characters` / `vehicles` / `textures` … 多语言）与
+    纯数字段（工坊 ID）会被过滤；纯数字的文件名前缀（`3788…`）也不会被当成组名；
+  - 置信度归入"内容证据"档（medium），排序分 74（高于主体识别 50、低于用户维护的文件夹 78）；
+- **本机 2018 个 Mod 实测**：识别出 **26 个套件组、139 个成员**，包括用户问的那批 l4n 角色包 ——
+  `airi初代 套装` **35 个成员**（8 个幸存者本体 + 24 个配件 + 基础材质 / 油光渲染 / neko），
+  以及武器侧"贴图包 + 参数包分开"的 `ice 套装`(5, codm 冰霜巨龙)、`hyxc 套装`(4, 黑耀星辰)、
+  `mao 套装`(4, 甜美海妖替换 mac-10/uzi) 等；
+- **清单侧**：`structure.resourceRoots` 进入导出清单并列入 `capabilities`，外部推导方可以直接用
+  同一字段做套装判定；提示词补上"≥3 个 Mod 共享同一 resourceRoots → `all` 组 + 用文件名前缀并入本体"
+  的规则与真实例子（含反面例子：通用目录名/纯数字不能当套件名）；
+- 新增测试：解析器 1 项（命名空间提取 + 官方根/单层目录过滤）、引擎 6 项（`all` 组生成、
+  本体附着、≥3 成员门槛、官方目标不误报、武器贴图+参数包、通用名/纯数字过滤、数字前缀回退命名）、
+  App 端到端 1 项（VPK → 缓存 → 清单 `structure.resourceRoots`）。
+
+### 提示词补"套装/配套模块"识别规则
+
+- 复核用户新加的 l4n 角色包（`airi 初代恶堕战斗员` / `shinano 维纳斯` / `neko` / `油光渲染`，
+  共 52 个 Mod）后发现：**角色本体**进了「XX 模型替换合集」（single，正确），
+  但 **24 个配件 / 服装 / 材质一个都没进组**（全在 `ungroupedKeys`），整包也没有任何 `all` 组。
+  根因是内置信号在这种"中文无空格长名 + 单一 `贴图` 标签 + 低置信度泛材质主体"的组合下全部失灵，
+  而**清单里本来就有可靠证据**：这些配件的 `structure.targets` 全部共享 `airi_evilfall/…`
+  这个非官方套件前缀。
+- 提示词新增 **「套装 / 配套模块（很容易漏，务必专门扫一遍）」** 一段，作为必扫项：
+  - 用 `structure.targets`（配合 `structure.samplePaths`、文件名）里**共同出现的非官方路径片段**
+    判定套件（示例：`airi_evilfall`、`limod/shinano`、`mo/sikushui`、`lingmendalao/vrc_eku_freeegg`、
+    `woolywinter`、`xx_particle`），≥3 个 Mod 共享即视为同一套件；
+  - 片段位置不固定（可能在第一段，也可能在 `913limod/airi_evilfall/…` 这样的第二段），要按片段匹配；
+  - 官方目录（`survivors/ weapons/ models/ materials/ sound/ scripts/ particles/ missions/ scenes/ resource/`）
+    不能当套件标识 —— 同一官方目标下的多个替换才是互斥（`single`），同一自定义前缀下的模块是配套（`all`）；
+  - 要把**本体**也并进来（本体 targets 指向官方目录，但与配件共享系列名），并给出组名/标签命名建议。
+- 文档 `docs/features/group-suggestion-import.md` 增加"用共享资源前缀识别套装"小节，
+  含实测对照表（airi / shinano / 死库水 / 星雪特效）与"为什么其它信号会漏"的原因。
+
+### 按 v4 反馈对齐 hint 命名并说明 disabled 语义
+
+- **`preloadHints` 补齐 `entryIds`**：在上一轮加上的 `entryId` / `memberEntryIds` 之外，
+  再加一个与 `duplicateGroups[].entryIds` **同名同形**的数组字段，这样外部推导方可以用
+  同一套字段名处理所有 hint（实测本机导出：`preloadHints` 10 条，`entryId` / `entryIds` /
+  `memberEntryIds` 各 10 条齐全）。
+  > 注：外部智能体的"preloadHints 仍缺 entryIds"这条观察，基于他们当时的清单；
+  > 那份清单其实已经带 `entryId` + `memberEntryIds`，缺的只是同名数组这一种写法。
+- **把 `disabled` 的语义写进提示词与文档**：`disabled` 是 LytVPK 的停用区，**游戏不会加载里面的
+  任何文件**（体检里也是这么判定的：「`x` 只存在于 disabled 目录，但 addonlist.txt 仍记录着它：
+  游戏不会加载该文件」）。因此"同名文件同时出现在根目录与 `disabled`"**不是二选一**：
+  它们归一化后是同一个 addonlist 条目，应用视作同一个成员 —— 提示词现在明确要求不要为它们建组，
+  并指向 `duplicateGroups[].singleAddonListKey` 这个可直接过滤的标记。
+  文档同时给出替代做法：真要"多版本二选一"，就给不同版本不同的文件名。
+
+### 按 v3 反馈补齐 hints 身份字段与"时间差"提示
+
+外部智能体的 v3 产出（189 组 / 1689 成员 / 100% 带标签）校验通过后，提了三条清单侧观察，本轮全部处理：
+
+- **`preloadHints` 补上身份字段**：新增 `entryId` 与 `memberEntryIds`（与 `clusterHints` /
+  `themeHints` / `duplicateGroups` 对齐），root 与 disabled 同名共用 key 时也能精确定位。
+  实测本机导出：`preloadHints` 10 条，10 条都带 `entryId` / `memberEntryIds`。
+- **`duplicateGroups` 标注"退化副本"**：同一文件在 root / disabled / workshop 各有一份时，
+  归一化后是**同一个 addonlist 键**，应用会把它们当成一个成员 —— 这类条目标注
+  `singleAddonListKey: true` + `note`（说明"不存在二选一，要二选一请删掉其中一份"）。
+  实测本机 229 组里有 **9 组**属于此类，正好对应外部智能体报告的"9 组同键双位置"。
+- **清单与磁盘时间差**：
+  - 「准备给智能体的材料」的返回里新增 `notice`，材料就绪弹窗会黄字提示
+    "导出后到导入前不要再改动 mod 目录，改了就重新点一次"；
+  - 校验结果在出现未匹配成员时追加一条总警告：说明这很可能是"导出后又改过目录"，
+    并给出「重新导出材料再让智能体更新成员引用」的做法；
+  - 提示词新增「清单与磁盘的时间差（重要）」一节，要求智能体只用清单里出现过的
+    `key` / `entryId`、遇到大量未匹配时让用户重新导出，并在汇报里带上 `generatedAt`；
+  - 界面入口「导入建议文件…」现在也会**先重新扫描**再导入（低层
+    `ImportGroupSuggestionsFromFile` 保持纯函数语义，CLI 与测试不受影响），
+    避免"导出后新加的 Mod"被误判成未匹配。
+
+### 导出材料前自动重新扫描
+
+- 「准备给智能体的材料」与「导出 Mod 清单…」现在会**先重新扫描一遍 mod 目录**
+  （`addons` 根目录 + `workshop` + `disabled`；未变化的文件走 mtime/size 缓存，属增量扫描），
+  再导出清单：往目录里加/删 Mod 之后即使忘了点刷新，材料也是最新状态，
+  `modCount` / `generatedAt` / `scope` / `coverage` / `clusterHints` 全部随之更新，
+  提示词里的 `{{MOD_COUNT}}` 也按最新扫描填。
+  - 扫描失败不阻断导出（例如还没选目录）：记一条日志后用现有缓存继续，清单里的 Mod 数会立刻暴露问题；
+  - CLI 的 `--export-grouping-catalog` 已经自己扫过一次，走不重复扫描的内部路径，避免双倍开销；
+  - 前端两个按钮在导出期间显示「正在扫描并导出…」并禁用，结束后恢复（`finally`），
+    成功提示改为「已按最新扫描导出 Mod 清单（N 个）」，材料就绪弹窗也注明"刚重新扫描过"。
+- 新增回归测试 `internal/app/mod_group_catalog_freshness_test.go`（4 项）：
+  加/删文件 + 重新扫描后清单跟随；**不手动刷新**直接导出/准备材料时也会自动扫描到新文件；
+  再次准备材料会覆盖同一路径的清单并包含新增 Mod。
+
+### 提示词写明处理范围 + 可编辑
+
+- **提示词开头新增「处理范围（硬性）」**：只处理 `addons` 根目录（不递归）、`addons\workshop\`、
+  `addons\disabled\`；`addons` 下其它自建子目录（如 `addons\Airi初代恶堕战斗员八人\…`）不参与扫描，
+  其 VPK 不在清单里、也不应出现在建议里 —— 需要说明时写进 `notes`，
+  `scope` / `unreadableMods` 属于预期差异。（`TestGroupSuggestionAgentPromptIsSelfContained` 现在会校验这几句。）
+- **提示词可编辑**：
+  - 新增 `GetGroupSuggestionAgentPromptState` / `SaveGroupSuggestionAgentPrompt` /
+    `ResetGroupSuggestionAgentPrompt`：自定义版本保存在
+    `%AppData%\LytVPK\group_suggestion_agent_prompt.md`，内置版本内嵌在 EXE 里用作"恢复默认"；
+  - 编辑器里看到的是**模板**（保留 `{{CATALOG_PATH}}` / `{{INBOX_PATH}}` / `{{MOD_COUNT}}` 占位符），
+    占位符可一键插入；真正复制/导出时后端再替换成本机真实路径；
+  - 保存会统一换行（CRLF → LF），空内容会拒绝并提示改用「恢复默认」；重置是幂等的；
+  - 「分组建议」工具栏新增「编辑提示词…」按钮，弹窗支持拖动缩放、显示"内置默认 / 你自己的
+    （保存时间）/ 有未保存的修改"、以及保存 / 恢复默认（带确认）/ 取消。
+- 编辑器入口在「分组建议」弹窗内部，所以给该弹窗单独提高了层级（`--z-popover`），
+  否则会被后加载的分组建议弹窗盖住（结构测试已锁住这条约束）。
+
+### 让智能体在建议文件里一起产出标签
+
+- **提示词**（`internal/app/assets/group_suggestion_agent_prompt.md`）：新增「同时给这些 Mod 打标签
+  （重要，强烈建议）」一节，说明标签写在文件名里、推导方只能通过建议文件表达，
+  并给出命名规则（≤ 24 字符、禁用 `+ , [ ] < > : " / \ | ? *`、不要用"其他/皮肤"这类宽泛词、
+  优先复用清单里 `primaryTag`/`secondaryTags` 的词法）、JSON 示例与自检口径
+  （`withTags` / `taggedMembers`）；同时明确写清"没给标签也能导入，会降级用规则推导"。
+- **导入格式**（向后兼容，旧文件照常导入）：
+  - 新增 `suggestions[].tag`（整组统一标签）、`tagReason`（理由）、
+    `memberTags`（逐成员标签，用于同组内再细分）；
+  - dry-run 校验新增 `withTags` / `taggedMembers` 统计；非法标签（过长或含保留字符）
+    会把该条判为 invalid 并在 `problems` 里写明，`memberTags` 的空键与非法标签同样会报出。
+- **标签优先级（导入 > 规则）**：`GetGroupTagSuggestions` 对导入建议优先采用文件里的 `tag`
+  （`tagOrigin=imported`），并透出 `memberTags`；只有文件没给标签时才降级到
+  "共同标签 → 组名 → 成员共同主体识别"。
+- **前端**：建议卡片新增「导入标签：xxx」徽标与「应用标签」按钮（应用前用应用内确认框说明
+  会改 addonlist 键、工具会自动改绑），逐成员标签按"标签 → 成员"归并后逐个应用；
+  纯逻辑 `buildTagApplyPlan` 有 5 项测试覆盖（整组标签覆盖全员、逐成员细分、大小写去重、空计划）。
+
+### 标签 × 分组的双向互补
+
+- **标签已能筛出来的，不再重复推荐建组**：
+  - 推导引擎新增"标签覆盖"判定（`internal/grouping/tags.go`）：找出最能代表这批 Mod 的标签，
+    并区分 `exact`（恰好只筛出这一批）/ `partial`（集合外还有同标签 Mod）/ `wide`；
+  - 建议新增 `tagKey` / `tagScope` / `tagInSet` / `tagOutside` 字段；`exact` 的建议在分组建议弹窗里
+    带「标签已覆盖：xxx」徽标，并**默认隐藏**（筛选栏新增「隐藏标签已覆盖 / 显示全部 /
+    只看标签已覆盖」）；
+  - 概要行写明「N 条标签已覆盖（可直接用标签筛选）」；这类建议上带「用标签筛选」按钮，
+    一键关闭弹窗并按该标签筛选 —— 例如"全是替换 sg552 的枪"不必再建组；
+  - 只部分覆盖的**不隐藏**：此时标签筛出的是更大的集合，建组仍有意义。
+  - 排序语义保持不变：引擎只负责"像不像一个真实的组"，"要不要看"交给筛选器
+    （避免把"多信号优先"的既有排序弄乱）。
+- **用高精度分组反过来补标签**（组 → 标签）：
+  - 新增 `GetGroupTagSuggestions`：为每个策略组与每条导入的外部建议推导**建议标签**，
+    来源分别是「该组已有的共同标签」「组名（过长则放弃）」「成员共同的主体识别」，
+    并给出成员数、已带该标签的数量、缺失文件数；
+  - 新增 `ApplyTagToModKeys`：给一批 addonlist 键对应的 Mod 追加同一个二级标签，
+    复用既有 `SetVPKTags`（root/disabled 写进文件名、工坊写进 `.meta`），
+    幂等，并分别报告 已应用 / 已有该标签 / 文件缺失 / 写入失败；
+  - 「分组」菜单每个组新增「打标签…」对话框：预填建议标签（可改）、列出成员与会被跳过的数量，
+    确认后一次给整组打标签。
+- **修一个真实缺陷**：`SetVPKTags` 会把标签写进文件名（＝改变 addonlist 键），但此前**没有**
+  改绑本地记录 —— 给组内 Mod 打标签会让它从策略组里掉出去，分层 / 依赖 / 忽略清单也会悬空。
+  现在打标签与"重命名 Mod"走同一套 `rebindModKeyOnRename`（策略组 / 分层 / 依赖 / 忽略清单
+  全部跟着改绑）并使冲突复检结果失效；改绑调用刻意避开了 `rootDirectorySnapshot()`，
+  以免在已持有写锁时再取读锁造成死锁（新增测试会在这个死锁上超时失败）。
+
+### 单选 / 多选直接改分组
+
+- **补上"选中的 Mod 该放进哪个组"这条链路**：此前只有工具栏「分组」菜单里按组操作的
+  「＋/－ 选中的 N 个」，单文件菜单（右键卡片）与多选菜单里没有任何分组入口，
+  用户答不出"怎么把一个 Mod 放进某个组 / 换到别的组"。现在两个菜单都带上：
+  - **加入策略组…**：选择器列出全部策略组（含成员数、选中项里已有几个在该组），
+    选一个即可加入；同一个弹窗里还能**新建一个组并直接放进去**；
+  - **从策略组移出…**：只列出选中项所属的组，选一个即可移出；
+  - **移动到其它策略组…**：只属于一个组时直接选目标组；分散在多个组时先选"从哪个组移动"，
+    再选目标组。
+  - 行级可用性提示：已经全在组里、一个都不在组里、会把整组移空、源组自己不能当目标，
+    这些情况会置灰并写明原因。
+- 新增后端 `MoveModStrategyGroupMembers(sourceID, targetID, keys)`：
+  **一次写盘**完成"从源组移出 + 加入目标组"，不会出现"已加入新组但还没从旧组移出"的中间状态；
+  返回 `removedFromSource` / `addedToTarget` / `moved` / `alreadyInTarget` / 两侧剩余成员数；
+  会把源组移空的请求整体拒绝（两边都不变），重复移动是幂等的。
+- 选择器与入口的默认语义：整条链路仍然**只写 `groups.json`**，
+  不改 `addonlist.txt`、不移动 Mod 文件、不改 `priority.json`；操作完成后组徽标、分组筛选与
+  文件列表立即刷新。
+- 新增静态守卫测试 `core/module-import-contract.test.mjs`：全仓扫描"命名导入的目标模块必须真的
+  导出该名字"。本轮就是这样发现 `context-menu.js` 从 `group-picker.js` 导入了实际定义在
+  `group-picker-view.mjs` 的 `GROUP_PICKER_MODES`（`node --test` 全绿、只有 `npm run build`
+  的 rollup 会报错），现在这类错误在测试阶段就会失败。
+
+### 策略组生命周期补全 + 分组建议阅览层
+
+- 补全策略组自身的生命周期（此前只有"创建 / 应用 / 删除"）：
+  - 新增 `RenameModStrategyGroup`（组名 + 描述）、`AddModStrategyGroupMembers`、
+    `RemoveModStrategyGroupMembers`、`SetModStrategyGroupMembers`（整体替换）四个后端方法；
+    加入 / 移出都是**幂等**的，重复加入不会产生重复成员，移出也不会影响"文件已不在列表里"的成员；
+  - 不允许把成员全部移出（组会失去意义）——要清空请直接删除组，错误信息会这么提示；
+  - `DeleteModStrategyGroup` 现在会把**下级分组提升为顶层**，不再留下悬空 `parentId`；
+    删除仍然只写 `groups.json`，`addonlist.txt` 保持逐字节不变；
+  - MOD 管理页「分组」菜单每个组新增「＋ 选中的 N 个 / － 选中的 N 个 / 重命名 / 删除」，
+    删除前用**应用内确认弹窗**列出影响范围（成员数、不动 addonlist、保留 priority.json 分层、
+    下级分组回到顶层）；
+  - 设置页策略组新增「重命名」，删除也从 `window.confirm`（WebView2 下会阻塞页面）改成应用内确认弹窗。
+- 分组建议弹窗重做为"先扫一遍、再决定看哪条"的阅览层（实测 234 条建议）：
+  - 默认**折叠卡片**：标题 + 置信度 / 来源徽标 + 成员数 + 推导理由 + 信号标签 + 成员预览
+    （前 3 个 + 「…还有 N 个」），点「展开详情」才渲染完整成员行与
+    `详情 / 游戏开关 / 启用·禁用·复制到 addons` 按钮；折叠态也能直接「创建为组（N）」；
+  - 新增**筛选栏**：按组名 / 成员名 / 成员键 / 信号搜索，置信度（高 / 中 / 低）与来源
+    （导入建议 / 内置推导）下拉，排序方式（推荐顺序 / 置信度优先 / 成员多优先 / 名称顺序），
+    外加「全部展开 / 全部折叠」与实时计数「显示 X / Y 条建议」；
+  - 弹窗**右下角可拖动缩放**（`resize: both`），尺寸记在 `localStorage`，下次打开保持；
+  - **分页渲染**：每次渲染 24 条，底部「显示更多建议（还有 N 条）」逐页加载，
+    避免一次性铺开上千个 DOM 节点；
+  - 筛选与排序抽成纯逻辑模块 `features/mod-groups/suggestion-filter.mjs`（10 项测试覆盖）。
+- 新增调试脚本 `scripts/devtools/drag-window-at.ps1`（投递按下 → 移动 → 抬起的真实鼠标消息）
+  与 `scripts/devtools/type-window-text.ps1`（向已聚焦输入框投递 `WM_CHAR`），
+  用于在锁屏 / 无前台桌面的环境里驱动打包 EXE 验证拖拽缩放与文本输入。
+
 ## 2.5.14-community.64 — 2026-09-22
 - 把"组 × addonlist 生命周期"行为接到界面上：
   - 组归属新增 `missing` 标记，并新增 `GetModStrategyGroupMissingMembers`：分组菜单显示

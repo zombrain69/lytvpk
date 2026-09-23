@@ -5,7 +5,7 @@
 
 import { appState } from "../state.js";
 import { GetModGroupMembership } from "../../../../wailsjs/go/app/App";
-import { buildGroupFilterOptions, buildGroupIndex } from "./group-view.mjs";
+import { buildGroupFilterOptions, buildGroupIndex, sortGroupFilterOptions } from "./group-view.mjs";
 
 const listeners = new Set();
 
@@ -40,7 +40,9 @@ export async function refreshModGroupMembershipState({ silent = true } = {}) {
   }
   appState.modGroupMemberships = memberships;
   appState.modGroupIndex = buildGroupIndex(memberships);
-  appState.groupFilterOptions = buildGroupFilterOptions(memberships);
+  // 顺序＝组权重升序（未设置权重的组排最后）+ 子组紧跟父组：
+  // 常用组在「策略组管理」窗口里给个权重，就能排到「按分组筛选」最上面。
+  appState.groupFilterOptions = sortGroupFilterOptions(buildGroupFilterOptions(memberships));
   const valid = new Set(appState.groupFilterOptions.map((option) => option.id));
   appState.activeGroupFilter = new Set(
     [...(appState.activeGroupFilter || [])].filter((id) => valid.has(id)),

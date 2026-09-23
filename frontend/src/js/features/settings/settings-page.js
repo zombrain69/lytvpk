@@ -7,18 +7,10 @@ import {
   parseConflictIgnoreList,
 } from "../conflicts/conflict-ignore-options.mjs";
 import {
-  formatStrategyGroupApplySummary,
-  formatStrategyGroupStrategy,
-} from "./strategy-group-format.mjs";
-import { normalizePriorityTier } from "../file-list/priority-label.mjs";
-import {
   formatCollectionQueueSummary,
   formatCollectionRefreshSummary,
   formatCollectionSummary,
 } from "./workshop-collection-format.mjs";
-import { buildParentOptions, flattenStrategyGroupTree } from "./strategy-group-tree.mjs";
-import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
-import { formatGroupMissingNotice, normalizeGroupKey } from "../mod-groups/group-view.mjs";
 import {
   buildHealthIssueRows,
   formatHealthReportSummary,
@@ -28,9 +20,13 @@ import {
   formatDependencyEnableSummary,
 } from "./dependency-format.mjs";
 import { buildHealthReportMarkdown } from "./health-report-markdown.mjs";
-import { buildDependencyArgs, buildGroupMembersFromSelection } from "./selection-args.mjs";
+import { buildDependencyArgs } from "./selection-args.mjs";
 import { formatProfileApplySummary } from "./profile-format.mjs";
 import { copyTextToClipboard } from "../file-list/share.js";
+// 策略组管理窗口已经独立：设置页只留一个入口按钮，真正的生命周期操作在那个窗口里。
+import { openStrategyGroupManager } from "../mod-groups/strategy-group-manager.js";
+import { showConfirmModal } from "../modals/confirm.js";
+import { showPromptModal } from "../modals/prompt.js";
 
 const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
@@ -123,10 +119,6 @@ export async function renderSettingsPage(deps) {
     DeleteModEnableProfile,
     ExportModEnableProfile,
     ImportModEnableProfile,
-    ListModStrategyGroups,
-    CaptureModStrategyGroup,
-    ApplyModStrategyGroup,
-    DeleteModStrategyGroup,
     RunModHealthCheck,
     RemoveDuplicateAddonListEntries,
     RemoveMissingFileAddonListEntries,
@@ -144,10 +136,8 @@ export async function renderSettingsPage(deps) {
     // （历史缺陷：自动联动、方案自动化快照、体检报告导出都因此失效）。
     GetWorkshopAutoRedownload,
     ListWorkshopCollections,
-    ListModStrategyGroupTree,
     CaptureModEnableProfileWithAutomation,
     SaveModHealthReport,
-    SetModStrategyGroupEnforcement,
   } = deps;
   const container = document.getElementById("settings-page-content");
   if (!container) return;
@@ -237,42 +227,8 @@ export async function renderSettingsPage(deps) {
   } catch (error) {
     modEnableProfilesError = String(error?.message || error || "无法读取启用方案");
   }
-  let modStrategyGroups = [];
-  let modStrategyGroupsError = "";
-  try {
-    if (typeof ListModStrategyGroups === "function") {
-      modStrategyGroups = (await ListModStrategyGroups()) || [];
-    }
-  } catch (error) {
-    modStrategyGroupsError = String(error?.message || error || "无法读取策略组");
-  }
-  // 树形层级：后端按父子关系返回；没有任何上级分组时展开结果与扁平列表一致。
-  let modStrategyGroupTree = null;
-  if (typeof ListModStrategyGroupTree === "function") {
-    try {
-      modStrategyGroupTree = (await ListModStrategyGroupTree()) || null;
-    } catch (error) {
-      console.warn("读取策略组层级失败，退回扁平视图:", error);
-      modStrategyGroupTree = null;
-    }
-  }
-  const modStrategyGroupRows = flattenStrategyGroupTree(modStrategyGroupTree, modStrategyGroups);
-  const selectedModCount = appState.selectedFiles ? appState.selectedFiles.size : 0;
-  // 策略组里指向"当前列表里已经找不到"的成员（被删除/移走）：界面上标注出来，
-  // 提示用户放回同名文件即可自动回到组里。
-  const existingGroupKeys = (() => {
-    const files = appState.allVpkFiles?.length ? appState.allVpkFiles : appState.vpkFiles || [];
-    const keys = new Set();
-    files.forEach((file) => {
-      filePriorityKeys(file, appState.currentDirectory).forEach((key) => keys.add(normalizeGroupKey(key)));
-    });
-    return keys;
-  })();
-  const missingMemberNamesForGroup = (group) =>
-    (group?.members || [])
-      .filter((member) => !existingGroupKeys.has(normalizeGroupKey(member?.key)))
-      .map((member) => String(member?.name || member?.key || "").trim())
-      .filter(Boolean);
+  // 策略组的生命周期已经不在这里：Mod 管理页「分组 → 策略组管理…」打开独立窗口，
+  // 由 features/mod-groups/strategy-group-manager.js 直接读写 groups.json。
   let modDependencies = [];
   let modDependenciesError = "";
   try {
@@ -752,65 +708,10 @@ export async function renderSettingsPage(deps) {
           </div>
           <div class="setting-card">
             <div class="setting-card-title">策略组</div>
-            <div class="setting-row-desc">把选中的 Mod 保存成一组，一键应用策略：互斥单选只保留一个、随机单选每次换一个、全部开启或全部关闭。应用时只改组成员的开关，不重排其它 Mod，也不会自动改动未选中的文件。</div>
+            <div class="setting-row-desc">策略组已经搬到独立窗口：在 Mod 管理页打开「分组」菜单，点「策略组管理…」即可建组、按策略应用、调整组权重与上级分组，并支持多选批量管理。这里不再重复一份。</div>
             <div class="addonlist-action-row settings-profile-capture-row">
-              <input type="text" id="settings-strategy-group-name" class="settings-profile-name-input" maxlength="60" placeholder="策略组名称，例如 角色替换包">
-              <select id="settings-strategy-group-strategy" class="settings-strategy-select" aria-label="策略类型">
-                <option value="single">互斥单选（保留当前启用的一个）</option>
-                <option value="single_random">随机单选</option>
-                <option value="all">全部开启</option>
-                <option value="off">全部关闭</option>
-              </select>
-              <button type="button" id="settings-strategy-group-capture" class="trigger-check-btn addonlist-action-btn" ${selectedModCount > 0 ? "" : "disabled"}>用选中的 ${selectedModCount} 个 Mod 建组</button>
+              <button type="button" id="settings-open-strategy-manager" class="btn btn-small btn-outline">打开策略组管理窗口…</button>
             </div>
-            <p id="settings-strategy-group-status" class="setting-row-status">${escapeHtml(modStrategyGroupsError)}</p>
-            ${modStrategyGroupRows.length > 0 ? `
-              <div class="settings-profile-list">
-                ${modStrategyGroupRows.map(({ group, depth }) => `
-                  <div class="settings-profile-item" style="margin-left: ${Math.max(depth - 1, 0) * 1.25}rem">
-                    <div class="settings-profile-main">
-                      <strong>${depth > 1 ? "└ " : ""}${escapeHtml(group.name)}</strong>
-                      <span>${escapeHtml(formatStrategyGroupStrategy(group.strategy))} · ${(group.members || []).length} 个成员</span>
-                      ${(() => {
-                        const notice = formatGroupMissingNotice(missingMemberNamesForGroup(group));
-                        return notice
-                          ? `<span class="settings-strategy-missing" title="组成员不会因为文件被删除而移除；放在 addons / workshop / disabled 的同名文件会自动回到组里">⚠️ ${escapeHtml(notice)}</span>`
-                          : "";
-                      })()}
-                    </div>
-                    <div class="settings-profile-actions">
-                      <button type="button" class="settings-strategy-apply" data-group-id="${escapeAttr(group.id)}">按策略应用</button>
-                      <button type="button" class="settings-strategy-random" data-group-id="${escapeAttr(group.id)}">随机单选</button>
-                      <button type="button" class="settings-strategy-off" data-group-id="${escapeAttr(group.id)}">全关</button>
-                      <button type="button" class="settings-strategy-delete" data-group-id="${escapeAttr(group.id)}">删除</button>
-                      <span class="settings-strategy-parent" title="上级分组只影响这里的展示层级，不会改变优先级（优先级由组权重与 Mod 分层决定）">
-                        <select class="settings-strategy-parent-select" data-group-id="${escapeAttr(group.id)}" aria-label="上级分组">
-                          <option value="">（顶层）</option>
-                          ${buildParentOptions(modStrategyGroupRows, group.id)
-                            .map((option) => `<option value="${escapeAttr(option.id)}" ${option.id === group.parentId ? "selected" : ""}>${escapeHtml(option.label)}</option>`)
-                            .join("")}
-                        </select>
-                      </span>
-                      <span class="settings-strategy-tier" title="组权重：叠加到组内成员的有效分层；数值越小越先加载。留空表示未设置，多个组的权重取最小值。">
-                        <input
-                          type="number"
-                          class="settings-strategy-tier-input"
-                          data-group-id="${escapeAttr(group.id)}"
-                          value="${group.tier === null || group.tier === undefined ? "" : escapeAttr(String(group.tier))}"
-                          placeholder="权重"
-                          aria-label="策略组权重"
-                        >
-                        <button type="button" class="settings-strategy-tier-save" data-group-id="${escapeAttr(group.id)}">保存权重</button>
-                      </span>
-                      <label class="settings-strategy-enforce" title="开启后，手动开关组内成员时会按策略自动联动其它成员">
-                        <input type="checkbox" class="settings-strategy-enforce-toggle" data-group-id="${escapeAttr(group.id)}" ${group.enforce ? "checked" : ""}>
-                        <span>自动联动</span>
-                      </label>
-                    </div>
-                  </div>
-                `).join("")}
-              </div>
-            ` : `<div class="setting-row-desc">还没有策略组。先在 Mod 管理页勾选几个 Mod，再回到这里建组。</div>`}
           </div>
           <div class="setting-card">
             <div class="setting-card-title">Mod 依赖</div>
@@ -885,7 +786,6 @@ export async function renderSettingsPage(deps) {
     autoexecInfo,
     autoexecHelp,
     modEnableProfiles,
-    modStrategyGroups,
     modDependencies,
     refreshAddonListPanel: () => renderSettingsPage(deps),
   });
@@ -1144,158 +1044,6 @@ function bindModHealthCheckSettings(deps) {
     } finally {
       saveReportButton.disabled = false;
     }
-  });
-}
-
-function bindModStrategyGroupSettings(deps) {
-  const status = document.getElementById("settings-strategy-group-status");
-  const nameInput = document.getElementById("settings-strategy-group-name");
-  const strategySelect = document.getElementById("settings-strategy-group-strategy");
-  const captureButton = document.getElementById("settings-strategy-group-capture");
-
-  const setStatus = (message) => {
-    if (status) status.textContent = message;
-  };
-  const refresh = () => {
-    if (typeof deps.refreshAddonListPanel === "function") {
-      deps.refreshAddonListPanel();
-    }
-  };
-  const applyGroup = async (button, id, options) => {
-    if (!id) return;
-    button.disabled = true;
-    try {
-      const result = await deps.ApplyModStrategyGroup(id, options || {});
-      deps.showNotification(formatStrategyGroupApplySummary(result), "success");
-      deps.refreshFilesKeepFilter?.();
-      refresh();
-    } catch (error) {
-      setStatus("应用策略组失败: " + String(error?.message || error));
-      button.disabled = false;
-    }
-  };
-
-  captureButton?.addEventListener("click", async () => {
-    const name = (nameInput?.value || "").trim();
-    if (!name) {
-      setStatus("请先填写策略组名称");
-      nameInput?.focus();
-      return;
-    }
-    const members = buildGroupMembersFromSelection([...(deps.appState.selectedFiles || [])]);
-    if (members.length === 0) {
-      setStatus("请先在 Mod 管理页选中要归入策略组的 Mod");
-      return;
-    }
-    captureButton.disabled = true;
-    try {
-      await deps.CaptureModStrategyGroup(name, "", strategySelect?.value || "single", members);
-      if (nameInput) nameInput.value = "";
-      deps.showNotification(`已保存策略组“${name}”`, "success");
-      refresh();
-    } catch (error) {
-      setStatus("保存策略组失败: " + String(error?.message || error));
-    } finally {
-      captureButton.disabled = false;
-    }
-  });
-
-  document.querySelectorAll("#settings-page-content .settings-strategy-apply").forEach((button) => {
-    button.addEventListener("click", () => applyGroup(button, button.dataset.groupId, {}));
-  });
-  document.querySelectorAll("#settings-page-content .settings-strategy-random").forEach((button) => {
-    button.addEventListener("click", () =>
-      applyGroup(button, button.dataset.groupId, { strategy: "single_random" }),
-    );
-  });
-  document.querySelectorAll("#settings-page-content .settings-strategy-off").forEach((button) => {
-    button.addEventListener("click", () => applyGroup(button, button.dataset.groupId, { strategy: "off" }));
-  });
-  document.querySelectorAll("#settings-page-content .settings-strategy-delete").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const id = button.dataset.groupId;
-      if (!id) return;
-      if (!window.confirm("删除这个策略组？不会改动当前 addonlist.txt。")) return;
-      button.disabled = true;
-      try {
-        await deps.DeleteModStrategyGroup(id);
-        deps.showNotification("策略组已删除", "success");
-        refresh();
-      } catch (error) {
-        setStatus("删除策略组失败: " + String(error?.message || error));
-        button.disabled = false;
-      }
-    });
-  });
-
-  document.querySelectorAll("#settings-page-content .settings-strategy-enforce-toggle").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const id = input.dataset.groupId;
-      if (!id) return;
-      input.disabled = true;
-      try {
-        await deps.SetModStrategyGroupEnforcement(id, input.checked);
-        deps.showNotification(
-          input.checked ? "已开启策略组自动联动" : "已关闭策略组自动联动",
-          "success",
-        );
-        refresh();
-      } catch (error) {
-        input.checked = !input.checked;
-        setStatus("保存自动联动设置失败: " + String(error?.message || error));
-      } finally {
-        input.disabled = false;
-      }
-    });
-  });
-
-  // 组权重是"统一优先级模型"里的可编辑分层：只写 groups.json，
-  // 只有用户显式点击加载顺序弹窗里的“按分层应用”才会重排 addonlist.txt。
-  document.querySelectorAll("#settings-page-content .settings-strategy-tier-save").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const id = button.dataset.groupId;
-      if (!id) return;
-      const input = document.querySelector(
-        `#settings-page-content .settings-strategy-tier-input[data-group-id="${CSS.escape(id)}"]`,
-      );
-      const raw = String(input?.value ?? "").trim();
-      const tier = normalizePriorityTier(raw);
-      if (raw !== "" && tier === null) {
-        setStatus("组权重必须是整数（可为负数；数值越小越先加载）");
-        return;
-      }
-      button.disabled = true;
-      try {
-        await deps.SetModStrategyGroupTier(id, tier);
-        deps.showNotification(
-          tier === null ? "已清除策略组权重" : `已保存策略组权重 ${tier}（需按分层应用才会重排）`,
-          "success",
-        );
-        refresh();
-      } catch (error) {
-        setStatus("保存策略组权重失败: " + String(error?.message || error));
-        button.disabled = false;
-      }
-    });
-  });
-
-  // 树形层级：只调整展示层级，不影响优先级；后端会拒绝成环与超过深度的设置。
-  document.querySelectorAll("#settings-page-content .settings-strategy-parent-select").forEach((select) => {
-    select.addEventListener("change", async () => {
-      const id = select.dataset.groupId;
-      if (!id) return;
-      const parentID = select.value || "";
-      select.disabled = true;
-      try {
-        await deps.MoveModStrategyGroup(id, parentID);
-        deps.showNotification(parentID ? "已设置上级分组" : "已移动到顶层", "success");
-        refresh();
-      } catch (error) {
-        setStatus("设置上级分组失败: " + String(error?.message || error));
-        select.disabled = false;
-        refresh();
-      }
-    });
   });
 }
 
@@ -1599,9 +1347,12 @@ function bindSettingsPage(deps) {
   enhanceSettingsNav();
   bindConflictAnalysisSettings(deps);
   bindModEnableProfileSettings(deps);
-  bindModStrategyGroupSettings(deps);
   bindModDependencySettings(deps);
   bindModHealthCheckSettings(deps);
+  // 设置页只保留入口：策略组的编辑界面在独立的「策略组管理」窗口里。
+  document
+    .getElementById("settings-open-strategy-manager")
+    ?.addEventListener("click", () => void openStrategyGroupManager());
 
   document.querySelectorAll("#settings-page-content .settings-nav-item").forEach((item) => {
     item.addEventListener("click", () => {

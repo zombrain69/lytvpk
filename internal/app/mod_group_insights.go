@@ -25,6 +25,9 @@ type ModGroupMembership struct {
 	Enforce     bool   `json:"enforce"`
 	Tier        *int   `json:"tier,omitempty"`
 	MemberCount int    `json:"memberCount"`
+	// ParentID 是上级分组（留空表示顶层）。层级只影响展示与组织，不影响优先级；
+	// 前端「按分组筛选」会用它把子组排在父组下面。
+	ParentID string `json:"parentId,omitempty"`
 	// Missing 为 true 表示这条成员记录指向的文件当前不在受管列表里
 	// （已被删除 / 移出目录）：组里仍保留它，界面会给"缺失"标记。
 	Missing bool `json:"missing,omitempty"`
@@ -51,6 +54,7 @@ func (a *App) GetModGroupMembership() ([]ModGroupMembership, error) {
 				Enforce:     group.Enforce,
 				Tier:        group.Tier,
 				MemberCount: len(group.Members),
+				ParentID:    group.ParentID,
 				Missing:     !a.modKeyExistsInVault(key),
 			})
 		}
@@ -265,39 +269,8 @@ func (a *App) CreateModStrategyGroupFromKeys(name string, description string, st
 		return ModStrategyGroup{}, err
 	}
 
-	rootDir := a.rootDirectorySnapshot()
-	displayNameByKey := make(map[string]string)
-	if rootDir != "" {
-		a.vpkCache.Range(func(_ any, value any) bool {
-			cache, ok := value.(*VPKFileCache)
-			if !ok || cache == nil {
-				return true
-			}
-			key, keyErr := addonListKeyForManagedVPKPathFromRoot(rootDir, cache.File.Path)
-			if keyErr == nil && key != "" {
-				displayNameByKey[key] = cache.File.Name
-			}
-			return true
-		})
-	}
-
-	members := make([]ModStrategyGroupMember, 0, len(keys))
-	seen := make(map[string]struct{}, len(keys))
-	for _, rawKey := range keys {
-		key := normalizeAddonListKey(rawKey)
-		if key == "" {
-			continue
-		}
-		if _, duplicate := seen[key]; duplicate {
-			continue
-		}
-		seen[key] = struct{}{}
-		display := displayNameByKey[key]
-		if display == "" {
-			display = modStrategyGroupDisplayNameForKey(key)
-		}
-		members = append(members, ModStrategyGroupMember{Key: key, Name: display})
-	}
+	// 键 -> 成员的翻译集中在 mod_group_edit.go，创建与编辑共用同一套显示名规则。
+	members := a.modStrategyGroupMembersFromKeys(keys)
 	if len(members) == 0 {
 		return ModStrategyGroup{}, fmt.Errorf("请至少选择一个有效的 Mod")
 	}

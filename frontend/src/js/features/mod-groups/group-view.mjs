@@ -72,7 +72,12 @@ export function formatGroupChipTitle(membership) {
   return parts.join(" · ");
 }
 
-/** buildGroupFilterOptions：按组聚合出筛选下拉需要的选项。 */
+/**
+ * buildGroupFilterOptions：按组聚合出筛选下拉需要的选项。
+ *
+ * 选项里带上 `tier`（组权重）、`parentId` / `parentName` / `depth`（上级分组层级），
+ * 这样筛选菜单能像「策略组管理」窗口一样按权重排序并把子组显示在父组下面。
+ */
 export function buildGroupFilterOptions(memberships) {
   const byId = new Map();
   (Array.isArray(memberships) ? memberships : []).forEach((membership) => {
@@ -83,6 +88,12 @@ export function buildGroupFilterOptions(memberships) {
         id,
         name: String(membership?.groupName || id),
         strategy: String(membership?.strategy || ""),
+        enforce: Boolean(membership?.enforce),
+        tier:
+          membership?.tier === null || membership?.tier === undefined || membership?.tier === ""
+            ? null
+            : Number(membership.tier),
+        parentId: String(membership?.parentId || ""),
         memberCount: Number(membership?.memberCount || 0),
         keys: new Set(),
         missingCount: 0,
@@ -98,25 +109,150 @@ export function buildGroupFilterOptions(memberships) {
     const key = normalizeGroupKey(membership?.key);
     if (key) byId.get(id).keys.add(key);
   });
-  return [...byId.values()].sort((left, right) =>
-    left.name.localeCompare(right.name, "zh-CN"),
-  );
+  // 层级信息需要"全部组都在手里"才能算，所以放在循环之后补。
+  const options = [...byId.values()];
+  options.forEach((option) => {
+    option.parentName = option.parentId ? byId.get(option.parentId)?.name || "" : "";
+    if (option.parentId && !byId.has(option.parentId)) option.parentId = "";
+    option.depth = 1;
+  });
+  options.forEach((option) => {
+    option.depth = groupOptionDepth(option, byId);
+  });
+  return options;
+}
+
+/** groupOptionDepth 计算缩进层级；父链成环或缺父时按顶层处理（不能无限递归）。 */
+function groupOptionDepth(option, byId) {
+  let depth = 1;
+  let current = option;
+  const seen = new Set([option.id]);
+  while (current?.parentId) {
+    const parent = byId.get(current.parentId);
+    if (!parent || seen.has(parent.id)) return 1;
+    seen.add(parent.id);
+    depth += 1;
+    current = parent;
+  }
+  return depth;
+}
+
+/** groupOptionTierSortValue 未设置权重的组排在最后。 */
+function groupOptionTierSortValue(option) {
+  const tier = option?.tier;
+  return tier === null || tier === undefined || Number.isNaN(Number(tier))
+    ? Number.POSITIVE_INFINITY
+    : Number(tier);
+}
+
+function compareGroupOptions(left, right) {
+  const tierDiff = groupOptionTierSortValue(left) - groupOptionTierSortValue(right);
+  if (tierDiff !== 0) return tierDiff;
+  const byName = String(left?.name || "").localeCompare(String(right?.name || ""), "zh-CN");
+  if (byName !== 0) return byName;
+  return String(left?.id || "").localeCompare(String(right?.id || ""));
+}
+
+/**
+ * sortGroupFilterOptions 生成「按分组筛选」的显示顺序：
+ *   1. **按组权重升序**（未设置权重排最后，同权重按名称）—— 常用组给个更小的权重就排到最上面；
+ *   2. **子组紧跟自己的上级分组**：一棵分组树整体上下移动，不会因为子组名字前缀不同
+ *      （例如 `【…】` 和 `!…`）被甩到列表另一头、跟父组脱开；
+ *   3. 子树的位置由**子树里最小的权重**决定：给子组设权重，它所在的整棵树会一起上浮，
+ *      这样"常编辑的子组"也能一键排到前面，同时仍然待在自己的上级分组下面。
+ */
+export function sortGroupFilterOptions(options) {
+  const list = Array.isArray(options) ? options : [];
+  const byId = new Map(list.map((option) => [String(option?.id || ""), option]));
+  const childrenOf = new Map();
+  const roots = [];
+  list.forEach((option) => {
+    const id = String(option?.id || "");
+    const parentId = String(option?.parentId || "");
+    const parent = parentId && parentId !== id ? byId.get(parentId) : null;
+    // 父组不在列表里 / 父链成环 → 当顶层处理，保证每组都会出现且只出现一次。
+    if (parent && !hasAncestorCycle(option, byId)) {
+      if (!childrenOf.has(parentId)) childrenOf.set(parentId, []);
+      childrenOf.get(parentId).push(option);
+      return;
+    }
+    roots.push(option);
+  });
+
+  const subtreeKeys = new Map();
+  const subtreeKey = (option, guard) => {
+    const id = String(option?.id || "");
+    const cached = subtreeKeys.get(id);
+    if (cached !== undefined) return cached;
+    if (guard.has(id)) return groupOptionTierSortValue(option);
+    guard.add(id);
+    let key = groupOptionTierSortValue(option);
+    (childrenOf.get(id) || []).forEach((child) => {
+      key = Math.min(key, subtreeKey(child, guard));
+    });
+    guard.delete(id);
+    subtreeKeys.set(id, key);
+    return key;
+  };
+
+  const compareSubtree = (left, right) => {
+    const diff = subtreeKey(left, new Set()) - subtreeKey(right, new Set());
+    if (diff !== 0) return diff;
+    return compareGroupOptions(left, right);
+  };
+
+  const flat = [];
+  const visited = new Set();
+  const push = (option) => {
+    const id = String(option?.id || "");
+    if (visited.has(id)) return;
+    visited.add(id);
+    flat.push(option);
+    (childrenOf.get(id) || []).slice().sort(compareSubtree).forEach(push);
+  };
+  roots.slice().sort(compareSubtree).forEach(push);
+  // 兜底：成环等异常情况下没被走过的组，按原顺序补在最后，绝不丢组。
+  list.forEach((option) => push(option));
+  return flat;
+}
+
+/** hasAncestorCycle 判断这个组的父链是否会绕回自己。 */
+function hasAncestorCycle(option, byId) {
+  const seen = new Set([String(option?.id || "")]);
+  let current = byId.get(String(option?.parentId || ""));
+  while (current) {
+    const id = String(current.id || "");
+    if (seen.has(id)) return true;
+    seen.add(id);
+    current = current.parentId ? byId.get(String(current.parentId)) : null;
+  }
+  return false;
+}
+
+/** formatGroupOptionIndent 生成筛选菜单里的层级缩进（子组显示在父组下面）。 */
+export function formatGroupOptionIndent(option) {
+  const depth = Math.max(1, Number(option?.depth || 1));
+  if (depth <= 1) return "";
+  return `${"　".repeat(depth - 2)}└ `;
 }
 
 /**
  * formatGroupOptionLabel 生成分组筛选菜单里的组标题：
- * 「组名（成员数）」；有缺失成员时补上「含 N 个缺失」。
+ * 「组名（成员数） · 权重 N」；有缺失成员时补上「含 N 个缺失」。
  */
 export function formatGroupOptionLabel(option) {
   if (!option) return "";
   const memberCount = Number(option.memberCount || 0);
   const missingCount = Number(option.missingCount || 0);
-  const base = `${option.name || option.id}（${memberCount}）`;
-  return missingCount > 0 ? `${base} · 含 ${missingCount} 个缺失` : base;
+  const tier = groupOptionTierSortValue(option);
+  const parts = [`${option.name || option.id}（${memberCount}）`];
+  if (Number.isFinite(tier)) parts.push(`权重 ${tier}`);
+  if (missingCount > 0) parts.push(`含 ${missingCount} 个缺失`);
+  return parts.join(" · ");
 }
 
 /**
- * formatGroupMissingNotice 生成"缺失成员"提示文案（设置页/悬浮说明用）。
+ * formatGroupMissingNotice 生成"缺失成员"提示文案（策略组管理窗口/悬浮说明用）。
  * 示例：文件缺失 2 个：a.vpk、b.vpk（放回同名文件会自动回到组里）
  */
 export function formatGroupMissingNotice(missingNames, limit = 4) {

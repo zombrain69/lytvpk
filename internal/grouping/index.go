@@ -14,6 +14,8 @@ type Index struct {
 	voiceLabels map[string]string
 	bySubject   map[string][]Mod
 	byPrefix    map[string][]Mod
+	// prefixLabels 保存前缀的"原始大小写"展示名（`白银审判` 而不是 `白银审判`小写后的样子）。
+	prefixLabels map[string]string
 	byFileName  map[string][]Mod
 }
 
@@ -29,6 +31,7 @@ func buildIndex(mods []Mod) *Index {
 		voiceLabels: make(map[string]string, 32),
 		bySubject:   make(map[string][]Mod, 256),
 		byPrefix:    make(map[string][]Mod, 256),
+		prefixLabels: make(map[string]string, 256),
 		byFileName:  make(map[string][]Mod, 256),
 	}
 
@@ -127,11 +130,15 @@ func indexSubject(index *Index, mod Mod) {
 }
 
 func indexNamePrefix(index *Index, mod Mod) {
-	prefix := NamePrefix(mod.Name)
-	if prefix == "" {
-		return
+	for _, key := range NamePrefixKeys(mod.Name) {
+		if key.Key == "" {
+			continue
+		}
+		index.byPrefix[key.Key] = append(index.byPrefix[key.Key], mod)
+		if _, ok := index.prefixLabels[key.Key]; !ok {
+			index.prefixLabels[key.Key] = key.Label
+		}
 	}
-	index.byPrefix[prefix] = append(index.byPrefix[prefix], mod)
 }
 
 func indexFileName(index *Index, mod Mod) {

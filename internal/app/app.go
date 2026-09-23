@@ -171,6 +171,8 @@ type App struct {
 	unrecordedModLoadOrderPlacement string
 	conflictPriorityAware           bool
 	conflictIgnoreFiles             []string
+	// strategyGroupFloating 记录「策略组管理」窗口是否以浮动模式打开（nil 表示从未设置过）。
+	strategyGroupFloating *bool
 	theme                           string
 	ignoredVersion                  string
 	lastUpdateCheckTime             string
@@ -254,6 +256,9 @@ type ConfigFile struct {
 	MigrationVersion      int      `json:"migrationVersion"`
 	ConflictPriorityAware *bool    `json:"conflictPriorityAware,omitempty"`
 	ConflictIgnoreFiles   []string `json:"conflictIgnoreFiles,omitempty"`
+	// StrategyGroupFloating 是「策略组管理」窗口的浮动偏好（前端窗口状态的一部分）。
+	// 必须是 *bool：nil 表示"没设置过"，此时窗口按默认（浮动）打开。
+	StrategyGroupFloating *bool `json:"strategyGroupFloating,omitempty"`
 }
 
 // RotationConfig Mod轮换配置

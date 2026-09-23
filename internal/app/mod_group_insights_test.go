@@ -35,15 +35,36 @@ func TestGetModGroupMembershipReportsGroupInfo(t *testing.T) {
 	if _, err := a.SetModStrategyGroupTier(group.ID, intPointer(-3)); err != nil {
 		t.Fatal(err)
 	}
+	// 上级分组也要透出：前端「按分组筛选」要按层级 + 组权重排序，
+	// 缺 parentId 就只能拿到一份扁平列表（这正是用户反馈"顺序固定不变"的根因）。
+	parent, err := a.CaptureModStrategyGroup("上层组", "", modStrategyGroupAll, []string{
+		filepath.Join(addonsDir, "c.vpk"),
+	})
+	if err != nil {
+		t.Fatalf("capture parent group: %v", err)
+	}
+	if _, err := a.MoveModStrategyGroup(group.ID, parent.ID); err != nil {
+		t.Fatalf("move group under parent: %v", err)
+	}
 
 	membership, err := a.GetModGroupMembership()
 	if err != nil {
 		t.Fatalf("membership: %v", err)
 	}
-	if len(membership) != 2 {
-		t.Fatalf("应有 2 条归属记录: %#v", membership)
+	if len(membership) != 3 {
+		t.Fatalf("应有 3 条归属记录（打包组 2 个 + 上层组 1 个）: %#v", membership)
 	}
+	groupRecords := make([]ModGroupMembership, 0, 2)
 	for _, item := range membership {
+		if item.GroupID == parent.ID {
+			if item.ParentID != "" {
+				t.Fatalf("顶层组的 parentId 应为空: %#v", item)
+			}
+			continue
+		}
+		groupRecords = append(groupRecords, item)
+	}
+	for _, item := range groupRecords {
 		if item.GroupID != group.ID || item.GroupName != "打包组" || item.Strategy != modStrategyGroupSingle {
 			t.Fatalf("归属信息不完整: %#v", item)
 		}
@@ -53,8 +74,11 @@ func TestGetModGroupMembershipReportsGroupInfo(t *testing.T) {
 		if item.MemberCount != 2 {
 			t.Fatalf("成员数应为 2: %#v", item)
 		}
+		if item.ParentID != parent.ID {
+			t.Fatalf("上级分组应透出 parentId: %#v", item)
+		}
 	}
-	keys := []string{membership[0].Key, membership[1].Key}
+	keys := []string{groupRecords[0].Key, groupRecords[1].Key}
 	if !reflect.DeepEqual(keys, []string{"a.vpk", "b.vpk"}) {
 		t.Fatalf("成员键 = %#v", keys)
 	}

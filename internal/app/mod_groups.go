@@ -201,6 +201,10 @@ func (a *App) CaptureModStrategyGroup(name string, description string, strategy 
 }
 
 // DeleteModStrategyGroup 从策略组库中移除指定组。
+//
+// 只删 groups.json 里的这条记录：不改动 addonlist.txt，也不删除 Mod 文件。
+// 如果被删的组是别人的"上级分组"，子组会被提升到顶层（而不是留下悬空 parentId），
+// 也不会被连带删除。
 func (a *App) DeleteModStrategyGroup(id string) error {
 	id = strings.TrimSpace(id)
 	if id == "" {
@@ -220,6 +224,9 @@ func (a *App) DeleteModStrategyGroup(id string) error {
 		if group.ID == id {
 			found = true
 			continue
+		}
+		if strings.TrimSpace(group.ParentID) == id {
+			group.ParentID = ""
 		}
 		remaining = append(remaining, group)
 	}

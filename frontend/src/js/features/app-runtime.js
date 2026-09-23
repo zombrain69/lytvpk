@@ -11,6 +11,7 @@ import {
 } from "../core/config.js";
 import { applyUIScale, setupUIScaleShortcuts } from "../core/ui-scale.js";
 import { setupModalResizers } from "../core/modal-resizer.js";
+import { setupFloatingModal } from "../core/floating-modal.js";
 import { initTheme, setupThemeToggle } from "../core/theme.js";
 import { renderAboutPage } from "./about/about.js";
 import { renderDiagnosticsPage } from "./diagnostics/diagnostics-page.js";
@@ -70,6 +71,10 @@ import {
 } from "./conflicts/conflicts.js";
 import { initConflictRecheck } from "./conflicts/conflict-recheck.js";
 import { initModGroupUI, refreshModGroupMembership } from "./mod-groups/group-ui.js";
+import { initGroupPicker } from "./mod-groups/group-picker.js";
+import { initGroupTagDialog } from "./mod-groups/group-tag.js";
+import { initAgentPromptEditor } from "./mod-groups/agent-prompt.js";
+import { initStrategyGroupManager } from "./mod-groups/strategy-group-manager.js";
 import {
   configureSettings,
   showGlobalSettings,
@@ -105,6 +110,7 @@ import {
   deselectAll,
   enableSelected,
   disableSelected,
+  setSelectedGameEnabled,
   exportZipSelected,
   deleteSelected,
   moveSelected,
@@ -262,17 +268,9 @@ import {
   DeleteModEnableProfile,
   ExportModEnableProfile,
   ImportModEnableProfile,
-  ListModStrategyGroups,
   ReportFrontendError,
   GetCrashReportDirectory,
   ListCrashReports,
-  ListModStrategyGroupTree,
-  MoveModStrategyGroup,
-  CaptureModStrategyGroup,
-  ApplyModStrategyGroup,
-  DeleteModStrategyGroup,
-  SetModStrategyGroupEnforcement,
-  SetModStrategyGroupTier,
   RunModHealthCheck,
   RemoveDuplicateAddonListEntries,
   RemoveMissingFileAddonListEntries,
@@ -459,15 +457,7 @@ configureSettings({
   DeleteModEnableProfile,
   ExportModEnableProfile,
   ImportModEnableProfile,
-  ListModStrategyGroups,
   ReportFrontendError,
-  ListModStrategyGroupTree,
-  MoveModStrategyGroup,
-  CaptureModStrategyGroup,
-  ApplyModStrategyGroup,
-  DeleteModStrategyGroup,
-  SetModStrategyGroupEnforcement,
-  SetModStrategyGroupTier,
   RunModHealthCheck,
   RemoveDuplicateAddonListEntries,
   RemoveMissingFileAddonListEntries,
@@ -704,6 +694,19 @@ async function initializeApp() {
   initTheme();
   initAppShell();
   setupModalResizers();
+  // 复杂的管理类窗口统一支持"浮动"：打开后去掉背景虚化、可以直接操作主界面，
+  // 标题栏可拖动、边缘可缩放（缩放由 setupModalResizers 提供），偏好逐个窗口记住。
+  // 策略组管理窗口在 initStrategyGroupManager 里自己注册（默认值来自 config.json）。
+  [
+    "mod-group-suggest-modal",
+    "load-order-modal",
+    "conflict-modal",
+    "file-conflict-modal",
+    "model-stats-modal",
+  ].forEach((modalId) => setupFloatingModal(modalId, { defaultFloating: true }));
+  // 「问题 Mod 查找」会真的切换 Mod 开关，要求排查期间保持打开（它自己的底部文案也这么写），
+  // 所以只装浮动能力，不允许"点窗口外关闭"。
+  setupFloatingModal("problem-scan-modal", { defaultFloating: true, closeOnBackdrop: false });
   setupThemeToggle();
   setupPageChangeListeners();
   setupSettingsAndAboutListeners();
@@ -714,6 +717,11 @@ async function initializeApp() {
   initConflictRecheck();
   // 策略组：绑定分组筛选/建议弹窗，并拉取一次组归属（扫描完成后 filters 会再刷新）。
   initModGroupUI();
+  initGroupPicker();
+  initGroupTagDialog();
+  initAgentPromptEditor();
+  // 「策略组管理」独立窗口：绑定批量工具条 / 建组 / 关窗，并订阅勾选与组归属变化。
+  initStrategyGroupManager();
   setupInputContextMenu();
   disableGlobalContextMenu();
   await checkInitialDirectory();
@@ -938,6 +946,13 @@ function setupBatchActionEvents() {
   document
     .getElementById("disable-selected-btn")
     ?.addEventListener("click", disableSelected);
+  // 批量"游戏内开关"（只写 addonlist.txt 的 0/1，不搬文件）。
+  document
+    .getElementById("game-enable-selected-btn")
+    ?.addEventListener("click", () => void setSelectedGameEnabled(true));
+  document
+    .getElementById("game-disable-selected-btn")
+    ?.addEventListener("click", () => void setSelectedGameEnabled(false));
 
   const closeBatchDisableDropdown = () => {
     const dropdown = document.getElementById("batch-disable-dropdown-content");

@@ -76,7 +76,7 @@ git -C FireAxe checkout f8aa1cf1391802c64525412fdf326dbe0ecc98b1
 | 5 | 游戏原版文件白名单（分批可增量） | `internal/stockfiles/`、`internal/app/stock_whitelist.go` | `internal/app/stock_whitelist_test.go`、`internal/stockfiles/stockfiles_test.go` | `docs/toolbox/conflict-check.md` | 已完成（比上游多出“按类生成增量批次”） |
 | 6 | 自动重下策略（默认关闭） | `internal/app/workshop.go`（`shouldAutoRedownload` / `maybeAutoRedownload`）、`workshop_download.go` 失败钩子 | `internal/app/auto_redownload_test.go`（注入下载启动器） | `docs/features/downloads.md` | 已完成 |
 | 7 | 工坊合集实体化 | `internal/app/workshop_collections.go`（`collections.json`） | `internal/app/workshop_collections_test.go`、`frontend/src/js/features/settings/workshop-collection-format.test.mjs` | `docs/features/downloads.md` | 已完成 |
-| 8 | 树形分组 / 嵌套层级 | `internal/app/mod_group_tree.go`（`ParentID` + 树构建 + 校验）、设置页层级渲染 | `internal/app/mod_group_tree_test.go`、`frontend/src/js/features/settings/strategy-group-tree.test.mjs` | `docs/features/mod-management.md` | 已完成（扁平视图仍为默认） |
+| 8 | 树形分组 / 嵌套层级 | `internal/app/mod_group_tree.go`（`ParentID` + 树构建 + 校验）、「策略组管理」窗口（`frontend/src/js/features/mod-groups/strategy-group-manager.js` + `#strategy-group-modal`）的层级渲染 | `internal/app/mod_group_tree_test.go`、`frontend/src/js/features/settings/strategy-group-tree.test.mjs` | `docs/features/mod-management.md` | 已完成（扁平视图仍为默认；窗口已从设置页搬到独立窗口） |
 | 9 | i18n 文案层 | `frontend/src/messages/zh-CN.json`、`frontend/src/js/core/i18n.mjs`、`i18n-runtime.js`；工具箱页面已迁移 | `frontend/src/js/core/i18n.test.mjs` | `docs/development/i18n.md` | 已完成第一阶段（运行时+目录+首屏迁移；其余页面按同一约定逐页迁移） |
 | 10 | 自身崩溃上报 | `internal/app/crash_reporter.go`（日志环形缓冲 + 协程池守卫 + 启动守卫 + 前端上报）、关于页入口 | `internal/app/crash_reporter_test.go` | 本文 + `docs/features/about-update.md` | 已完成 |
 

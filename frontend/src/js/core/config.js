@@ -41,6 +41,8 @@ const DEFAULT_CONFIG = {
   // 冲突分析默认只报“无法判定胜负”的重叠；忽略清单由用户在设置页按需维护。
   conflictPriorityAware: false,
   conflictIgnoreFiles: [],
+  // 「策略组管理」窗口默认以浮动方式打开：不挡住主界面，随时能点「分组 / 按分组筛选」。
+  strategyGroupFloating: true,
   theme: "",
   ignoredVersion: "",
   lastUpdateCheckTime: "",
