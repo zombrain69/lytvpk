@@ -1,5 +1,14 @@
 import { attachLineNumberGutter } from "../../core/line-number-editor.js";
 import { applyUIScale, MAX_UI_SCALE, MIN_UI_SCALE, normalizeUIScale, UI_SCALE_STEP } from "../../core/ui-scale.js";
+import {
+  READING_COMFORT_OPTIONS,
+  TEXT_SIZE_OPTIONS,
+  applyReadingComfort,
+  normalizeReadingComfort,
+  normalizeTextSize,
+  readingComfortLabel,
+  textSizeLabel,
+} from "../../core/reading-comfort.mjs";
 import { createAutoexecSettingsController } from "./autoexec-settings-controller.mjs";
 import {
   CONFLICT_IGNORE_LIST_DESCRIPTION,
@@ -14,7 +23,15 @@ import {
 import {
   buildHealthIssueRows,
   formatHealthReportSummary,
+  summarizeHealthAutoFix,
 } from "./health-report-format.mjs";
+import { describeHealthSearch, healthHighlightSpec, searchHealthIssues } from "./health-search.mjs";
+import { highlightMatches } from "../file-list/search-match.mjs";
+import {
+  HEALTH_SEARCH_HELP_VARIANT,
+  buildSearchHelpHtml,
+  buildSearchHelpTitle,
+} from "../file-list/search-help.mjs";
 import {
   formatDependencyBatchEnableSummary,
   formatDependencyEnableSummary,
@@ -177,6 +194,8 @@ export async function renderSettingsPage(deps) {
   const storedUpdateCheckEnabled = await readSetting("Mod 更新检测", GetWorkshopUpdateCheckEnabled, Boolean(config.workshopUpdateCheckEnabled));
   const updateCheckEnabled = Boolean(metaEnabled && storedUpdateCheckEnabled);
   const autoRedownloadEnabled = await readSetting("自动重下", GetWorkshopAutoRedownload, false);
+  // 剪贴板工坊链接自动识别（对齐 FireAxe 的默认开启）：存在 config.json，读前端配置即可。
+  const autoDetectWorkshopLink = deps.getConfig().autoDetectWorkshopLink !== false;
   const browserTarget = await readSetting("工坊跳转目标", GetWorkshopBrowserTarget, config.workshopBrowserTarget || "mirror");
   const translateProvider = await readSetting("翻译服务", GetWorkshopTranslateProvider, config.workshopTranslateProvider || "microsoft");
   const customBaseURL = await readSetting("自定义 AI Base URL", GetWorkshopTranslateCustomBaseURL, config.workshopTranslateCustomBaseURL || "");
@@ -357,6 +376,32 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
+                <div class="setting-row-label">文字大小</div>
+                <div class="setting-row-desc">只改文字大小、不动布局；与上面的「界面缩放」相乘生效，方便在 2K / 4K 屏上把字调清楚</div>
+              </div>
+              <div class="mode-toggle-group" id="settings-text-size" role="radiogroup" aria-label="文字大小">
+                ${TEXT_SIZE_OPTIONS.map((option) => `
+                  <label class="mode-option ${normalizeTextSize(getConfig().textSize) === option.key ? "active" : ""}" title="${escapeHtml(option.description)}">
+                    <input type="radio" name="settings-text-size" value="${option.key}" ${normalizeTextSize(getConfig().textSize) === option.key ? "checked" : ""}>
+                    <span class="mode-text">${escapeHtml(option.label)}</span>
+                  </label>`).join("")}
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">阅读舒适度</div>
+                <div class="setting-row-desc">调整行距与文字对比度：当前「${escapeHtml(readingComfortLabel(getConfig().readingComfort))}」——柔和＝行距更松、对比更柔（长时间看不累）；高对比＝文字更深、适合强光或弱视</div>
+              </div>
+              <div class="mode-toggle-group" id="settings-reading-comfort" role="radiogroup" aria-label="阅读舒适度">
+                ${READING_COMFORT_OPTIONS.map((option) => `
+                  <label class="mode-option ${normalizeReadingComfort(getConfig().readingComfort) === option.key ? "active" : ""}" title="${escapeHtml(option.description)}">
+                    <input type="radio" name="settings-reading-comfort" value="${option.key}" ${normalizeReadingComfort(getConfig().readingComfort) === option.key ? "checked" : ""}>
+                    <span class="mode-text">${escapeHtml(option.label)}</span>
+                  </label>`).join("")}
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
                 <div class="setting-row-label">Ctrl+单击选择</div>
                 <div class="setting-row-desc">按住 Ctrl 键并单击 Mod，可快速选中或取消选中；Shift+单击可按当前排序选择连续范围</div>
               </div>
@@ -387,6 +432,47 @@ export async function renderSettingsPage(deps) {
                   <span class="filter-layout-option-copy"><strong>经典展开</strong><small>常用条件直观可点</small></span>
                   <span class="filter-layout-option-badge">详细</span>
                 </label>
+              </div>
+            </div>
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">打开文件方式（可选）</div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">用其它程序打开 / 定位 Mod</div>
+                <div class="setting-row-desc">
+                  <strong>留空 = 系统默认</strong>（Windows 用资源管理器定位并选中文件，行为与以前完全一致）。<br>
+                  想换成别的程序就填程序路径（例如 <code>C:\Tools\totalcmd\TOTALCMD64.EXE</code>）与参数模板，
+                  只填命令名（如 <code>code</code>）时会交给 PATH 查找。<br>
+                  参数模板占位符：<code>{path}</code> 完整路径、<code>{dir}</code> 所在目录、<code>{name}</code> 文件名
+                  （也兼容 FireAxe 的 <code>{0}</code> = 完整路径）；模板里一个占位符都不写时，会自动把完整路径追加到最后。
+                  参数里的空格用双引号包住，例如 <code>/O /T /L="{dir}"</code>。
+                </div>
+              </div>
+            </div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">程序</div>
+                <input type="text" id="settings-open-with-program" class="form-input"
+                  placeholder="留空 = 使用系统默认" value="${escapeAttr(getConfig().openWithProgram || "")}">
+              </div>
+            </div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">参数模板</div>
+                <input type="text" id="settings-open-with-arguments" class="form-input"
+                  placeholder='例如 /O /T /L="{dir}"' value="${escapeAttr(getConfig().openWithArguments || "")}">
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-desc" id="settings-open-with-status"></div>
+              </div>
+              <div class="setting-row-control">
+                <button type="button" class="trigger-check-btn" id="settings-open-with-save">
+                  <span class="trigger-check-text">保存</span>
+                </button>
+                <button type="button" class="btn btn-outline btn-small" id="settings-open-with-reset">恢复默认</button>
               </div>
             </div>
           </div>
@@ -430,6 +516,35 @@ export async function renderSettingsPage(deps) {
                 <input type="checkbox" id="settings-auto-redownload" ${autoRedownloadEnabled ? "checked" : ""}>
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">剪贴板工坊链接自动识别</div>
+                <div class="setting-row-desc">
+                  默认开启。复制创意工坊链接（或作品 ID）后切回本应用，会提示是否打开下载页并解析，
+                  不用再手动粘贴。窗口不在前台时不会读取剪贴板。
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="settings-auto-detect-workshop-link" ${autoDetectWorkshopLink ? "checked" : ""}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">抓取工坊官方标签与统计</div>
+                <div class="setting-row-desc">
+                  向 Steam 官方接口补取工坊自带的分类标签（如 Survivors / Sounds / Single Player）
+                  与订阅数、收藏数、浏览量，写进每个工坊 Mod 的同名 <code>.meta</code>。
+                  抓过之后，「准备给智能体材料」的清单里会多出 <code>workshop.steamTags</code>，
+                  分组建议的准确率会更高。只读远端数据，不改 Mod 文件与 addonlist。
+                </div>
+              </div>
+              <div class="setting-row-control">
+                <button type="button" id="settings-workshop-enrich" class="trigger-check-btn">
+                  <span class="trigger-check-text">开始抓取</span>
+                </button>
+              </div>
             </div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
@@ -758,6 +873,32 @@ export async function renderSettingsPage(deps) {
               <button type="button" id="settings-health-save" class="trigger-check-btn addonlist-secondary-btn" disabled>保存报告</button>
             </div>
             <p id="settings-health-summary" class="setting-row-status"></p>
+            <!-- 体检结果检索：与其它列表同一套语法（对象名 / 路径 / 提示文案 + tag: 严重度与类型） -->
+            <div class="settings-health-search-row">
+              <input
+                type="search"
+                id="settings-health-search"
+                class="settings-health-search"
+                placeholder="搜索问题（对象名 / 路径 / 提示文案；支持 -排除 / re: 正则 / tag:严重度或类型）"
+                aria-label="搜索体检问题"
+                autocomplete="off"
+              >
+              <button
+                type="button"
+                id="settings-health-search-help-btn"
+                class="search-help-btn"
+                title="搜索语法说明书"
+                aria-expanded="false"
+                aria-controls="settings-health-search-help-popover"
+              >?</button>
+              <div
+                id="settings-health-search-help-popover"
+                class="search-help-popover hidden"
+                role="dialog"
+                aria-label="体检搜索语法说明书"
+              ></div>
+              <span id="settings-health-search-count" class="settings-health-search-count" aria-live="polite"></span>
+            </div>
             <div id="settings-health-issues" class="settings-health-issues"></div>
           </div>
         </div>
@@ -793,16 +934,60 @@ export async function renderSettingsPage(deps) {
 
 const HEALTH_ISSUE_DISPLAY_LIMIT = 100;
 
+// 行内「修复」按钮的动作回调：由 bindModHealthCheckSettings 注入（那里才有 deps 里的后端绑定）。
+let healthIssueAutoFix = null;
+
+// 体检结果的检索词与最近一次检索（切换页签后保留，和列表其它面板一致）。
+let healthSearchQuery = "";
+let healthSearchResult = null;
+
 function renderModHealthIssues(container, report) {
   if (!container) return;
   container.replaceChildren();
-  const { rows, hiddenCount } = buildHealthIssueRows(report, HEALTH_ISSUE_DISPLAY_LIMIT);
+
+  // 检索在"行构建"之前：先按统一语法过滤问题，再应用 100 条显示上限，
+  // 这样"搜出来的条目"不会被上限挡掉（上限只针对显示量）。
+  const issues = Array.isArray(report?.issues) ? report.issues : [];
+  healthSearchResult = searchHealthIssues(issues, healthSearchQuery);
+  const filteredReport = { ...(report || {}), issues: healthSearchResult.items };
+  const { rows, hiddenCount } = buildHealthIssueRows(filteredReport, HEALTH_ISSUE_DISPLAY_LIMIT);
+
+  // 计数单独刷新（搜索框在容器外面，输入时不重建 DOM，也就不会丢焦点）。
+  const countEl = document.getElementById("settings-health-search-count");
+  if (countEl) {
+    const base = describeHealthSearch({
+      total: healthSearchResult.total,
+      matched: healthSearchResult.matched,
+      query: healthSearchQuery,
+      regexInvalid: healthSearchResult.regexInvalid,
+    });
+    countEl.textContent = [base, hiddenCount > 0 ? `另有 ${hiddenCount} 条未显示` : ""].filter(Boolean).join(" · ");
+  }
+
   if (rows.length === 0) {
     const empty = document.createElement("div");
     empty.className = "setting-row-desc";
-    empty.textContent = report ? "未发现问题。" : "点击“开始体检”运行检查。";
+    const invalidRegex = healthSearchResult?.regexInvalid || "";
+    empty.textContent = !report
+      ? "点击“开始体检”运行检查。"
+      : invalidRegex
+        ? `正则表达式无效：${invalidRegex}`
+        : healthSearchQuery.trim()
+          ? `没有匹配「${healthSearchQuery.trim()}」的问题；清空搜索框可看到全部 ${issues.length} 条。`
+          : "未发现问题。";
     container.appendChild(empty);
     return;
+  }
+  // 白名单统计（对齐 FireAxe 的 CanAutomaticallyFix 分级）：
+  // 只有重复条目 / 缺失条目 / 依赖未开启能自动修。
+  const autoFix = summarizeHealthAutoFix(report);
+  if (autoFix.total > 0) {
+    const bar = document.createElement("div");
+    bar.className = "settings-health-autofix";
+    bar.textContent = `其中 ${autoFix.total} 项可以自动修复：` +
+      autoFix.actions.map((item) => `${item.label.replace("一键修复：", "")}（${item.count}）`).join("、") +
+      "。其余问题需要人工判断，不会自动改动任何文件。";
+    container.appendChild(bar);
   }
 
   rows.forEach((item) => {
@@ -817,13 +1002,35 @@ function renderModHealthIssues(container, report) {
     main.className = "settings-health-issue-main";
     const title = document.createElement("div");
     title.className = "settings-health-issue-title";
-    title.textContent = item.title;
+    const highlightSpec = healthHighlightSpec(healthSearchResult);
+    if (highlightSpec) {
+      // highlightMatches 自己负责转义，与其它列表同一套高亮。
+      title.innerHTML = highlightMatches(item.title, highlightSpec);
+    } else {
+      title.textContent = item.title;
+    }
     const message = document.createElement("div");
     message.className = "settings-health-issue-message";
-    message.textContent = item.message;
+    if (highlightSpec) {
+      message.innerHTML = highlightMatches(item.message, highlightSpec);
+    } else {
+      message.textContent = item.message;
+    }
     main.append(title, message);
 
     row.append(badge, main);
+    // 逐条问题的"自动修复"（FireAxe `Problem.TryAutomaticallyFix` 的落点）：
+    // 只有白名单里的两类才给按钮，其余一律只展示建议。
+    if (item.autoFix && typeof healthIssueAutoFix === "function") {
+      const fix = document.createElement("button");
+      fix.type = "button";
+      fix.className = "btn btn-small btn-outline settings-health-issue-fix";
+      fix.dataset.fixAction = item.autoFix.id;
+      fix.textContent = "修复";
+      fix.title = item.autoFix.title;
+      fix.addEventListener("click", () => void healthIssueAutoFix(item.autoFix.id, item.fixTarget));
+      row.appendChild(fix);
+    }
     container.appendChild(row);
   });
 
@@ -923,6 +1130,44 @@ function bindModHealthCheckSettings(deps) {
 
   renderModHealthIssues(list, null);
 
+  // 体检结果检索：绑定一次即可（搜索框在列表容器外，不会被列表重画带走）。
+  const searchInput = document.getElementById("settings-health-search");
+  if (searchInput) {
+    searchInput.title = buildSearchHelpTitle(HEALTH_SEARCH_HELP_VARIANT);
+    const popover = document.getElementById("settings-health-search-help-popover");
+    if (popover && popover.dataset.filled !== "1") {
+      popover.innerHTML = buildSearchHelpHtml(HEALTH_SEARCH_HELP_VARIANT);
+      popover.dataset.filled = "1";
+    }
+    const helpBtn = document.getElementById("settings-health-search-help-btn");
+    const setHelpOpen = (open) => {
+      popover?.classList.toggle("hidden", !open);
+      helpBtn?.setAttribute("aria-expanded", String(open));
+      helpBtn?.classList.toggle("is-active", open);
+    };
+    helpBtn?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setHelpOpen(popover?.classList.contains("hidden") ?? false);
+    });
+    document.addEventListener("click", (event) => {
+      if (!popover || popover.classList.contains("hidden")) return;
+      if (popover.contains(event.target) || helpBtn?.contains(event.target)) return;
+      setHelpOpen(false);
+    });
+    searchInput.addEventListener("input", () => {
+      healthSearchQuery = searchInput.value;
+      renderModHealthIssues(list, currentReport);
+    });
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (!searchInput.value) return;
+      event.stopPropagation();
+      searchInput.value = "";
+      healthSearchQuery = "";
+      renderModHealthIssues(list, currentReport);
+    });
+  }
+
   const applyReport = (report) => {
     currentReport = report || null;
     if (summary) summary.textContent = formatHealthReportSummary(report);
@@ -959,7 +1204,9 @@ function bindModHealthCheckSettings(deps) {
     }
   });
 
-  fixButton?.addEventListener("click", async () => {
+  // 两个"可自动修复"动作抽成函数：卡片上的按钮与问题行里的「修复」按钮共用同一套实现，
+  // 与 FireAxe 的 `Problem.TryAutomaticallyFix` 一样，只走白名单、且写盘前后都有备份。
+  const fixDuplicateEntries = async () => {
     fixButton.disabled = true;
     try {
       const removed = await deps.RemoveDuplicateAddonListEntries();
@@ -974,31 +1221,73 @@ function bindModHealthCheckSettings(deps) {
     } finally {
       fixButton.disabled = false;
     }
-  });
+  };
 
-  fixMissingButton?.addEventListener("click", async () => {
-    if (
-      !window.confirm(
-        "删除那些在磁盘上已经找不到文件的 addonlist.txt 条目？写盘前会自动建立“体检修复前”备份。注意：工坊 Mod 在文件重新下载后会被游戏按默认状态加载。",
-      )
-    ) {
+  const fixMissingEntries = async () => {
+    // 用应用内确认弹窗：WebView2 的原生 confirm 在锁屏 / 自动化环境下会阻塞页面。
+    showConfirmModal(
+      "清理缺失条目",
+      "删除那些在磁盘上已经找不到文件的 addonlist.txt 条目？\n" +
+        "· 写盘前会自动建立「体检修复前」备份\n" +
+        "· 工坊 Mod 在文件重新下载后会被游戏按默认状态加载",
+      async () => {
+        fixMissingButton.disabled = true;
+        try {
+          const removed = await deps.RemoveMissingFileAddonListEntries();
+          deps.showNotification(
+            removed > 0 ? `已清理 ${removed} 条失效条目` : "没有需要清理的失效条目",
+            "success",
+          );
+          deps.refreshFilesKeepFilter?.();
+          await runCheck();
+        } catch (error) {
+          if (summary) summary.textContent = "清理失效条目失败: " + String(error?.message || error);
+        } finally {
+          fixMissingButton.disabled = false;
+        }
+      },
+    );
+  };
+
+  // 依赖未开启（对齐 FireAxe `AddonDependencyProblem` 的 CanAutomaticallyFix）：
+  // 只给"这一条问题"的主 Mod 启用它声明的依赖，不动别的 Mod。
+  const fixDependenciesFor = async (target) => {
+    const key = String(target || "").trim();
+    if (!key) {
+      if (summary) summary.textContent = "这条依赖问题没有可操作目标：请在 Mod 管理页选中主 Mod 后手动启用依赖";
       return;
     }
-    fixMissingButton.disabled = true;
-    try {
-      const removed = await deps.RemoveMissingFileAddonListEntries();
-      deps.showNotification(
-        removed > 0 ? `已清理 ${removed} 条失效条目` : "没有需要清理的失效条目",
-        "success",
-      );
-      deps.refreshFilesKeepFilter?.();
-      await runCheck();
-    } catch (error) {
-      if (summary) summary.textContent = "清理失效条目失败: " + String(error?.message || error);
-    } finally {
-      fixMissingButton.disabled = false;
-    }
-  });
+    // 与其它修复动作一致：写盘前先用应用内确认框说明会改什么（WebView2 的原生 confirm 会阻塞页面）。
+    showConfirmModal(
+      "启用依赖",
+      `给 ${key} 打开它声明的全部依赖？\n` +
+        "· 写盘前会自动建立「启用依赖前」备份（文件名前缀 before-dependency-fix）\n" +
+        "· 只改写 addonlist.txt 里这些依赖的开关，不动别的 Mod 与文件",
+      async () => {
+        try {
+          const result = await deps.EnableModDependencies(key);
+          deps.showNotification(
+            formatDependencyEnableSummary(key, result),
+            result?.missing?.length ? "warning" : "success",
+          );
+          deps.refreshFilesKeepFilter?.();
+          await runCheck();
+        } catch (error) {
+          if (summary) summary.textContent = "启用依赖失败: " + String(error?.message || error);
+        }
+      },
+    );
+  };
+
+  // 问题行里的「修复」按钮 → 复用上面三个白名单动作。
+  healthIssueAutoFix = async (actionId, target) => {
+    if (actionId === "remove-duplicates") return fixDuplicateEntries();
+    if (actionId === "remove-missing") return fixMissingEntries();
+    if (actionId === "enable-dependencies") return fixDependenciesFor(target);
+  };
+
+  fixButton?.addEventListener("click", () => void fixDuplicateEntries());
+  fixMissingButton?.addEventListener("click", () => void fixMissingEntries());
 
   fixDependenciesButton?.addEventListener("click", async () => {
     fixDependenciesButton.disabled = true;
@@ -1534,6 +1823,48 @@ function bindSettingsPage(deps) {
   uiScaleInput?.addEventListener("change", () => {
     updateUIScale(uiScaleInput.value, true);
   });
+
+  // 阅读舒适度：字号档位只改文字、不动布局；舒适度改行距与对比度。
+  // 两者与 uiScale 相乘后写到根字号上，互不覆盖。
+  const applyAndSaveReadingComfort = async (patch) => {
+    const config = deps.getConfig();
+    const applied = applyReadingComfort({
+      textSize: patch.textSize ?? config.textSize,
+      comfort: patch.comfort ?? config.readingComfort,
+      uiScale: normalizeUIScale(config.uiScale),
+    });
+    config.textSize = applied.textSize;
+    config.readingComfort = applied.comfort;
+    try {
+      await deps.saveConfig(config);
+      deps.showNotification(
+        `文字大小：${textSizeLabel(applied.textSize)} · 阅读舒适度：${readingComfortLabel(applied.comfort)}`,
+        "success",
+      );
+    } catch (error) {
+      deps.showNotification("保存阅读设置失败: " + error, "error");
+    }
+  };
+
+  document.querySelectorAll("#settings-text-size input[name='settings-text-size']").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      document.querySelectorAll("#settings-text-size .mode-option").forEach((label) => {
+        label.classList.toggle("active", label.contains(input));
+      });
+      void applyAndSaveReadingComfort({ textSize: input.value });
+    });
+  });
+
+  document.querySelectorAll("#settings-reading-comfort input[name='settings-reading-comfort']").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      document.querySelectorAll("#settings-reading-comfort .mode-option").forEach((label) => {
+        label.classList.toggle("active", label.contains(input));
+      });
+      void applyAndSaveReadingComfort({ comfort: input.value });
+    });
+  });
   document.getElementById("settings-ui-scale-decrease")?.addEventListener("click", () => {
     const current = normalizeUIScale(deps.getConfig().uiScale);
     updateUIScale(Math.round(Math.max(MIN_UI_SCALE, current - UI_SCALE_STEP) * 100), true);
@@ -1817,6 +2148,54 @@ function bindSettingsPage(deps) {
       deps.showNotification("保存自动重下设置失败: " + error, "error");
     } finally {
       toggle.disabled = false;
+    }
+  });
+
+  // 「打开文件方式」（对齐 FireAxe v0.7.2 的 process file customization）的点击处理
+  // 放在 app-runtime 的事件委托里：设置面板会整块重渲染，直接绑在按钮上的监听器
+  // 会在重渲染后失效（真机上表现为"按钮有焦点但点了没反应"）。
+
+  // 抓取工坊官方标签与统计（对齐 FireAxe 直接问 Steam 官方接口要 tags/stats）：
+  // 只补 .meta，不动 Mod 文件与 addonlist；抓完把结果数量说清楚。
+  // 剪贴板工坊链接自动识别：默认开启；只影响"要不要提示"，关掉后不再读剪贴板。
+  document.getElementById("settings-auto-detect-workshop-link")?.addEventListener("change", async (event) => {
+    const toggle = event.currentTarget;
+    const enabled = toggle.checked;
+    toggle.disabled = true;
+    try {
+      const config = deps.getConfig();
+      config.autoDetectWorkshopLink = enabled;
+      await deps.saveConfig(config);
+      deps.showNotification(
+        enabled ? "已开启：剪贴板里的工坊链接会自动提示" : "已关闭剪贴板工坊链接识别",
+        enabled ? "success" : "info",
+      );
+    } catch (error) {
+      toggle.checked = !enabled;
+      deps.showNotification("保存剪贴板识别设置失败: " + error, "error");
+    } finally {
+      toggle.disabled = false;
+    }
+  });
+
+  document.getElementById("settings-workshop-enrich")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const label = button.querySelector(".trigger-check-text") || button;
+    const original = label.textContent;
+    button.disabled = true;
+    label.textContent = "抓取中...";
+    try {
+      const result = await deps.EnrichAllWorkshopMetadata();
+      const parts = [`更新 ${result?.updated || 0} 个`];
+      if (result?.unchanged) parts.push(`本来就最新 ${result.unchanged} 个`);
+      if (result?.missing?.length) parts.push(`本地没有文件 ${result.missing.length} 个`);
+      if (result?.failed?.length) parts.push(`官方接口没返回 ${result.failed.length} 个`);
+      deps.showNotification(`工坊官方资料抓取完成：${parts.join("，")}`, "success");
+    } catch (error) {
+      deps.showNotification("抓取工坊官方资料失败: " + error, "error");
+    } finally {
+      button.disabled = false;
+      label.textContent = original;
     }
   });
     const btn = document.getElementById("settings-manual-check-btn");

@@ -17,6 +17,14 @@ import {
 import { getGameStateDisplayModel } from "./unrecorded-game-state.mjs";
 import { formatPriorityLabel } from "./priority-label.mjs";
 import {
+  describeMatchReasons,
+  describeSearchResult,
+  formatMatchReasonChip,
+  highlightMatches,
+} from "./search-match.mjs";
+import { compiledRegex, parseSearchSyntax, positiveTerms } from "./search-syntax.mjs";
+import { collectResultPaths, describeResultCursor } from "./result-cursor.mjs";
+import {
   conflictBadgeLevel,
   filePriorityKeys,
   formatConflictBadgeLabel,
@@ -363,6 +371,22 @@ export function renderFileList() {
   if (!container) return;
   checkboxByPath.clear();
 
+  // 「明确的匹配」：搜索框旁边实时给出命中数量，避免用户只看到一屏结果却不知道命中多少。
+  const hitCountLabel = document.getElementById("search-hit-count");
+  if (hitCountLabel) {
+    const shown = appState.vpkFiles?.length || 0;
+    const label = describeSearchResult({
+      total: appState.allVpkFiles?.length || 0,
+      shown,
+      query: appState.searchQuery,
+      regexInvalid: parseSearchSyntax(appState.searchQuery).regexInvalid,
+    });
+    hitCountLabel.textContent = label;
+    // 键盘光标会在这句话后面追加"第 N / M 个结果"，所以基准文案要单独存一份。
+    hitCountLabel.dataset.baseLabel = label;
+    hitCountLabel.classList.toggle("has-hits", Boolean(label) && shown > 0);
+  }
+
   if (appState.displayMode === "card") {
     container.classList.add("file-list-grid");
     container.classList.remove("file-list");
@@ -432,6 +456,47 @@ export function renderFileList() {
     });
     container.replaceChildren(fragment);
   }
+
+  // 每次重画后恢复键盘光标：搜索结果刷新（输入中）不应把光标弄丢。
+  applySearchResultCursor();
+}
+
+/**
+ * applySearchResultCursor 把键盘光标（↑ / ↓ 选中的那一行）画到列表上，
+ * 并把"第 N / M 个结果"补进命中计数文案里。
+ *
+ * 之所以由 render.js 统一负责：重画会清掉行上的 class，
+ * 键盘处理（app-runtime.js）只负责改 appState.searchCursorPath，然后调用这里。
+ */
+export function applySearchResultCursor() {
+  const container = document.getElementById("file-list");
+  const cursorPath = String(appState.searchCursorPath || "");
+  container?.querySelectorAll(".file-item.is-result-cursor").forEach((row) => {
+    row.classList.remove("is-result-cursor");
+  });
+
+  const label = document.getElementById("search-hit-count");
+  const baseLabel = label?.dataset.baseLabel || label?.textContent || "";
+  if (label && baseLabel) label.dataset.baseLabel = baseLabel;
+
+  if (!cursorPath) {
+    if (label && label.dataset.baseLabel) label.textContent = label.dataset.baseLabel;
+    return;
+  }
+
+  const paths = collectResultPaths(container);
+  const position = describeResultCursor(paths, cursorPath);
+  if (!position) {
+    // 光标指向的行已经被筛掉了：清掉状态，避免 Enter 打开一个看不见的 Mod。
+    appState.searchCursorPath = "";
+    if (label && label.dataset.baseLabel) label.textContent = label.dataset.baseLabel;
+    return;
+  }
+
+  const target = container.querySelector(`.file-item[data-path="${CSS.escape(cursorPath)}"]`);
+  target?.classList.add("is-result-cursor");
+  target?.scrollIntoView({ block: "nearest" });
+  if (label) label.textContent = `${label.dataset.baseLabel || ""} · ${position}`.trim();
 }
 
 export function createFileItem(file) {
@@ -450,6 +515,18 @@ export function createFileItem(file) {
   });
 
   const displayTitle = file.title || file.name;
+  // 搜索时：标题/文件名高亮命中片段，并说明命中字段（"为什么这行被搜出来"）。
+  const searchSyntax = parseSearchSyntax(appState.searchQuery);
+  const searchTerms = positiveTerms(searchSyntax);
+  const searchHighlight = { terms: searchTerms, regex: compiledRegex(searchSyntax) };
+  const titleHighlighted = highlightMatches(displayTitle, searchHighlight);
+  const nameHighlighted = highlightMatches(file.name, searchHighlight);
+  const matchReasonChip = searchSyntax.raw
+    ? (() => {
+        const chip = formatMatchReasonChip(describeMatchReasons(file, searchSyntax.raw));
+        return chip ? `<span class="search-reason-chip" title="这行是被这些字段匹配到的">${escapeHtml(chip)}</span>` : "";
+      })()
+    : "";
   const isHidden = file.name.startsWith("_");
   const hideBtnText = isHidden ? "取消隐藏" : "隐藏";
   const hideBtnIcon = isHidden ? iconSvg("eye") : iconSvg("eyeOff");
@@ -526,8 +603,8 @@ export function createFileItem(file) {
   item.innerHTML = `
     <div class="file-checkbox-container"></div>
     <div class="file-name" title="${file.path}">
-      <div class="file-title">${displayTitle}</div>
-      <div class="file-filename">${file.name}${updateTagHtml}</div>
+      <div class="file-title">${titleHighlighted}</div>
+      <div class="file-filename">${nameHighlighted}${updateTagHtml}</div>
     </div>
     <div class="file-size">${formatFileSize(file.size)}</div>
     <div class="file-location">
@@ -538,6 +615,7 @@ export function createFileItem(file) {
     </div>
       <div class="file-game-state">${getGameStateBadge(file)}${getLoadOrderBadge(file)}${getConflictRecheckBadge(file)}${getModGroupBadge(file, "mod-group-badge file-mod-group-badge")}</div>
     <div class="file-tags">
+      ${matchReasonChip}
       ${formatTags(file.primaryTag, file.secondaryTags, file.voiceCharacters, file.subjectSummary, file.xdrSummary)}
       ${getConflictSummaryBadge(file)}
     </div>
@@ -616,6 +694,18 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
   }
 
   const displayTitle = file.title || file.name;
+  // 卡片视图同样高亮命中，并复用列表视图的"命中字段"文案。
+  const cardSearchSyntax = parseSearchSyntax(appState.searchQuery);
+  const cardTitleHighlighted = highlightMatches(displayTitle, {
+    terms: positiveTerms(cardSearchSyntax),
+    regex: compiledRegex(cardSearchSyntax),
+  });
+  const cardMatchReasonChip = cardSearchSyntax.raw
+    ? (() => {
+        const chip = formatMatchReasonChip(describeMatchReasons(file, cardSearchSyntax.raw));
+        return chip ? `<span class="search-reason-chip" title="这行是被这些字段匹配到的">${escapeHtml(chip)}</span>` : "";
+      })()
+    : "";
   const isHidden = file.name.startsWith("_");
   const hideBtnText = isHidden ? "取消隐藏" : "隐藏";
   const hideBtnIcon = isHidden ? iconSvg("eye") : iconSvg("eyeOff");
@@ -761,7 +851,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
           <polyline points="21 15 16 10 5 21"></polyline>
         </svg>
       </div>
-      <img class="card-preview-img ${showPlaceholder ? "hidden" : ""}"${previewSrcAttribute} alt="${displayTitle}" loading="lazy" decoding="async" fetchpriority="low" />
+      <img class="card-preview-img ${showPlaceholder ? "hidden" : ""}"${previewSrcAttribute} alt="${escapeHtml(displayTitle)}" loading="lazy" decoding="async" fetchpriority="low" />
       <div class="card-checkbox-container"></div>
       <div class="card-badges">
         <span class="card-badge location-badge">${getLocationDisplayName(file.location)}</span>
@@ -774,13 +864,13 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
             ? `<span class="card-badge tag-badge" title="${escapeHtml(file.primaryTag)}">${escapeHtml(file.primaryTag)}</span>`
             : ""
         }
-        ${xdrBadgeHtml}${subjectBadgeHtml}
+        ${xdrBadgeHtml}${subjectBadgeHtml}${cardMatchReasonChip}
         ${secondaryTagsHtml}
         ${getConflictSummaryBadge(file, "card-badge mod-conflict-badge")}
       </div>
     </div>
     <div class="card-content">
-      <div class="card-title" title="${displayTitle}">${displayTitle}</div>
+      <div class="card-title" title="${escapeHtml(displayTitle)}">${cardTitleHighlighted}</div>
       <div class="card-filename" title="${file.name}">${file.name}</div>
       <div class="card-actions">
         <div class="card-actions-left">

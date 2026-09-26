@@ -6,6 +6,31 @@
 证据分级：**已自动验证**（本文第一部分与各节"已经自动化覆盖的部分"）、
 **只能人工验证**（各节"待人工验证"）、**仍未验证**（当前没有此类项）。
 
+## 最近一次全量验证基线（2026-09-26，本机）
+
+复核时先跑这一组；全绿再看下面的"只能人工验证"清单。这份基线与
+`docs/development/fireaxe-parity.md` §5 各轮记录、`CHANGELOG.md` 的"验证"小节对应。
+
+| # | 命令 | 期望 | 最近结果 |
+| --- | --- | --- | --- |
+| 1 | `go test ./... -count=1` | 全部 ok（含仓库一致性审计） | ok（`internal/app` 等 6 个包） |
+| 2 | `go vet ./...` | 无输出 | 无输出 |
+| 3 | `node --test`（在 `frontend/`） | 全通过 | **338 项 / 0 失败** |
+| 4 | `npm run build`（在 `frontend/`） | 产物正常（仅有既有的 chunk 体积警告） | 通过 |
+| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（18,466,816 字节） |
+| 6 | `npm run docs:build`（在 `docs/`） | VitePress 构建完成 | 7.70s |
+
+另外两项"不靠命令"的复核点：
+
+- **仓库级一致性**：`internal/app/repo_consistency_test.go` 会检查"对照表引用的文件都存在""体检类型
+  在 Go / 前端标签 / 用户文档三层一致""文档里的验证命令与工程脚本一致"，这两份审计都做过变异验证
+  （故意制造回归会失败）。
+- **交付产物卫生**：`build/bin/LytVPK-Community-Fork.exe` 里不应出现 `cua-bridge`（临时调试桥残留）。
+
+> **读历史轮次时注意**：下面各轮记录里的"仍未验证：`IValidity` 的增量级联传播"是**当时**的状态。
+> 该项已在 `fireaxe-parity.md` §5.13 用真实库实测闭环（定位到根因是索引缓存容量、修复后热重算
+> 558ms → 177ms，并判定不需要再做增量传播）——**当前没有任何"计划内但未验证"的项**。
+
 ## 已经自动化、无需手工重复的部分
 
 下面这些语义已经有测试守着，手工验证时不必逐条重跑，只在其失败时才需要人看：
@@ -1538,5 +1563,1022 @@ errors=[]
 
 **只能人工验证**：你自己在真实库上跑一次批量游戏内开关（尤其确认 300 个以上的大选择是否够快）。
 
+## 第十六轮调试：策略组管理窗口的「搜索框」与禁用状态（2026-09-24，打包 EXE + 沙箱）
+
+**用户反馈**：窗口里那个框（`策略组名称，例如 角色替换包`）是搜索框吗？能不能把窗口里这些灰掉的
+控件弄成正常？
+
+**结论**：那个框是**新建策略组的名称输入**（不是搜索框），而且窗口里压根没有搜索；
+灰掉的批量按钮是"没勾选组"的正常禁用，但界面没说清原因，看起来像坏了。两件事都已改：
+
+1. 拆成两个分区：`新建策略组：…`（名称 + 策略 + 建组按钮）与
+   `搜索策略组（组名 / 成员名 / 描述）…`（真正的搜索框 + `显示 X / Y 个组`）；
+   「全选」只作用于当前搜索结果。
+2. 禁用状态自解释：工具条新增提示行（未勾选 → 怎么勾；已勾选 → 绿色"按钮已可用"），
+   每个禁用按钮 tooltip 写明原因（勾选后恢复原 tooltip）；
+   「用选中的 Mod 建组」没勾 Mod 时文案直接写 `先在 Mod 管理页勾选 Mod`。
+
+**在打包 EXE 上驱动验证**（沙箱 5 个组）：
+
+```
+初始：共 5 个组；批量提示 = 先勾选组（每行最左边的方框，或点组名）才能批量删除 / 开关自动联动 /
+      设置权重 / 用这些组筛选；批量删除 disabled=true，tooltip=先勾选要批量操作的策略组…；
+      建组按钮文案=先在 Mod 管理页勾选 Mod（tooltip 说明去哪勾）
+搜索「医疗箱」：显示 4 / 5 个组，列出父组 + 3 个子组
+搜索成员名「ccc角色」：命中子组时自动带上父组 !!医疗箱 系列（缩进不会指向看不见的父组）
+搜索结果里点全选：已选 4 个组（4 个成员）、可见 4 行全勾、批量按钮 enabled、
+      提示行变绿「已勾选 4 个组，下面的批量按钮已可用」
+清空搜索：回到「共 5 个组」与初始提示
+errors=[]
+```
+
+**已自动覆盖**：`node --test` 203 项（新增 `strategy-group-filter.test.mjs` 7 项：
+组名/成员名搜索、子组带父组、父组带子树、计数与批量提示文案；并更新窗口结构断言）。
+
+**只能人工验证**：你自己库 19 个组时的搜索手感；真实游戏内加载顺序。
+
+## 第十七轮调试：FireAxe 式祖先权重累加 + 「＋ 子组」快捷入口（2026-09-24，打包 EXE + 沙箱）
+
+**用户问题**：策略组能不能在组内再建子组、子组能不能设权重排序？想更接近 FireAxe。
+
+**结论**：子组与子组权重早就支持（最多 4 层），但**父组权重此前不会作用到子组成员**（当时是
+"所有组取 min"的有意取舍）。本轮按用户选择改成 **FireAxe 式祖先累加**，并补上快捷入口：
+
+- `pathTier(g)` = 沿 g 的上级链（g + 全部上级）**累加**已设置的 Tier（缓存 + 环保护）；
+  `groupTier(mod)` = 该 Mod 所属各链 `pathTier` 的 **min**；`effective = min(base, groupTier)`。
+  链上没有任何 Tier 时按"未设置"处理 → 完全没设权重的库**逐字节不变**。
+- 新后端 `CreateModStrategyGroupChild(parentID, name, strategy, memberPaths)`：
+  允许空子组、复用无环 / 4 层校验、写盘前自动备份；策略留空默认「互斥单选」。
+- 窗口每行新增 **「＋ 子组」**（带 tooltip：「子组会累加它和全部上级分组的权重；最多 4 层」）。
+
+**在打包 EXE 上驱动验证**（沙箱；父组 = !!医疗箱 系列）：
+
+```
+行内按钮：＋ 子组 ；tooltip = 在这个组下面新建一个子组（子组会累加它和全部上级分组的权重；最多 4 层）
+弹窗正文：在「!!医疗箱 系列（主文件+音频+材质+开关模块）」下面新建一个子组。
+          · 当前在 Mod 管理页勾选的 1 个 Mod 会一起放进这个子组
+          · 子组的有效分层会累加它自己和全部上级分组的权重（最多 4 层）
+创建结果：子组「上衣关」出现且缩进显示（└）、上级分组 = !!医疗箱 系列、成员 1 个
+权重累加：父组 -2 + 子组 -3 → GetModPriorityPlan：groupTier=-5、effective=-5、source=group
+          主列表角标同步为 优先级 #1（该 Mod 的 ddd角色.vpk）
+清理：删除子组 + 清空父组权重后沙箱 groups.json 恢复原状；errors=[]
+```
+
+**已自动覆盖**：Go 新增 3 项（`TestGroupTierAccumulatesAncestorTiers`：
+父权重继承 → 父子相加 -5 → 清空回到顺序号；`TestCreateModStrategyGroupChildCreatesNestedGroup`
+与 `...RejectsBadInput`：空名称 / 父组不存在 / 缺 ID / 第 5 层被拒）；
+`TestConflictPriorityGoldenRegressionWithoutLayers` 继续通过（没设权重时行为不变）；
+前端 `node --test` 204 项。
+
+**只能人工验证**：真实游戏内加载顺序（沿用第 4 节——交换两个同名文件 VPK 的顺序观察谁覆盖谁）。
+
 发现不符时，请记录：操作步骤、界面截图、`addonlist.txt` 前后内容，以及应用日志中的报错行。
 这些信息足以定位是后端语义、绑定参数还是前端渲染的问题。
+
+## 第十八轮调试：事务化写盘 / 策略预检 / 自动修复分级 / schema 版本 / 下载节流 / 拖放排序（2026-09-24）
+
+**用户要求**：把上一轮列出的 6 项"值得学 FireAxe"逐项落地（push 事务化、策略可满足性预检、
+Problem 自动修复分级、本地记录 schema 版本化、下载进度落盘节流 + 任务去重、树拖放排序）。
+
+**本轮结论**：6 项全部实现，且都按"先写失败测试再实现"的顺序做；证据与落点见
+`docs/development/fireaxe-parity.md` §4.1 的 11-16 行。
+
+### 本次已经自动化覆盖的部分（不需要人工重复）
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| addonlist 写盘 + 派生步骤 + 快照同步是一个事务，快照失败会回滚并重跑派生步骤 | `internal/app/addon_list_transaction_test.go` |
+| 策略组应用前预检（空组 / 成员全丢 / 全在 disabled / 只有一个可用成员） | `internal/app/mod_group_apply_check_test.go`、`strategy-group-batch.test.mjs` |
+| 体检"可自动修复"白名单与统计 | `frontend/.../health-report-format.test.mjs` |
+| `groups.json` / `priority.json` 的版本迁移与"不降级" | `internal/app/local_store_schema_test.go` |
+| 下载任务 1s 节流、相同内容跳过、重启后标记 interrupted、入队去重、更新检查 in-flight 去重 | `internal/app/download_task_store_test.go` |
+| 拖放落点判定（放进 / 排前 / 排后 / 回顶层、拒绝成环与超 4 层）与同级顺序重写 | `frontend/.../strategy-group-tree.test.mjs`、`internal/app/mod_group_order_test.go` |
+
+### 本次已经"真机驱动"验证的部分（打包 EXE + 临时调试桥，详见 fireaxe-parity §5.2）
+
+下面这些不是靠推理，是在打包后的 EXE 里跑真实的 DOM 事件拿到的结果；调试桥在验收后已删除并重建产物：
+
+1. 策略组管理窗口能以浮动模式打开，3 行组全部 `draggable="true"`，底部落点与拖动说明都存在。
+2. **在「甲」行的中段 drop「乙」** → 行上出现 `is-drop-inside`，`groups.json` 真的写入 `parentId`，
+   界面重画为缩进显示，上级下拉同步。
+3. **把「乙」拖到「丙」的下边缘** → `is-drop-after`，顺序从 `[甲,乙,丙]` 变成 `[甲,丙,乙]`。
+4. **把「甲」拖到它自己身上** → 状态零变化，`groups.json` 未被改写。
+5. **拖到底部落点** → 高亮 `is-drop-active`，`parentId` 被清除。
+6. **关闭再启动** → 拖放结果保留（来自 `groups.json`）。
+7. 预置的未完成下载任务在真实 EXE 里以 `interrupted` 出现在任务列表数据中（进度 37、`fileUrl` 保留）。
+
+本轮真机验收还发现并修掉了两个问题：底部落点原本会被挤到可视区外（改为 `position: sticky; bottom: 0`）、
+未知策略值不会自愈（读时归一化为「互斥单选」）。
+
+### 只能人工验证的部分（在打包 EXE 上逐条确认）
+
+1. **真实鼠标拖拽的手感**：上面第 2-5 条已经用合成事件证明"落点判定 + 写盘 + 重画"是对的，
+   但**用真鼠标拖**时的命中区域是否符合手感（例如行的三段比例、拖动时的跟随反馈）
+   仍然只能由你自己拖一次确认；如觉得上/下边缘太窄，改 `strategy-group-manager.js` 里
+   `positionFor` 的 `0.28 / 0.72` 两个阈值即可（纯前端，不需要动后端）。
+2. **下载中断恢复**：真实开始一个较大的工坊下载 → 进度超过 10% → 关闭应用 →
+   重新打开 → 下载列表里该任务应显示 **已中断**（保留已下载字节数）并且「重试」可用；
+   点重试应继续完成。这一条依赖真实关进程 + 真实网络，自动化只覆盖了快照的读写与合并逻辑。
+3. **下载节流的写盘频率**：真实下载时观察 `%AppData%\LytVPK\download_tasks.json` 的修改时间，
+   应约每秒最多一次（而不是每 500ms 一次）；内容不变时不应有写入。
+4. **体检一键修复**：在真实库上跑体检 → 点某条「修复」→ 应先出现应用内确认框，
+   确认后 `addonlist.txt` 变化且备份列表里出现 `before-health-fix` 备份。
+5. **策略预检提示**：把一个组的成员文件临时改名/移走，再点「按策略应用」→
+   应看到"不可执行 + 原因"，而不是静默失败。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。上述 5 条都是**环境相关、只能人工确认**的部分。
+
+## 第十九轮：工坊官方标签与统计 / 依赖环 / 文件名安全化（2026-09-24）
+
+**本轮先做了实测对比再决定学什么**：
+
+```text
+现有镜像接口（真实作品 2302720558）
+  → 返回字段：result / publishedfileid / file_type / filename / file_size / file_url /
+    preview_url / title / file_description / children   ← 没有 tags
+Steam 官方 ISteamRemoteStorage/GetPublishedFileDetails（同一个作品）
+  → tags=[Survivors, Sounds, Single Player, Other]
+    subscriptions=21564  views=53208  favorited=6515
+```
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 官方标签清洗（去空白 / 大小写去重 / 保序）、统计合并、全 0 不清零、相同数据不重复写盘 | `internal/app/workshop_steam_details_test.go`（夹具是**真实抓取的官方响应** `testdata/steam_published_file_details.json`） |
+| 抓取→落盘→第二次判定未变化→本地没有的 ID 报 missing→整批失败不改本地文件 | 同上（`TestEnrichWorkshopMetadataEndToEnd` / `...ReportsBatchFailure`） |
+| 官方标签与统计进入"给智能体的材料"（`workshop.steamTags` + 热度） | `TestWorkshopSnapshotExposesOfficialTagsAndStats` |
+| 依赖环（无环 / 两节点 / 三节点 / 自环 / 两个环）与体检项 | `internal/app/dependency_cycle_test.go` |
+| `dependency_cycle` 不在自动修复白名单 | `frontend/.../health-report-format.test.mjs` |
+| 文件名合法性（8 个合法 + 21 个非法）与真实重命名入口 | `internal/app/vpk_actions_rename_validation_test.go` |
+
+### 真网络验证（一次性，脚本已删除，不进 CI）
+
+```text
+requested=2 updated=2 failed=[] errors=[]
+2302720558 → steamTags=[Survivors Sounds Single Player Other] subs=21564 views=53208 fav=6515
+3153860853 → steamTags=[Campaigns Common Infected]          subs=10061 views=62250 fav=3562
+```
+
+### 只能人工验证的部分
+
+1. **设置 → 工坊数据 → 「抓取工坊官方标签与统计」按钮的真实点击体验**：
+   抓取期间按钮显示"抓取中..."、结束后提示"更新 N 个 / 本来就最新 N 个 / 本地没有 N 个 / 接口没返回 N 个"。
+   逻辑与后端行为已有自动化覆盖，但按钮文案与等待时长的手感只能自己点一次。
+2. **国内网络下 Steam 官方接口的连通性**：接口不可达时应当只报"官方接口没返回 N 个"而不影响其它功能。
+   需要代理的话，应用会读取系统代理环境变量（`HTTPS_PROXY` 等）。
+3. **抓取对分组建议的实际提升幅度**：抓完后重新导出「准备给智能体材料」，对比 `workshop.steamTags`
+   是否让智能体的分组更准——这属于效果评估，只能人看。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 编辑快捷键 / 主窗口记忆 / 冗余副本 / 剪贴板识别 / Ctrl+X·V（2026-09-26，打包 EXE + 沙箱夹具）
+
+### 本次已经自动化覆盖的部分
+
+```text
+go test ./... -count=1        全绿（新增 workshop_clipboard_test.go）
+node --test                   351 项 / 0 失败
+npm run build                 通过（仅既有的 chunk 体积警告）
+wails build                   通过；产物 18,481,152 字节，ASCII 扫不到 cua-bridge / DBG 探针
+docs: npm run docs:build      通过
+```
+
+具体的自动化断言：
+
+| 能力 | 断言位置 |
+| --- | --- |
+| 剪贴板链接解析（10 类输入：两种链接写法、`id` 非首个参数、纯数字 ID、非工坊链接、空串…） | `internal/app/workshop_clipboard_test.go` |
+| 轮询判定（开关 / 前台 / 间隔）、去重（同一条只提示一次、输入框里已有就不再提示） | `frontend/src/js/core/workshop-clipboard.test.mjs` |
+| 轮询真的接在启动流程里、确认后带着链接打开工坊页 | `frontend/src/js/core/shortcuts-wiring.test.mjs` |
+| `isTextEntryElement`：复选框/按钮不算"输入框"，文本 input / textarea / contenteditable 才算 | `frontend/src/js/core/shortcut-guards.test.mjs` |
+| 状态栏「待移动」角标（真实 import `state.js` + DOM 桩；含变异验证） | `frontend/src/js/features/status-bar-pending-move.test.mjs` |
+| 快捷键总览里的 `F2` / `Delete` / `Ctrl+X` / `Ctrl+V` 都有真实绑定 | `frontend/src/js/core/shortcuts-wiring.test.mjs` |
+| 主窗口几何：按屏幕钳制、尺寸/最大化是否该恢复（6 项） | `frontend/src/js/core/main-window-geometry.test.mjs` |
+| 工坊冗余副本体检项（只报 1 条、指向 `addons` 根的那份、提示"只保留一份"、体检只读） | `internal/app/health_check_precision_test.go` |
+
+### 本次已在打包 EXE 上驱动验证（沙箱配置目录 + 合法 VPK 夹具，未碰真实 Mod）
+
+```text
+夹具：7 个 VPK（根目录 5 / workshop 1 / disabled 1）+ addonlist.txt，共 5 个可解析 VPK
+启动：走沙箱 config.json（优选IP=false 与真实配置不同，日志可区分），列出 7 个 Mod，总文件数 6/7
+F2        → 弹出提示"先用 ↑↓ 把光标移到要重命名的 Mod 上（或只选中一个）"（多选态下的预期行为）
+Ctrl+F    → 搜索框获得焦点（蓝色描边）
+Ctrl+K    → 命令面板打开（页面跳转 + 常用动作列表）
+Esc       → 浮层关闭
+勾选行    → 状态栏"已选择: N" 同步变化
+```
+
+同一轮里由真机驱动发现并修掉的两个缺陷（自动化测试原本照不到）：
+
+1. `updateStatusBar()` 引用了未声明的 `pendingMoveEl` / `pendingMoveCount`（声明被补丁插进了
+   `updateSelectedFilesStatus()`）→ 表现是"`Ctrl+X` 标记成功，但状态栏没有角标、也没有提示"。
+   已抽 `syncPendingMoveIndicator()`；新增的回归测试做了变异验证（把 bug 放回去即报
+   `ReferenceError: pendingMoveEl is not defined`）。
+2. 列表行复选框 `<input type="checkbox">` 被当成"正在输入文字"，勾选后 `Ctrl+X` / `Ctrl+V` 直接被跳过。
+   已抽 `isTextEntryElement()`（只认文本类 input / textarea / contenteditable）。
+
+同时确认的一件环境事实：**沙箱 `config.json` 如果写的不是合法 JSON，应用会回退到"自动发现游戏目录"**，
+也就是会去读真实库（本轮据此核对过用户真实 `addons` 目录，40 分钟内零写入，只有只读扫描）。
+以后做沙箱验收时，写配置一律用 `ConvertTo-Json` 之类的转义，不要手写反斜杠。
+
+### 只能人工验证的部分
+
+1. **`Ctrl+X` → `Ctrl+V` 的端到端手感**：自动化键盘注入在打包 WebView2 里时通时不通（同一条 `Ctrl+K`
+   也会间歇失效），因此"按下去是否立刻出现角标、弹出目录选择框、移动完成后标记是否清掉"需要你自己点一次。
+   纯逻辑（标记集合、状态栏刷新、`movePathsToDestination` 复用）已有自动化覆盖。
+2. **剪贴板提示的出现时机**：复制一条工坊链接 → 切回 LytVPK，确认弹窗是否在 1~2 秒内出现；
+   以及"已经手动粘贴过同一条链接时不再提示"是否符合你的预期。判定规则（开关 / 前台 / 间隔 / 去重）
+   有单测，但真实剪贴板与前台焦点只能人工确认。
+3. **换屏幕后的主窗口尺寸**：自动化验证了"超出屏幕会被钳制"，但多显示器之间来回移动时的观感、
+   以及与最大化状态的组合仍需人工看一次。
+4. **工坊冗余副本的处置**：体检只提示不删除，确认提示文案与位置（`addons\<ID>.vpk` + `addons\workshop\<ID>.vpk`）
+   是否够清楚、是否希望将来提供"一键把根目录那份移到回收站"的入口。
+
+### 仍未验证
+
+没有"计划内但完全未验证"的项目；上面 4 条属于只能人工确认的观感/时机类项目。
+
+## 自定义外部打开程序（2026-09-26，打包 EXE + 沙箱夹具 + xcopy 端到端）
+
+### 本次已经自动化覆盖的部分
+
+```text
+go test ./... -count=1     全绿（新增 internal/app/open_with_test.go）
+node --test                354 项 / 0 失败（新增 open-with-settings.test.mjs 3 项）
+npm run build              通过（仅既有的 chunk 体积警告）
+wails build                通过；产物 18,496,000 字节，ASCII 扫不到 cua-bridge
+docs: npm run docs:build   通过
+```
+
+| 断言 | 位置 |
+| --- | --- |
+| 参数分词 11 类：空白分隔、引号内保留空白、`\"` 得字面量引号、**Windows 路径反斜杠原样保留**、单引号分组 | `internal/app/open_with_test.go` |
+| 命令组装 5 类：未配置 → ok=false（走系统默认）、空模板 → 追加路径、`{path}`/`{dir}`/`{name}`、`{0}` 兼容、无占位符 → 追加路径 | 同上 |
+| 保存校验 4 类：空（= 未配置）、纯命令名放行、真实路径通过、带路径但不存在报错 | 同上 |
+| 配置往返：落盘到 config.json、程序留空时参数一并清掉 | 同上 |
+| **真启动外部程序的端到端**：`xcopy.exe /Y {path} <目录>` → `OpenFileLocation` → 夹具文件被复制且内容一致 | 同上 |
+| 设置页接线：两个输入框 + 保存/恢复默认按钮存在、说明里写了占位符与"留空 = 系统默认"、**用事件委托绑定**、前端默认值为空串 | `frontend/src/js/features/settings/open-with-settings.test.mjs` |
+
+### 本次已在打包 EXE 上确认的部分
+
+```text
+沙箱配置 + 夹具启动 → 设置 → 界面设置：「打开文件方式（可选）」卡片正常渲染
+  - 标题 / 说明（留空 = 系统默认、{path} {dir} {name} 占位符、引号用法）都在
+  - 程序 / 参数模板两个输入框、保存 / 恢复默认两个按钮都在
+  - 整页没有出现"设置页面加载失败"，也没有新的前端错误报告
+产物自检：前端包与 EXE 里都能扫到 settings-open-with-save / settings-open-with-program / SetOpenWithSettings
+```
+
+### 只能人工验证的部分
+
+1. **在设置页点「保存」与「恢复默认」并看到 config.json 里出现 `openWithProgram`**：
+   本环境的自动化鼠标点击对这两个按钮不可靠（同一脚本点设置页导航标签有效，点这两个按钮只拿到焦点，
+   保存不落盘），因此这一步需要你自己点一次确认。后端行为已由"真启动 xcopy"的 Go 端到端测试覆盖，
+   前端接线由契约测试覆盖。
+2. **用你自己的程序实测**：填上你常用的文件管理器 / 编辑器，确认参数模板写法符合它的命令行习惯
+   （不同程序对 `/O`、`/T`、`-R` 这类开关的拼法不同）。
+3. **路径含空格 / 逗号的程序**：分词与引号规则有单测，但真实程序对引号的处理各有差异，建议实测一个。
+
+### 仍未验证
+
+没有"计划内但完全未验证"的项目；上面 3 条属于只能人工确认的交互与第三方程序差异。
+
+## 体检修复分级（依赖一键修）+ 两类新诊断 + 失效目标守卫 + 游戏目录自动探测（2026-09-26，打包 EXE + 沙箱）
+
+对应 `docs/development/fireaxe-parity.md` 的第 28-32 项。
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 依赖问题的体检项带可操作目标，且**用这个目标就能驱动修复**（开启依赖 → 复查后问题消失） | `internal/app/health_check_precision_test.go`（`TestDependencyDisabledIssueCarriesFixTarget`） |
+| 依赖修复写盘前留下 `before-dependency-fix` 备份 | 同上（断言备份存在） |
+| 同名路径是文件夹 → 只报 `file_type_mismatch`，真正的缺失仍报 `missing_file`；`disabled` 有副本时提示出路 | 同上（`TestHealthCheckReportsFileTypeMismatchForDirectoryNamedVpk`、`TestHealthCheckFileTypeMismatchPointsAtDisabledCopy`） |
+| 工坊记录 ID 与文件名不一致 → 报 1 条 `meta_id_mismatch`，且不误判成"孤立 / 缺失"；对得上的不报 | 同上（`TestHealthCheckReportsWorkshopMetaIDMismatch`） |
+| 自动修复白名单（三类）与"依赖问题必须带目标" | `frontend/src/js/features/settings/health-report-format.test.mjs` |
+| 设置页把 `fixTarget` 传给修复回调、依赖分支真的调用 `EnableModDependencies` | `frontend/src/js/features/settings/settings-bindings.test.mjs` |
+| 失效目标判定（未改动 / 被替换 / 目录 / 被删除） | `internal/app/task_target_guard_test.go`（`TestModTaskTargetGuardDetectsInvalidTargets`） |
+| 更新检测中途目标被移走 → 不写 `.meta`、`skipped_stale=1`；目标没动 → 正常写回 | 同上（`TestUpdateCheckSkipsMetaWriteWhenTargetMovedMidFlight`、`TestUpdateCheckWritesMetaWhenTargetUnchanged`） |
+| Steam 库清单解析（新旧两种 VDF 写法、转义、大小写去重、脏内容不猜、忽略 `apps`/`label`/`contentid`） | `internal/app/steam_locations_test.go`（`TestParseSteamLibraryFoldersHandlesBothFormats`、`TestParseSteamLibraryFoldersIgnoresUnrelatedPaths`） |
+| 自动找 addons 目录的顺序（注册表目录优先 → 库清单登记的库）、注册表为空不猜、没有 `addons` 不返回 | 同上（`TestFindAddonsInSteamLibrariesUsesRegistryAndLibraryFolders`、`TestSteamLibraryCandidatesIncludeConfigFolder`、`TestAddonsPathIfGameRequiresLeft4Dead2Directory`） |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+沙箱 `%AppData%` + fixture 根目录（**没有碰真实 Mod、`addonlist.txt` 与真实配置目录**）：
+
+```text
+fixture：addons\real.vpk、master.vpk、dep-off.vpk，addons\ghost.vpk 是文件夹，
+        addons\workshop\123.vpk + 123.meta（记录的作品 ID 是 999，与文件名不符）
+沙箱 dependencies.json：master.vpk → dep-off.vpk
+
+设置 → 游戏配置 → 开始体检
+  摘要：发现 4 个问题：警告 3、提示 1
+  汇总条：其中 1 项可以自动修复：启用依赖（1）。其余问题需要人工判断，不会自动改动任何文件。
+  行：依赖未开启 · master.vpk（有「修复」，data-fix-action=enable-dependencies）
+      同名路径是文件夹 · ghost.vpk（无修复按钮）
+      工坊信息对不上作品 · 123.meta（无修复按钮）
+      未写入开关记录 · real.vpk
+
+点「修复」→ 确认
+  体检摘要 4 → 3；依赖行消失，另外三条不受影响
+  addonlist.txt：dep-off.vpk 由 "0" 变 "1"；缩进 / 引号 / 其余条目原样保留
+  真实 %AppData%\LytVPK 开跑前后 19 个文件逐文件 SHA256 一致
+```
+
+自动找游戏目录（只读探针，不写任何文件；跑完已删除该探针）：
+
+```text
+注册表 Steam 安装路径 = "C:\\steam"
+libraryfolders.vdf 解析出 5 个库：C:\steam, G:\SteamLibrary, D:\SteamLibrary,
+                                  E:\SteamLibrary, F:\SteamLibrary
+AutoDiscoverAddons() = E:\SteamLibrary\steamapps\common\Left 4 Dead 2\left4dead2\addons
+```
+
+### 只能人工验证的部分
+
+1. **真实工坊链接下的更新检测**：第 31 项修的是"检测请求还在飞行中，用户把 Mod 移走"的偶发竞态，
+   自动化用注入的详情获取器复现了同一时序；真实网络下这个时间窗有多长（以及你实际会不会撞上）
+   只能靠日常使用观察，日志里的「目标已被移动或替换，跳过写入」就是它。
+2. **真实库里重新体检的观感**：新加的两类诊断在 2400+ Mod 的真实库里会不会刷出很多条、
+   排序与严重度是否符合你的直觉，需要你自己跑一次体检确认。
+3. **确认框文案是否够清楚**：「启用依赖」的确认框只说会给哪个主 Mod 开依赖，
+   文案是否够直白属于主观判断。
+4. **换一台机器 / 换一个 Steam 库的自动发现**：自动化覆盖了解析与优先级，
+   但"新装一台机器、Steam 装在非常规位置（绿色版、库清单放在 `config\` 下）"这种组合
+   只能在你实际遇到时确认；找不到时按提示手动选目录即可，功能不受影响。
+
+### 仍未验证
+
+- `IValidity` 的**增量级联传播**（FireAxe 侧最后一处没学的设计）：本轮明确不做，
+  理由是本项目"脏标记 + 按需全量重算"在 2400+ Mod 下仍是亚秒级，增量传播要额外维护
+  "文件 → 提供者"反查索引，风险大于收益（理由写在 `fireaxe-parity.md` §4.2.1）。
+- 本轮没有其它"计划内但完全未验证"的项目。
+
+## 受管目录路径守卫 + 归档列表统一检索（2026-09-26，打包 EXE + 沙箱）
+
+对应 `docs/development/fireaxe-parity.md` 的第 33 项与 §5.11。
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 路径判定：addons / workshop / 更深一层 / disabled 放行；父目录、`..` 逃逸、受管目录本身、空路径、相对路径拦下；大小写不敏感；没选目录不放行 | `internal/app/path_guard_test.go`（`TestManagedFilePathProblemDetectsOutsidePaths`，10 类用例） |
+| 越界文件删除被拒且文件零改动；受管目录里的删除照常工作 | 同上（`TestDeleteVPKFileRefusesPathsOutsideManagedRoots`） |
+| 越界文件隐藏/改名被拒且不产生 `_` 前缀文件 | 同上（`TestToggleVPKVisibilityRefusesPathsOutsideManagedRoots`） |
+| 越界源文件逐项失败并留在原处；**移动到用户自选目录仍然成功**（既有能力不退化） | 同上（`TestMoveVpkFilesKeepsFreeDestinationButGuardsSources`） |
+| 体检把越界条目报成 `outside_root`，且不重复报成"缺失文件"，体检本身只读 | 同上（`TestHealthCheckReportsAddonListEntriesOutsideManagedRoots`） |
+| 新体检项的中文文案与"不给自动修复按钮" | `frontend/src/js/features/settings/health-report-format.test.mjs` |
+| 归档检索语义：普通词（且，fuzzy 与后端一致）、引号短语、`-排除`、`re:`、非法正则报错、`tag:` 状态（含 `\|` 或）、计数文案、高亮参数 | `frontend/src/js/features/diagnostics/archive-search.test.mjs`（8 项纯逻辑） |
+| 归档管理器真的接上了统一检索（语法提示 / 计数 / 高亮 / 状态 chip） | 同上（第 9 项，静态检查 `archive-manager.js`） |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+沙箱 `%AppData%` + fixture 根目录（真实 Mod 与真实配置目录全程未碰）：
+
+```text
+fixture：addons\inside.vpk（受管），fixture\outside\precious.vpk（受管之外），
+        addonlist.txt 里除 inside.vpk 外还有一条 "..\outside\precious.vpk"
+
+DeleteVPKFile(<受管之外的 precious.vpk>)
+  → 报错："这个文件不在当前受管的 addons / workshop / disabled 目录里：…\outside\precious.vpk"
+  → 磁盘核对：precious.vpk 仍在原处（True）
+DeleteVPKFile(<受管目录里的 inside.vpk>)
+  → 无报错；磁盘核对：inside.vpk 已移入回收站（False）—— 守卫没有误伤正常流程
+
+设置 → 游戏配置 → 开始体检
+  → 「条目指向受管目录之外 · ..\outside\precious.vpk」，无「修复」按钮（需人工改回相对路径）
+```
+
+### 只能人工验证的部分
+
+1. **真实点击归档管理器的搜索框**：入口是系统"选择目录"对话框，无法由自动化打开，
+   所以归档检索只做到"纯逻辑 + 接线"两级验证；语法提示、计数文案、`<mark>` 高亮与
+   `tag:` chip 的实际观感需要你自己点一次压缩包管理确认（高亮用的是 Mod 列表同一套样式，
+   那套已在之前的轮次真机验证过）。
+2. **"真的中途换过 addons 目录"的时机**：自动化用等价路径复现了同一判定，
+   但"换目录后立刻点删除"这种真实操作序列只能你遇到时确认。
+
+### 仍未验证
+
+- 本轮计划内项目都已覆盖；`IValidity` 的增量级联传播仍是唯一的"有意留到以后"。
+
+## 命令面板最近使用 + 高对比档只提正文 + 说明书复用（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 最近使用记录：去重、最近在前、上限 5、空 id / 坏数组不破坏记录 | `frontend/src/js/core/command-palette.test.mjs`（`pushRecentCommand`） |
+| 空查询时最近用过的排最前，其余保持命令表原顺序，记忆里已不存在的 id 忽略，原数组不被打乱 | 同上（`orderCommandsByRecents`） |
+| 带最近使用时只影响空查询；有关键词仍按相关度 | 同上（`searchCommands`） |
+| 状态文案在没有记录时不提"最近用过" | 同上（`describeCommandPaletteState`） |
+| 面板真的用上最近记录：空查询排序、执行后写回、命名空间存储键、可注入存储、最近标记、状态行计数 | `frontend/src/js/core/command-palette-ui.test.mjs`（静态接线断言 + 执行路径计数） |
+| 高对比档三档文字齐全且保持"正文 > 次要 > 装饰"的层级（WCAG 相对亮度） | `frontend/src/js/core/reading-contrast-css.test.mjs` |
+| 高对比档只提正文与次要文字，装饰文字不深于 / 不亮于标准档 | 同上 |
+| 归档面板复用同一份说明书（字段换成压缩包相关，`tag:` 说明改成包状态，快捷键同源） | `frontend/src/js/features/file-list/search-help.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+```text
+命令面板（真实点击标题栏按钮 + 输入框 + Enter）
+  清空 lytvpk.commandPalette.recent 后打开：表首 = focus-mod-search（表顺序）
+  输入「重置」→ 只剩 reset-window-geometry → Enter 执行
+  再打开：表首 = reset-window-geometry，提示文案「最近 · 浮动窗口自救」
+  状态行 = 「最近用过 1 条在最上面 · 共 17 条命令 · …」
+  localStorage["lytvpk.commandPalette.recent"] = ["reset-window-geometry"]
+
+高对比档（设置 → 界面设置 → 点「高对比」，暗色主题）
+  标准：--text-primary #f1f5f9 / secondary #cbd5e1 / tertiary #94a3b8
+  高对比：         #ffffff /           #e6edf7 /           #94a3b8（装饰不变）
+  真实元素计算色：standard rgb(203,213,225) → contrast rgb(230,237,247)
+  切回标准：三档全部还原为 #f1f5f9 / #cbd5e1 / #94a3b8
+```
+
+### 只能人工验证的部分
+
+1. **"最近使用"是否符合你的使用习惯**：上限 5 条、只在空查询时提前，是主观取舍；
+   觉得该记更多/更少时改 `RECENT_COMMAND_LIMIT` 即可。
+2. **高对比档的观感**：自动化锁住的是"层级与不变量"，
+   强光环境下长时间阅读是否舒服只能你自己用一段时间再定。
+3. **归档面板的 `?` 浮层**：入口是系统"选择目录"对话框，无法由自动化打开，
+   所以归档面板只做到"纯逻辑 + 接线 + 说明书同源"验证；浮层观感请你在压缩包管理里点一次确认。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（FireAxe 侧唯一的"有意留到以后"，理由见 `fireaxe-parity.md` §4.2.1）。
+- 本轮其它计划项均已覆盖。
+
+## 对象解释层：失败提示 + 灰按钮理由（2026-09-26，打包 EXE + 沙箱）
+
+对应 `docs/development/fireaxe-parity.md` 的第 34 项与 §5.12（对照范围首次扩到 `FireAxe.GUI`）。
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 12 条错误规则各自的人话摘要与建议（路径守卫 / 闸门忙 / 工坊转移 / 没选目录 / 文件不在 / 同名 / 权限 / 目标路径 / 网络…） | `frontend/src/js/core/action-explanation.test.mjs` |
+| 场景区分：`输入 / 重命名 / 解析` 类错误只在输入场景按"输入不合法"解释；操作场景走兜底但仍有话说 | 同上 |
+| 认不出规则时保留原文 + 通用建议；空消息退化成「操作失败」；对象形态（Wails errorInfo）也能处理 | 同上 |
+| 文件名不被解释层吞掉（`移动 a.vpk 失败…` → subject `a.vpk`） | 同上 |
+| 可用性 6 类：没选目录 / 忙碌（只读操作不受影响）/ 工坊 toggle / disabled 游戏内开关 / 批量没选中 / `disable-file` 三种情形 | 同上 |
+| 逐项失败文案 = 文件名 + 人话 + 下一步；认不出的原因保留原文 | `frontend/src/js/features/file-list/move-result-format.test.mjs` |
+| 界面真的接上：`toast.js` 全局错误、`operations.js` 两处前置检查、`model-stats-scan.js` 禁用按钮状态与提示 | `frontend/src/js/core/action-explanation.test.mjs`（接线断言 + 旧重复文案已移除） |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+走的**不是**直接调解释函数，而是真实链路：导出方法 `LogError(type, message, file)`
+→ Go 发 `error` 事件 → 页面 `EventsOn("error")` → 解释层 → 渲染到 `#toast-container`。
+
+```text
+文件操作 / 移动 a.vpk 失败: The system cannot find the path specified
+  toast：内容：目标路径当前不可用  建议：确认目标目录还在、且没有被同名文件占住，然后重试。
+文件操作 / 另一个文件操作正在进行（移动 / 删除 / 打包），请等它完成后再试
+  toast：内容：上一个文件操作还没结束  建议：等状态栏的提示消失后再试，避免两批操作互相插队。
+文件操作 / 这个文件不在当前受管的 addons / workshop / disabled 目录里：E:\x.vpk
+  toast：内容：这个文件不在当前管理的 addons / workshop / disabled 里  建议：刷新一次 Mod 列表…
+重命名 / 文件名不合法：文件名不能包含 \ 这类字符（Windows 命名规则）
+  toast：内容：这个名字不能用作文件名  建议：避开 < > : " / \ | ? * 与控制字符…
+文件操作 / 某种没见过的后端错误 XYZ-123
+  toast：内容：某种没见过的后端错误 XYZ-123  建议：如果反复出现，把这条消息和对应的 Mod 名一起反馈。
+```
+
+### 只能人工验证的部分
+
+1. **措辞是否符合你的语感**：规则表集中在 `frontend/src/js/core/action-explanation.mjs`，
+   改文案不需要动业务逻辑；哪一条说法别扭直接说，我改那一行。
+2. **灰按钮 tooltip 的实际观感**：自动化覆盖了"判断结果与文案一致"，
+   但鼠标停在模型统计面板「禁用」按钮上的观感需要你自己看一眼。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（唯一"有意留到以后"的一项）。
+
+## 检索一致性审计 + 工坊"服务端搜索"说明（2026-09-26，打包 EXE + 沙箱）
+
+### 附：冲突复检性能（同轮，真实库只读测量）
+
+FireAxe 对照表最后一项"未做"（`IValidity` 增量传播）这一轮用实测钉死，结论是**不做**：
+
+```text
+真实库（2409 Mod / 2107 参与 VPK / 24.1 万路径）
+修复前：热重算 552/560/559ms（与冷跑 591ms 几乎相同）
+        细分：遍历 7.7ms；取清单循环 436ms/434ms；缓存条目 1024（= 上限）
+根因：索引缓存容量写死 1024 < 库里的 2409 → 每轮 LRU 抖动、重复解析
+修复后：热重算 173/179/180ms（3.1×）；缓存条目 2107；候选收集 4ms；忽略清单 0ms
+剩余：173ms = 2107 Mod × 24.1 万路径的分组累加；前端有 400ms 防抖，一次突发只算一次
+```
+
+**已自动验证**：`internal/app/conflict_index_capacity_test.go`（容量规则含硬上限、容量影响淘汰、
+默认容量、端到端写入与不超限）；**仍未验证**：无（该对照项已闭环）。
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 统一语法面板 6 个都有 `?` 按钮与浮层，且浮层内容来自 `search-help.mjs` 的对应变体、悬停提示同源 | `frontend/src/js/core/search-consistency.test.mjs`（含"面板清单要与实现同步"的计数断言） |
+| 工坊搜索写明"由 Steam 服务端执行、不支持 tag:/re:/-排除"，并列出 6 个可用本地语法的面板 | 同上 |
+| 局部小过滤器（加载顺序 / 组选择器 / 建议窗口 / autoexec / mdmp / 服务器地图）的占位文案不宣称支持本地语法 | 同上（静态 + 动态生成的两类都扫） |
+| **测试本身有牙**：变异验证 —— 把体检面板的说明书换回默认变体后审计立刻失败 | 手工执行一次变异并还原（记录在本节） |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+```text
+工坊搜索框 placeholder = 搜索工坊物品标题（由 Steam 搜索，不支持 tag: / re: 等本地语法）
+           title       = 工坊搜索由 Steam 服务端执行：… 想用本地语法请到：Mod 列表、压缩包管理、
+                         模型统计、策略组管理、冲突检测、体检结果。
+Mod 列表    placeholder = 搜索 VPK（支持 tag:武器、-tag:材质、re:^ak 等写法；…）
+           title       = 匹配：标题、文件名、… / 语法：ak47 武器 / "ak 47" / tag:步枪 / … / 快捷键：…
+           ? 按钮      = 存在
+体检搜索    placeholder = 搜索问题（对象名 / 路径 / 提示文案；支持 -排除 / re: 正则 / tag:严重度或类型）
+           title       = 匹配：问题对象名、文件路径、可操作目标、提示文案、严重度与问题类型 / …
+           ? 按钮      = 存在
+局部过滤器  加载顺序「搜索 Mod 名称或 VPK 路径」、组选择器「搜索策略组（名称 / 上级分组 / 策略）…」
+```
+
+### 只能人工验证的部分
+
+1. **实际手感**：自动化验证了"文案与接线一致"，但六个面板轮着用一遍是否顺手（尤其 `Esc`/
+   `↑↓` 在各自上下文里的预期）只能你自己体验。
+2. **工坊搜索的服务端行为**：关键词搜索、分页、排序本身依赖 Steam 接口，属于外部服务，无法在自动化里覆盖。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（唯一"有意留到以后"的一项）。
+
+## 体检结果统一检索 + 覆盖关系区过滤提示（2026-09-26，打包 EXE + 真实 mod 库只读体检）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 体检检索：对象名 / 路径 / 可操作目标 / 文案跨字段匹配、多词"且"、`-排除`（子串，不误伤长路径）、`re:`、`tag:` 严重度与问题类型、计数与高亮参数 | `frontend/src/js/features/settings/health-search.test.mjs` |
+| 检索在 100 条显示上限**之前**生效，计数栏区分"匹配"与"另有 N 条未显示" | `frontend/src/js/features/settings/settings-page.js`（接线 + 同上测试的接线断言） |
+| 正则写错时计数与空列表都直说原因 | 同上 |
+| 覆盖关系区被过滤时显示"显示 / 总数 组（已过滤）" | `frontend/src/js/features/conflicts/conflict-search.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥；体检是只读操作，未改动任何 Mod 或 addonlist）
+
+```text
+真实库体检：发现 943 个问题（严重 1、警告 1、提示 941）
+  列表显示前 100 条 · 另有 843 条未显示（以前这 843 条没有任何入口）
+tag:警告                          → 匹配 1 / 943
+tag:条目缺少文件                   → 匹配 1 / 943
+tag:缺少工坊信息                   → 匹配 940 / 943
+-tag:缺少工坊信息                  → 匹配 3 / 943（互补，合计 943）
+-tag:缺少工坊信息 -tag:依赖缺失     → 匹配 2 / 943
+vpk                              → 匹配 943 / 943，100 行 201 处 <mark class="search-hit">
+re:[                             → 计数与空列表均为「正则表达式无效：…」
+清空                              → 回到 100 行 + 「另有 843 条未显示」
+`?` 说明书                        → 打开、含 tag:条目缺少文件 行、tooltip 同源（匹配：问题对象名、文件路径、可操作目标、提示文案、严重度与问题类型）
+```
+
+### 只能人工验证的部分
+
+1. **体检结果里"修复"按钮与搜索的组合**：自动化验证了过滤与计数，
+   但"搜完再点某一条的修复"这种操作序列请你实际点一次（修复逻辑本身未改动）。
+2. **工坊信息存储是否要开启**：940 条提示源于缺 `.meta`。这是数据状态而非缺陷，
+   要不要开启工坊信息存储、开启后重新抓一遍，取决于你的使用习惯。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（唯一"有意留到以后"的一项）。
+
+## 冲突弹窗统一检索 + 排除词语义修正（2026-09-26，打包 EXE + 真实 VPK 夹具）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 冲突检索：资源路径 / Mod 名 / 标题跨字段匹配、多词"且"、`-排除`、`re:`、`tag:` 严重度与 `同层`/`未记录`、计数与高亮参数 | `frontend/src/js/features/conflicts/conflict-search.test.mjs` |
+| **排除词用子串**（正向词仍模糊）：`vpk -katana`、`vpk -old` 不会在长路径里凑字母误伤；`-ak47`、`-hd.vpk` 仍正确排除 | 同上 + `internal/app/search_query_test.go`（`TestNegativeTermUsesSubstringNotFuzzy`） |
+| 后端 `-词` 语义：`-old` 保留、`-材质` 排除、`-ak47` 排除 | `internal/app/search_query_test.go`（`TestModSearchQueryMatchesFields` 新增 2 条用例） |
+| 冲突面板接线：统一检索、计数、高亮、同源说明书 | `conflict-search.test.mjs`（接线断言） |
+
+### 本次真机验证（打包 EXE + 临时调试桥 + 真实 VPK 夹具）
+
+夹具：`ak47-hd.vpk` 与 `ak47-cn.vpk` 都含 `materials/models/ak47/ak47.vtf`（真实 VPK，构成真冲突）。
+
+```text
+初始            → 1 组冲突（严重度 info），严重度筛选=全部
+ak47           → 匹配 1 / 1 个组冲突，标题与文件名共 4 处高亮
+tag:提示        → 匹配 1 / 1（该组严重度就是「提示」）
+tag:严重        → 没有匹配（并写清原因）
+tag:严重|警告|提示 → 匹配 1 / 1（或语义）
+vpk -katana    → 修复前 0 组（误伤）；修复后 匹配 1 / 1 + 4 处高亮
+re:[           → 「正则表达式无效：…」
+清空            → 回到 1 组、无高亮
+`?` 说明书      → 打开、含 tag:同层 行、tooltip 同源、Esc 关闭
+```
+
+### 只能人工验证的部分
+
+1. **真实大库上的冲突检索**：自动化用 1 组冲突的真实夹具验证语义，
+   真实 2400+ Mod 的冲突规模下滚动/分页与检索的组合观感请你实际点一次。
+2. **排除词新语义的习惯迁移**：`-词` 从"模糊排除"变成"子串排除"是**行为变更**（更符合直觉，但确实变了）；
+   如果你更想要别的口径（例如排除也支持正则 `-re:`）说一声。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（唯一"有意留到以后"的一项）。
+
+## 策略组管理统一检索（真实 115 组）（2026-09-26，打包 EXE + 沙箱 + 真实数据副本）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 统一语法：多词"且"、引号短语、`-排除`、`re:` 正则（写错返回空 + 文案直说原因） | `frontend/src/js/features/mod-groups/strategy-group-filter.test.mjs` |
+| `tag:` 组状态：策略四值 / 顶层 / 子组 / 自动联动，支持 `|` 或与组合条件 | 同上 |
+| **排除优先于树形补全**：`tag:顶层 -tag:子组` 不会把子组又补回来 | 同上 |
+| 既有树形行为未退化：子组命中带上所有上级、父组命中带上所有下级 | 同上（原有 7 项断言保持） |
+| 窗口接线：说明书生成为组变体、tooltip 同源、正则错误文案、`?` 按钮与浮层存在 | 同上（接线断言） |
+
+### 本次真机验证（打包 EXE + 临时调试桥 + **用户真实 groups.json 的只读副本**）
+
+```text
+真实 groups.json：161,018 字节，sha256 5A0BA34E…（验收前后一致，原文件全程只读）
+
+策略组管理窗口：
+  初始              → 共 115 个组
+  tag:单选          → 显示 51 / 115 个组
+  tag:顶层 -tag:子组 → 显示 34 / 115 个组（排除生效）
+  套装 -材质        → 显示 68 / 115 个组
+  re:[             → 计数与空列表均为「正则表达式无效：…」（不再说"没有匹配"）
+  清空              → 回到 115 个组
+  `?` 说明书        → 打开、含「tag:单选」行、tooltip 同源（匹配：组名、组描述、成员名、组状态）、Esc 关闭
+```
+
+### 只能人工验证的部分
+
+1. **搜索时的滚动与勾选手感**：自动化验证了过滤结果与计数，
+   但"边搜边勾选 / 批量操作只作用于搜索结果"的手感请你实际操作一遍。
+2. **组状态标签够不够用**：目前是 策略四值 + 顶层/子组 + 自动联动；
+   如果你还想要别的维度（例如"有缺失成员"），说一声就加。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（唯一"有意留到以后"的一项）。
+
+## 命中高亮的高对比档 + 检索结果键盘光标（归档 / 模型统计）（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 高对比档的命中底色混合比例低于标准档（明亮 22% < 45%，暗色 30% < 55%） | `frontend/src/js/core/reading-contrast-css.test.mjs` |
+| 底色变淡后靠 2px 下划线保持可辨识；命中文字用最强色（正文色 / 纯白） | 同上 |
+| 通用光标工具：任意容器收集 `data-cursor-key`、同步高亮（只亮当前行）、滚进可视区、可自定义 Enter 提示 | `frontend/src/js/features/file-list/result-cursor.test.mjs` |
+| 归档面板接上光标：↑↓ 移动、Enter 展开、Esc 清空、计数显示位置、重画后恢复光标 | `frontend/src/js/features/diagnostics/archive-search.test.mjs` |
+| 模型统计接上光标（三个视图同一套；可展开表头用 `role="button"` 定位，不按类名硬编码） | `frontend/src/js/features/diagnostics/model-stats-search.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+```text
+命中高亮（暗色主题，Mod 列表搜「vpk」，读的是真实渲染出来的 <mark>）
+  标准档：background = primary / 0.55 · box-shadow 下划线 1px · 文字 rgb(255,255,255)
+  高对比：background = primary / 0.30 · box-shadow 下划线 2px · 文字 rgb(255,255,255)
+
+模型统计键盘光标（3 个夹具 Mod）
+  ↓        → 第 1 / 3（ak47.vpk），全表只有 1 行带光标类
+  ↓        → 第 2 / 3（katana.vpk）
+  ↑        → 回到第 1 / 3
+  Enter    → 该行 aria-expanded=true（真的展开了）
+  输入 ak47 → 计数「匹配 1 / 3 个 Mod」，光标复位
+  Esc      → 检索清空、3 行恢复、光标清空
+```
+
+### 只能人工验证的部分
+
+1. **归档面板的光标导航**：它的入口是系统"选择目录"对话框，自动化打不开，
+   所以只做到"纯逻辑 + 接线"验证；手感请你在压缩包管理里试一次（与 Mod 列表同一套）。
+2. **高对比档底色变淡后的观感**：真机只取到了计算色，
+   "够不够醒目"是主观判断，觉得偏弱可以调 `reading-comfort.css` 里那两个百分比。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（唯一"有意留到以后"的一项）。
+- `FireAxe.GUI` 的其余文件（视图 / 值转换器 / 设置模型 / 主题）与既有实现一一对过，
+  没有可移植的增量，因此不作为待办。
+
+## 快捷键总览 + 模型统计统一检索（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 快捷键表分组齐全、id 不重复、每行有说明 | `frontend/src/js/core/shortcuts.test.mjs` |
+| 浮层 HTML 分组渲染且全部转义；悬停提示与浮层同源 | 同上 |
+| **表里写的每个键位在代码里真有绑定**（Ctrl+K/F、Ctrl+±/0、?、↑↓、Enter、Esc、双击标题栏） | `frontend/src/js/core/shortcuts-wiring.test.mjs` |
+| `?` 键不抢输入框；命令面板有「查看键盘快捷键」且复用标题栏按钮 | 同上 |
+| 搜索说明书里的快捷键段是从总表派生的（不再手写第二份） | `frontend/src/js/core/command-palette-ui.test.mjs` |
+| 模型统计检索语义：跨字段普通词（含模型路径）、`-排除`、`re:`、`tag: 有模型/无模型/估算`、计数、高亮参数 | `frontend/src/js/features/diagnostics/model-stats-search.test.mjs` |
+| 模型统计面板接上检索（搜索 / 计数 / 高亮 / 同源说明书 / 正则错误文案） | 同上（接线断言） |
+| 归档面板改用共享匹配层后语义不变 | `frontend/src/js/features/diagnostics/archive-search.test.mjs`（9 项，回归保护） |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+```text
+快捷键总览
+  标题栏按钮打开 → 可见、aria-expanded=true、3 组（全局 / 搜索框里 / 窗口与浮层）、11 行
+  Esc → 关闭；按 `?`（焦点不在输入框）→ 打开；点窗口外 → 关闭
+  在搜索框里按 `?` → 不打开（不抢键，问号能正常打）
+  命令面板搜「快捷键」→ 命中 show-shortcuts → Enter → 打开的是同一个浮层
+
+模型统计检索（3 个夹具 Mod：ak47.vpk / katana.vpk / materials-only.vpk）
+  初始：3 行、无计数、无高亮
+  ak47        → 计数「匹配 1 / 3 个 Mod」，标题与文件名各 1 处 <mark class="search-hit">
+  vpk -katana → 0 行，空状态「没有匹配「vpk -katana」的 Mod」
+  tag:无模型   → 命中 3 / 3（夹具是假 VPK，读不到模型，状态一致）
+  re:[        → 计数栏「正则表达式无效：…」
+  清空        → 恢复 3 行、无高亮
+```
+
+### 只能人工验证的部分
+
+1. **总览浮层在窄窗口下的观感**：样式是 `min(28rem, 92vw)` 右对齐，
+   实际拖小窗口时的换行与遮挡请你扫一眼（自动化只验证了内容与开关行为）。
+2. **模型统计在真实 2400+ Mod 结果上的响应**：自动化用的是 3 个夹具，
+   真实扫描结果下每次输入都重画工具栏（已做焦点恢复），手感请你确认。
+
+### 仍未验证
+
+- `IValidity` 的增量级联传播（唯一"有意留到以后"的一项）。
+
+## 第二十六轮：对照表机器核对 + 命令面板入口 + 窗口几何重置（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 窗口几何一键重置（清前缀键 + 复位已注册窗口） | `frontend/src/js/core/floating-modal-geometry.test.mjs` |
+| 命令表含「重置所有窗口的位置与大小」、空查询提示含快捷键 | `frontend/src/js/core/command-palette.test.mjs` |
+| 标题栏按钮与命令注册接线 | `frontend/src/js/core/command-palette-ui.test.mjs` |
+| 对照表引用的仓库内文件全部存在（74 个） | 一次性核对脚本（见 `fireaxe-parity.md` §5.9），脚本用完即删 |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建）
+
+```text
+标题栏按钮：存在=true → 点击后命令面板可见=true
+空查询提示：共 17 条命令 · ↑↓ 选择，Enter 执行，Esc 关闭 · 快捷键：Ctrl+K 命令面板 / Ctrl+F 搜索 / Ctrl+±/0 缩放
+重置命令：预置 lytvpk.floatingPos.lightweight-check → 检索「重置」→「重置所有窗口的位置与大小」
+          → Enter → 该键被清掉、面板关闭
+再次 Ctrl+K → 快捷键提示仍在 → Esc 关闭
+```
+
+### 只能人工验证的部分
+
+1. **标题栏图标的观感**：现在用的是放大镜图标（与"搜索"同义）。如果你希望它更像"命令"（例如
+   `⌘` 或键盘图标），改 `frontend/index.html` 里 `#command-palette-btn` 的 SVG 即可（一处）。
+2. **命令面板是否要收进快捷键总览页**：目前快捷键列在面板底部；若你希望单独一个"快捷键"浮层，
+   可以在命令表里再加一条命令（表 + 动作映射各一行）。
+3. **重置窗口几何的实际场景**：自动化验证的是"记忆键被清掉 + 面板关闭"，
+   你在真实多显示器环境下把窗口拖乱后点一次，感受是否一步到位。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第二十五轮：命令面板 + 忙碌状态进界面（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 命令表完整性（7 个页面 + 关键动作、id/标题不重复）与模糊检索排序（标题前缀 > 包含 > 顺序命中 > 关键字） | `frontend/src/js/core/command-palette.test.mjs` |
+| 光标移动（环绕、无光标时从两端进入）与状态文案 | 同上 |
+| 命令面板接线：Ctrl+K、↑↓/Enter/Esc、点外部关闭、与命令表一一对应 | `frontend/src/js/core/command-palette-ui.test.mjs` |
+| 忙碌文案、轮询器订阅事件、样式中灰掉哪些按钮 | `frontend/src/js/core/file-operation-busy.test.mjs` |
+| 忙碌状态事件在无 Wails 上下文时安全（测试/无界面调用） | `internal/app/file_op_gate_test.go` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建）
+
+```text
+忙碌状态（400MB 打包，耗时 783ms）
+  打包中：提示可见=true、文案「正在处理文件（移动 / 删除 / 打包）… 完成后可继续」、
+          body.is-file-operation-busy=true、移动按钮 pointer-events=none
+  打包后：提示隐藏=true、class 移除
+  事件探针（直接监听 file_operation_state）：[true, false]
+命令面板
+  Ctrl+K → 面板可见、输入框聚焦、列出 10/16 条、底部「共 16 条命令 · ↑↓ 选择，Enter 执行，Esc 关闭」
+  检索「冲突」→「冲突分析（开关）」+ 1 处高亮；检索「字号」→「界面设置（文字大小 / 阅读舒适度）」；
+  检索「关于」→ Enter → 面板关闭、当前页面 = about；再开 → Esc → 关闭
+```
+
+### 只能人工验证的部分
+
+1. **命令面板的命令取舍**：现在 16 条。哪些你更常用、还想加哪些（例如"随机轮换一次""打开喷漆工具"），
+   只在 `command-palette.mjs` 的表 + `app-runtime.js` 的动作映射里各加一行即可（测试会检查一一对应）。
+2. **Ctrl+K 与其它软件的习惯冲突**：如果你更希望用 `Ctrl+P` 或 `F1`，改 `app-runtime.js` 里那一处判断即可。
+3. **忙碌时的按钮灰化范围**：现在灰掉 7 类会写磁盘的按钮；若你觉得某个按钮不该灰（例如想允许并行打开面板），
+   改 `reading-comfort.css` 里 `body.is-file-operation-busy` 那段选择器。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第二十四轮：文件操作互斥 + 失败逐项报告（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 闸门被占时：移动 / 带冲突动作的移动 / 删除 / 打包全部被挡下，且文件零改动 | `internal/app/file_op_gate_test.go` |
+| 释放闸门后操作照常；修复流程（内部会解包+打包）不被自己锁死 | 同上 |
+| 失败文案：前 3 条 + "另有 N 条"、只有计数无详情、计数缺失兜底 | `frontend/.../move-result-format.test.mjs` |
+| 列表页与归档页都改用逐项文案（不再只显示 errors[0]） | 同上（含源码断言） |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建）
+
+```text
+空闲时 busy=false
+后台启动 300MB 目录打包 → 轮询到 busy=true
+  此时调用移动 → 「另一个文件操作正在进行（移动 / 删除 / 打包），请等它完成后再试」
+打包结束 → busy=false
+把两个 Mod 移动到"其实是文件"的目标路径 → failCount=2、errors 长度 2，
+  两条各自带文件名与系统原因（The system cannot find the path specified）
+收尾核对：两个真实 Mod 仍在原位（True / True）—— 被挡下与被拒绝的操作零改动
+```
+
+### 只能人工验证的部分
+
+1. **真实的长任务观感**：自动化用 300MB 打包验证了"忙碌时被挡下"，但真实场景里
+   （例如批量移动 200 个 Mod 时再点删除）的提示是否够醒目、要不要顺手把按钮也禁用，
+   需要你自己用一次再定；`IsFileOperationBusy()` 已经导出，界面随时可以接。
+2. **失败文案的取舍**：现在列前 3 条 + "另有 N 条，详见控制台日志"。如果你更希望弹窗列出全部，
+   改 `move-result-format.mjs` 的 `DEFAULT_FAILURE_LIMIT` 或换成应用内弹窗即可（纯前端，一处）。
+3. **是否需要给"打包"单独排队**：当前是"被挡下并提示"，也可以改成"排队等待"；
+   这属于交互取舍，按你的实际使用习惯定。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第二十三轮：浮动窗口全覆盖 + 搜索语法说明书（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 必须支持浮动的 19 个管理窗口都在注册表里 | `frontend/src/js/core/floating-window-coverage.test.mjs` |
+| `browser-modal` / `workshop-modal` / `server-modal` 是页面而非弹窗，不得注册浮动 | 同上（同时断言 ui-shell 里确实有 embedModalAsPage） |
+| 9 个临时对话框刻意不注册浮动 | 同上 |
+| 搜索语法说明书：覆盖面、转义、悬停提示同源、开合接线 | `frontend/.../search-help.test.mjs` |
+| 窗口尺寸钳制与双击重置 | `frontend/src/js/core/floating-modal-geometry.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建）
+
+```text
+窗口审计（19 个注册项逐个查 DOM）
+  全部：存在=true、是弹窗=true、有浮动按钮=true
+  "详情"显示 已浮动=false —— 因为上一轮真机我点过它的「停靠窗口」，偏好被按窗口记住（说明记忆生效）
+详情窗口：浮动=true、容器可穿透=true、窗口可点=true、按钮在 modal-header、
+          尺寸 820×702（视口 1400×900，在视口内）；点按钮 → 浮动=false 且文案变回「浮动窗口」
+搜索语法说明书：初始隐藏 → 点击打开（aria-expanded=true、按钮高亮）；
+  三段 12 行、含 re:^ak 示例；宽 480px 在视口内；点外部 → 关闭；再开 → Esc → 关闭
+```
+
+### 只能人工验证的部分
+
+1. **19 个窗口逐个真实使用**：自动化只证明"注册了、DOM 里是真弹窗、有按钮、能开合"，
+   每个窗口浮动后的**布局观感**（例如服务器面板的表格在窄浮窗里是否好读）需要你自己用一遍；
+   哪个窗口你觉得不该浮动，点它的「停靠窗口」即可，偏好会记住。
+2. **说明书的措辞**：8 条语法与 4 个快捷键的文案是否够清楚；改文案只需改
+   `frontend/src/js/features/file-list/search-help.mjs`（界面与测试同源，改一处即可）。
+3. **详情窗口的默认浮动行为**：Mod 详情现在默认浮动（方便对照列表），如果你更希望它默认居中模态，
+   点一次「停靠窗口」即可记住；或把该 id 从 `app-runtime.js` 的列表里移到"不浮动"一档。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第二十二轮：组名唯一 / 子组问题上报 / 搜索结果键盘导航（2026-09-26，打包 EXE + 沙箱）
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 组名唯一性：自动加序号、撞名报错、改成自己名字允许、超长名截断 | `internal/app/mod_group_names_test.go`、`TestModStrategyGroupNamesEndToEnd` |
+| 子树缺失汇总：父/子/孙三层逐层汇总、放回文件后清空、ParentID 透出 | `internal/app/mod_group_subtree_missing_test.go` |
+| 子树缺失文案与"本组缺失"文案区分 | `frontend/.../group-view.test.mjs`、`strategy-group-batch.test.mjs` |
+| 键盘光标：环绕、空列表、脏数据、位置文案、渲染与快捷键接线 | `frontend/.../result-cursor.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建）
+
+```text
+组名唯一性：同名建组 → 「重名测试」/「重名测试 (2)」
+            把第二个改名成「重名测试」→ 已有同名策略组「重名测试」：换个名字，或先重命名那一个
+            改成它自己的名字 → 通过
+子树提示：父组行「⚠️ 子组里有 3 个缺失文件（涉及 2 个子组）：展开子组即可看到」
+键盘导航：搜「医疗箱」→「匹配 7 / 2408 个 Mod」；↓↓ →「… · 第 2 / 7 个结果（Enter 打开详情）」
+          光标行 = 第 2 条结果；Enter → 详情弹窗标题与光标行一致；Esc → 输入/光标/计数全部复位
+清理：脚本创建的 4 个测试组已删除，沙箱残留 0
+```
+
+### 只能人工验证的部分
+
+1. **子树缺失提示的真实数据场景**：真机那次的数据源是打桩的（不能为了测试去删用户真实 Mod），
+   聚合逻辑由 Go 端到端测试保证；真实场景（你把某个子组成员的文件删掉/移走）下的观感需要你自己看一眼。
+2. **键盘导航的手感**：↑↓ 环绕、Enter 打开详情、Esc 复位是否顺手；想改按键位置在
+   `app-runtime.js` 的搜索快捷键块里改一处即可。
+3. **重名策略是否符合预期**：建组自动加序号、改名撞名报错——如果你更希望改名也自动加序号，
+   改 `mod_group_edit.go` 里那一处 `findModStrategyGroupNameConflict` 分支为 `uniqueModStrategyGroupName` 即可。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第二十一轮：搜索语法 + 字号档位全局生效（2026-09-26，打包 EXE + 沙箱）
+
+**用户要求**：继续找值得学 FireAxe 的；同时让检索更方便、匹配更"明确"。
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 搜索语法解析（Go 与前端**共用用例**，两边必须一致） | `internal/app/search_query_test.go` + `frontend/.../search-syntax.test.mjs`（读同一份 `testdata/search_query_cases.json`） |
+| tag 的 或 / 且 / 排除语义、普通词多词"且"、正则、非法正则 | `internal/app/search_query_test.go` |
+| 语法真的作用在搜索上（走导出方法 `SearchVPKFiles`） | `TestSearchVPKFilesSupportsQueryGrammar` |
+| 高亮：多词合并、正则命中、零长度正则不死循环、转义安全 | `frontend/.../search-match.test.mjs` |
+| 命中字段 chip 支持 `tag:`（标成一级/子标签）且排除条件不产生 chip | 同上 |
+| 非法正则的计数文案 | 同上 |
+| 渲染层接线（语法解析 → 高亮/计数/chip） | `frontend/.../search-match-wiring.test.mjs` |
+| 除标题栏外不再有硬编码 px 字号（守卫） | `frontend/src/js/core/font-size-units.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建）
+
+```text
+tag:其他       → 匹配 910 / 2408；chip「匹配：一级标签」
+-tag:其他      → 匹配 1498 / 2408（正好是 910 的补集）；无 chip
+re:^!!医疗箱   → 匹配 6 / 2408；12 处 <mark data-match="regex">；chip「匹配：标题 · 文件名」
+re:[          → 「正则表达式无效：Invalid regular expression: /[/i: Unterminated character class」；0 行
+清空搜索       → 计数归零
+```
+
+真机过程中发现"正则只筛不亮"（高亮只跟普通词走），已并入高亮后复测得 12 处。
+
+### 只能人工验证的部分
+
+1. **语法的记忆成本**：`tag:` / `-tag:` / `re:` 这套写法是否顺手，只能你自己用一段时间再判断；
+   想改默认行为（比如让多个 `tag:` 之间变成"或"）改 `search_query.go` 与 `search-syntax.mjs` 各一处即可，
+   用例文件是共享的，两边一起改。
+2. **正则的性能体感**：当前实现是"对每个 Mod 的每个字段跑一次正则"，2408 个 Mod 的实测搜索在 1.5 秒内返回；
+   若你写很复杂的正则（回溯爆炸），体感可能变慢 —— 这条只能靠实际使用观察。
+3. **文字大小的主观档位**：四档里哪一档最舒服，仍然只能自己定。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第二十轮：下载暂停/断点续传 + 界面可读性与检索体验（2026-09-26，打包 EXE + 沙箱）
+
+**用户要求**：把 FireAxe 剩下的"下载暂停/续传"学完；同时让界面更灵活易操作、
+文字大小与颜色更适合阅读、检索更方便且"匹配得明确"。
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 检查点清洗与校验（越界/重复/任务 ID/体积/块大小/损坏 JSON 一律拒绝续传） | `internal/app/download_block_checkpoint_test.go` |
+| 完整下载字节一致、续传**只请求缺失区块**、暂停保留临时文件与断点、残留文件被截断时强制重下 | `internal/app/download_resume_test.go`（本地 Range 服务器，4 个区块的用例） |
+| 暂停/继续/重试/取消状态机，以及"重启后仍是 paused" | 同上 |
+| 阅读舒适度档位、根字号合成（界面缩放 × 文字档位）、行高、未知值回落 | `frontend/src/js/core/reading-comfort.test.mjs`、`internal/app/reading_comfort_config_test.go` |
+| 命中区间（连续优先 / 逐字兜底）、转义安全、命中字段、计数文案 | `frontend/src/js/features/file-list/search-match.test.mjs` |
+| 窗口尺寸钳制（超屏记忆值 / 非法值 / 极小视口兜底） | `frontend/src/js/core/floating-modal-geometry.test.mjs` |
+| 设置页与渲染层的接线（控件、写配置、启动恢复、chip、计数、快捷键） | `reading-comfort-settings.test.mjs`、`search-match-wiring.test.mjs` |
+| 任务列表暂停/继续按钮与状态样式 | `frontend/src/js/features/downloads/task-list-pause.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已删除并重建产物）
+
+```text
+阅读舒适度（设置 → 界面设置）
+  切换前：textSize=standard comfort=standard 根字号 100% 行距 1.65 --text-primary #f1f5f9
+  切到「特大 + 柔和」：textSize=xlarge comfort=soft 根字号 125% 行距 1.8 --text-primary #cbd5e1
+  控件数量：文字大小 4 档、舒适度 3 档
+
+检索（Mod 管理页搜索「医疗箱」）
+  Ctrl+F 聚焦 = true
+  结果：匹配 7 / 2408 个 Mod；46→7 行；14 处 <mark class="search-hit">
+  chip 文案：匹配：标题 · 文件名
+  Esc：输入框清空、计数归零
+  截图确认高亮与 chip 在界面上可见（此前 chip 被标题的省略号裁掉，已改到标签区）
+
+窗口几何（策略组管理窗口）
+  写入记忆值 5000×4000 后重开：实际恢复 1344×846（视口 1400×900），标题栏可见
+  双击标题栏：该窗口的记忆几何被清空
+```
+
+### 只能人工验证的部分
+
+1. **真实大文件的暂停/继续体验**：自动化用的是本地 Range 服务器（12–20MB 夹具）验证"字节一致 + 不重下已完成区块"，
+   真实工坊大文件（几百 MB~GB）的暂停响应速度、进度条回退表现仍需你自己下一次大的确认。
+2. **长时间阅读的主观舒适度**：字号四档与柔和/高对比三档的"哪种最舒服"是个人偏好，只能自己用一段时间再定。
+3. **换屏幕后的窗口位置**：自动化验证了"超屏尺寸会被钳制"，但多显示器之间来回移动的观感仍需人工确认。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。

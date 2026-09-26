@@ -22,9 +22,55 @@ func windowsPathLength(value string) int {
 	return len(utf16.Encode([]rune(value)))
 }
 
+// windowsReservedDeviceNames 是 Windows 保留设备名（不区分大小写、带不带扩展名都一样）。
+var windowsReservedDeviceNames = map[string]bool{
+	"con": true, "prn": true, "aux": true, "nul": true,
+	"com1": true, "com2": true, "com3": true, "com4": true, "com5": true,
+	"com6": true, "com7": true, "com8": true, "com9": true,
+	"lpt1": true, "lpt2": true, "lpt3": true, "lpt4": true, "lpt5": true,
+	"lpt6": true, "lpt7": true, "lpt8": true, "lpt9": true,
+}
+
+// windowsFileNameProblem 返回文件名不符合 Windows 规则的原因；空串表示没问题。
+//
+// 对齐 FireAxe `FileSystemUtils.SanitizeFileName` / `AddonNode.SanitizeName`：
+// 这类名字在 Windows 上会被系统静默改写（去掉结尾空格/点）或直接失败，
+// 提前挡下来比把 os.Rename 的原始错误抛给用户更清楚。
+// 这里只做校验、不擅自改名 —— 用户输入什么就该看得见什么。
+func windowsFileNameProblem(filename string) string {
+	if strings.TrimSpace(filename) == "" {
+		return "文件名不能为空"
+	}
+	for _, illegal := range []string{"<", ">", ":", "\"", "/", "\\", "|", "?", "*"} {
+		if strings.Contains(filename, illegal) {
+			return fmt.Sprintf("文件名不能包含 %s 这类字符（Windows 命名规则）", illegal)
+		}
+	}
+	for _, r := range filename {
+		if r < 0x20 {
+			return "文件名不能包含控制字符"
+		}
+	}
+	if strings.HasSuffix(filename, " ") || strings.HasSuffix(filename, ".") {
+		return "文件名不能以空格或点结尾（Windows 会把它自动去掉）"
+	}
+	base := filename
+	if index := strings.Index(base, "."); index >= 0 {
+		base = base[:index]
+	}
+	if windowsReservedDeviceNames[strings.ToLower(strings.TrimSpace(base))] {
+		return fmt.Sprintf("%s 是 Windows 保留设备名，换一个名字", base)
+	}
+	return ""
+}
+
 func validateWindowsRenamePath(path string, filename string) error {
 	if runtime.GOOS != "windows" {
 		return nil
+	}
+
+	if problem := windowsFileNameProblem(filename); problem != "" {
+		return fmt.Errorf("文件名不合法：%s", problem)
 	}
 
 	filenameLength := windowsPathLength(filename)
@@ -37,6 +83,21 @@ func validateWindowsRenamePath(path string, filename string) error {
 		return fmt.Errorf("完整路径过长: %d/%d，请缩短名称或移动 Mod 目录", pathLength, windowsMaxPathLength)
 	}
 
+	return nil
+}
+
+// validateRenameInputFilename 在补扩展名之前先校验用户输入的名字本身。
+// 这样 "name." 这类明显笔误会被直接指出来，而不是被悄悄改成 "name..vpk"。
+func validateRenameInputFilename(filename string) error {
+	if runtime.GOOS != "windows" {
+		return nil
+	}
+	if strings.TrimSpace(filename) == "" {
+		return fmt.Errorf("文件名不能为空")
+	}
+	if problem := windowsFileNameProblem(filename); problem != "" {
+		return fmt.Errorf("文件名不合法：%s", problem)
+	}
 	return nil
 }
 
@@ -452,6 +513,10 @@ func (a *App) moveWorkshopToAddonsWithConflictAction(filePath, action string) (M
 }
 
 func (a *App) ToggleVPKVisibility(filePath string) (string, error) {
+	// 隐藏 / 显示会真的改文件名，先确认它属于受管目录（对齐 FireAxe 的路径守卫）。
+	if problem := managedFilePathProblem(a.rootDirectorySnapshot(), filePath); problem != "" {
+		return "", fmt.Errorf("%s", problem)
+	}
 	dir := filepath.Dir(filePath)
 	filename := filepath.Base(filePath)
 
@@ -654,6 +719,12 @@ func (a *App) setWorkshopVPKTagsLocked(filePath, primaryTag string, secondaryTag
 
 // RenameVPKFile 重命名VPK文件
 func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error) {
+	// 用户输入的首尾空白一律先去掉：既避免生成 "name .vpk" 这种怪名，
+	// 也让后面的合法性校验看到的是用户真正的意图。
+	newFilename = strings.TrimSpace(newFilename)
+	if err := validateRenameInputFilename(newFilename); err != nil {
+		return "", err
+	}
 	// 尝试保留自定义标签
 	oldName := filepath.Base(filePath)
 	pTag, sTags, _, oldHasTags := parser.ParseFilenameTags(oldName)

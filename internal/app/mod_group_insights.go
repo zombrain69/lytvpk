@@ -72,19 +72,28 @@ func (a *App) GetModGroupMembership() ([]ModGroupMembership, error) {
 type ModStrategyGroupMissingMembers struct {
 	GroupID      string   `json:"groupId"`
 	GroupName    string   `json:"groupName"`
+	ParentID     string   `json:"parentId,omitempty"`
 	MemberCount  int      `json:"memberCount"`
+	// MissingCount / MissingNames 只统计**本组自己**的缺失成员。
 	MissingCount int      `json:"missingCount"`
 	MissingNames []string `json:"missingNames"`
+	// SubtreeMissingCount / AffectedChildCount 是子孙组里的缺失汇总
+	// （对齐 FireAxe 的 AddonChildrenProblem：子节点有问题，父节点也要看得到）。
+	SubtreeMissingCount int `json:"subtreeMissingCount,omitempty"`
+	AffectedChildCount  int `json:"affectedChildCount,omitempty"`
 }
 
 // GetModStrategyGroupMissingMembers 汇总每个策略组的缺失成员，
 // 供界面提示"哪一组少了文件、放回同名文件即可自动回到组里"。
+// 同时把子孙组的缺失汇总到父组上：否则父组行看上去一切正常，问题只藏在展开后的子组里。
 func (a *App) GetModStrategyGroupMissingMembers() ([]ModStrategyGroupMissingMembers, error) {
 	groups, err := a.ListModStrategyGroups()
 	if err != nil {
 		return nil, err
 	}
-	result := make([]ModStrategyGroupMissingMembers, 0, len(groups))
+
+	selfMissing := make(map[string][]string, len(groups))
+	children := make(map[string][]string, len(groups))
 	for _, group := range groups {
 		missing := make([]string, 0, 4)
 		for _, member := range group.Members {
@@ -98,12 +107,57 @@ func (a *App) GetModStrategyGroupMissingMembers() ([]ModStrategyGroupMissingMemb
 			continue
 		}
 		sort.Strings(missing)
+		selfMissing[group.ID] = missing
+	}
+	for _, group := range groups {
+		if parentID := strings.TrimSpace(group.ParentID); parentID != "" {
+			children[parentID] = append(children[parentID], group.ID)
+		}
+	}
+
+	// 记忆化 DFS（带访问集合，防脏数据成环时无限递归）。
+	subtreeCache := make(map[string][2]int, len(groups))
+	visiting := make(map[string]bool, len(groups))
+	var subtreeStats func(id string) (int, int)
+	subtreeStats = func(id string) (int, int) {
+		if cached, ok := subtreeCache[id]; ok {
+			return cached[0], cached[1]
+		}
+		if visiting[id] {
+			return 0, 0
+		}
+		visiting[id] = true
+		total, affected := 0, 0
+		for _, childID := range children[id] {
+			childTotal, childAffected := subtreeStats(childID)
+			if len(selfMissing[childID]) > 0 {
+				childTotal += len(selfMissing[childID])
+				childAffected++
+			}
+			total += childTotal
+			affected += childAffected
+		}
+		visiting[id] = false
+		subtreeCache[id] = [2]int{total, affected}
+		return total, affected
+	}
+
+	result := make([]ModStrategyGroupMissingMembers, 0, len(groups))
+	for _, group := range groups {
+		missing := selfMissing[group.ID]
+		subtreeMissing, affectedChildren := subtreeStats(group.ID)
+		if len(missing) == 0 && subtreeMissing == 0 {
+			continue
+		}
 		result = append(result, ModStrategyGroupMissingMembers{
-			GroupID:      group.ID,
-			GroupName:    group.Name,
-			MemberCount:  len(group.Members),
-			MissingCount: len(missing),
-			MissingNames: missing,
+			GroupID:             group.ID,
+			GroupName:           group.Name,
+			ParentID:            strings.TrimSpace(group.ParentID),
+			MemberCount:         len(group.Members),
+			MissingCount:        len(missing),
+			MissingNames:        missing,
+			SubtreeMissingCount: subtreeMissing,
+			AffectedChildCount:  affectedChildren,
 		})
 	}
 	sort.SliceStable(result, func(i, j int) bool { return result[i].GroupName < result[j].GroupName })
@@ -292,6 +346,8 @@ func (a *App) CreateModStrategyGroupFromKeys(name string, description string, st
 	if err != nil {
 		return ModStrategyGroup{}, err
 	}
+	// 与其它建组入口一致：重名自动加序号。
+	group.Name = uniqueModStrategyGroupName(modStrategyGroupNames(store.Groups), group.Name)
 	store.Groups = append(store.Groups, group)
 	if err := a.writeModStrategyGroupStore(store); err != nil {
 		return ModStrategyGroup{}, fmt.Errorf("无法保存策略组: %w", err)

@@ -378,50 +378,24 @@ func (a *App) GetVPKFiles() []VPKFile {
 
 func (a *App) SearchVPKFiles(query string, primaryTag string, secondaryTags []string) []VPKFile {
 	result := make([]VPKFile, 0)
-	query = strings.ToLower(query)
+	searchSpec := parseModSearchQuery(query)
 
 	a.vpkCache.Range(func(key, value interface{}) bool {
 		cache := value.(*VPKFileCache)
 		vpkFile := cache.File
 
-		// 搜索文本匹配：标题、文件名或标签名
-		textMatch := query == ""
-		if query != "" {
-			// 匹配标题
-			if fuzzyMatch(query, strings.ToLower(vpkFile.Title)) {
-				textMatch = true
-			}
-			// 匹配文件名
-			if !textMatch && fuzzyMatch(query, strings.ToLower(vpkFile.Name)) {
-				textMatch = true
-			}
-			// 匹配主标签
-			if !textMatch && fuzzyMatch(query, strings.ToLower(vpkFile.PrimaryTag)) {
-				textMatch = true
-			}
-			// 匹配二级标签
-			if !textMatch {
-				for _, tag := range vpkFile.SecondaryTags {
-					if fuzzyMatch(query, strings.ToLower(tag)) {
-						textMatch = true
-						break
-					}
-				}
-			}
-			// 匹配结构化主体摘要；主体是面向用户的实际替换对象，
-			// 例如“Coach 语音”“M16 武器”“医疗包”。
-			if !textMatch && fuzzyMatch(query, strings.ToLower(vpkFile.SubjectSummary)) {
-				textMatch = true
-			}
-			if !textMatch {
-				for _, subject := range vpkFile.ContentSubjects {
-					if fuzzyMatch(query, strings.ToLower(subject)) {
-						textMatch = true
-						break
-					}
-				}
-			}
-		}
+		// 搜索匹配：支持搜索框语法（tag: / -tag: / re:，见 search_query.go），
+		// 覆盖标题、文件名、标签、结构化主体、发音角色与动作槽。
+		textMatch := searchSpec.matches(searchableModFields{
+			Title:           vpkFile.Title,
+			Name:            vpkFile.Name,
+			PrimaryTag:      vpkFile.PrimaryTag,
+			SecondaryTags:   vpkFile.SecondaryTags,
+			SubjectSummary:  vpkFile.SubjectSummary,
+			ContentSubjects: vpkFile.ContentSubjects,
+			VoiceCharacters: vpkFile.VoiceCharacters,
+			XDRSummary:      vpkFile.XDRSummary,
+		})
 
 		// 主标签筛选匹配
 		primaryMatch := primaryTag == "" || vpkFile.PrimaryTag == primaryTag

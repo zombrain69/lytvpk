@@ -16,13 +16,18 @@ import (
 //	不会让分层变成独立于 addonlist.txt 的平行真相。
 //
 //	base(mod)      = 显式分层（priority.json 已记录）否则 = 该 Mod 在 addonlist.txt 中的顺序号（0 基）
-//	effective(mod) = min(base(mod), min{ 组权重 | 该 Mod 所属且显式设置了 Tier 的策略组 })
+//	pathTier(g)    = 沿 g 的上级链（g 自身 + 全部上级）把已设置的 Tier **累加**（FireAxe 的 PriorityInHierarchy）
+//	groupTier(mod) = min{ pathTier(g) | g 是包含 mod 的组，且该链上至少设置了一个 Tier }
+//	effective(mod) = min(base(mod), groupTier(mod))
 //
-// 组权重取 min 而不是像 FireAxe 那样沿父子链累加：LytVPK 的策略组是可重叠的集合，
-// 累加会让"同时属于多个组"的 Mod 反复漂移；取 min 保证组权重只能抬高优先级、
-// 结果唯一且可解释。
+// 为什么是"分支内累加 + 跨组取 min"（2026-09-24 定稿，见设计文档第 3 节）：
+//   - **分支内累加**对齐 FireAxe：子组继承全部上级分组的权重，父子都设权重时相加
+//     （父 -2 + 子 -3 ⇒ 子组成员 -5）；因此"父组权重管住整棵子树"无需给每个子组重复设置；
+//   - **跨组取 min** 是 LytVPK 特有的收敛规则：策略组是可重叠集合，一个 Mod 可能同时属于
+//     多条互不相干的链，取 min 保证"权重只能抬高优先级"、结果唯一且与分组数量变化无关。
 //
-// 未设置任何分层时 effective 恒等于顺序号，因此冲突判定/排序结果与本模型引入前逐字节一致。
+// 未设置任何分层（含祖先链上都没有 Tier）时 effective 恒等于顺序号，
+// 因此冲突判定/排序结果与本模型引入前逐字节一致。
 
 const (
 	prioritySourceTier  = "tier"
@@ -56,7 +61,9 @@ type ModEffectivePriority struct {
 }
 
 type modPriorityStore struct {
-	Entries []ModPriorityEntry `json:"entries"`
+	// SchemaVersion 见 local_store_schema.go：缺省/0 视作 v1，读时迁移、写时盖章。
+	SchemaVersion int                `json:"schemaVersion,omitempty"`
+	Entries       []ModPriorityEntry `json:"entries"`
 }
 
 // modPriorityLayers 是判定/排序共用的查询表：键统一为 normalizeAddonListKey。
@@ -136,6 +143,7 @@ func (a *App) readModPriorityStore() (modPriorityStore, error) {
 		}
 		return modPriorityStore{}, fmt.Errorf("无法读取优先级分层: %w", err)
 	}
+	migrateModPriorityStore(&store, store.SchemaVersion)
 	return store, nil
 }
 
@@ -147,6 +155,7 @@ func (a *App) writeModPriorityStore(store modPriorityStore) error {
 	if store.Entries == nil {
 		store.Entries = []ModPriorityEntry{}
 	}
+	store.SchemaVersion = localStoreWriteVersion(store.SchemaVersion)
 	a.backupLocalStoreFileIfNeeded(path)
 	return writeJSONFile(a.configDir, path, store)
 }
@@ -190,8 +199,52 @@ func (a *App) loadModPriorityLayers() (modPriorityLayers, error) {
 	if err != nil {
 		return layers, err
 	}
+	// pathTier：沿上级链累加已设置的组权重（FireAxe 的 PriorityInHierarchy）。
+	// 链上没有任何权重时返回 nil —— 这样"完全没设权重"的库仍然退化为顺序号。
+	groupByID := make(map[string]ModStrategyGroup, len(groups.Groups))
 	for _, group := range groups.Groups {
-		if group.Tier == nil {
+		groupByID[group.ID] = group
+	}
+	pathTiers := make(map[string]*int, len(groups.Groups))
+	var pathTier func(id string, guard map[string]struct{}) *int
+	pathTier = func(id string, guard map[string]struct{}) *int {
+		if cached, ok := pathTiers[id]; ok {
+			return cached
+		}
+		group, ok := groupByID[id]
+		if !ok {
+			return nil
+		}
+		if guard == nil {
+			guard = make(map[string]struct{}, 4)
+		}
+		if _, seen := guard[id]; seen {
+			// 环：按"该节点自身"计算，绝不递归失控（写入时也会拒绝成环）。
+			return nil
+		}
+		guard[id] = struct{}{}
+		var sum *int
+		if parentID := strings.TrimSpace(group.ParentID); parentID != "" {
+			if parentTier := pathTier(parentID, guard); parentTier != nil {
+				value := *parentTier
+				sum = &value
+			}
+		}
+		if group.Tier != nil {
+			value := *group.Tier
+			if sum != nil {
+				value += *sum
+			}
+			sum = &value
+		}
+		delete(guard, id)
+		pathTiers[id] = sum
+		return sum
+	}
+
+	for _, group := range groups.Groups {
+		pathValue := pathTier(group.ID, nil)
+		if pathValue == nil {
 			continue
 		}
 		if layers.group == nil {
@@ -202,8 +255,8 @@ func (a *App) loadModPriorityLayers() (modPriorityLayers, error) {
 			if key == "" {
 				continue
 			}
-			if current, exists := layers.group[key]; !exists || *group.Tier < current {
-				layers.group[key] = *group.Tier
+			if current, exists := layers.group[key]; !exists || *pathValue < current {
+				layers.group[key] = *pathValue
 			}
 		}
 	}
@@ -413,10 +466,8 @@ func (a *App) ApplyModPriorityLayers() (AddonListLoadOrderPreview, error) {
 	if addonListItemsEqualOrder(uniqueList, ordered) {
 		return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(uniqueList)}, nil
 	}
-	if err := a.writeAddonList(path, ordered); err != nil {
-		return AddonListLoadOrderPreview{}, err
-	}
-	if err := a.syncManagedAddonListSnapshotLocked(path); err != nil {
+	// 事务化提交：写盘 + 快照同步一起成功，快照同步失败时回滚到写前内容。
+	if err := a.commitAddonListItemsLocked(path, ordered, nil); err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
 	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered)}, nil

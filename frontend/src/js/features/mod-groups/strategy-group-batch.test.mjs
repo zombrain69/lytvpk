@@ -70,7 +70,12 @@ test("选中集合存在 appState 里，跨重新渲染保留", () => {
   assert.match(managerSource, /function pruneSelection/, "需要剔除已被删除的组");
   // 「全选」必须跟随选中集合：全选时 checked，部分选中时半选（indeterminate）。
   assert.match(managerSource, /function syncSelectAll/, "缺少全选框状态同步");
-  assert.match(managerSource, /indeterminate = selected > 0 && selected < total/, "部分选中要显示半选");
+  // 半选判定按"当前可见（搜索后）的组"来算：搜出 3 个组时勾 1 个就是半选。
+  assert.match(
+    managerSource,
+    /indeterminate = selectedVisible > 0 && selectedVisible < visibleIds\.length/,
+    "部分选中要显示半选",
+  );
 });
 
 test("组生命周期动作都在窗口里，删除仍只删 groups.json 记录", () => {
@@ -216,4 +221,89 @@ test("窗口里改组之后，外面的列表与筛选菜单要一起刷新", ()
     end,
   );
   assert.match(tierBlock, /await refreshAfterChange\(\)/, "保存权重后必须刷新外部列表");
+});
+
+test("窗口里有一个真正的搜索框：按组名/成员名过滤，全选只作用于搜索结果", () => {
+  // 顶部那个输入框是"新建组名称"，用户会误当搜索框 —— 现在另有明确的搜索行。
+  assert.match(indexHtml, /id="strategy-group-search"/, "缺少搜索框");
+  // 占位文案现在还要点出统一语法（-排除 / re: 正则 / tag: 状态），与其它列表保持一致
+  assert.match(indexHtml, /placeholder="搜索策略组（组名 \/ 成员名 \/ 描述；支持 -排除 \/ re: 正则 \/ tag:状态）/, "搜索框要有明确占位文案");
+  assert.match(indexHtml, /id="strategy-group-visible"/, "要显示「显示 X / Y 个组」");
+  assert.match(indexHtml, /新策略组的名称，例如 角色替换包/, "名称输入框要区分于搜索框");
+  // 接线：搜索 → 过滤渲染；全选 → 只勾当前搜索出的组。
+  assert.match(managerSource, /filterStrategyGroupRows\(allRows, managerQuery\)/, "渲染要用过滤后的行");
+  assert.match(managerSource, /function visibleGroupIds/, "全选/批量要基于当前可见组");
+  assert.match(managerSource, /ids\.forEach\(\(id\) => selection\.add\(id\)\)/, "全选只作用于搜索结果");
+});
+
+test("禁用状态要说明原因（别让按钮看起来像坏了）", () => {
+  // 批量按钮：没勾选时 tooltip 说明怎么勾；勾上后恢复原 tooltip。
+  assert.match(managerSource, /先勾选要批量操作的策略组（每行最左边的方框，或直接点组名）/, "批量按钮要解释禁用原因");
+  assert.match(managerSource, /dataset\.defaultTitle/, "禁用提示不能覆盖按钮原有 tooltip");
+  assert.match(managerSource, /id="strategy-group-batch-hint"|element\("strategy-group-batch-hint"\)/, "工具条要有提示行");
+  assert.match(indexHtml, /id="strategy-group-batch-hint"/, "index.html 要有提示行元素");
+  // 建组按钮：没勾 Mod 时把原因写在按钮上。
+  assert.match(managerSource, /先在 Mod 管理页勾选 Mod/, "建组按钮禁用时要说清原因");
+  assert.match(managerSource, /还没勾选 Mod：先回到 Mod 管理页勾选要归入同一组的 Mod/, "建组按钮要有 tooltip");
+});
+
+test("每组都有「＋ 子组」快捷入口，走 CreateModStrategyGroupChild", () => {
+  // 组行按钮 + 提示：子组会累加全部上级分组的权重（和 FireAxe 的层级累加一致）。
+  assert.match(managerSource, /settings-strategy-add-child/, "组行缺少「＋ 子组」按钮");
+  assert.match(managerSource, /＋ 子组/, "按钮文案");
+  assert.match(managerSource, /子组会累加它和全部上级分组的权重/, "tooltip 要说明累加语义");
+  assert.match(managerSource, /CreateModStrategyGroupChild\(parentId, name, "single", selected\)/, "要调用后端接口并带上勾选的 Mod");
+  assert.match(managerSource, /showPromptModal\(\s*"新建子组"/, "新建子组要用应用内输入弹窗");
+  // 没勾 Mod 时允许建空子组，并在弹窗里说明。
+  assert.match(managerSource, /现在没有勾选 Mod，会先建一个空子组/, "空子组要说明");
+});
+
+test("应用策略前先预检（对齐 FireAxe CheckEnableStrategy）", () => {
+  assert.match(managerSource, /CheckModStrategyGroupApply\(id, \{/, "应用前要调用后端预检");
+  // 不可执行 → 直接拦下并说明原因。
+  assert.match(managerSource, /check\.applicable === false/, "不可执行要拦下");
+  assert.match(managerSource, /showNotification\(check\.reason \|\| "这个策略现在无法执行", "error"\)/);
+  // 能执行但有提醒 → 应用内确认框逐条列出。
+  assert.match(managerSource, /"应用前检查"/, "有提醒时要确认");
+  assert.match(managerSource, /warnings\.join\("\\n· "\)/, "提醒要逐条列出");
+  // 取消确认后按钮要恢复可用（showConfirmModal 的 onCancel 是第 6 个参数）。
+  assert.match(managerSource, /() => void run\(\),\s*false,\s*"",\s*\(\) => \{\s*button\.disabled = false;/, "取消要恢复按钮");
+});
+
+test("组行可以拖动排序（拖放落点判定走纯函数 + 后端两个接口）", () => {
+  // 行本身可拖动，并带上落点提示。
+  assert.match(managerSource, /data-group-row="\$\{escapeAttr\(group\.id\)\}"[^>]*draggable="true"/, "组行要可拖动");
+  assert.match(managerSource, /拖动这一行/, "行上要有拖动说明");
+  // 落点判定：内部/前/后三种位置都要用到纯函数。
+  ["resolveStrategyGroupDrop", "applyStrategyGroupDropOrder", "formatStrategyGroupDropMessage"].forEach((name) => {
+    assert.match(managerSource, new RegExp(name), `缺少 ${name} 接线`);
+  });
+  assert.match(managerSource, /positionFor\(row, event\)/, "要按行的上/中/下三段判定落点");
+  assert.match(managerSource, /offset < 0\.28/, "顶部 28% 视为排到前面");
+  assert.match(managerSource, /offset > 0\.72/, "底部 28% 视为排到后面");
+  // 上级变更 + 同级顺序：两个后端接口按顺序调用。
+  assert.match(managerSource, /await MoveModStrategyGroup\(movingId, plan\.parentId \|\| ""\)/, "先改上级");
+  assert.match(managerSource, /await ReorderModStrategyGroups\(order\)/, "再写同级顺序");
+  // 非法落点要有提示，且不写盘。
+  assert.match(managerSource, /if \(plan\?\.reason\) showNotification\(plan\.reason, "error"\)/, "非法拖放要说明原因");
+  assert.match(managerSource, /if \(plan\.noop\) return;/, "无变化的拖放不应写盘");
+  // 底部"回到顶层"是独立落点，且只绑定一次。
+  assert.match(indexHtml, /id="strategy-group-drop-root"/, "窗口需要「回到顶层」落点");
+  assert.match(managerSource, /strategy-group-drop-root/, "落点要接线");
+  assert.match(managerSource, /dropRoot\.dataset\.bound === "1"/, "静态落点只能绑一次");
+  assert.match(managerSource, /bindGroupDropRoot\(\);/, "初始化时要绑定落点");
+  // 组一多就必须滚到底才能用落点 —— 真机量过（3 组就会把落点顶到可视区外），所以必须粘住。
+  const dropRootCss = cssSource.match(/\.strategy-group-drop-root\s*\{[^}]*\}/);
+  assert.ok(dropRootCss, "缺少 .strategy-group-drop-root 样式");
+  assert.match(dropRootCss[0], /position:\s*sticky/, "落点要粘在滚动区底部");
+  assert.match(dropRootCss[0], /bottom:\s*0/, "落点要贴底");
+});
+
+// 对齐 FireAxe 的 AddonChildrenProblem：父组行要能看出"子组里有缺失"。
+test("父组行汇总子组缺失（AddonChildrenProblem）", () => {
+  assert.match(managerSource, /missingSummary/, "要保留完整缺失条目");
+  assert.match(managerSource, /formatGroupSubtreeMissingNotice\(/, "要用纯函数生成子树缺失文案");
+  assert.match(managerSource, /subtreeMissingCount/, "要读后端新增的子树缺失字段");
+  assert.match(managerSource, /settings-strategy-missing is-subtree/, "父组行要有独立的子树提示样式");
+  assert.match(managerSource, /展开子组即可看到/, "提示要说明下一步怎么做");
 });

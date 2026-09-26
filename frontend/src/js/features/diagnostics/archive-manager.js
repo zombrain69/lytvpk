@@ -1,11 +1,29 @@
 import { showError, showNotification } from "../../core/toast.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 import { createImeAwareSearchController } from "./archive-search-controller.mjs";
+import { formatMoveFailures } from "../file-list/move-result-format.mjs";
+import { highlightMatches } from "../file-list/search-match.mjs";
+import { collectCursorKeys, describeResultCursor, nextResultPath, syncCursorHighlight } from "../file-list/result-cursor.mjs";
+import {
+  ARCHIVE_SEARCH_HELP_VARIANT,
+  buildSearchHelpHtml,
+  buildSearchHelpTitle,
+} from "../file-list/search-help.mjs";
+import {
+  archivePackageStateTags,
+  archiveHighlightSpec,
+  describeArchiveSearchResult,
+  searchArchivePackages,
+} from "./archive-search.mjs";
 
 let archiveManagerRunning = false;
 let archiveManagerSession = null;
 let archiveManagerDirectory = "";
 let archiveManagerPackages = [];
+// 最近一次文本检索的结果（计数文案与高亮都用它，避免重复解析同一段查询）。
+let archiveManagerSearchResult = null;
+// 键盘光标：搜索框里用 ↑↓ 移动、Enter 展开当前压缩包（与 Mod 列表同一套）。
+let archiveCursorPath = "";
 const selectedArchivePaths = new Set();
 const expandedArchivePaths = new Set();
 const archivePasswordByPath = new Map();
@@ -16,6 +34,35 @@ let archiveManagerDensity = "compact";
 let archiveManagerSearchController = null;
 
 const ARCHIVE_TREE_INITIAL_LIMIT = 160;
+
+// 说明书浮层的"点外部 / Esc 关闭"只绑定一次：归档面板每次输入都会重画 DOM，
+// 在这里挂 document 监听就会越叠越多，所以事件里按 id 现查元素。
+let archiveHelpDismissBound = false;
+
+function bindArchiveHelpDismissOnce() {
+  if (archiveHelpDismissBound) return;
+  archiveHelpDismissBound = true;
+  const closeHelp = () => {
+    document.getElementById("archive-search-help-popover")?.classList.add("hidden");
+    const btn = document.getElementById("archive-search-help-btn");
+    btn?.setAttribute("aria-expanded", "false");
+    btn?.classList.remove("is-active");
+  };
+  document.addEventListener("click", (event) => {
+    const popover = document.getElementById("archive-search-help-popover");
+    const btn = document.getElementById("archive-search-help-btn");
+    if (!popover || !btn || popover.classList.contains("hidden")) return;
+    if (popover.contains(event.target) || btn.contains(event.target)) return;
+    closeHelp();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const popover = document.getElementById("archive-search-help-popover");
+    if (!popover || popover.classList.contains("hidden")) return;
+    event.stopPropagation();
+    closeHelp();
+  });
+}
 
 export async function openArchiveManager() {
   if (archiveManagerRunning) {
@@ -98,13 +145,54 @@ function createArchiveContent() {
   const summary = document.createElement("span");
   summary.className = "archive-manager-summary";
   const visiblePackages = getVisibleArchivePackages();
-  summary.textContent = `目录：${archiveManagerDirectory} · 显示 ${visiblePackages.length}/${archiveManagerPackages.length} 个压缩包 · 支持 ZIP / RAR / 7Z / TAR / TAR.GZ`;
+  const searchText = describeArchiveSearchResult({
+    total: archiveManagerSearchResult?.total ?? archiveManagerPackages.length,
+    matched: archiveManagerSearchResult?.matched ?? visiblePackages.length,
+    query: archiveManagerQuery,
+    regexInvalid: archiveManagerSearchResult?.regexInvalid || "",
+  });
+  summary.textContent =
+    `目录：${archiveManagerDirectory} · 显示 ${visiblePackages.length}/${archiveManagerPackages.length} 个压缩包 · 支持 ZIP / RAR / 7Z / TAR / TAR.GZ`;
+  // 命中计数单独一个 span：键盘移动光标时只改这一处，不必整块重画（否则会丢焦点）。
+  const searchCount = document.createElement("span");
+  searchCount.className = "archive-manager-search-count";
+  searchCount.id = "archive-manager-search-count";
+  if (searchText) searchCount.textContent = searchText;
   const search = document.createElement("input");
   search.type = "search";
   search.className = "archive-manager-search";
-  search.placeholder = "搜索压缩包名、路径或 VPK 名称";
+  search.placeholder = "搜索压缩包名、路径或 VPK 名称（支持 -排除 / re: 正则 / tag:状态）";
   search.value = archiveManagerQuery;
   search.setAttribute("aria-label", "搜索压缩包");
+  // 悬停提示与 `?` 浮层都和 Mod 列表同源（search-help.mjs），只是字段与 tag: 的含义不同。
+  search.title = buildSearchHelpTitle(ARCHIVE_SEARCH_HELP_VARIANT);
+  const searchWrap = document.createElement("div");
+  searchWrap.className = "archive-manager-search-wrap";
+  const helpBtn = document.createElement("button");
+  helpBtn.type = "button";
+  helpBtn.id = "archive-search-help-btn";
+  helpBtn.className = "search-help-btn";
+  helpBtn.textContent = "?";
+  helpBtn.title = "搜索语法说明书";
+  helpBtn.setAttribute("aria-label", "搜索语法说明书");
+  helpBtn.setAttribute("aria-expanded", "false");
+  const helpPopover = document.createElement("div");
+  helpPopover.id = "archive-search-help-popover";
+  helpPopover.className = "search-help-popover hidden";
+  helpPopover.innerHTML = buildSearchHelpHtml(ARCHIVE_SEARCH_HELP_VARIANT);
+  const setHelpOpen = (open) => {
+    helpPopover.classList.toggle("hidden", !open);
+    helpBtn.setAttribute("aria-expanded", String(open));
+    helpBtn.classList.toggle("is-active", open);
+  };
+  helpBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setHelpOpen(helpPopover.classList.contains("hidden"));
+  });
+  // 点外部 / Esc 关闭：只在模块里绑定一次，按 id 现查元素 —— 归档面板每次输入都会重画，
+  // 如果在这里挂 document 监听就会越叠越多。
+  bindArchiveHelpDismissOnce();
+  searchWrap.append(search, helpBtn, helpPopover);
   const searchController = createImeAwareSearchController(() => {
     renderArchiveManager();
     requestAnimationFrame(() => {
@@ -122,6 +210,31 @@ function createArchiveContent() {
   search.addEventListener("compositionend", () => {
     archiveManagerQuery = search.value;
     searchController.compositionEnd();
+  });
+  // ↑ / ↓ 在结果里移动光标（焦点仍在搜索框），Enter 展开当前行，Esc 清空检索。
+  search.addEventListener("keydown", (event) => {
+    const list = document.querySelector(".archive-manager-list");
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const keys = collectCursorKeys(list, ".archive-manager-package[data-cursor-key]");
+      archiveCursorPath = nextResultPath(keys, archiveCursorPath, event.key === "ArrowDown" ? 1 : -1);
+      syncCursorHighlight(list, ".archive-manager-package[data-cursor-key]", archiveCursorPath);
+      updateArchiveSearchCountText();
+      return;
+    }
+    if (event.key === "Enter") {
+      const target = list?.querySelector(`.archive-manager-package[data-cursor-key="${escapeAttrSelector(archiveCursorPath)}"]`);
+      if (!target) return;
+      event.preventDefault();
+      target.querySelector(".archive-manager-package-header")?.click();
+      return;
+    }
+    if (event.key === "Escape" && search.value) {
+      search.value = "";
+      archiveManagerQuery = "";
+      archiveCursorPath = "";
+      renderArchiveManager();
+    }
   });
   const sort = document.createElement("select");
   sort.className = "archive-manager-sort";
@@ -200,7 +313,7 @@ function createArchiveContent() {
   refresh.textContent = "刷新全部";
   refresh.title = "重新遍历当前目录下的压缩包；搜索和排序不会触发全量扫描";
   refresh.onclick = () => scanArchiveDirectory(archiveManagerDirectory);
-  toolbar.append(summary, search, sort, stateFilter, density, refresh, selectAll, clearAll, move);
+  toolbar.append(summary, searchCount, searchWrap, sort, stateFilter, density, refresh, selectAll, clearAll, move);
   wrapper.appendChild(toolbar);
 
   const list = document.createElement("div");
@@ -213,18 +326,42 @@ function createArchiveContent() {
   }
   visiblePackages.forEach((item) => list.appendChild(createArchivePackage(item)));
   wrapper.appendChild(list);
+  // 重画后恢复键盘光标（检索没变时保持在原来那一行）。
+  syncCursorHighlight(list, ".archive-manager-package[data-cursor-key]", archiveCursorPath);
   return wrapper;
 }
 
+/** escapeAttrSelector 把值安全地放进属性选择器（路径里有引号 / 反斜杠时不能直接拼）。 */
+function escapeAttrSelector(value) {
+  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+/**
+ * updateArchiveSearchCountText 只刷新命中计数那一小块：
+ * 键盘移动光标时用它，避免整块重画把搜索框焦点顶掉。
+ */
+function updateArchiveSearchCountText() {
+  const count = document.getElementById("archive-manager-search-count");
+  if (!count) return;
+  const base = describeArchiveSearchResult({
+    total: archiveManagerSearchResult?.total ?? archiveManagerPackages.length,
+    matched: archiveManagerSearchResult?.matched ?? 0,
+    query: archiveManagerQuery,
+    regexInvalid: archiveManagerSearchResult?.regexInvalid || "",
+  });
+  const keys = collectCursorKeys(
+    document.querySelector(".archive-manager-list"),
+    ".archive-manager-package[data-cursor-key]",
+  );
+  const cursorText = describeResultCursor(keys, archiveCursorPath, "Enter 展开 / 收起");
+  count.textContent = [base, cursorText].filter(Boolean).join(" · ");
+}
+
 function getVisibleArchivePackages() {
-  const query = archiveManagerQuery.trim().toLocaleLowerCase();
-  const filtered = archiveManagerPackages.filter((item) => {
-    const haystack = [
-      item.name,
-      item.path,
-      ...(item.vpks || []).map((vpk) => `${vpk.name || ""} ${vpk.entryPath || ""}`),
-    ].join(" ").toLocaleLowerCase();
-    if (query && !haystack.includes(query)) return false;
+  // 文本检索走与 Mod 列表同一套语法（普通词 / 引号短语 / -排除 / re: / tag: 包状态）。
+  const searchResult = searchArchivePackages(archiveManagerPackages, archiveManagerQuery);
+  archiveManagerSearchResult = searchResult;
+  const filtered = searchResult.items.filter((item) => {
     if (archiveManagerStateFilter === "password") return !!item.requiresPassword;
     if (archiveManagerStateFilter === "error") return !!item.error && !item.requiresPassword;
     if (archiveManagerStateFilter === "existing") return (item.vpks || []).some((vpk) => vpk.matchState === "existing");
@@ -257,6 +394,8 @@ function getVisibleArchivePackages() {
 function createArchivePackage(item) {
   const section = document.createElement("section");
   section.className = "archive-manager-package";
+  // 键盘光标用：每一行都要能被 ↑↓ 找到并高亮。
+  section.dataset.cursorKey = String(item.path || "");
   if (item.error) section.classList.add("is-error");
   if (item.requiresPassword) section.classList.add("is-password-required");
   const packageHasExisting = (item.vpks || []).some((vpk) => vpk.matchState === "existing");
@@ -277,7 +416,14 @@ function createArchivePackage(item) {
   };
   section.classList.toggle("is-selected", checkbox.checked);
   const title = document.createElement("strong");
-  title.textContent = `${item.name} · ${String(item.format || "").toUpperCase()}`;
+  const titleText = `${item.name} · ${String(item.format || "").toUpperCase()}`;
+  const highlightSpec = archiveHighlightSpec(archiveManagerSearchResult);
+  if (highlightSpec) {
+    // highlightMatches 自己负责转义，只把命中区间包进 <mark>（与 Mod 列表同一套样式）。
+    title.innerHTML = highlightMatches(titleText, highlightSpec);
+  } else {
+    title.textContent = titleText;
+  }
   title.title = item.path || "";
   const stats = document.createElement("span");
   stats.className = "archive-manager-package-stats";
@@ -292,7 +438,22 @@ function createArchivePackage(item) {
     createArchiveActionButton("定位", "在文件夹中定位此压缩包", () => callApp("OpenFileLocation", item.path)),
     createArchiveActionButton("打开", "用系统默认程序打开此压缩包", () => callApp("OpenArchivePackage", item.path)),
   );
-  header.append(checkbox, title, stats, actions);
+  header.append(checkbox, title, stats);
+  // 用 tag: 搜索时把"命中的状态"贴出来（与 Mod 列表的「匹配：xxx」同一个样式与用意）。
+  const activeStateTags = (archiveManagerSearchResult?.syntax?.includeTags || [])
+    .flat()
+    .map((value) => String(value).toLowerCase());
+  if (activeStateTags.length > 0) {
+    const hitTags = archivePackageStateTags(item).filter((tag) => activeStateTags.includes(tag.toLowerCase()));
+    if (hitTags.length > 0) {
+      const chip = document.createElement("span");
+      chip.className = "search-reason-chip";
+      chip.title = "这行是被这些状态标签匹配到的";
+      chip.textContent = `匹配：状态 ${hitTags.join(" · ")}`;
+      header.appendChild(chip);
+    }
+  }
+  header.appendChild(actions);
   section.appendChild(header);
   if (item.error) {
     const error = document.createElement("div");
@@ -470,7 +631,15 @@ async function moveSelectedArchives() {
     const action = conflicts?.length ? await chooseConflictAction(conflicts) : "";
     if (action === null) return;
     const result = await callApp("MoveArchiveFiles", paths, destination, action);
-    showNotification(`移动完成：成功 ${result.successCount || 0}，跳过 ${result.skippedCount || 0}，失败 ${result.failCount || 0}`, result.failCount ? "info" : "success");
+    // 有失败时把原因也带出来（只报数量等于把用户丢在半路）。
+    const failureText = formatMoveFailures(result);
+    showNotification(
+      failureText
+        ? `移动完成：成功 ${result.successCount || 0}，跳过 ${result.skippedCount || 0} — ${failureText}`
+        : `移动完成：成功 ${result.successCount || 0}，跳过 ${result.skippedCount || 0}`,
+      result.failCount ? "info" : "success",
+    );
+    if (failureText) console.error("归档移动失败详情:", result.errors);
     await scanArchiveDirectory(archiveManagerDirectory);
   } catch (error) {
     showError("移动压缩包失败: " + formatError(error));

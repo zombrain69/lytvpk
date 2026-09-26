@@ -486,6 +486,80 @@ func TestGroupTierRaisesMemberPriority(t *testing.T) {
 }
 
 // TestProfileSnapshotCarriesPriorities 覆盖方案快照携带分层并在应用后恢复。
+// TestGroupTierAccumulatesAncestorTiers 覆盖"更接近 FireAxe 的层级累加"：
+//   - 子组会继承全部上级分组的权重（父 -2、子未设 → 子组成员拿到 -2）；
+//   - 父子都设权重时**相加**（父 -2 + 子 -3 → -5）；
+//   - 跨链仍然取 min（可重叠集合的唯一化规则）。
+func TestGroupTierAccumulatesAncestorTiers(t *testing.T) {
+	a, addonsDir := newPriorityTestApp(t)
+	bPath := filepath.Join(addonsDir, "b.vpk")
+
+	parent, err := a.CaptureModStrategyGroup("父组", "", modStrategyGroupAll, []string{bPath})
+	if err != nil {
+		t.Fatalf("capture parent: %v", err)
+	}
+	child, err := a.CaptureModStrategyGroup("子组", "", modStrategyGroupAll, []string{bPath})
+	if err != nil {
+		t.Fatalf("capture child: %v", err)
+	}
+	if _, err := a.MoveModStrategyGroup(child.ID, parent.ID); err != nil {
+		t.Fatalf("move child under parent: %v", err)
+	}
+	if _, err := a.SetModStrategyGroupTier(parent.ID, intPointer(-2)); err != nil {
+		t.Fatal(err)
+	}
+
+	// ① 只有父组有权重：子组成员直接继承（以前这里是 nil → 拿顺序号）。
+	plan, err := a.GetModPriorityPlan()
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if entry := findPlanEntry(t, plan, "b.vpk"); entry.GroupTier == nil || *entry.GroupTier != -2 {
+		t.Fatalf("父组权重应被下级继承: %#v", entry)
+	}
+
+	// ② 子组再设权重：沿链累加 → -5。
+	if _, err := a.SetModStrategyGroupTier(child.ID, intPointer(-3)); err != nil {
+		t.Fatal(err)
+	}
+	plan, err = a.GetModPriorityPlan()
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if entry := findPlanEntry(t, plan, "b.vpk"); entry.GroupTier == nil || *entry.GroupTier != -5 {
+		t.Fatalf("父子权重应沿链累加为 -5: %#v", entry)
+	} else if entry.Effective != -5 || entry.Source != prioritySourceGroup {
+		t.Fatalf("累加后的组权重应成为有效分层: %#v", entry)
+	}
+
+	// ③ 清除整条链上的权重 → 回到顺序号（未设分层时行为不变）。
+	if _, err := a.SetModStrategyGroupTier(child.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.SetModStrategyGroupTier(parent.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	plan, err = a.GetModPriorityPlan()
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if entry := findPlanEntry(t, plan, "b.vpk"); entry.GroupTier != nil || entry.Source != prioritySourceOrder {
+		t.Fatalf("清空权重后应回到顺序号: %#v", entry)
+	}
+}
+
+// findPlanEntry 取某个 key 的有效分层明细。
+func findPlanEntry(t *testing.T, plan []ModEffectivePriority, key string) ModEffectivePriority {
+	t.Helper()
+	for _, entry := range plan {
+		if entry.Key == key {
+			return entry
+		}
+	}
+	t.Fatalf("优先级明细里找不到 %s: %#v", key, plan)
+	return ModEffectivePriority{}
+}
+
 func TestProfileSnapshotCarriesPriorities(t *testing.T) {
 	a, _ := newPriorityTestApp(t)
 	if _, err := a.SetModPriority("a.vpk", "a.vpk", -2); err != nil {

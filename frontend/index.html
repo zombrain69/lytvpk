@@ -188,6 +188,25 @@
                 ></path>
               </svg>
             </button>
+            <button
+              id="command-palette-btn"
+              class="btn-icon"
+              title="命令面板（Ctrl+K）：输入关键词跳转页面或执行常用动作"
+            >
+              <svg
+                class="icon-svg"
+                style="width: 20px; height: 20px"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m16 16 4 4"></path>
+              </svg>
+            </button>
             <button id="info-btn" class="btn-icon" title="关于">
               <svg
                 class="icon-svg"
@@ -204,7 +223,20 @@
                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
               </svg>
             </button>
+            <button
+              id="shortcuts-help-btn"
+              class="search-help-btn"
+              title="快捷键总览"
+              aria-expanded="false"
+              aria-controls="shortcuts-help-popover"
+            >?</button>
           </div>
+          <div
+            id="shortcuts-help-popover"
+            class="search-help-popover header-help-popover hidden"
+            role="dialog"
+            aria-label="键盘快捷键总览"
+          ></div>
         </header>
 
         <!-- 搜索和筛选栏 -->
@@ -374,9 +406,19 @@
               <input
                 type="text"
                 id="search-input"
-                placeholder="搜索VPK文件..."
+                placeholder="搜索 VPK（支持 tag:武器、-tag:材质、re:^ak 等写法；Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空）"
                 class="search-input"
               />
+              <button
+                type="button"
+                id="search-help-btn"
+                class="search-help-btn"
+                aria-expanded="false"
+                aria-controls="search-help-popover"
+                title="搜索语法与快捷键"
+              >?</button>
+              <span id="search-hit-count" class="search-hit-count" aria-live="polite"></span>
+              <div id="search-help-popover" class="search-help-popover hidden" role="dialog" aria-label="搜索语法与快捷键"></div>
             </div>
             <div class="filter-section" id="location-filter-section">
               <!-- 动态生成位置筛选 -->
@@ -561,7 +603,9 @@
             <span id="game-enabled-files">游戏内开启: 0</span>
             <span id="game-disabled-files">游戏内关闭: 0</span>
             <span id="selected-files">已选择: 0</span>
+            <span id="pending-move-files" title="Ctrl+X 标记待移动，Ctrl+V 选择目标目录后移动，Esc 取消" hidden>待移动: 0</span>
             <span class="selection-hint" title="按住 Shift 选择连续范围，按住 Ctrl 选择多个不连续 Mod">Shift 范围 · Ctrl 多选</span>
+            <span id="file-operation-busy" class="file-operation-busy" role="status" aria-live="polite" hidden></span>
           </div>
           <div class="status-actions">
             <button id="select-all-btn" class="btn btn-small btn-outline">
@@ -2283,8 +2327,17 @@
             「按策略应用 / 随机单选 / 全关」只切换组成员的开关；「组权重」是本地分层，
             需要在「加载顺序」窗口里点「按分层应用」才会重排游戏内优先级。
           </p>
+          <!-- 新建组：这一行是"名称 + 策略 + 建组按钮"，不是搜索框（搜索框在下面一行）。 -->
+          <p class="strategy-group-block-label">新建策略组：填名称、选策略，再用「用选中的 N 个 Mod 建组」（Mod 在 Mod 管理页勾选）</p>
           <div class="addonlist-action-row settings-profile-capture-row">
-            <input type="text" id="strategy-group-name" class="settings-profile-name-input" maxlength="60" placeholder="策略组名称，例如 角色替换包">
+            <input
+              type="text"
+              id="strategy-group-name"
+              class="settings-profile-name-input"
+              maxlength="60"
+              placeholder="新策略组的名称，例如 角色替换包"
+              title="这是新建组的名称输入框，不是搜索框；搜索在下面那一行"
+            >
             <select id="strategy-group-strategy" class="settings-strategy-select" aria-label="策略类型">
               <option value="single">互斥单选（保留当前启用的一个）</option>
               <option value="single_random">随机单选</option>
@@ -2292,6 +2345,32 @@
               <option value="off">全部关闭</option>
             </select>
             <button type="button" id="strategy-group-capture" class="btn btn-small btn-primary" disabled>用选中的 Mod 建组</button>
+          </div>
+          <!-- 搜索组：按组名 / 成员名过滤下面的组列表，「全选」只作用于搜索结果。 -->
+          <div class="strategy-group-search-row">
+            <input
+              type="search"
+              id="strategy-group-search"
+              class="strategy-group-search"
+              placeholder="搜索策略组（组名 / 成员名 / 描述；支持 -排除 / re: 正则 / tag:状态）…"
+              aria-label="搜索策略组"
+              autocomplete="off"
+            >
+            <button
+              type="button"
+              id="strategy-group-search-help-btn"
+              class="search-help-btn"
+              title="搜索语法说明书"
+              aria-expanded="false"
+              aria-controls="strategy-group-search-help-popover"
+            >?</button>
+            <div
+              id="strategy-group-search-help-popover"
+              class="search-help-popover hidden"
+              role="dialog"
+              aria-label="策略组搜索语法说明书"
+            ></div>
+            <span id="strategy-group-visible" class="strategy-group-visible" aria-live="polite"></span>
           </div>
           <p id="strategy-group-status" class="setting-row-status" aria-live="polite"></p>
           <div class="settings-strategy-batch hidden" id="strategy-group-batch">
@@ -2311,8 +2390,11 @@
             <button type="button" id="strategy-group-batch-filter" class="settings-strategy-batch-btn" title="只显示属于这些组的 Mod（等同于主界面「按分组筛选」勾上同样几个组）" disabled>用选中的组筛选</button>
             <button type="button" id="strategy-group-batch-filter-clear" class="settings-strategy-batch-btn" title="恢复显示全部 Mod（清除「按分组筛选」）" disabled>清除筛选</button>
             <span id="strategy-group-filter-state" class="strategy-group-filter-state" aria-live="polite"></span>
+            <span id="strategy-group-batch-hint" class="strategy-group-batch-hint" aria-live="polite"></span>
           </div>
+          <div class="strategy-group-drag-hint">提示：直接拖动组名所在的整行来整理层级 —— 拖到别的组中间＝变成它的子组，拖到行的上/下边缘＝排到它前/后，拖到最下面的「回到顶层」＝取消上级。最多 4 层。</div>
           <div id="strategy-group-list" class="settings-profile-list strategy-group-list"></div>
+          <div id="strategy-group-drop-root" class="strategy-group-drop-root">拖到这里 → 变成顶层组</div>
         </div>
         <div class="modal-footer">
           <button id="strategy-group-close-footer-btn" class="btn btn-secondary" type="button">关闭</button>
@@ -2481,6 +2563,32 @@
                 <button type="button" class="btn btn-small filter-btn" data-filter="all">
                   全部
                 </button>
+              </div>
+              <!-- 文本检索：与 Mod 列表同一套语法（资源路径 / Mod 名 / tag: 严重度与判定状态） -->
+              <div class="conflict-search-row">
+                <input
+                  type="search"
+                  id="conflict-search"
+                  class="conflict-search"
+                  placeholder="搜索资源路径或 Mod 名（支持 -排除 / re: 正则 / tag:状态）"
+                  aria-label="搜索冲突"
+                  autocomplete="off"
+                >
+                <button
+                  type="button"
+                  id="conflict-search-help-btn"
+                  class="search-help-btn"
+                  title="搜索语法说明书"
+                  aria-expanded="false"
+                  aria-controls="conflict-search-help-popover"
+                >?</button>
+                <div
+                  id="conflict-search-help-popover"
+                  class="search-help-popover hidden"
+                  role="dialog"
+                  aria-label="冲突搜索语法说明书"
+                ></div>
+                <span id="conflict-search-count" class="conflict-search-count" aria-live="polite"></span>
               </div>
               <div id="conflict-filter-desc" class="conflict-filter-desc">
                 大概率导致客户端崩溃，建议立即处理
@@ -2934,7 +3042,8 @@
                     type="text"
                     id="browser-search-input"
                     class="form-input"
-                    placeholder="搜索 Mod..."
+                    placeholder="搜索工坊物品标题（由 Steam 搜索，不支持 tag: / re: 等本地语法）"
+                    aria-label="搜索创意工坊（Steam 服务端搜索）"
                   />
                 </div>
               </div>
@@ -3069,6 +3178,21 @@
       </div>
     </div>
     <!-- 确认对话框 -->
+    <!-- 命令面板（Ctrl+K）：一栏检索所有页面与常用动作 -->
+    <div id="command-palette-modal" class="modal hidden" style="z-index: 21000">
+      <div class="modal-content command-palette-content" role="dialog" aria-label="命令面板">
+        <input
+          type="text"
+          id="command-palette-input"
+          class="command-palette-input"
+          placeholder="输入命令或页面名（例如：冲突 / 体检 / 工坊 / 字号）"
+          autocomplete="off"
+        />
+        <div id="command-palette-list" class="command-palette-list" role="listbox"></div>
+        <div id="command-palette-hint" class="command-palette-hint" aria-live="polite"></div>
+      </div>
+    </div>
+
     <div id="confirm-modal" class="modal hidden" style="z-index: 20000">
       <div class="modal-content confirm-modal-content">
         <div class="modal-header">

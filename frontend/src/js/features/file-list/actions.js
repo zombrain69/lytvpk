@@ -21,6 +21,7 @@ import {
 } from "../../../../wailsjs/go/app/App";
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import { moveVpkFilesWithConflictResolution } from "./file-move-conflicts.js";
+import { formatMoveFailures } from "./move-result-format.mjs";
 import { confirmVPKOperationWarning, moveWorkshopFilesToAddons } from "./operations.js";
 import {
   formatBatchGameStateConfirm,
@@ -334,9 +335,18 @@ export async function moveSelected() {
     showNotification("请先选择文件", "info");
     return;
   }
+  await movePathsToDestination(Array.from(appState.selectedFiles));
+}
 
-  const filesToMove = Array.from(appState.selectedFiles);
-
+/**
+ * movePathsToDestination 把给定的一批 Mod 移到用户选择的目录（"移动到…"的公共实现）。
+ * 现有的"批量 → 移动到…"按钮与 Ctrl+X/Ctrl+V 都走这里，保证两条入口行为一致。
+ */
+export async function movePathsToDestination(filesToMove) {
+  if (!Array.isArray(filesToMove) || filesToMove.length === 0) {
+    showNotification("请先选择文件", "info");
+    return;
+  }
   try {
     const destDir = await SelectDirectory();
     if (!destDir) return;
@@ -353,7 +363,8 @@ export async function moveSelected() {
     }
 
     if (result.failCount > 0) {
-      showError(`${result.failCount} 个文件移动失败: ${result.errors[0]}`);
+      // 逐项失败原因都带上（对齐 FireAxe 的 FailedImportResultItem）：只说第一条会让人以为只有它失败。
+      showError(formatMoveFailures(result));
       console.error("移动失败详情:", result.errors);
     }
 
@@ -371,6 +382,43 @@ export async function moveSelected() {
     console.error("移动文件出错:", error);
     showError(`移动文件出错: ${error}`);
   }
+}
+
+/**
+ * cutSelected 标记选中的 Mod 为"待移动"（对齐 FireAxe v0.5.1 的 Ctrl+X）。
+ * 与文件管理器一样：标记会跨选择变化保留，Ctrl+V 时才真正选目标目录并移动。
+ */
+export function cutSelected() {
+  const paths = Array.from(appState.selectedFiles || []);
+  if (paths.length === 0) {
+    showNotification("请先选择要移动的 Mod", "info");
+    return;
+  }
+  appState.moveClipboard = new Set(paths);
+  updateStatusBar();
+  showNotification(
+    `已标记 ${paths.length} 个 Mod 待移动（Ctrl+V 选择目标目录，Esc 取消）`,
+    "success",
+  );
+}
+
+/** pasteMoveClipboard 执行"粘贴"：把待移动的 Mod 移到用户选择的目录（对齐 Ctrl+V）。 */
+export async function pasteMoveClipboard() {
+  const pending = Array.from(appState.moveClipboard || []);
+  if (pending.length === 0) {
+    showNotification("没有待移动的 Mod（先选中后按 Ctrl+X）", "info");
+    return;
+  }
+  await movePathsToDestination(pending);
+  // 移动流程结束（无论成没成）都清掉标记：失败项会由逐项错误提示说明。
+  clearMoveClipboard();
+}
+
+/** clearMoveClipboard 取消"待移动"标记（Esc 或粘贴完成后调用）。 */
+export function clearMoveClipboard() {
+  if (!appState.moveClipboard || appState.moveClipboard.size === 0) return;
+  appState.moveClipboard = new Set();
+  updateStatusBar();
 }
 
 export function transferSelectedWorkshopFiles() {

@@ -24,6 +24,12 @@ const DEFAULT_CONFIG = {
   workshopFixedIP: "",
   workshopMetaEnabled: true,
   workshopUpdateCheckEnabled: false,
+  // 剪贴板工坊链接自动识别：复制工坊链接后切回应用会提示是否解析（对齐 FireAxe 的默认开启）。
+  autoDetectWorkshopLink: true,
+  // 打开文件方式（对齐 FireAxe v0.7.2 的 process file customization）：
+  // 两个都留空 = 系统默认（explorer /select 定位文件）。
+  openWithProgram: "",
+  openWithArguments: "",
   workshopBrowserTarget: "mirror",
   workshopTranslateProvider: "microsoft",
   defaultDirectory: "",
@@ -43,6 +49,10 @@ const DEFAULT_CONFIG = {
   conflictIgnoreFiles: [],
   // 「策略组管理」窗口默认以浮动方式打开：不挡住主界面，随时能点「分组 / 按分组筛选」。
   strategyGroupFloating: true,
+  // 主窗口几何（首次运行没有记录 → 保持 Wails 默认尺寸）
+  mainWindowWidth: null,
+  mainWindowHeight: null,
+  mainWindowMaximised: null,
   theme: "",
   ignoredVersion: "",
   lastUpdateCheckTime: "",
@@ -152,6 +162,13 @@ function normalizeConfig(config = {}) {
     : DEFAULT_CONFIG.unrecordedModLoadOrderPlacement;
   next.migrationVersion = Number(next.migrationVersion) || 0;
   next.conflictPriorityAware = next.conflictPriorityAware === true;
+  // autoDetectWorkshopLink 默认开启：只有明确写 false 才关（Go 侧没设置过时是 nil）。
+  next.autoDetectWorkshopLink = next.autoDetectWorkshopLink !== false;
+  // 打开方式：非字符串一律归一化成空串（= 系统默认）。
+  next.openWithProgram =
+    typeof next.openWithProgram === "string" ? next.openWithProgram : "";
+  next.openWithArguments =
+    typeof next.openWithArguments === "string" ? next.openWithArguments : "";
   next.conflictIgnoreFiles = Array.isArray(next.conflictIgnoreFiles)
     ? next.conflictIgnoreFiles.filter((entry) => typeof entry === "string" && entry.trim() !== "")
     : [];

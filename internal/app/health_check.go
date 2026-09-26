@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +20,22 @@ const (
 	modHealthKindInvalidVPK       = "invalid_vpk"
 	modHealthKindOrphanMeta       = "orphan_meta"
 	modHealthKindMissingMeta      = "missing_meta"
+	// modHealthKindFileTypeMismatch 对齐 FireAxe 的 AddonFileMissingProblem.FileTypeMismatch
+	// （AddonFileMissingProblem.cs:9-14）：同名路径存在、但类型不对 —— 游戏只加载 *.vpk 文件，
+	// 一个叫 foo.vpk 的文件夹同样不会被加载，但它和"文件被删了"的处理方式完全不同。
+	modHealthKindFileTypeMismatch = "file_type_mismatch"
+	// modHealthKindMetaIDMismatch 对齐 FireAxe 的 InvalidPublishedFileIdProblem
+	// （InvalidPublishedFileIdProblem.cs:5-16）与 WorkshopVpkMetaInfo.PublishedFileId
+	// （WorkshopVpkMetaInfo.cs:7）：本地工坊记录指向的作品必须和文件本身对得上。
+	modHealthKindMetaIDMismatch = "meta_id_mismatch"
+	// modHealthKindOutsideRoot 对齐 FireAxe 的 FileOutOfAddonRootException
+	// （AddonNode.cs:405-413）：addonlist.txt 的条目必须解析到受管目录内，
+	// `..\` 前缀 / 绝对路径这类写法游戏不会按预期加载，靠"文件存在"检查是看不出来的。
+	modHealthKindOutsideRoot = "outside_root"
+	// modHealthKindDuplicateVPKCopy 对齐 FireAxe File Cleaner 的目标之一
+	// （"deleting redundant VPK files for workshop items"）：
+	// 同一个工坊作品在根目录与 workshop 目录各留了一份，只会白占空间、还容易开错那份。
+	modHealthKindDuplicateVPKCopy = "duplicate_vpk_copy"
 )
 
 // ModHealthCheckOptions 控制体检范围。DeepScan 会逐个解析 VPK 目录，
@@ -34,6 +51,10 @@ type ModHealthIssue struct {
 	Name     string `json:"name"`
 	Path     string `json:"path,omitempty"`
 	Location string `json:"location,omitempty"`
+	// Target 是"这条问题可以直接操作谁"（addonlist 键或文件路径）。
+	// 对齐 FireAxe 把 Problem 和它的自动修复动作绑在一起的做法：
+	// 界面点「修复」时不需要自己猜目标。空表示这条问题只能人工判断。
+	Target  string `json:"target,omitempty"`
 	Message  string `json:"message"`
 }
 
@@ -57,12 +78,18 @@ func modHealthSeverityRank(severity string) int {
 }
 
 func (report *ModHealthReport) addIssue(kind string, severity string, name string, path string, location string, message string) {
+	report.addIssueWithTarget("", kind, severity, name, path, location, message)
+}
+
+// addIssueWithTarget 在 addIssue 的基础上带上可操作目标（见 ModHealthIssue.Target）。
+func (report *ModHealthReport) addIssueWithTarget(target string, kind string, severity string, name string, path string, location string, message string) {
 	report.Issues = append(report.Issues, ModHealthIssue{
 		Kind:     kind,
 		Severity: severity,
 		Name:     name,
 		Path:     path,
 		Location: location,
+		Target:   target,
 		Message:  message,
 	})
 }
@@ -99,6 +126,7 @@ func (a *App) checkWorkshopMetaFiles(rootDir string, report *ModHealthReport) {
 			base := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 			metaPath := filepath.Join(dir, entry.Name())
 			if info, statErr := os.Stat(filepath.Join(dir, base+".vpk")); statErr == nil && !info.IsDir() {
+				checkWorkshopMetaIDMatch(entry.Name(), base, filepath.Join(dir, base+".vpk"), metaPath, a.getLocationFromPath(metaPath), report)
 				continue
 			}
 			report.addIssue(modHealthKindOrphanMeta, "info", entry.Name(), metaPath, a.getLocationFromPath(metaPath),
@@ -130,6 +158,60 @@ func (a *App) checkWorkshopMetaFiles(rootDir string, report *ModHealthReport) {
 		report.addIssue(modHealthKindMissingMeta, "info", entry.Name(), filepath.Join(workshopDir, entry.Name()), "workshop",
 			fmt.Sprintf("%s 缺少同名 .meta 文件：工坊标题、标签与更新时间可能丢失，重新下载或更新一次即可补回", entry.Name()))
 	}
+}
+
+// checkDuplicateWorkshopCopies 找出"同一工坊作品在根目录与 workshop 各一份"的情况。
+//
+// 对齐 FireAxe File Cleaner 的目标之一（清理工坊条目的冗余 VPK）：
+// 工坊 VPK 的文件名就是作品 ID，所以 `addons\<ID>.vpk` 与 `addons\workshop\<ID>.vpk`
+// 是同一件作品的两份拷贝 —— 游戏只会按 addonlist 键加载其中一份，另一份白占空间，
+// 而且很容易开关错那份。这里只**报告**，删除仍由用户自己决定（或走归档管理）。
+func checkDuplicateWorkshopCopies(rootDir string, report *ModHealthReport) {
+	workshopDir := filepath.Join(rootDir, "workshop")
+	entries, err := os.ReadDir(workshopDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
+			continue
+		}
+		base := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+		if _, parseErr := strconv.ParseUint(base, 10, 64); parseErr != nil {
+			continue // 文件名不是纯数字（不是工坊 ID）→ 无法判断是不是同一件作品
+		}
+		rootCopy := filepath.Join(rootDir, entry.Name())
+		info, statErr := os.Stat(rootCopy)
+		if statErr != nil || info.IsDir() {
+			continue
+		}
+		report.addIssue(modHealthKindDuplicateVPKCopy, "warning", entry.Name(), rootCopy, "root",
+			fmt.Sprintf("工坊作品 %s 在根目录与 workshop 目录各有一份：只会白占空间，而且在两处都可能被开关（addonlist 键不同）。建议只保留一份（工坊原件留着、把根目录那份移走或删掉）", entry.Name()))
+	}
+}
+
+// checkWorkshopMetaIDMatch 核对 .meta 里记的作品 ID 与文件名是不是同一个作品。
+//
+// 对齐 FireAxe `WorkshopVpkAddon.cs:693`（`metaInfo.PublishedFileId != publishedFileId`
+// 时判定本地记录不可信、必须重新下载）与 `InvalidPublishedFileIdProblem`：
+// 工坊 VPK 的文件名就是作品 ID，两者不一致时更新检测会拿另一个作品的时间戳比较，
+// 结果就是**漏报或误报更新**，而且错得毫无提示。只有"文件名是纯数字"时才可判断，
+// 用户自己起名的本地 Mod 直接跳过。
+func checkWorkshopMetaIDMatch(metaName string, base string, vpkPath string, metaPath string, location string, report *ModHealthReport) {
+	if _, err := strconv.ParseUint(base, 10, 64); err != nil {
+		return
+	}
+	meta, err := LoadWorkshopMeta(vpkPath)
+	if err != nil || meta == nil {
+		return
+	}
+	recorded := strings.TrimSpace(meta.WorkshopID)
+	if recorded == "" || recorded == base {
+		return
+	}
+	report.addIssue(modHealthKindMetaIDMismatch, "warning", metaName, metaPath, location,
+		fmt.Sprintf("%s 记录的是工坊作品 %s，与文件名 %s.vpk 对不上：更新检测会拿另一个作品的时间戳做比较，可能漏报或误报更新（重新抓取官方信息即可修正）",
+			metaName, recorded, base))
 }
 
 func (report *ModHealthReport) finalize() ModHealthReport {
@@ -222,7 +304,23 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 		}
 
 		candidate := filepath.Join(rootDir, strings.ReplaceAll(strings.ReplaceAll(name, "/", string(filepath.Separator)), "\\", string(filepath.Separator)))
-		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+		if problem := managedFilePathProblem(rootDir, candidate); problem != "" {
+			report.addIssue(modHealthKindOutsideRoot, "warning", name, candidate, "",
+				fmt.Sprintf("addonlist.txt 里的 %s 指向受管目录之外（%s）：游戏不会按预期加载它，建议改回 addons / workshop / disabled 里的相对路径", name, problem))
+			continue
+		}
+		if info, statErr := os.Stat(candidate); statErr == nil {
+			if !info.IsDir() {
+				continue
+			}
+			// 同名路径是个文件夹：游戏只加载 *.vpk 文件，这个条目同样不会生效，
+			// 但它和"文件被删了"的处理方式完全不同，所以单独报一类
+			// （对齐 FireAxe `AddonFileMissingProblem.FileTypeMismatch`）。
+			message := fmt.Sprintf("addonlist.txt 记录了 %s，但磁盘上的同名路径是一个文件夹：游戏只加载 *.vpk 文件，会忽略它", name)
+			if disabledInfo, disabledErr := os.Stat(modHealthDisabledCandidate(rootDir, name)); disabledErr == nil && !disabledInfo.IsDir() {
+				message += "；disabled 目录里还有一份可用的同名文件，可以移回来"
+			}
+			report.addIssue(modHealthKindFileTypeMismatch, "warning", name, candidate, a.getLocationFromPath(candidate), message)
 			continue
 		}
 
@@ -260,7 +358,10 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 
 	// 3) 深度扫描：逐个解析 VPK 目录，找出损坏文件。
 	if options.DeepScan {
-		for _, diskPath := range collectConflictFilesystemPaths(rootDir) {
+		deepPaths := collectConflictFilesystemPaths(rootDir)
+		// 深度扫描同样会解析每个 VPK：容量也要跟随候选数，否则大库每轮都重解析。
+		a.evaluateConflictIndexCapacity(len(deepPaths))
+		for _, diskPath := range deepPaths {
 			if location := a.getLocationFromPath(diskPath); location == "disabled" {
 				continue
 			}
@@ -273,6 +374,8 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 
 	// 4) 工坊伴随文件：孤立 .meta 与缺失 .meta。
 	a.checkWorkshopMetaFiles(rootDir, &report)
+	// 4.1) 同一工坊作品在根目录与 workshop 各一份（对齐 FireAxe File Cleaner 的目标）。
+	checkDuplicateWorkshopCopies(rootDir, &report)
 
 	// 5) 用户声明的依赖：依赖被关闭或依赖文件缺失。
 	a.checkModDependencies(rootDir, addonListStateMap(list), &report)
@@ -342,12 +445,9 @@ func (a *App) RemoveDuplicateAddonListEntries() (int, error) {
 	if _, err := a.createAddonListFixBackupLocked(path); err != nil {
 		return 0, err
 	}
-	if err := a.writeAddonList(path, deduped); err != nil {
+	// 事务化：写盘 + 派生状态刷新 + 受保护快照同步，任一步失败都回到写前状态。
+	if err := a.commitAddonListItemsLocked(path, deduped, a.applyAddonListGameStates); err != nil {
 		return 0, fmt.Errorf("无法写入 addonlist.txt: %w", err)
-	}
-	a.applyAddonListGameStates()
-	if err := a.syncManagedAddonListSnapshotLocked(path); err != nil {
-		return 0, err
 	}
 	return removed, nil
 }
@@ -355,6 +455,14 @@ func (a *App) RemoveDuplicateAddonListEntries() (int, error) {
 // createAddonListFixBackupLocked 在体检修复写盘前建立可恢复备份。
 // 调用方必须持有 addonListGuardMu。
 func (a *App) createAddonListFixBackupLocked(path string) (string, error) {
+	return a.createAddonListPreWriteBackupLocked(path, "before-health-fix")
+}
+
+// createAddonListPreWriteBackupLocked 在任何会改动 addonlist.txt 的自动修复写盘前建立备份，
+// kind 决定备份文件名的前缀（例如 before-health-fix / before-dependency-fix），
+// 用户可以在同一页的"历史备份"里按名字认出这次改动是什么。
+// 调用方必须持有 addonListGuardMu。
+func (a *App) createAddonListPreWriteBackupLocked(path string, kind string) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -362,7 +470,7 @@ func (a *App) createAddonListFixBackupLocked(path string) (string, error) {
 		}
 		return "", fmt.Errorf("无法读取 addonlist.txt 以建立备份: %w", err)
 	}
-	backup, err := a.createAddonListBackupLocked("before-health-fix", content)
+	backup, err := a.createAddonListBackupLocked(kind, content)
 	if err != nil {
 		return "", fmt.Errorf("无法建立修复前备份: %w", err)
 	}
@@ -402,12 +510,9 @@ func (a *App) RemoveMissingFileAddonListEntries() (int, error) {
 	if _, err := a.createAddonListFixBackupLocked(path); err != nil {
 		return 0, err
 	}
-	if err := a.writeAddonList(path, kept); err != nil {
+	// 同样走事务化提交：避免"文件已改、快照还是旧的"。
+	if err := a.commitAddonListItemsLocked(path, kept, a.applyAddonListGameStates); err != nil {
 		return 0, fmt.Errorf("无法写入 addonlist.txt: %w", err)
-	}
-	a.applyAddonListGameStates()
-	if err := a.syncManagedAddonListSnapshotLocked(path); err != nil {
-		return 0, err
 	}
 	return removed, nil
 }

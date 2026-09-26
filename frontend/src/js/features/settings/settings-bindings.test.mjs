@@ -255,3 +255,27 @@ test("bindSettingsPage 整体透传 deps（不再维护第二份绑定清单）"
       "手写绑定子集会导致新增绑定在运行时变成 `deps.X is not a function`。",
   );
 });
+
+test("设置页有「抓取工坊官方标签与统计」入口，并真的调用后端", () => {
+  // 对齐 FireAxe PublishedFileUtils.GetPublishedFileDetailsAsync：官方标签/统计要走 Steam 官方接口，
+  // 入口放在「设置 → 工坊数据」，抓完写进 .meta，供分组建议材料与智能体使用。
+  const page = readFileSync(SETTINGS_PAGE_URL, "utf8");
+  const runtime = readFileSync(APP_RUNTIME_URL, "utf8");
+  assert.match(page, /id="settings-workshop-enrich"/, "缺少抓取按钮");
+  assert.match(page, /deps\.EnrichAllWorkshopMetadata\(\)/, "按钮要真的调用后端");
+  assert.match(page, /工坊官方标签与统计/, "按钮要有说明文案");
+  assert.match(runtime, /EnrichAllWorkshopMetadata/, "app-runtime 必须注入该绑定");
+});
+
+test("体检问题行的「修复」按钮把可操作目标一起传下去", () => {
+  // 对齐 FireAxe `AddonDependencyProblem`：问题自带"给谁修"的信息，
+  // 界面的修复动作必须拿到它，否则依赖类问题点了也没反应。
+  const page = readFileSync(SETTINGS_PAGE_URL, "utf8");
+  assert.match(
+    page,
+    /healthIssueAutoFix\(item\.autoFix\.id, item\.fixTarget\)/,
+    "修复按钮要传 fixTarget",
+  );
+  assert.match(page, /actionId === "enable-dependencies"/, "缺少依赖修复分支");
+  assert.match(page, /deps\.EnableModDependencies\(key\)/, "依赖修复要调用后端 EnableModDependencies");
+});

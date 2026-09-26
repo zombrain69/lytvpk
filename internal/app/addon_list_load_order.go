@@ -88,10 +88,8 @@ func (a *App) ApplyAddonListLoadOrderPolicy(policy AddonListLoadOrderPolicy) (Ad
 	if err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
-	if err := a.writeAddonList(path, ordered); err != nil {
-		return AddonListLoadOrderPreview{}, err
-	}
-	if err := a.syncManagedAddonListSnapshotLocked(path); err != nil {
+	// 事务化提交：写盘 + 快照同步一起成功，快照同步失败时回滚到写前内容。
+	if err := a.commitAddonListItemsLocked(path, ordered, nil); err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
 	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered)}, nil

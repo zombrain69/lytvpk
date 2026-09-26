@@ -11,6 +11,7 @@ import { beginMessageModalSession } from "../../core/message-modal.js";
 import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import { getFileLoadOrderIndex, refreshLoadOrderMap } from "./sorting.js";
 import { getUnrecordedGameStateOptions } from "./unrecorded-game-state.mjs";
+import { explainActionAvailability, formatExplanation } from "../../core/action-explanation.mjs";
 import { formatStrategyGroupEnforcementNotice } from "../settings/strategy-group-format.mjs";
 import {
   ToggleVPKFile,
@@ -42,8 +43,11 @@ export async function toggleGameEnabled(filePath) {
     showError("未找到要切换游戏内开关的 Mod，请刷新后重试");
     return;
   }
-  if (file.location === "disabled") {
-    showError("该 Mod 位于 disabled 目录，请先恢复文件后再编辑游戏内开关");
+  // 前置条件与提示文案共用同一层判断（core/action-explanation.mjs），
+  // 避免"这里拦住了，但那边的按钮还亮着、文案也对不上"。
+  const gameStateAvailability = explainActionAvailability({ action: "game-state", file });
+  if (!gameStateAvailability.available) {
+    showError(formatExplanation(gameStateAvailability));
     return;
   }
 
@@ -70,14 +74,16 @@ export async function setGameState(filePath, state) {
     showError("未找到要设置游戏内状态的 Mod，请刷新后重试");
     return;
   }
-  if (file.location === "disabled") {
-    showError("该 Mod 位于 disabled 目录，请先恢复文件后再编辑游戏内开关");
+  const gameStateAvailability = explainActionAvailability({ action: "game-state", file });
+  if (!gameStateAvailability.available) {
+    showError(formatExplanation(gameStateAvailability));
     return;
   }
 
   if (state === "disabled") {
-    if (file.location === "workshop") {
-      showError("创意工坊 Mod 不能直接禁用，请先复制到 addons");
+    const disableAvailability = explainActionAvailability({ action: "disable-file", file });
+    if (!disableAvailability.available) {
+      showError(formatExplanation(disableAvailability));
       return;
     }
     await disableUnrecordedFile(filePath);

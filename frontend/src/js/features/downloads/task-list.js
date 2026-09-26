@@ -7,6 +7,8 @@ import { openSetTagsModal } from "../file-list/tags.js";
 import {
   GetDownloadTasks,
   CancelDownloadTask,
+  PauseDownloadTask,
+  ResumeDownloadTask,
   RetryDownloadTask,
   ClearCompletedTasks,
 } from "../../../../wailsjs/go/app/App";
@@ -32,6 +34,8 @@ export async function refreshTaskList() {
         selecting_ip: 0,
         downloading: 1,
         pending: 2,
+        paused: 3,
+        interrupted: 3,
         failed: 3,
         completed: 4,
       };
@@ -75,6 +79,8 @@ export function createTaskElement(task) {
     downloading: "#2196f3",
     completed: "#4caf50",
     failed: "#f44336",
+    interrupted: "#ff9800",
+    paused: "#2196f3",
   };
 
   const statusText = {
@@ -84,6 +90,8 @@ export function createTaskElement(task) {
     completed: "已完成",
     failed: "失败",
     cancelled: "已取消",
+    interrupted: "已中断",
+    paused: "已暂停",
   };
 
   const taskId = escapeHtml(task.id);
@@ -105,13 +113,34 @@ export function createTaskElement(task) {
   if (task.status === "downloading" || task.status === "pending" || task.status === "selecting_ip") {
     actionButtons = `
       ${copyBtn}
+      <button class="task-action-btn pause-task-btn" data-id="${taskId}" title="暂停下载（已完成的区块会保留，之后可以继续）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="9" y1="5" x2="9" y2="19"></line>
+          <line x1="15" y1="5" x2="15" y2="19"></line>
+        </svg>
+      </button>
       <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${taskId}" title="取消下载">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>`;
-  } else if (task.status === "failed" || task.status === "cancelled") {
+  } else if (task.status === "paused") {
+    // 暂停是"保留断点"的状态：继续 = 断点续传，取消 = 丢弃这次下载。
+    actionButtons = `
+      ${copyBtn}
+      <button class="task-action-btn resume-task-btn" data-id="${taskId}" title="继续下载（只补没下完的区块）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="6 4 20 12 6 20 6 4"></polygon>
+        </svg>
+      </button>
+      <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${taskId}" title="取消并丢弃已下载的临时数据">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>`;
+  } else if (task.status === "failed" || task.status === "cancelled" || task.status === "interrupted") {
     actionButtons = `
       ${copyBtn}
       <button class="task-action-btn retry-btn retry-task-btn" data-id="${taskId}" title="重试下载">
@@ -144,21 +173,21 @@ export function createTaskElement(task) {
     ${previewHtml}
     <div class="task-content" style="flex: 1; min-width: 0;">
       <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <span class="task-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${taskTitle}</span>
+        <span class="task-title" style="font-weight: bold; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${taskTitle}</span>
         <div style="display: flex; align-items: center; gap: 5px;">
-          <span class="task-status" style="font-size: 12px; color: ${statusColors[task.status] || "#666"};">${taskStatus}</span>
+          <span class="task-status" style="font-size: 0.75rem; color: ${statusColors[task.status] || "var(--text-secondary)"};">${taskStatus}</span>
           ${actionButtons}
         </div>
       </div>
-      <div style="font-size: 12px; color: #666; margin-bottom: 5px;">${taskFilename}</div>
+      <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 5px;">${taskFilename}</div>
       <div class="progress-bar" style="width: 100%; height: 6px; background-color: #eee; border-radius: 3px; overflow: hidden;">
         <div class="progress-fill" style="width: ${progress}%; height: 100%; background-color: ${statusColors[task.status] || "#ccc"}; transition: width 0.3s;"></div>
       </div>
-      <div style="display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-top: 2px;">
+      <div style="display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--text-tertiary); margin-top: 2px;">
         <span class="task-size">${formatBytes(task.downloaded_size)} / ${formatBytes(task.total_size)} ${task.speed ? `(${task.speed})` : ""}</span>
         <span class="task-percent">${progress}%</span>
       </div>
-      ${taskError ? `<div style="color: #f44336; font-size: 11px; margin-top: 2px;">${taskError}</div>` : ""}
+      ${taskError ? `<div style="color: var(--danger, #f44336); font-size: 0.6875rem; margin-top: 2px;">${taskError}</div>` : ""}
     </div>
   `;
 
@@ -217,6 +246,34 @@ export function createTaskElement(task) {
       } catch (err) {
         console.error("重试任务失败:", err);
         showError("重试失败: " + err);
+      }
+    });
+  }
+
+  const pauseBtn = div.querySelector(".pause-task-btn");
+  if (pauseBtn) {
+    pauseBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await PauseDownloadTask(task.id);
+        showNotification("已暂停，之后点「继续」会从断点接着下", "info");
+      } catch (err) {
+        console.error("暂停任务失败:", err);
+        showError("暂停失败: " + err);
+      }
+    });
+  }
+
+  const resumeBtn = div.querySelector(".resume-task-btn");
+  if (resumeBtn) {
+    resumeBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await ResumeDownloadTask(task.id);
+        showNotification("已继续下载", "success");
+      } catch (err) {
+        console.error("继续任务失败:", err);
+        showError("继续失败: " + err);
       }
     });
   }

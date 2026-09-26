@@ -9,6 +9,17 @@ import {
   GetAddonListLoadOrderEntries,
   SetVPKLoadOrder,
 } from "../../../../wailsjs/go/app/App";
+import { highlightMatches } from "../file-list/search-match.mjs";
+import {
+  CONFLICT_SEARCH_HELP_VARIANT,
+  buildSearchHelpHtml,
+  buildSearchHelpTitle,
+} from "../file-list/search-help.mjs";
+import {
+  conflictHighlightSpec,
+  describeConflictSearch,
+  searchConflictGroups,
+} from "./conflict-search.mjs";
 
 let EventsOn;
 let showError;
@@ -142,6 +153,9 @@ export function configureConflicts(deps) {
 let currentConflictResult = null;
 let currentSeverityFilter = "critical"; // 默认只显示严重
 let currentConflictPage = 1;
+// 冲突列表的文本检索（与严重度筛选是「与」的关系）与最近一次检索结果。
+let currentConflictQuery = "";
+let currentConflictSearch = null;
 
 const CONFLICT_PAGE_SIZE = 20;
 // 覆盖关系通常数量更多，且每条都是“胜负已判定”的普通重叠，做适度截断避免长列表卡顿。
@@ -702,6 +716,9 @@ function renderConflictResults(result) {
   document.getElementById("conflict-progress-container")?.classList.add("hidden");
 
   updateConflictScopeSummary();
+  // 先把本轮检索算出来，再刷新计数 —— 否则计数会用上一轮的搜索结果（慢一帧）。
+  currentConflictSearch = searchConflictGroups(result?.conflict_groups || [], currentConflictQuery);
+  syncConflictSearchBar();
 
   const totalConflicts = Number(result?.total_conflicts || 0);
   const overrideGroups = getFilteredConflictOverrides(result);
@@ -746,6 +763,67 @@ function renderConflictResults(result) {
   renderConflictOverrideSection(overrideGroups);
   renderConflictModIgnoreSection(result);
   void renderConflictFixSection();
+}
+
+// 搜索框只绑定一次；每次渲染只刷新计数文案（不重建 DOM，避免输入时丢焦点）。
+let conflictSearchBound = false;
+
+function syncConflictSearchBar() {
+  const input = document.getElementById("conflict-search");
+  if (!input) return;
+  input.title = buildSearchHelpTitle(CONFLICT_SEARCH_HELP_VARIANT);
+  if (input.value !== currentConflictQuery) input.value = currentConflictQuery;
+
+  const popover = document.getElementById("conflict-search-help-popover");
+  if (popover && popover.dataset.filled !== "1") {
+    popover.innerHTML = buildSearchHelpHtml(CONFLICT_SEARCH_HELP_VARIANT);
+    popover.dataset.filled = "1";
+  }
+
+  const count = document.getElementById("conflict-search-count");
+  if (count) {
+    count.textContent = describeConflictSearch({
+      total: currentConflictSearch?.total ?? 0,
+      matched: currentConflictSearch?.matched ?? 0,
+      query: currentConflictQuery,
+      regexInvalid: currentConflictSearch?.regexInvalid || "",
+    });
+  }
+
+  if (conflictSearchBound) return;
+  conflictSearchBound = true;
+  const helpBtn = document.getElementById("conflict-search-help-btn");
+  const setHelpOpen = (open) => {
+    popover?.classList.toggle("hidden", !open);
+    helpBtn?.setAttribute("aria-expanded", String(open));
+    helpBtn?.classList.toggle("is-active", open);
+  };
+  helpBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setHelpOpen(popover?.classList.contains("hidden") ?? false);
+  });
+  document.addEventListener("click", (event) => {
+    if (!popover || popover.classList.contains("hidden")) return;
+    if (popover.contains(event.target) || helpBtn?.contains(event.target)) return;
+    setHelpOpen(false);
+  });
+  input.addEventListener("input", () => {
+    currentConflictQuery = input.value;
+    currentConflictPage = 1;
+    if (currentConflictResult) renderConflictResults(currentConflictResult);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (!input.value) return;
+      event.stopPropagation();
+      input.value = "";
+      currentConflictQuery = "";
+      currentConflictPage = 1;
+      if (currentConflictResult) renderConflictResults(currentConflictResult);
+      return;
+    }
+    if (popover && !popover.classList.contains("hidden")) setHelpOpen(false);
+  });
 }
 
 const CONFLICT_FIX_LIMIT = 5;
@@ -875,7 +953,9 @@ function createConflictEmptyState(message) {
 
 // getFilteredConflictOverrides 复用严重度筛选，让“严重/警告/普通”切换对覆盖列表同样生效。
 function getFilteredConflictOverrides(result) {
+  const searched = searchConflictGroups(result?.override_groups || [], currentConflictQuery);
   return (result?.override_groups || [])
+    .filter((group) => searched.items.includes(group))
     .filter((group) => currentSeverityFilter === "all" || (group.severity || "info") === currentSeverityFilter)
     .sort((a, b) => Number(b.file_count || 0) - Number(a.file_count || 0));
 }
@@ -893,7 +973,12 @@ function renderConflictOverrideSection(groups) {
 
   section.classList.remove("hidden");
   const countEl = document.getElementById("conflict-override-count");
-  if (countEl) countEl.textContent = `${groups.length} 组`;
+  if (countEl) {
+    // 覆盖关系区也受同一套检索影响：被过滤掉时把"显示 / 总数"写清楚。
+    const total = (currentConflictResult?.override_groups || []).length;
+    const filtered = Boolean(currentConflictQuery.trim()) || currentSeverityFilter !== "all";
+    countEl.textContent = filtered && total > groups.length ? `${groups.length} / ${total} 组（已过滤）` : `${groups.length} 组`;
+  }
 
   list.replaceChildren();
   groups.slice(0, CONFLICT_OVERRIDE_LIMIT).forEach((group) => {
@@ -914,7 +999,10 @@ function renderConflictOverrideSection(groups) {
 }
 
 function getFilteredConflictGroups(result) {
+  // 文本检索与严重度筛选是「与」的关系：先按统一语法过滤，再按严重度。
+  const searched = currentConflictSearch || searchConflictGroups(result.conflict_groups || [], currentConflictQuery);
   const groups = (result.conflict_groups || []).filter((group) => {
+    if (currentConflictQuery.trim() && !searched.items.includes(group)) return false;
     const severity = group.severity || "info";
     return currentSeverityFilter === "all" || severity === currentSeverityFilter;
   });
@@ -939,6 +1027,9 @@ function createConflictGroupElement(group, renderOptions = {}) {
   groupEl.className = `conflict-group ${severity}${isOverride ? " override" : ""}`;
 
   const orderedVpkFiles = sortConflictVPKs(group.vpk_files || []);
+  // 命中片段在 Mod 名里高亮（highlightMatches 自己负责转义，与 Mod 列表同一套）。
+  const highlightSpec = conflictHighlightSpec(currentConflictSearch);
+  const highlightOrEscape = (text) => (highlightSpec ? highlightMatches(text, highlightSpec) : escapeHtml(text));
   const vpkListHtml = orderedVpkFiles
     .map((vpk, index) => {
       const displayName = truncateText(vpk.title || vpk.name);
@@ -966,8 +1057,8 @@ function createConflictGroupElement(group, renderOptions = {}) {
       return `
         <div class="conflict-vpk-item">
           <div class="conflict-vpk-info">
-            <span class="conflict-vpk-title" title="${escapeHtml(vpk.title || vpk.name)}">${escapeHtml(displayName)}</span>
-            <span class="conflict-vpk-filename" title="${escapeHtml(vpk.name)}">${escapeHtml(fileName)}</span>
+            <span class="conflict-vpk-title" title="${escapeHtml(vpk.title || vpk.name)}">${highlightOrEscape(displayName)}</span>
+            <span class="conflict-vpk-filename" title="${escapeHtml(vpk.name)}">${highlightOrEscape(fileName)}</span>
             <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? `顺序号来自 addonlist.txt（数字越大越靠后加载，覆盖同一资源时更可能生效）；有效分层 ${Number.isInteger(vpk.layer) && vpk.layer >= 0 ? vpk.layer : priority - 1}。未设置分层时有效分层等于顺序号` : "该 Mod 尚未写入 addonlist.txt"}">${escapeHtml(priorityLabel)}</span>
             ${isOverride ? `<span class="conflict-vpk-winner ${vpk.path === winnerPath ? "active" : ""}">${vpk.path === winnerPath ? "生效" : "被覆盖"}</span>` : ""}
           </div>

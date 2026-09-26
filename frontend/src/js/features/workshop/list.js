@@ -8,6 +8,7 @@ import {
   updateBrowserSortIndicator,
 } from "./sidebar.js";
 import { browserState, resetWorkshopPaging } from "./state.js";
+import { WORKSHOP_SEARCH_PLACEHOLDER, describeWorkshopSearchMode } from "./search-mode-note.mjs";
 import {
   escapeHtml,
   formatNumber,
@@ -300,6 +301,12 @@ function renderWorkshopGrid(items) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 工坊搜索是服务端搜索：占位与悬停提示都明说"不收本地语法"，并指出去哪里用本地语法。
+  const workshopSearchInput = document.getElementById("browser-search-input");
+  if (workshopSearchInput) {
+    workshopSearchInput.placeholder = WORKSHOP_SEARCH_PLACEHOLDER;
+    workshopSearchInput.title = describeWorkshopSearchMode();
+  }
   const openBrowserBtn = document.getElementById("open-browser-btn");
   if (openBrowserBtn) {
     openBrowserBtn.addEventListener("click", () => {

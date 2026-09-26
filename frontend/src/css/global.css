@@ -308,6 +308,34 @@
   gap: var(--spacing-2);
 }
 
+/* 冲突检索：搜索框 + `?` 说明书 + 命中计数（与其它列表同一套语法与样式） */
+.conflict-search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+.conflict-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0 var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  font-size: var(--text-xs);
+}
+
+.conflict-search-count {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .conflict-filters .filter-btn {
   min-height: 2rem;
   padding: 0 var(--spacing-3);
@@ -576,6 +604,34 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-1);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* 体检结果检索：搜索框 + `?` 说明书 + 命中计数（与其它列表同一套语法与样式） */
+.settings-health-search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: var(--spacing-2) 0;
+}
+
+.settings-health-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0 var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  font-size: var(--text-xs);
+}
+
+.settings-health-search-count {
+  flex: 0 0 auto;
   color: var(--text-tertiary);
   font-size: var(--text-xs);
   white-space: nowrap;
@@ -1232,7 +1288,7 @@
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 28px;
+  font-size: 1.75rem;
   line-height: 1;
   padding-bottom: 4px; /* Visual adjustment for centering */
   font-weight: 300;
@@ -1312,7 +1368,7 @@
   width: 100%;
   border-collapse: collapse;
   margin: 10px 0;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .bbcode-table td,

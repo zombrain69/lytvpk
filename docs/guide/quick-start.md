@@ -14,6 +14,12 @@
 
 选择后，LytVPK 会保存目录历史。之后可以通过目录下拉菜单快速切换。
 
+如果还没选过目录，应用启动时会先**自动找一次**：读 Steam 注册表拿到 Steam 安装位置，
+再顺着 `libraryfolders.vdf` 里登记的每个 Steam 库（包括你自己加的库，例如
+`E:\SteamLibrary`、`D:\Games\SteamLibrary`）去找 `Left 4 Dead 2\left4dead2\addons`，
+只有确认那里真的装了游戏才会用它；都找不到时才回落到逐个盘符的常见路径扫描。
+自动找不到（绿色版、非 Steam 安装、库目录改名）时按提示手动选择即可。
+
 ## 2. 扫描 VPK
 
 选择目录后，应用会扫描 `.vpk` 文件并显示到 MOD 管理页。扫描结果会包含：

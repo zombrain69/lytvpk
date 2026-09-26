@@ -1,0 +1,312 @@
+/* 阅读舒适度：行距 + 文字对比度档位。
+ *
+ * 字号不在这里管：字号由 core/reading-comfort.mjs 合成到根字号上
+ * （界面缩放 × 文字档位），这样"整体缩放"和"只看文字大小"互不覆盖。
+ *
+ * 配色只动 --text-*，不动背景与主色：柔和档把正文压灰一点，
+ * 高对比档把正文加深/提亮，边框与背景保持原样，避免整套主题走形。
+ */
+
+/* 正文行距：由 JS 写入 --reading-line-height（柔和 1.8 / 标准 1.65 / 高对比 1.55）。 */
+body,
+.file-title,
+.file-filename,
+.setting-row-desc,
+.task-item,
+.modal-content {
+  line-height: var(--reading-line-height, var(--leading-normal));
+}
+
+/* 明亮主题（默认） */
+html[data-reading-comfort="soft"] {
+  --text-primary: #334155; /* slate-700 */
+  --text-secondary: #52627a;
+  --text-tertiary: #71809a;
+}
+
+html[data-reading-comfort="contrast"] {
+  /* 只提正文与次要文字：正文接近纯黑、次要也明显加深。
+     装饰性文字（计数 / 提示 / chip）保持标准档的弱化程度 —— 否则整屏都是"重点"，
+     读长列表反而更累。不变量由 src/js/core/reading-contrast-css.test.mjs 守着。 */
+  --text-primary: #05080f;
+  --text-secondary: #1c2634;
+  --text-tertiary: #64748b;
+}
+
+/* 暗色主题：覆盖 html.dark-mode 里定义的文字颜色 */
+html.dark-mode[data-reading-comfort="soft"] {
+  --text-primary: #cbd5e1; /* slate-300 */
+  --text-secondary: #a9b6c7;
+  --text-tertiary: #8493a8;
+}
+
+html.dark-mode[data-reading-comfort="contrast"] {
+  --text-primary: #ffffff;
+  --text-secondary: #e6edf7;
+  --text-tertiary: #94a3b8;
+}
+
+/* 搜索命中高亮：让"为什么匹配"一眼可见。
+   用半透明底色 + 下划线，两种主题下都能看清，且不改变文字本身颜色。 */
+mark.search-hit {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--primary) 45%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--primary) 70%, transparent);
+  /* 命中片段要比周围文字更醒目：文件名本身是 muted 色，这里提亮到正文色。 */
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+html.dark-mode mark.search-hit {
+  background: color-mix(in srgb, var(--primary) 55%, transparent);
+  color: #ffffff;
+}
+
+/* 高对比档：正文已经提亮/加深，命中底色再按标准档的比例混就会"抢戏"，
+   于是把底色压低、改用更明显的下划线来表达"这里命中"。
+   不变量（底色混合比例必须低于标准档）由 reading-contrast-css.test.mjs 守着。 */
+html[data-reading-comfort="contrast"] mark.search-hit {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary) 85%, transparent);
+  color: var(--text-primary);
+}
+
+html.dark-mode[data-reading-comfort="contrast"] mark.search-hit {
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
+  color: #ffffff;
+}
+
+/* "为什么匹配"的理由标签：搜索时贴在标题后面，说明命中的是哪个字段。 */
+.search-reason-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 搜索框旁边的命中计数。 */
+.search-hit-count {
+  margin-left: 6px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.search-hit-count.has-hits {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* 搜索语法说明书：`?` 按钮 + 浮层。
+   放在搜索框右侧，点开后不遮住结果（绝对定位在搜索框下方）。 */
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-help-btn {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-help-btn:hover,
+.search-help-btn.is-active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.search-help-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  width: min(30rem, 92vw);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.18));
+  font-size: 0.75rem;
+}
+
+/* 标题栏里的快捷键总览浮层：挂在 .header 里，靠右对齐，
+   避免像搜索框那样固定 left:0 时跑到屏幕外。 */
+.header-help-popover {
+  top: calc(100% + 4px);
+  left: auto;
+  right: 0.75rem;
+  width: min(28rem, 92vw);
+}
+
+.search-help-section + .search-help-section {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border-light);
+}
+
+.search-help-title {
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.search-help-fields,
+.search-help-note {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.search-help-note {
+  margin-top: 0.2rem;
+  color: var(--text-tertiary);
+}
+
+.search-help-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.12rem 0;
+  line-height: 1.6;
+}
+
+.search-help-row code {
+  flex: 0 0 auto;
+  min-width: 8.5rem;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.search-help-row span {
+  color: var(--text-secondary);
+}
+
+/* ── 文件操作忙碌状态（移动 / 删除 / 打包共用一个后端闸门）───────────────
+   忙碌时：
+     1) 状态栏出现一行进度说明；
+     2) 会写磁盘的批量按钮暂时变灰，避免用户点了才拿到"另一个文件操作正在进行"的报错。 */
+.file-operation-busy {
+  color: var(--primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.file-operation-busy[hidden] {
+  display: none;
+}
+
+body.is-file-operation-busy #move-selected-btn,
+body.is-file-operation-busy #delete-selected-btn,
+body.is-file-operation-busy #export-zip-selected-btn,
+body.is-file-operation-busy #transfer-workshop-selected-btn,
+body.is-file-operation-busy .vpk-pack-run-btn,
+body.is-file-operation-busy .vpk-integrity-repair-btn,
+body.is-file-operation-busy .archive-move-btn {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* ── 命令面板（Ctrl+K）─────────────────────────────────────────────
+   位置靠上、宽度适中，输入框即焦点；列表行显示命令名 + 去处提示。 */
+.command-palette-content {
+  width: min(40rem, 92vw);
+  margin-top: 12vh;
+  align-self: flex-start;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.command-palette-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.command-palette-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 46vh;
+  overflow: auto;
+}
+
+.command-palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.command-palette-item:hover {
+  background: var(--bg-hover);
+}
+
+.command-palette-item.is-active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.command-palette-item .command-hint {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.command-palette-hint {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.command-palette-empty {
+  padding: 0.6rem;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+/* 键盘光标（↑ / ↓ 选中的结果行）：用主色描边 + 轻微底色，与鼠标悬停区分开。
+   用 inset 描边而不是外阴影，避免行贴边时被裁掉。 */
+.file-item.is-result-cursor {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}

@@ -43,6 +43,8 @@ export function ChangePanelMap(arg1:string,arg2:string):Promise<string>;
 
 export function CheckArchiveMoveConflicts(arg1:Array<string>,arg2:string):Promise<Array<app.FileMoveConflict>>;
 
+export function CheckClipboardWorkshopLink():Promise<string>;
+
 export function CheckConflicts():Promise<app.ConflictResult>;
 
 export function CheckConflictsForPaths(arg1:Array<string>):Promise<app.ConflictResult>;
@@ -50,6 +52,8 @@ export function CheckConflictsForPaths(arg1:Array<string>):Promise<app.ConflictR
 export function CheckConflictsWithOptions(arg1:app.ConflictAnalysisOptions):Promise<app.ConflictResult>;
 
 export function CheckFileMoveConflicts(arg1:Array<string>,arg2:string):Promise<Array<app.FileMoveConflict>>;
+
+export function CheckModStrategyGroupApply(arg1:string,arg2:app.ModStrategyGroupApplyOptions):Promise<app.ModStrategyGroupApplyCheck>;
 
 export function CheckModUpdates():Promise<app.UpdateCheckResult>;
 
@@ -72,6 +76,8 @@ export function CloseCrashReporter():Promise<void>;
 export function ConnectToServer(arg1:string):Promise<void>;
 
 export function CreateAddonListBackup():Promise<app.AddonListBackup>;
+
+export function CreateModStrategyGroupChild(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<app.ModStrategyGroup>;
 
 export function CreateModStrategyGroupFromKeys(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<app.ModStrategyGroup>;
 
@@ -106,6 +112,10 @@ export function DownloadWorkshopCollection(arg1:string):Promise<Array<string>>;
 export function EnableAllMissingModDependencies():Promise<app.ModDependencyEnableResult>;
 
 export function EnableModDependencies(arg1:string):Promise<app.ModDependencyEnableResult>;
+
+export function EnrichAllWorkshopMetadata():Promise<app.WorkshopEnrichResult>;
+
+export function EnrichWorkshopMetadata(arg1:Array<string>):Promise<app.WorkshopEnrichResult>;
 
 export function ExportGroupingCatalog(arg1:string):Promise<string>;
 
@@ -213,6 +223,8 @@ export function GetModStrategyGroupMissingMembers():Promise<Array<app.ModStrateg
 
 export function GetModelStatsScanState():Promise<app.ModelStatsScanState>;
 
+export function GetOpenWithSettings():Promise<app.OpenWithSettings>;
+
 export function GetPanelMapUploadTasks():Promise<Array<app.PanelMapUploadTask>>;
 
 export function GetPrimaryTags():Promise<Array<string>>;
@@ -295,6 +307,8 @@ export function InstallSprayVPK(arg1:app.SprayInstallRequest):Promise<app.SprayI
 
 export function InvalidateConflictRecheck(arg1:string):Promise<void>;
 
+export function IsFileOperationBusy():Promise<boolean>;
+
 export function IsSelectingIP():Promise<boolean>;
 
 export function LaunchL4D2():Promise<void>;
@@ -355,6 +369,8 @@ export function ParseMDMPFile(arg1:string):Promise<minidump.Report>;
 
 export function ParseWorkshopID(arg1:string):Promise<string>;
 
+export function PauseDownloadTask(arg1:string):Promise<void>;
+
 export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
 
 export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
@@ -379,6 +395,8 @@ export function RenameModStrategyGroup(arg1:string,arg2:string,arg3:string):Prom
 
 export function RenameVPKFile(arg1:string,arg2:string):Promise<string>;
 
+export function ReorderModStrategyGroups(arg1:Array<string>):Promise<Array<app.ModStrategyGroup>>;
+
 export function RepairVPKIntegrity(arg1:string):Promise<app.VPKRepairResult>;
 
 export function RepairVPKIntegrityBatch(arg1:Array<string>):Promise<Array<app.VPKRepairBatchResult>>;
@@ -394,6 +412,8 @@ export function RestartPanelServer(arg1:string):Promise<string>;
 export function RestoreAddonListBackup(arg1:string):Promise<app.AddonListInfo>;
 
 export function RestoreProblemModScan():Promise<app.ProblemModScanSession>;
+
+export function ResumeDownloadTask(arg1:string):Promise<void>;
 
 export function RetryDownloadTask(arg1:string):Promise<void>;
 
@@ -472,6 +492,8 @@ export function SetModStrategyGroupEnforcement(arg1:string,arg2:boolean):Promise
 export function SetModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
 
 export function SetModStrategyGroupTier(arg1:string,arg2:any):Promise<app.ModStrategyGroup>;
+
+export function SetOpenWithSettings(arg1:string,arg2:string):Promise<app.OpenWithSettings>;
 
 export function SetRootDirectory(arg1:string):Promise<void>;
 

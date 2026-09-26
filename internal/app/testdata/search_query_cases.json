@@ -1,0 +1,90 @@
+{
+  "_comment": "Go 与前端共用的搜索语法用例：两边解析器必须给出同样的结果（对齐 FireAxe AddonNodeSearchUtils 的 IsRegex / Tags / TagFilterMode）。",
+  "cases": [
+    {
+      "query": "",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "regex": ""
+    },
+    {
+      "query": "ak47",
+      "terms": ["ak47"],
+      "includeTags": [],
+      "excludeTags": [],
+      "regex": ""
+    },
+    {
+      "query": "AK47 武器",
+      "terms": ["AK47", "武器"],
+      "includeTags": [],
+      "excludeTags": [],
+      "regex": ""
+    },
+    {
+      "query": "tag:武器",
+      "terms": [],
+      "includeTags": [["武器"]],
+      "excludeTags": [],
+      "regex": ""
+    },
+    {
+      "query": "标签:武器 tag:步枪",
+      "terms": [],
+      "includeTags": [["武器"], ["步枪"]],
+      "excludeTags": [],
+      "regex": ""
+    },
+    {
+      "query": "tag:步枪|狙击",
+      "terms": [],
+      "includeTags": [["步枪", "狙击"]],
+      "excludeTags": [],
+      "regex": ""
+    },
+    {
+      "query": "-tag:材质",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": ["材质"],
+      "regex": ""
+    },
+    {
+      "query": "tag:武器 -tag:材质 ak47",
+      "terms": ["ak47"],
+      "includeTags": [["武器"]],
+      "excludeTags": ["材质"],
+      "regex": ""
+    },
+    {
+      "query": "re:^ak\\d+$",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "regex": "^ak\\d+$"
+    },
+    {
+      "query": "re:[",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "regex": "",
+      "regexError": true
+    },
+    {
+      "query": "tag:",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "regex": ""
+    },
+    {
+      "query": "\"ak 47\" 武器",
+      "terms": ["ak 47", "武器"],
+      "includeTags": [],
+      "excludeTags": [],
+      "regex": ""
+    }
+  ]
+}

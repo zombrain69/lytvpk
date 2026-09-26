@@ -1,3 +1,5 @@
+import { readingFontScaleFromRoot } from "./reading-comfort.mjs";
+
 export const DEFAULT_UI_SCALE = 1;
 export const MIN_UI_SCALE = 0.8;
 export const MAX_UI_SCALE = 1.4;
@@ -16,7 +18,10 @@ export function applyUIScale(value) {
   if (typeof document === "undefined") return scale;
 
   const percent = String(Math.round(scale * 100));
-  document.documentElement.style.fontSize = `${percent}%`;
+  // 根字号 = 界面缩放 × 阅读字号档位：两个设置各管各的，互不覆盖。
+  const readingPercent = Math.round(scale * readingFontScaleFromRoot(document.documentElement) * 100);
+  document.documentElement.style.fontSize = `${readingPercent}%`;
+  document.documentElement.dataset.uiScalePercent = percent;
   document.querySelectorAll("[data-ui-scale-input]").forEach((input) => {
     input.value = percent;
   });

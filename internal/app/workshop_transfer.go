@@ -18,20 +18,54 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) processChunkedDownload(ctx context.Context, task *DownloadTask, downloadUrl string, bestIP string, totalSize int64, workerCount int, tempDir string) (string, error) {
-	finalPath := filepath.Join(tempDir, task.ID+"_final")
+	const blockSize = int64(5 * 1024 * 1024)
 
-	// 1. Preallocate final file
-	file, err := createPreallocatedFile(finalPath, totalSize)
+	finalPath := filepath.Join(tempDir, task.ID+"_final")
+	checkpointPath := downloadBlockCheckpointPath(finalPath)
+
+	// 1. 能续传就续传（临时文件大小必须完全一致 + 检查点有效），否则重新预分配。
+	var resumed []int
+	var file *os.File
+	var err error
+	if checkpoint := reusablePartialDownload(finalPath, task.ID, totalSize, blockSize); checkpoint != nil {
+		resumed = validateBlockCheckpoint(checkpoint, task.ID, totalSize, blockSize)
+		file, err = os.OpenFile(finalPath, os.O_RDWR, 0o644)
+		if err != nil {
+			// 打不开就退回重下，不把这次失败变成"下不了"。
+			resumed = nil
+			removeDownloadCheckpointFiles(finalPath)
+			file, err = createPreallocatedFile(finalPath, totalSize)
+		}
+	} else {
+		// 有残留但不可用（换了任务 / 文件被截断 / 检查点损坏）：清干净再下。
+		removeDownloadCheckpointFiles(finalPath)
+		file, err = createPreallocatedFile(finalPath, totalSize)
+	}
 	if err != nil {
 		return "", err
 	}
 
-	// 2. Create BlockManager with 5MB blocks
-	bm := NewBlockManager(totalSize, workerCount, 5*1024*1024)
+	// 2. Create BlockManager（带续传区块）
+	bm := newBlockManagerWithResume(totalSize, workerCount, blockSize, resumed)
+
+	// 2.1 检查点：每完成一块写一次，但最多每秒一次；暂停 / 失败 / 收尾时强制补写。
+	var checkpointMu sync.Mutex
+	lastCheckpoint := time.Time{}
+	writeCheckpoint := func(force bool) {
+		checkpointMu.Lock()
+		defer checkpointMu.Unlock()
+		if !force && !lastCheckpoint.IsZero() && time.Since(lastCheckpoint) < time.Second {
+			return
+		}
+		lastCheckpoint = time.Now()
+		if err := saveBlockCheckpoint(checkpointPath, task.ID, totalSize, blockSize, bm.CompletedIndices()); err != nil {
+			fmt.Printf("[ChunkedDownload] 写检查点失败（不影响本次下载）: %v\n", err)
+		}
+	}
+	bm.onBlockCompleted = func() { writeCheckpoint(false) }
 
 	// 3. Link external context cancellation to BlockManager
 	go func() {
@@ -39,8 +73,8 @@ func (a *App) processChunkedDownload(ctx context.Context, task *DownloadTask, do
 		bm.cancel()
 	}()
 
-	fmt.Printf("[ChunkedDownload] Starting dynamic %d-worker download for %s (Size: %.2f MB, Blocks: %d)\n",
-		workerCount, task.Filename, float64(totalSize)/1024/1024, len(bm.blocks))
+	fmt.Printf("[ChunkedDownload] Starting dynamic %d-worker download for %s (Size: %.2f MB, Blocks: %d, Resumed: %d)\n",
+		workerCount, task.Filename, float64(totalSize)/1024/1024, len(bm.blocks), len(resumed))
 
 	// 4. Start progress reporter
 	stopReporter := make(chan struct{})
@@ -63,31 +97,39 @@ func (a *App) processChunkedDownload(ctx context.Context, task *DownloadTask, do
 	// 7. Close file
 	file.Close()
 
-	// 8. Check for cancellation
+	// 8. Check for cancellation：区分"用户暂停"与"取消/其它错误"。
 	if ctx.Err() != nil {
-		os.Remove(finalPath)
+		if downloadTaskIsPaused(task.ID) {
+			// 暂停：保留临时文件 + 检查点，下次继续只补缺的区块。
+			writeCheckpoint(true)
+			return "", errDownloadPaused
+		}
+		removeDownloadCheckpointFiles(finalPath)
 		return "", ctx.Err()
 	}
 
-	// 9. Check for fatal errors
+	// 9. Check for fatal errors：留下已完成区块，失败后的「重试」直接从断点继续。
 	if fatalErr := bm.HasFatalError(); fatalErr != nil {
-		os.Remove(finalPath)
+		writeCheckpoint(true)
 		return "", fatalErr
 	}
 
 	// 10. Verify final file size
 	stat, err := os.Stat(finalPath)
 	if err != nil || stat.Size() != totalSize {
-		os.Remove(finalPath)
+		removeDownloadCheckpointFiles(finalPath)
 		return "", fmt.Errorf("final size mismatch: expected %d, got %d", totalSize, stat.Size())
 	}
 
-	// 11. Emit final progress
+	// 11. 收尾：文件已完整，检查点不再需要（临时文件由调用方改名）。
+	_ = os.Remove(checkpointPath)
+
+	// 12. Emit final progress
 	taskManager.mu.Lock()
 	task.DownloadedSize = totalSize
 	task.Progress = 100
 	taskManager.mu.Unlock()
-	runtime.EventsEmit(a.ctx, "task_progress", task)
+	a.emitTaskProgress(task)
 
 	fmt.Printf("[ChunkedDownload] Successfully downloaded %s with dynamic workers\n", task.Filename)
 

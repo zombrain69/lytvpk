@@ -76,6 +76,9 @@ func (a *App) ensureConfigPaths() {
 	if a.collectionsPath == "" {
 		a.collectionsPath = filepath.Join(a.configDir, "collections.json")
 	}
+	if a.downloadTasksPath == "" {
+		a.downloadTasksPath = filepath.Join(a.configDir, downloadTaskSnapshotFileName)
+	}
 }
 
 func (a *App) loadConfig() {
@@ -141,6 +144,8 @@ func (a *App) loadConfig() {
 		a.ctrlClickSelectionEnabled = *config.CtrlClickSelectionEnabled
 	}
 	a.uiScale = normalizeUIScale(config.UIScale)
+	a.textSize = normalizeTextSizeKey(config.TextSize)
+	a.readingComfort = normalizeReadingComfortKey(config.ReadingComfort)
 	if config.AddonListGuardEnabled != nil {
 		a.addonListGuardEnabled = *config.AddonListGuardEnabled
 	}
@@ -157,11 +162,43 @@ func (a *App) loadConfig() {
 		value := *config.StrategyGroupFloating
 		a.strategyGroupFloating = &value
 	}
+	if config.AutoDetectWorkshopLink != nil {
+		value := *config.AutoDetectWorkshopLink
+		a.autoDetectWorkshopLink = &value
+	}
+	a.openWithProgram = strings.TrimSpace(config.OpenWithProgram)
+	a.openWithArguments = strings.TrimSpace(config.OpenWithArguments)
+	// 主窗口几何：只接受合理范围，避免手改配置把窗口变成 0×0 或超大。
+	if config.MainWindowWidth != nil && config.MainWindowHeight != nil {
+		width := sanitizeMainWindowDimension(*config.MainWindowWidth)
+		height := sanitizeMainWindowDimension(*config.MainWindowHeight)
+		if width > 0 && height > 0 {
+			a.mainWindowWidth = &width
+			a.mainWindowHeight = &height
+		}
+	}
+	if config.MainWindowMaximised != nil {
+		value := *config.MainWindowMaximised
+		a.mainWindowMaximised = &value
+	}
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
 	a.migrationVersion = config.MigrationVersion
 	a.mu.Unlock()
 
 	log.Printf("已加载配置: 优选IP=%v, 固定IP=%s, 轮换=%v, 迁移版本=%d, meta存储=%v, 浏览器目标=%s", a.workshopPreferredIP, a.workshopFixedIP, a.modRotationConfig, a.migrationVersion, a.workshopMetaEnabled, a.workshopBrowserTarget)
+}
+
+// sanitizeMainWindowDimension 把主窗口宽/高限制在合理范围（返回 0 表示丢弃这个值）。
+// 手改配置或旧版本写坏时不该让窗口变成 0×0 或超出任何屏幕。
+func sanitizeMainWindowDimension(value int) int {
+	const (
+		minSide = 800
+		maxSide = 10000
+	)
+	if value < minSide || value > maxSide {
+		return 0
+	}
+	return value
 }
 
 func (a *App) saveConfig() {
@@ -196,6 +233,25 @@ func (a *App) snapshotConfig() ConfigFile {
 		value := *a.strategyGroupFloating
 		strategyGroupFloating = &value
 	}
+	// autoDetectWorkshopLink 同理：没设置过就保持 nil，前端走默认（开启）。
+	var autoDetectWorkshopLink *bool
+	if a.autoDetectWorkshopLink != nil {
+		value := *a.autoDetectWorkshopLink
+		autoDetectWorkshopLink = &value
+	}
+	// 主窗口几何同样保持"没记录过就是 nil"，让前端继续用 Wails 默认尺寸。
+	var mainWindowWidth, mainWindowHeight *int
+	var mainWindowMaximised *bool
+	if a.mainWindowWidth != nil && a.mainWindowHeight != nil {
+		width := *a.mainWindowWidth
+		height := *a.mainWindowHeight
+		mainWindowWidth = &width
+		mainWindowHeight = &height
+	}
+	if a.mainWindowMaximised != nil {
+		value := *a.mainWindowMaximised
+		mainWindowMaximised = &value
+	}
 
 	return ConfigFile{
 		ModRotationConfig:               a.modRotationConfig,
@@ -217,11 +273,19 @@ func (a *App) snapshotConfig() ConfigFile {
 		BoxSelectionEnabled:             &boxSelectionEnabled,
 		CtrlClickSelectionEnabled:       &ctrlClickSelectionEnabled,
 		UIScale:                         normalizeUIScale(a.uiScale),
+		TextSize:                        normalizeTextSizeKey(a.textSize),
+		ReadingComfort:                  normalizeReadingComfortKey(a.readingComfort),
 		AddonListGuardEnabled:           &addonListGuardEnabled,
 		UnrecordedModLoadOrderPlacement: &unrecordedModLoadOrderPlacement,
 		ConflictPriorityAware:           &conflictPriorityAware,
 		ConflictIgnoreFiles:             conflictIgnoreFiles,
 		StrategyGroupFloating:           strategyGroupFloating,
+		AutoDetectWorkshopLink:          autoDetectWorkshopLink,
+		OpenWithProgram:                 a.openWithProgram,
+		OpenWithArguments:               a.openWithArguments,
+		MainWindowWidth:                 mainWindowWidth,
+		MainWindowHeight:                mainWindowHeight,
+		MainWindowMaximised:             mainWindowMaximised,
 		Theme:                           a.theme,
 		IgnoredVersion:                  a.ignoredVersion,
 		LastUpdateCheckTime:             a.lastUpdateCheckTime,
@@ -302,6 +366,17 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 		value := *config.StrategyGroupFloating
 		a.strategyGroupFloating = &value
 	}
+	if config.AutoDetectWorkshopLink != nil {
+		value := *config.AutoDetectWorkshopLink
+		a.autoDetectWorkshopLink = &value
+	}
+	a.openWithProgram = strings.TrimSpace(config.OpenWithProgram)
+	if a.openWithProgram == "" {
+		// 程序为空时参数没有意义（与 SetOpenWithSettings 的语义一致）。
+		a.openWithArguments = ""
+	} else {
+		a.openWithArguments = strings.TrimSpace(config.OpenWithArguments)
+	}
 	a.defaultDirectory = config.DefaultDirectory
 	a.savedDirectories = cloneSavedDirectories(config.SavedDirectories)
 	a.lastActiveDirectory = config.LastActiveDirectory
@@ -314,6 +389,8 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 		a.ctrlClickSelectionEnabled = *config.CtrlClickSelectionEnabled
 	}
 	a.uiScale = normalizeUIScale(config.UIScale)
+	a.textSize = normalizeTextSizeKey(config.TextSize)
+	a.readingComfort = normalizeReadingComfortKey(config.ReadingComfort)
 	a.theme = config.Theme
 	a.ignoredVersion = config.IgnoredVersion
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
@@ -344,6 +421,29 @@ func normalizeUIScale(value float64) float64 {
 		return defaultUIScale
 	}
 	return value
+}
+
+// 阅读舒适度档位的合法取值，与前端 core/reading-comfort.mjs 一一对应。
+// 这里做一次归一化：手改 config.json 写了不认识的值时回落到标准档，而不是把怪值透传给界面。
+var (
+	textSizeKeys       = map[string]bool{"compact": true, "standard": true, "large": true, "xlarge": true}
+	readingComfortKeys = map[string]bool{"soft": true, "standard": true, "contrast": true}
+)
+
+func normalizeTextSizeKey(value string) string {
+	key := strings.ToLower(strings.TrimSpace(value))
+	if textSizeKeys[key] {
+		return key
+	}
+	return "standard"
+}
+
+func normalizeReadingComfortKey(value string) string {
+	key := strings.ToLower(strings.TrimSpace(value))
+	if readingComfortKeys[key] {
+		return key
+	}
+	return "standard"
 }
 
 func (a *App) MigrateLocalStorageConfig(payload LocalStorageMigrationPayload) error {

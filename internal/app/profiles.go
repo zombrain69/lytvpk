@@ -308,13 +308,10 @@ func (a *App) applyModEnableProfileLocked(profile ModEnableProfile) (ModEnablePr
 		return result, fmt.Errorf("无法读取 addonlist.txt: %w", readErr)
 	}
 
-	if err := a.writeAddonList(path, ordered); err != nil {
+	// 事务化：写盘 → 刷新游戏开关 → 快照同步，失败时整体回到写前状态。
+	if err := a.commitAddonListItemsLocked(path, ordered, a.applyAddonListGameStates); err != nil {
 		return result, fmt.Errorf("无法写入 addonlist.txt: %w", err)
 	}
-	if err := a.syncManagedAddonListSnapshotLocked(path); err != nil {
-		return result, err
-	}
-	a.applyAddonListGameStates()
 
 	if profile.IncludesAutomation {
 		// 快照里的策略组与依赖整体替换本地记录；不合并，保证"应用方案"就是恢复那套状态。

@@ -226,6 +226,11 @@ func copyWorkshopSidecarsWithConflictAction(srcPath, destPath, action string) er
 // replace 覆盖，skip 跳过，cancel 立即停止后续文件。
 func (a *App) MoveVpkFilesWithConflictAction(filePaths []string, destDir, action string) (MoveResult, error) {
 	result := MoveResult{}
+	// 与 MoveVpkFiles 共用同一道闸门（两个入口都可能被界面直接调用）。
+	if err := a.beginFileOperation(); err != nil {
+		return result, err
+	}
+	defer a.endFileOperation()
 	var err error
 	if action, err = normalizeMoveConflictAction(action); err != nil {
 		return result, err

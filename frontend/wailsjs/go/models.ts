@@ -470,6 +470,8 @@ export namespace app {
 	    boxSelectionEnabled?: boolean;
 	    ctrlClickSelectionEnabled?: boolean;
 	    uiScale?: number;
+	    textSize?: string;
+	    readingComfort?: string;
 	    addonListGuardEnabled?: boolean;
 	    unrecordedModLoadOrderPlacement?: string;
 	    theme: string;
@@ -479,6 +481,12 @@ export namespace app {
 	    conflictPriorityAware?: boolean;
 	    conflictIgnoreFiles?: string[];
 	    strategyGroupFloating?: boolean;
+	    autoDetectWorkshopLink?: boolean;
+	    openWithProgram?: string;
+	    openWithArguments?: string;
+	    mainWindowWidth?: number;
+	    mainWindowHeight?: number;
+	    mainWindowMaximised?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ConfigFile(source);
@@ -505,6 +513,8 @@ export namespace app {
 	        this.boxSelectionEnabled = source["boxSelectionEnabled"];
 	        this.ctrlClickSelectionEnabled = source["ctrlClickSelectionEnabled"];
 	        this.uiScale = source["uiScale"];
+	        this.textSize = source["textSize"];
+	        this.readingComfort = source["readingComfort"];
 	        this.addonListGuardEnabled = source["addonListGuardEnabled"];
 	        this.unrecordedModLoadOrderPlacement = source["unrecordedModLoadOrderPlacement"];
 	        this.theme = source["theme"];
@@ -514,6 +524,12 @@ export namespace app {
 	        this.conflictPriorityAware = source["conflictPriorityAware"];
 	        this.conflictIgnoreFiles = source["conflictIgnoreFiles"];
 	        this.strategyGroupFloating = source["strategyGroupFloating"];
+	        this.autoDetectWorkshopLink = source["autoDetectWorkshopLink"];
+	        this.openWithProgram = source["openWithProgram"];
+	        this.openWithArguments = source["openWithArguments"];
+	        this.mainWindowWidth = source["mainWindowWidth"];
+	        this.mainWindowHeight = source["mainWindowHeight"];
+	        this.mainWindowMaximised = source["mainWindowMaximised"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1656,6 +1672,7 @@ export namespace app {
 	    name: string;
 	    path?: string;
 	    location?: string;
+	    target?: string;
 	    message: string;
 	
 	    static createFrom(source: any = {}) {
@@ -1669,6 +1686,7 @@ export namespace app {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.location = source["location"];
+	        this.target = source["target"];
 	        this.message = source["message"];
 	    }
 	}
@@ -1746,6 +1764,40 @@ export namespace app {
 	    }
 	}
 	
+	export class ModStrategyGroupApplyCheck {
+	    groupId: string;
+	    groupName: string;
+	    strategy: string;
+	    memberCount: number;
+	    usableCount: number;
+	    missingCount: number;
+	    missingNames: string[];
+	    blockedCount: number;
+	    blockedNames: string[];
+	    applicable: boolean;
+	    reason?: string;
+	    warnings: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ModStrategyGroupApplyCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groupId = source["groupId"];
+	        this.groupName = source["groupName"];
+	        this.strategy = source["strategy"];
+	        this.memberCount = source["memberCount"];
+	        this.usableCount = source["usableCount"];
+	        this.missingCount = source["missingCount"];
+	        this.missingNames = source["missingNames"];
+	        this.blockedCount = source["blockedCount"];
+	        this.blockedNames = source["blockedNames"];
+	        this.applicable = source["applicable"];
+	        this.reason = source["reason"];
+	        this.warnings = source["warnings"];
+	    }
+	}
 	export class ModStrategyGroupApplyOptions {
 	    strategy: string;
 	    pickKey: string;
@@ -1812,9 +1864,12 @@ export namespace app {
 	export class ModStrategyGroupMissingMembers {
 	    groupId: string;
 	    groupName: string;
+	    parentId?: string;
 	    memberCount: number;
 	    missingCount: number;
 	    missingNames: string[];
+	    subtreeMissingCount?: number;
+	    affectedChildCount?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ModStrategyGroupMissingMembers(source);
@@ -1824,9 +1879,12 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.groupId = source["groupId"];
 	        this.groupName = source["groupName"];
+	        this.parentId = source["parentId"];
 	        this.memberCount = source["memberCount"];
 	        this.missingCount = source["missingCount"];
 	        this.missingNames = source["missingNames"];
+	        this.subtreeMissingCount = source["subtreeMissingCount"];
+	        this.affectedChildCount = source["affectedChildCount"];
 	    }
 	}
 	export class ModStrategyGroupMoveResult {
@@ -2025,6 +2083,20 @@ export namespace app {
 	        this.skippedCount = source["skippedCount"];
 	        this.cancelled = source["cancelled"];
 	        this.errors = source["errors"];
+	    }
+	}
+	export class OpenWithSettings {
+	    program: string;
+	    arguments: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OpenWithSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.program = source["program"];
+	        this.arguments = source["arguments"];
 	    }
 	}
 	export class PanelChapter {
@@ -2729,6 +2801,7 @@ export namespace app {
 	export class UpdateCheckResult {
 	    total_updates: number;
 	    new_detected: number;
+	    skipped_stale: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new UpdateCheckResult(source);
@@ -2738,6 +2811,7 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.total_updates = source["total_updates"];
 	        this.new_detected = source["new_detected"];
+	        this.skipped_stale = source["skipped_stale"];
 	    }
 	}
 	export class UpdateInfo {
@@ -3192,6 +3266,28 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class WorkshopEnrichResult {
+	    requested: number;
+	    updated: number;
+	    unchanged: number;
+	    missing?: string[];
+	    failed?: string[];
+	    errors?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkshopEnrichResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.requested = source["requested"];
+	        this.updated = source["updated"];
+	        this.unchanged = source["unchanged"];
+	        this.missing = source["missing"];
+	        this.failed = source["failed"];
+	        this.errors = source["errors"];
+	    }
 	}
 	
 	export class WorkshopPreviewItem {

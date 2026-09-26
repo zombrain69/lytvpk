@@ -22,6 +22,18 @@ type WorkshopMeta struct {
 	Tags          []string `json:"tags,omitempty"`
 	PrimaryTag    string   `json:"primary_tag,omitempty"`
 	SecondaryTags []string `json:"secondary_tags,omitempty"`
+	// SteamTags 是**工坊官方标签**（Steam 官方接口 tags[].tag，例如 Survivors / Sounds / Single Player）。
+	// 与 Tags 分开保存：Tags 是本项目自己的标签层级，SteamTags 是"作者/玩家填的原始分类"，
+	// 两者语义不同，混在一起会污染自动标签规则。
+	SteamTags []string `json:"steam_tags,omitempty"`
+	// Stats 是工坊官方统计，只在抓取过之后才有值（0 表示没抓过）。
+	Subscriptions         uint32 `json:"subscriptions,omitempty"`
+	Favorited             uint32 `json:"favorited,omitempty"`
+	LifetimeSubscriptions uint32 `json:"lifetime_subscriptions,omitempty"`
+	LifetimeFavorited     uint32 `json:"lifetime_favorited,omitempty"`
+	Views                 uint32 `json:"views,omitempty"`
+	// StatsFetchedAt 记录统计抓取时间，避免反复抓同一批。
+	StatsFetchedAt string `json:"stats_fetched_at,omitempty"`
 }
 
 // GetMetaFilePath 根据VPK路径计算对应的.meta文件路径

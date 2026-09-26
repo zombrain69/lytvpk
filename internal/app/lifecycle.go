@@ -48,6 +48,9 @@ func (a *App) startup(ctx context.Context) {
 		// 稍微延迟一下，确保旧进程完全退出
 		time.Sleep(2 * time.Second)
 
+		// 清理过期（7 天）的下载残留：`temp/*_final` 与断点检查点。
+		a.cleanupStaleDownloadTempFiles()
+
 		// 如果开启了优选IP，启动时自动触发
 		if a.GetWorkshopPreferredIP() {
 			a.mu.RLock()

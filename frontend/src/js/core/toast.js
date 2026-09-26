@@ -1,4 +1,10 @@
 // Toast 通知系统
+//
+// 后端错误在这里统一过一次解释层（core/action-explanation.mjs，对齐 FireAxe
+// ObjectExplanationManager + ExceptionExplanations）：能认出类型就给"人话 + 下一步"，
+// 认不出就原样显示 —— 无论如何都有一句话，不会出现空白提示。
+
+import { explainOperationError, sceneFromErrorType } from "./action-explanation.mjs";
 
 let errorQueue = [];
 let errorTimer = null;
@@ -41,14 +47,17 @@ export function processErrorQueue() {
   if (errors.length === 1) {
     const errorInfo = errors[0];
     let title = errorInfo.type === "VPK解析" ? "解析错误" : errorInfo.type;
+    // 场景从后端给的错误类型推断（输入类 → "输入不合法"，其余 → "操作失败"）。
+    const explained = explainOperationError(errorInfo.message, { scene: sceneFromErrorType(errorInfo.type) });
     let msg = `<strong>${title}</strong><br>`;
 
     if (errorInfo.file) {
       const fileName = errorInfo.file.split(/[\\/]/).pop();
-      msg += `文件名：${fileName}<br>内容：${errorInfo.message}`;
+      msg += `文件名：${fileName}<br>内容：${explained.summary}`;
     } else {
-      msg += `内容：${errorInfo.message}`;
+      msg += `内容：${explained.summary}`;
     }
+    if (explained.hint) msg += `<br>建议：${explained.hint}`;
     showError(msg, 5000);
   } else {
     // 多个错误聚合显示

@@ -45,9 +45,9 @@
    | `structure.samplePaths` | 内部代表性原始路径（≤5 条，已过滤 `addoninfo`/预览图） |
    | `structure.fileCount` / `structure.totalSize` | 内部条目总数与体积合计 |
    | `addonInfo.version` / `desc` / `url` / `hasUpdate` / `chapters` / `mode` | VPK 内 `addoninfo.txt` 的作者声明：版本、描述、主页、是否有新版、战役章节数、模式 |
-   | `workshop.id` / `title` / `author` / `desc` / `tags` / `url` / `previewUrl` | **创意工坊自带资料**（来自 LytVPK 保存的 `.meta`）：工坊标题、作者、简介、工坊标签、详情页与预览图 |
+   | `workshop.id` / `title` / `author` / `desc` / `tags` / `steamTags` / `url` / `previewUrl` | **创意工坊自带资料**（来自 LytVPK 保存的 `.meta`）：工坊标题、作者、简介、LytVPK 标签、**工坊官方标签**（`steamTags`，作者/玩家在工坊上填的原始分类，如 `Survivors` / `Sounds` / `Single Player`）、详情页与预览图 |
    | `workshop.timeUpdated` / `downloadedAt` | 工坊最后更新时间与本地下载时间 |
-   | `workshop.inWatchLater` / `views` / `subscriptions` / `favorited` / `fileType` | 你在 LytVPK 里"稍后再看"保存过的工坊统计（热度、订阅数、收藏数） |
+   | `workshop.inWatchLater` / `views` / `subscriptions` / `favorited` / `fileType` | 工坊统计（浏览量、订阅数、收藏数）：来自"稍后再看"，或你在「设置 → 工坊数据 → 抓取官方标签与统计」里补齐的官方数据 |
    | `management.groups` | 这个 Mod 现在属于哪些策略组 |
    | `management.profiles` | 出现在哪些"启用方案"里 |
    | `management.dependencies` | 你自己声明的依赖（它需要哪些 Mod） |
@@ -251,7 +251,9 @@ LytVPK 的标签直接写在文件名里（`[标签]名字.vpk`，工坊 Mod 写
 1. 先按 `subjectSummary` 聚一遍，找出"同一替换目标"的簇；
 2. 再看 `voiceCharacters`（同角色语音包）、`secondaryTags`（同类内容）、
    `xdrSummary`（同骨骼槽的角色模型）；
-3. 读 `workshop.title` / `workshop.desc` / `workshop.tags` 与 `addonInfo.desc`：
+3. 读 `workshop.title` / `workshop.desc` / `workshop.tags` / `workshop.steamTags` 与 `addonInfo.desc`：
+   `steamTags` 是工坊官方分类，**判断"这是什么类型的 Mod"时优先信它**（例如带 `Survivors` 的通常
+   是角色/幸存者相关，带 `Sounds` 的更可能是音效包）；`tags` 则是 LytVPK 侧整理的层级标签。
    工坊标题/简介/标签里常直接写着"替换 XX""角色模型""武器皮肤"等关键信息；
 4. 检查同一 `title` 或同一 `name` 出现在不同 `key` 的情况（副本 / 多版本）；
 5. 用 `structure.targets` / `structure.samplePaths` 交叉验证：同一目标的替换通常在内部路径里

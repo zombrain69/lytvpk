@@ -116,13 +116,10 @@ func (a *App) ApplyAddonListMerge(sourcePath string, sourceWinsKeys []string) er
 	if !changed {
 		return nil
 	}
-	if err := a.writeAddonListDocument(doc, updatedContent); err != nil {
+	// 事务化提交：写盘 → 刷新内存开关状态 → 快照同步（失败回滚）。
+	if err := a.commitAddonListDocumentLocked(doc, updatedContent, a.applyAddonListGameStates); err != nil {
 		return err
 	}
-	if err := a.syncManagedAddonListSnapshotLocked(doc.path); err != nil {
-		return err
-	}
-	a.applyAddonListGameStates()
 	return nil
 }
 

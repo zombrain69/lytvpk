@@ -892,6 +892,11 @@ func (a *App) CheckArchiveMoveConflicts(filePaths []string, destDir string) ([]F
 // MoveArchiveFiles moves selected archives with replace/skip/cancel conflict actions.
 func (a *App) MoveArchiveFiles(filePaths []string, destDir, action string) (MoveResult, error) {
 	result := MoveResult{}
+	// 归档包移动与 Mod 移动共用同一道闸门。
+	if err := a.beginFileOperation(); err != nil {
+		return result, err
+	}
+	defer a.endFileOperation()
 	var err error
 	if action, err = normalizeMoveConflictAction(action); err != nil {
 		return result, err

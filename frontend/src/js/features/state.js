@@ -23,6 +23,9 @@ export const appState = {
   selectedGameStates: [],
   searchQuery: "",
   selectedFiles: new Set(),
+  // moveClipboard：「待移动」标记（Ctrl+X 设置、Ctrl+V 执行、Esc 取消）。
+  // 与 selectedFiles 分开存：标记之后用户还可以继续点选/改选，粘贴时仍按标记的那批走。
+  moveClipboard: new Set(),
   selectionAnchorPath: "",
   currentDirectory: "",
   isLoading: false,
@@ -112,7 +115,22 @@ function notifyFileSelectionChanged() {
 export function updateSelectedFilesStatus() {
   const selectedEl = document.getElementById("selected-files");
   if (selectedEl) selectedEl.textContent = `已选择: ${appState.selectedFiles.size}`;
+  syncPendingMoveIndicator();
   notifyFileSelectionChanged();
+}
+
+/**
+ * syncPendingMoveIndicator 刷新状态栏的「待移动」角标（Ctrl+X 标记，Ctrl+V / Esc 清除）。
+ *
+ * 抽成函数的原因：真机上出现过"状态栏引用了未声明的变量 → 抛 ReferenceError →
+ * 标记成功后既不提示也不显示"的静默失败；现在只有这一处读写这两个元素。
+ */
+function syncPendingMoveIndicator() {
+  const pendingMoveEl = document.getElementById("pending-move-files");
+  if (!pendingMoveEl) return;
+  const pendingMoveCount = appState.moveClipboard ? appState.moveClipboard.size : 0;
+  pendingMoveEl.textContent = `待移动: ${pendingMoveCount}`;
+  pendingMoveEl.hidden = pendingMoveCount === 0;
 }
 
 // 应用常见桌面文件选择手势：普通点击单选/取消，Ctrl（或 macOS 的
@@ -185,6 +203,7 @@ export function updateStatusBar() {
   if (gameEnabledEl) gameEnabledEl.textContent = `游戏内开启: ${gameEnabledFiles}`;
   if (gameDisabledEl) gameDisabledEl.textContent = `游戏内关闭: ${gameDisabledFiles}`;
   if (selectedEl) selectedEl.textContent = `已选择: ${selectedCount}`;
+  syncPendingMoveIndicator();
   notifyFileSelectionChanged();
 }
 

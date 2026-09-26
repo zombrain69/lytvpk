@@ -1,4 +1,17 @@
 import { showNotification } from "../../core/toast.js";
+import { explainActionAvailability, formatExplanation } from "../../core/action-explanation.mjs";
+import { highlightMatches } from "../file-list/search-match.mjs";
+import { collectCursorKeys, describeResultCursor, nextResultPath, syncCursorHighlight } from "../file-list/result-cursor.mjs";
+import {
+  MODEL_STATS_SEARCH_HELP_VARIANT,
+  buildSearchHelpHtml,
+  buildSearchHelpTitle,
+} from "../file-list/search-help.mjs";
+import {
+  describeModelStatsSearch,
+  modelStatsHighlightSpec,
+  searchModelStatsItems,
+} from "./model-stats-search.mjs";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
 
 let EventsOn;
@@ -18,7 +31,41 @@ let scanEventSettled = false;
 let modalSessionId = 0;
 let currentView = "mods";
 let currentPage = 1;
+// 当前检索词与最近一次检索结果（计数、高亮、空状态都用它）。
+let currentQuery = "";
+let currentSearch = null;
+// 键盘光标（↑↓ 移动、Enter 展开当前行），与 Mod 列表 / 归档面板同一套。
+let currentCursorKey = "";
 let viewSwitchTimer = 0;
+
+// 说明书的"点外部 / Esc 关闭"只绑定一次：工具栏每次输入都会重画，
+// 在这里挂 document 监听就会越叠越多，所以事件里按 id 现查元素。
+let modelStatsHelpDismissBound = false;
+
+function bindModelStatsHelpDismissOnce() {
+  if (modelStatsHelpDismissBound) return;
+  modelStatsHelpDismissBound = true;
+  const closeHelp = () => {
+    document.getElementById("model-stats-search-help-popover")?.classList.add("hidden");
+    const btn = document.getElementById("model-stats-search-help-btn");
+    btn?.setAttribute("aria-expanded", "false");
+    btn?.classList.remove("is-active");
+  };
+  document.addEventListener("click", (event) => {
+    const popover = document.getElementById("model-stats-search-help-popover");
+    const btn = document.getElementById("model-stats-search-help-btn");
+    if (!popover || !btn || popover.classList.contains("hidden")) return;
+    if (popover.contains(event.target) || btn.contains(event.target)) return;
+    closeHelp();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const popover = document.getElementById("model-stats-search-help-popover");
+    if (!popover || popover.classList.contains("hidden")) return;
+    event.stopPropagation();
+    closeHelp();
+  });
+}
 
 const MODEL_STATS_VIEW_MODS = "mods";
 const MODEL_STATS_VIEW_MODELS = "models";
@@ -46,6 +93,8 @@ export async function openModelStatsScanModal() {
   activeScanId = "";
   currentView = MODEL_STATS_VIEW_MODS;
   currentPage = 1;
+  currentQuery = "";
+  currentSearch = null;
   clearViewSwitchTimer();
   awaitingScanStart = false;
   scanEventSettled = false;
@@ -192,19 +241,33 @@ function renderResults(result) {
   const footer = getFooter();
   if (!body || !footer) return;
 
-  const items = result?.items || [];
+  const allItems = result?.items || [];
+  // 文本检索与 Mod 列表同一套语法（普通词 / 引号短语 / -排除 / re: / tag: 扫描状态）。
+  const searched = searchModelStatsItems(allItems, currentQuery);
+  currentSearch = searched;
+  const items = searched.items;
   const rows = getCurrentViewRows(items);
   const pagination = paginateRows(rows);
   body.replaceChildren();
 
   const shell = createEl("div", "model-stats-results");
 
-  if (items.length === 0) {
+  if (allItems.length === 0) {
     shell.appendChild(createEmptyState("没有可扫描的启用或创意工坊 Mod"));
   } else {
     shell.appendChild(createViewToolbar());
     if (rows.length === 0) {
-      shell.appendChild(createEmptyState("没有可展示的模型明细"));
+      // 正则写错时说"没有匹配"会误导：直接说清是正则的问题（计数栏也写了原因）。
+      const invalidRegex = currentSearch?.regexInvalid || "";
+      shell.appendChild(
+        createEmptyState(
+          invalidRegex
+            ? `正则表达式无效：${invalidRegex}`
+            : currentQuery.trim()
+              ? `没有匹配「${currentQuery.trim()}」的 Mod`
+              : "没有可展示的模型明细",
+        ),
+      );
     } else {
       shell.appendChild(createResultTable(pagination.rows, pagination.startIndex));
     }
@@ -232,7 +295,84 @@ function createViewToolbar() {
     "model-stats-sort-note",
     getCurrentViewSortNote(),
   );
-  toolbar.append(toggle, note);
+  const searchWrap = createEl("div", "model-stats-search-wrap");
+  const search = createEl("input", "model-stats-search");
+  search.type = "search";
+  search.placeholder = "搜索 Mod / 模型路径（支持 -排除 / re: 正则 / tag:状态）";
+  search.value = currentQuery;
+  search.setAttribute("aria-label", "搜索模型统计结果");
+  // 悬停提示与 `?` 浮层都和 Mod 列表同源（search-help.mjs），只是字段与 tag: 含义不同。
+  search.title = buildSearchHelpTitle(MODEL_STATS_SEARCH_HELP_VARIANT);
+  const helpBtn = createEl("button", "search-help-btn", "?");
+  helpBtn.type = "button";
+  helpBtn.id = "model-stats-search-help-btn";
+  helpBtn.title = "搜索语法说明书";
+  helpBtn.setAttribute("aria-label", "搜索语法说明书");
+  helpBtn.setAttribute("aria-expanded", "false");
+  const helpPopover = createEl("div", "search-help-popover hidden");
+  helpPopover.id = "model-stats-search-help-popover";
+  helpPopover.innerHTML = buildSearchHelpHtml(MODEL_STATS_SEARCH_HELP_VARIANT);
+  const setHelpOpen = (open) => {
+    helpPopover.classList.toggle("hidden", !open);
+    helpBtn.setAttribute("aria-expanded", String(open));
+    helpBtn.classList.toggle("is-active", open);
+  };
+  helpBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setHelpOpen(helpPopover.classList.contains("hidden"));
+  });
+  bindModelStatsHelpDismissOnce();
+  searchWrap.append(search, helpBtn, helpPopover);
+  search.oninput = () => {
+    currentQuery = search.value;
+    currentPage = 1;
+    currentCursorKey = "";
+    // 重画会换掉工具栏，所以画完把焦点与光标放回搜索框（否则打第二个字就丢焦点）。
+    renderResults(currentResult);
+    requestAnimationFrame(() => {
+      const next = document.querySelector(".model-stats-search");
+      next?.focus();
+      next?.setSelectionRange(currentQuery.length, currentQuery.length);
+    });
+  };
+  // ↑ / ↓ 在结果里移动光标（焦点仍在搜索框），Enter 展开 / 收起当前行，Esc 清空检索。
+  search.addEventListener("keydown", (event) => {
+    const list = document.querySelector(".model-stats-list");
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const keys = collectCursorKeys(list, "[data-cursor-key]");
+      currentCursorKey = nextResultPath(keys, currentCursorKey, event.key === "ArrowDown" ? 1 : -1);
+      syncCursorHighlight(list, "[data-cursor-key]", currentCursorKey);
+      updateModelStatsCountText();
+      return;
+    }
+    if (event.key === "Enter") {
+      const target = list?.querySelector(`[data-cursor-key="${escapeAttrSelector(currentCursorKey)}"]`);
+      // 三种视图的可展开表头都已经带 role="button"（bindExpandableHeader），不必按类名各写一遍。
+      const header = target?.querySelector('[role="button"]');
+      if (!header) return;
+      event.preventDefault();
+      header.click();
+      return;
+    }
+    if (event.key === "Escape" && search.value) {
+      search.value = "";
+      currentQuery = "";
+      currentCursorKey = "";
+      currentPage = 1;
+      renderResults(currentResult);
+    }
+  });
+
+  const count = createEl("span", "model-stats-search-count", describeModelStatsSearch({
+    total: currentSearch?.total ?? 0,
+    matched: currentSearch?.matched ?? 0,
+    query: currentQuery,
+    regexInvalid: currentSearch?.regexInvalid || "",
+  }));
+  count.id = "model-stats-search-count";
+
+  toolbar.append(toggle, searchWrap, count, note);
   return toolbar;
 }
 
@@ -271,11 +411,37 @@ function createTableList(rows, startIndex) {
   const list = createEl("div", "model-stats-list");
   rows.forEach((item, index) => {
     const rank = startIndex + index + 1;
-    list.appendChild(
-      createResultRow(item, rank),
-    );
+    const row = createResultRow(item, rank);
+    // 三个视图的行形状不同（Mod / 模型 / Strip Group），用"整表序号"当光标键：
+    // 同一页内稳定，切换检索词或换页时由调用方重置光标。
+    row.dataset.cursorKey = `model-stats-row-${startIndex + index}`;
+    list.appendChild(row);
   });
+  syncCursorHighlight(list, "[data-cursor-key]", currentCursorKey);
   return list;
+}
+
+/** escapeAttrSelector 把值安全地放进属性选择器（路径里有引号 / 反斜杠时不能直接拼）。 */
+function escapeAttrSelector(value) {
+  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+/**
+ * updateModelStatsCountText 只刷新命中计数那一小块：
+ * 键盘移动光标时用它，避免整块重画把搜索框焦点顶掉。
+ */
+function updateModelStatsCountText() {
+  const count = document.getElementById("model-stats-search-count");
+  if (!count) return;
+  const base = describeModelStatsSearch({
+    total: currentSearch?.total ?? 0,
+    matched: currentSearch?.matched ?? 0,
+    query: currentQuery,
+    regexInvalid: currentSearch?.regexInvalid || "",
+  });
+  const keys = collectCursorKeys(document.querySelector(".model-stats-list"), "[data-cursor-key]");
+  const cursorText = describeResultCursor(keys, currentCursorKey, "Enter 展开 / 收起");
+  count.textContent = [base, cursorText].filter(Boolean).join(" · ");
 }
 
 function createResultRow(item, rank) {
@@ -358,9 +524,10 @@ function createModResultRow(item, rankNumber) {
 
   const rank = createEl("span", "model-stats-rank", String(rankNumber));
   const main = createEl("div", "model-stats-mod-main");
+  const highlightSpec = modelStatsHighlightSpec(currentSearch);
   main.append(
-    createTextWithTitle("strong", "model-stats-mod-title", item.title || item.name || "未知 Mod"),
-    createTextWithTitle("span", "model-stats-mod-file", item.name || item.path || ""),
+    createHighlightedText("strong", "model-stats-mod-title", item.title || item.name || "未知 Mod", highlightSpec),
+    createHighlightedText("span", "model-stats-mod-file", item.name || item.path || "", highlightSpec),
   );
 
   const chevron = createEl("span", "model-stats-chevron");
@@ -403,8 +570,8 @@ function createModelResultRow(row, rankNumber) {
   const rank = createEl("span", "model-stats-rank", String(rankNumber));
   const modRef = createEl("div", "model-stats-row-mod-ref");
   modRef.append(
-    createTextWithTitle("strong", "", row.mod.title || row.mod.name || "未知 Mod"),
-    createTextWithTitle("span", "", row.mod.name || row.mod.path || ""),
+    createHighlightedText("strong", "", row.mod.title || row.mod.name || "未知 Mod", modelStatsHighlightSpec(currentSearch)),
+    createHighlightedText("span", "", row.mod.name || row.mod.path || "", modelStatsHighlightSpec(currentSearch)),
   );
   const main = createEl("div", "model-stats-mod-main");
   main.append(
@@ -450,8 +617,8 @@ function createStripGroupResultRow(row, rankNumber) {
   const rank = createEl("span", "model-stats-rank", String(rankNumber));
   const main = createEl("div", "model-stats-mod-main");
   main.append(
-    createTextWithTitle("strong", "model-stats-mod-title", row.mod.title || row.mod.name || "未知 Mod"),
-    createTextWithTitle("span", "model-stats-mod-file", row.mod.name || row.mod.path || ""),
+    createHighlightedText("strong", "model-stats-mod-title", row.mod.title || row.mod.name || "未知 Mod", modelStatsHighlightSpec(currentSearch)),
+    createHighlightedText("span", "model-stats-mod-file", row.mod.name || row.mod.path || "", modelStatsHighlightSpec(currentSearch)),
   );
 
   const modelRef = createEl("div", "model-stats-row-mod-ref");
@@ -508,7 +675,8 @@ function createDisableAction(mod) {
 }
 
 function canDisableMod(mod) {
-  return Boolean(mod?.path) && mod.location === "root" && !isModDisabled(mod);
+  // 「能不能禁用」与「为什么不能」共用同一层判断：按钮状态和提示文案不会各说一套。
+  return explainActionAvailability({ action: "disable-file", file: mod }).available && !isModDisabled(mod);
 }
 
 function isModDisabled(mod) {
@@ -522,8 +690,12 @@ function getDisableButtonText(mod) {
 
 function getDisableButtonTitle(mod) {
   if (isModDisabled(mod)) return "这个 Mod 已移动到 disabled 目录";
-  if (!mod?.path) return "缺少文件路径，无法禁用";
-  if (mod.location !== "root") return "只能直接禁用 addons 根目录中的 Mod";
+  // 灰掉的原因走统一的解释层（core/action-explanation.mjs）：
+  // 避免"按钮灰了但没人知道为什么"。
+  const availability = explainActionAvailability({ action: "disable-file", file: mod });
+  if (!availability.available) {
+    return `不能禁用：${formatExplanation(availability)}`;
+  }
   return "将这个 Mod 移动到 disabled 目录";
 }
 
@@ -865,6 +1037,22 @@ function createEl(tag, className = "", text = "") {
 function createTextWithTitle(tag, className = "", text = "") {
   const element = createEl(tag, className, text);
   if (text !== "") element.title = text;
+  return element;
+}
+
+/**
+ * createHighlightedText 与 createTextWithTitle 一样，但有检索词时把命中片段包成
+ * `<mark class="search-hit">`（highlightMatches 自己负责转义，与 Mod 列表同一套视觉）。
+ */
+function createHighlightedText(tag, className, text, highlightSpec) {
+  const value = String(text ?? "");
+  const element = createEl(tag, className, "");
+  if (highlightSpec) {
+    element.innerHTML = highlightMatches(value, highlightSpec);
+  } else {
+    element.textContent = value;
+  }
+  if (value !== "") element.title = value;
   return element;
 }
 

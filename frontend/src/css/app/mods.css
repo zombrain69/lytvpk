@@ -600,6 +600,51 @@
   line-height: 1.6;
 }
 
+/* 新建组 / 搜索组 的分区标签与搜索行：让"名称输入框"与"搜索框"一眼可分。 */
+.strategy-group-block-label {
+  margin: 0 0 0.35rem;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+
+.strategy-group-search-row {
+  /* `?` 说明书浮层相对这一行定位 */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin: 0.6rem 0 0;
+}
+
+.strategy-group-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--bg-surface));
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.strategy-group-visible {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* 批量工具条的"为什么不能点"提示：没勾选时是提醒，勾上后变成状态。 */
+.strategy-group-batch-hint {
+  flex: 1 0 100%;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.strategy-group-batch-hint.is-ready {
+  color: var(--success, #3fb950);
+}
+
 /* 浮动窗口的通用样式在 app/modals-details.css 的 .modal.is-floating（所有管理窗口共用）。 */
 /* 组列表：一行一个组，操作按钮换行排布，窗口拉宽后能一眼看更多组。 */
 .strategy-group-list {
@@ -610,6 +655,65 @@
 
 #strategy-group-modal .settings-profile-item {
   flex-wrap: wrap;
+}
+
+/* 拖动排序：整行可拖动，落点用边框提示（放进组里 / 排到前后 / 回到顶层）。 */
+.strategy-group-list [data-group-row] {
+  cursor: grab;
+}
+
+.strategy-group-list [data-group-row].is-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.strategy-group-list [data-group-row].is-drop-inside {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.strategy-group-list [data-group-row].is-drop-before {
+  box-shadow: inset 0 3px 0 0 var(--primary);
+}
+
+.strategy-group-list [data-group-row].is-drop-after {
+  box-shadow: inset 0 -3px 0 0 var(--primary);
+}
+
+.strategy-group-drag-hint {
+  flex: 1 0 100%;
+  margin: 0.35rem 0 0.5rem;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+/* 底部"回到顶层"落点：平时是一条安静的提示，拖动经过时高亮。 */
+.strategy-group-drop-root {
+  /* 粘在滚动区底部：组一多就必须滚到最底才能用它，粘住后随时可点。 */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.strategy-group-drop-root.is-drop-active {
+  border-color: var(--primary);
+  border-style: solid;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.strategy-group-list.is-drop-root {
+  outline: 2px dashed var(--primary);
+  outline-offset: 4px;
 }
 
 /* 「展开成员」后的成员明细：占满整行，行内按钮复用分组建议的样式。 */
@@ -1551,7 +1655,7 @@
 .load-order-preview-state {
   padding: 2px 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   white-space: nowrap;
 }
 
@@ -3901,7 +4005,7 @@
 
 .card-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.4;
   margin-bottom: 4px;
   white-space: nowrap;
@@ -3911,7 +4015,7 @@
 }
 
 .card-filename {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   margin-bottom: auto;
   white-space: nowrap;
@@ -3957,7 +4061,7 @@
 }
 
 .card-actions .action-btn .btn-text {
-  font-size: 12px !important;
+  font-size: 0.75rem !important !important;
   font-weight: 500 !important;
   display: inline-block !important;
 }

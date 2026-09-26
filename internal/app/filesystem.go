@@ -27,8 +27,22 @@ func (a *App) SelectDirectory() (string, error) {
 	return directory, nil
 }
 
-// AutoDiscoverAddons 自动搜索addons目录
+// isExistingDirectory 判断路径存在且是目录（自动发现用的注入点默认实现）。
+func isExistingDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// AutoDiscoverAddons 自动搜索addons目录。
+// 顺序对齐 FireAxe `GamePathUtils.TryFind`（`GamePathUtils.cs:33-81`）：
+// 先走 Steam 注册表拿到安装目录，再顺着 `libraryfolders.vdf` 登记的库找游戏；
+// 注册表读不到（绿色版 / 非 Steam 安装）时，退回"盘符 × 常见相对路径"扫描。
 func (a *App) AutoDiscoverAddons() (string, error) {
+	if found := findAddonsInSteamLibraries(readSteamInstallPathFromRegistry(), os.ReadFile, isExistingDirectory); found != "" {
+		log.Printf("自动发现：按 Steam 注册表 / 库清单找到 %s", found)
+		return found, nil
+	}
+
 	// 常见的相对路径
 	commonPaths := []string{
 		"Steam/steamapps/common/Left 4 Dead 2/left4dead2/addons",
@@ -52,9 +66,7 @@ func (a *App) AutoDiscoverAddons() (string, error) {
 	for _, drive := range drives {
 		for _, path := range commonPaths {
 			fullPath := filepath.Join(drive, path)
-			// 检查目录是否存在
-			info, err := os.Stat(fullPath)
-			if err == nil && info.IsDir() {
+			if isExistingDirectory(fullPath) {
 				return fullPath, nil
 			}
 		}
@@ -75,6 +87,11 @@ type MoveResult struct {
 // MoveVpkFiles 移动多个VPK文件及其关联的sidecar文件到指定目录
 func (a *App) MoveVpkFiles(filePaths []string, destDir string) (MoveResult, error) {
 	result := MoveResult{}
+	// 同一时间只允许一个移动 / 删除 / 打包操作，避免两批操作互相插队（对齐 FireAxe BlockMove）。
+	if err := a.beginFileOperation(); err != nil {
+		return result, err
+	}
+	defer a.endFileOperation()
 
 	// 确保目标目录存在
 	if _, err := os.Stat(destDir); os.IsNotExist(err) {
@@ -84,6 +101,12 @@ func (a *App) MoveVpkFiles(filePaths []string, destDir string) (MoveResult, erro
 	}
 
 	for _, srcPath := range filePaths {
+		// 源文件必须在受管目录内；目标目录不设限（"移动到…"允许用户自己选备份盘等目录）。
+		if problem := managedFilePathProblem(a.rootDirectorySnapshot(), srcPath); problem != "" {
+			result.FailCount++
+			result.Errors = append(result.Errors, fmt.Sprintf("跳过 %s: %s", filepath.Base(srcPath), problem))
+			continue
+		}
 		fileName := filepath.Base(srcPath)
 		destPath := filepath.Join(destDir, fileName)
 
@@ -307,6 +330,14 @@ func (a *App) OpenFileLocation(filePath string) error {
 		return fmt.Errorf("文件不存在: %s", cleanPath)
 	}
 
+	// 配置了外部打开程序就交给它（对齐 FireAxe v0.7.2 的 process file customization）。
+	// 没配置时 ok=false，下面的系统默认逻辑保持原样。
+	if customCmd, ok, err := a.openWithCommandForFile(cleanPath); err != nil {
+		return err
+	} else if ok {
+		return startOpenWithCommand(customCmd)
+	}
+
 	// 根据操作系统打开文件管理器
 	var cmd *exec.Cmd
 	switch rt.GOOS {
@@ -346,6 +377,11 @@ func (a *App) DeleteVPKFile(filePath string) error {
 	if filePath == "" {
 		return fmt.Errorf("文件路径为空")
 	}
+	// 路径守卫（对齐 FireAxe FileOutOfAddonRootException）：只动受管目录里的文件，
+	// 避免一个过期路径把不属于本工具管的文件删掉。
+	if problem := managedFilePathProblem(a.rootDirectorySnapshot(), filePath); problem != "" {
+		return fmt.Errorf("%s", problem)
+	}
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -380,6 +416,11 @@ func (a *App) DeleteVPKFiles(filePaths []string) error {
 	if len(filePaths) == 0 {
 		return fmt.Errorf("文件列表为空")
 	}
+	// 与移动/打包共用同一道闸门：删除途中不允许另一批文件操作插队。
+	if err := a.beginFileOperation(); err != nil {
+		return err
+	}
+	defer a.endFileOperation()
 
 	var errs []string
 	for _, filePath := range filePaths {

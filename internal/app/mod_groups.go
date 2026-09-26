@@ -74,7 +74,9 @@ func groupMemberDisplayName(member ModStrategyGroupMember) string {
 }
 
 type modStrategyGroupStore struct {
-	Groups []ModStrategyGroup `json:"groups"`
+	// SchemaVersion 见 local_store_schema.go：缺省/0 视作 v1，读时迁移、写时盖章。
+	SchemaVersion int                `json:"schemaVersion,omitempty"`
+	Groups        []ModStrategyGroup `json:"groups"`
 }
 
 func normalizeModStrategyGroupStrategy(value string) (string, error) {
@@ -112,6 +114,7 @@ func (a *App) readModStrategyGroupStore() (modStrategyGroupStore, error) {
 		}
 		return modStrategyGroupStore{}, fmt.Errorf("无法读取策略组列表: %w", err)
 	}
+	migrateModStrategyGroupStore(&store, store.SchemaVersion)
 	return store, nil
 }
 
@@ -123,6 +126,7 @@ func (a *App) writeModStrategyGroupStore(store modStrategyGroupStore) error {
 	if store.Groups == nil {
 		store.Groups = []ModStrategyGroup{}
 	}
+	store.SchemaVersion = localStoreWriteVersion(store.SchemaVersion)
 	a.backupLocalStoreFileIfNeeded(path)
 	return writeJSONFile(a.configDir, path, store)
 }
@@ -193,7 +197,91 @@ func (a *App) CaptureModStrategyGroup(name string, description string, strategy 
 	if err != nil {
 		return ModStrategyGroup{}, err
 	}
+	// 重名自动加序号（对齐 FireAxe AddonNodeContainerService.GetUniqueChildName）。
+	group.Name = uniqueModStrategyGroupName(modStrategyGroupNames(store.Groups), group.Name)
 	store.Groups = append(store.Groups, group)
+	if err := a.writeModStrategyGroupStore(store); err != nil {
+		return ModStrategyGroup{}, fmt.Errorf("无法保存策略组: %w", err)
+	}
+	return group, nil
+}
+
+// CreateModStrategyGroupChild 在指定策略组下面新建一个子组（快捷入口用）。
+//
+// 与 CaptureModStrategyGroup 的区别：
+//   - 允许**没有成员**（先建结构，再用"加入策略组…"把 Mod 放进去）；
+//   - 自动把 ParentID 设成 parentID，并复用同一套层级校验（无环、最多 4 层）。
+func (a *App) CreateModStrategyGroupChild(parentID string, name string, strategy string, memberPaths []string) (ModStrategyGroup, error) {
+	parentID = strings.TrimSpace(parentID)
+	if parentID == "" {
+		return ModStrategyGroup{}, fmt.Errorf("缺少上级分组 ID")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ModStrategyGroup{}, fmt.Errorf("策略组名称不能为空")
+	}
+	// 快捷入口不强制选策略：默认"互斥单选"（与分组建议 / 建组入口的默认一致）。
+	if strings.TrimSpace(strategy) == "" {
+		strategy = modStrategyGroupSingle
+	}
+	normalizedStrategy, err := normalizeModStrategyGroupStrategy(strategy)
+	if err != nil {
+		return ModStrategyGroup{}, err
+	}
+
+	rootDir := a.rootDirectorySnapshot()
+	members := make([]ModStrategyGroupMember, 0, len(memberPaths))
+	seen := make(map[string]struct{}, len(memberPaths))
+	for _, rawPath := range memberPaths {
+		path := strings.TrimSpace(rawPath)
+		if path == "" || rootDir == "" {
+			continue
+		}
+		member, memberErr := modStrategyGroupMemberFromPath(rootDir, path)
+		if memberErr != nil {
+			continue
+		}
+		if _, duplicate := seen[member.Key]; duplicate {
+			continue
+		}
+		seen[member.Key] = struct{}{}
+		members = append(members, member)
+	}
+
+	now := time.Now().Format(time.RFC3339)
+	group := ModStrategyGroup{
+		ID:          newLocalRecordID(),
+		Name:        name,
+		Strategy:    normalizedStrategy,
+		Members:     members,
+		ParentID:    parentID,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	a.groupsMu.Lock()
+	defer a.groupsMu.Unlock()
+	store, err := a.readModStrategyGroupStore()
+	if err != nil {
+		return ModStrategyGroup{}, err
+	}
+	found := false
+	for _, existing := range store.Groups {
+		if existing.ID == parentID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ModStrategyGroup{}, fmt.Errorf("上级分组不存在，可能已被删除")
+	}
+	// 与建组一致：重名自动加序号。
+	group.Name = uniqueModStrategyGroupName(modStrategyGroupNames(store.Groups), group.Name)
+	// 先放进列表再校验：校验器需要能在列表里看到这个新组（检查成环 / 深度）。
+	store.Groups = append(store.Groups, group)
+	if err := validateModStrategyGroupParent(store.Groups, group.ID, parentID); err != nil {
+		return ModStrategyGroup{}, err
+	}
 	if err := a.writeModStrategyGroupStore(store); err != nil {
 		return ModStrategyGroup{}, fmt.Errorf("无法保存策略组: %w", err)
 	}
@@ -535,12 +623,9 @@ func (a *App) ApplyModStrategyGroup(id string, options ModStrategyGroupApplyOpti
 	if !changed {
 		return result, nil
 	}
-	if err := a.writeAddonListDocument(doc, updated); err != nil {
-		return ModStrategyGroupApplyResult{}, fmt.Errorf("无法写入 addonlist.txt: %w", err)
-	}
-	a.applyAddonListGameStates()
-	if err := a.syncManagedAddonListSnapshotLocked(doc.path); err != nil {
-		return ModStrategyGroupApplyResult{}, err
+	// 事务化提交：写盘 → 刷新内存开关状态 → 快照同步；快照同步失败会回滚文件并重跑派生步骤。
+	if err := a.commitAddonListDocumentLocked(doc, updated, a.applyAddonListGameStates); err != nil {
+		return ModStrategyGroupApplyResult{}, fmt.Errorf("应用策略组失败: %w", err)
 	}
 	return result, nil
 }

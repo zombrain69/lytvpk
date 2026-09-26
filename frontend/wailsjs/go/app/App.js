@@ -78,6 +78,10 @@ export function CheckArchiveMoveConflicts(arg1, arg2) {
   return window['go']['app']['App']['CheckArchiveMoveConflicts'](arg1, arg2);
 }
 
+export function CheckClipboardWorkshopLink() {
+  return window['go']['app']['App']['CheckClipboardWorkshopLink']();
+}
+
 export function CheckConflicts() {
   return window['go']['app']['App']['CheckConflicts']();
 }
@@ -92,6 +96,10 @@ export function CheckConflictsWithOptions(arg1) {
 
 export function CheckFileMoveConflicts(arg1, arg2) {
   return window['go']['app']['App']['CheckFileMoveConflicts'](arg1, arg2);
+}
+
+export function CheckModStrategyGroupApply(arg1, arg2) {
+  return window['go']['app']['App']['CheckModStrategyGroupApply'](arg1, arg2);
 }
 
 export function CheckModUpdates() {
@@ -136,6 +144,10 @@ export function ConnectToServer(arg1) {
 
 export function CreateAddonListBackup() {
   return window['go']['app']['App']['CreateAddonListBackup']();
+}
+
+export function CreateModStrategyGroupChild(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['CreateModStrategyGroupChild'](arg1, arg2, arg3, arg4);
 }
 
 export function CreateModStrategyGroupFromKeys(arg1, arg2, arg3, arg4) {
@@ -204,6 +216,14 @@ export function EnableAllMissingModDependencies() {
 
 export function EnableModDependencies(arg1) {
   return window['go']['app']['App']['EnableModDependencies'](arg1);
+}
+
+export function EnrichAllWorkshopMetadata() {
+  return window['go']['app']['App']['EnrichAllWorkshopMetadata']();
+}
+
+export function EnrichWorkshopMetadata(arg1) {
+  return window['go']['app']['App']['EnrichWorkshopMetadata'](arg1);
 }
 
 export function ExportGroupingCatalog(arg1) {
@@ -418,6 +438,10 @@ export function GetModelStatsScanState() {
   return window['go']['app']['App']['GetModelStatsScanState']();
 }
 
+export function GetOpenWithSettings() {
+  return window['go']['app']['App']['GetOpenWithSettings']();
+}
+
 export function GetPanelMapUploadTasks() {
   return window['go']['app']['App']['GetPanelMapUploadTasks']();
 }
@@ -582,6 +606,10 @@ export function InvalidateConflictRecheck(arg1) {
   return window['go']['app']['App']['InvalidateConflictRecheck'](arg1);
 }
 
+export function IsFileOperationBusy() {
+  return window['go']['app']['App']['IsFileOperationBusy']();
+}
+
 export function IsSelectingIP() {
   return window['go']['app']['App']['IsSelectingIP']();
 }
@@ -702,6 +730,10 @@ export function ParseWorkshopID(arg1) {
   return window['go']['app']['App']['ParseWorkshopID'](arg1);
 }
 
+export function PauseDownloadTask(arg1) {
+  return window['go']['app']['App']['PauseDownloadTask'](arg1);
+}
+
 export function PrepareGroupingWorkspace() {
   return window['go']['app']['App']['PrepareGroupingWorkspace']();
 }
@@ -750,6 +782,10 @@ export function RenameVPKFile(arg1, arg2) {
   return window['go']['app']['App']['RenameVPKFile'](arg1, arg2);
 }
 
+export function ReorderModStrategyGroups(arg1) {
+  return window['go']['app']['App']['ReorderModStrategyGroups'](arg1);
+}
+
 export function RepairVPKIntegrity(arg1) {
   return window['go']['app']['App']['RepairVPKIntegrity'](arg1);
 }
@@ -780,6 +816,10 @@ export function RestoreAddonListBackup(arg1) {
 
 export function RestoreProblemModScan() {
   return window['go']['app']['App']['RestoreProblemModScan']();
+}
+
+export function ResumeDownloadTask(arg1) {
+  return window['go']['app']['App']['ResumeDownloadTask'](arg1);
 }
 
 export function RetryDownloadTask(arg1) {
@@ -936,6 +976,10 @@ export function SetModStrategyGroupMembers(arg1, arg2) {
 
 export function SetModStrategyGroupTier(arg1, arg2) {
   return window['go']['app']['App']['SetModStrategyGroupTier'](arg1, arg2);
+}
+
+export function SetOpenWithSettings(arg1, arg2) {
+  return window['go']['app']['App']['SetOpenWithSettings'](arg1, arg2);
 }
 
 export function SetRootDirectory(arg1) {

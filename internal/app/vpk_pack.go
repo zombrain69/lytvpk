@@ -45,6 +45,11 @@ func (a *App) SelectVPKPackSourceDirectory() (string, error) {
 // PackVPKDirectory packs all regular files under sourceDir into a single-file v1 VPK
 // written to outputDir, named after the source directory.
 func (a *App) PackVPKDirectory(sourceDir string, outputDir string, outputIsAddons bool) (VPKPackResult, error) {
+	// 打包会长时间读磁盘：与移动 / 删除共用同一道闸门。
+	if err := a.beginFileOperation(); err != nil {
+		return VPKPackResult{}, err
+	}
+	defer a.endFileOperation()
 	return a.packVPKDirectoryWithProgress(sourceDir, outputDir, outputIsAddons, nil)
 }
 

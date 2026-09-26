@@ -12,6 +12,7 @@ import {
   formatGroupChipTitle,
   formatGroupFilterLabel,
   formatGroupMissingNotice,
+  formatGroupSubtreeMissingNotice,
   formatGroupOptionIndent,
   formatGroupOptionLabel,
   formatGroupStrategy,
@@ -259,4 +260,17 @@ test("建议文案：摘要、置信度、成员勾选与创建提示", () => {
     formatSuggestionCreateSummary(suggestion, new Set(["a.vpk"])),
     "将创建包含 1 / 2 个 Mod 的策略组",
   );
+});
+
+// 对齐 FireAxe 的 AddonChildrenProblem：父组自己的成员不缺，但子组有缺失时，
+// 父组行也要给出汇总提示，否则用户会以为整棵树都健康。
+test("formatGroupSubtreeMissingNotice 汇总子组缺失", () => {
+  assert.equal(formatGroupSubtreeMissingNotice(0, 0), "");
+  assert.equal(formatGroupSubtreeMissingNotice(undefined, undefined), "");
+  assert.equal(
+    formatGroupSubtreeMissingNotice(3, 2),
+    "子组里有 3 个缺失文件（涉及 2 个子组）：展开子组即可看到",
+  );
+  // 只有数量、没有子组数时也能给出可读文案。
+  assert.equal(formatGroupSubtreeMissingNotice(1, 0), "子组里有 1 个缺失文件：展开子组即可看到");
 });

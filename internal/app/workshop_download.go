@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"vpk-manager/internal/network"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 var downloadTaskSequence atomic.Uint64
@@ -73,8 +71,19 @@ func (a *App) StartDownloadTask(details WorkshopFileDetails, useOptimizedIP bool
 	}
 
 	taskManager.mu.Lock()
+	// 入队去重（对齐 FireAxe WorkshopVpkAddon.cs:428-450 的 DownloadCheckTask 复用）：
+	// 同一件工坊作品/同一个目标文件已有活跃任务时，直接复用，不重复下载。
+	if duplicate := findActiveDuplicateDownloadTaskLocked(downloadTaskDedupeKey(task.WorkshopID, task.FileUrl, task.Filename)); duplicate != nil {
+		taskManager.mu.Unlock()
+		cancel()
+		log.Printf("下载任务已在队列中，复用已有任务 %s（%s）", duplicate.ID, duplicate.Title)
+		return duplicate.ID
+	}
 	taskManager.tasks[taskID] = task
 	taskManager.mu.Unlock()
+
+	// 新任务入队是关键节点，立刻落盘一次，之后由节流逻辑接管。
+	_ = a.persistDownloadTasks(true)
 
 	downloadTaskStarter(a, ctx, task, details.FileUrl)
 
@@ -87,7 +96,11 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		task.Status = status
 		task.Error = err
 		taskManager.mu.Unlock()
-		runtime.EventsEmit(a.ctx, "task_updated", task)
+		a.emitTaskUpdated(task)
+		if isTerminalDownloadStatus(status) {
+			// 终态是重启后仍然有意义的状态，立刻落盘。
+			_ = a.persistDownloadTasks(true)
+		}
 		if status == "failed" {
 			// 默认关闭；只有显式打开自动重下的任务才会在这里被安排一次重试。
 			a.maybeAutoRedownload(task.ID)
@@ -140,7 +153,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 			taskManager.mu.Lock()
 			task.TotalSize = totalSize
 			taskManager.mu.Unlock()
-			runtime.EventsEmit(a.ctx, "task_updated", task)
+			a.emitTaskUpdated(task)
 		}
 	}
 
@@ -155,10 +168,20 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		finalPath, err := a.processChunkedDownload(ctx, task, downloadUrl, bestIP, totalSize, threadCount, tempDir)
 		if err != nil {
 			// Check if server does not support Range, fallback to single-thread
-			if errors.Is(err, errRangeNotSupported) {
+			if errors.Is(err, errDownloadPaused) {
+				// 用户暂停：状态已由 PauseDownloadTask 设置，临时文件与断点都留着。
+				return
+			} else if errors.Is(err, errRangeNotSupported) {
 				fmt.Printf("[Download] Server does not support Range, falling back to single-thread download\n")
+				// 服务端不支持 Range 时改用单线程重下：分块留下的临时文件与检查点已经没有意义，
+				// 不清掉就会一直占着磁盘（单线程路径会另建自己的临时文件）。
+				removeDownloadCheckpointFiles(filepath.Join(tempDir, task.ID+"_final"))
 				// Continue to single-thread download below
 			} else if ctx.Err() != nil {
+				// 暂停（小文件走单线程时也会走到这里）不能被改写成「已取消」。
+				if downloadTaskIsPaused(task.ID) {
+					return
+				}
 				updateStatus("cancelled", "Cancelled by user")
 				return
 			} else {
@@ -178,7 +201,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 				task.Filename = newFilename
 				taskManager.mu.Unlock()
 				targetPath = filepath.Join(rootDir, newFilename)
-				runtime.EventsEmit(a.ctx, "task_updated", task)
+				a.emitTaskUpdated(task)
 			}
 
 			if err := os.Rename(finalPath, targetPath); err != nil {
@@ -236,7 +259,9 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		taskManager.mu.RLock()
 		status := task.Status
 		taskManager.mu.RUnlock()
-		if status == "failed" || status == "cancelled" {
+		// 单线程路径不做断点续传（没有区块信息），所以暂停也要清掉半截临时文件；
+		// 分块下载的暂停才保留数据（见 processChunkedDownload）。
+		if status == "failed" || status == "cancelled" || status == "paused" {
 			os.Remove(tempPath)
 		}
 	}()
@@ -290,7 +315,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		// Check for cancellation before retry
 		select {
 		case <-ctx.Done():
-			updateStatus("cancelled", "Cancelled by user")
+			a.markDownloadStoppedByContext(task, updateStatus)
 			out.Close()
 			os.Remove(tempPath)
 			return
@@ -329,7 +354,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		} else {
 			// Check if error is due to cancellation
 			if ctx.Err() != nil {
-				updateStatus("cancelled", "Cancelled by user")
+				a.markDownloadStoppedByContext(task, updateStatus)
 				out.Close()
 				os.Remove(tempPath)
 				return
@@ -370,7 +395,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 					taskManager.mu.Unlock()
 					// Update target path
 					targetPath = filepath.Join(rootDir, filename)
-					runtime.EventsEmit(a.ctx, "task_updated", task)
+					a.emitTaskUpdated(task)
 				}
 			}
 		}
@@ -383,7 +408,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		task.Filename = newFilename
 		taskManager.mu.Unlock()
 		targetPath = filepath.Join(rootDir, newFilename)
-		runtime.EventsEmit(a.ctx, "task_updated", task)
+		a.emitTaskUpdated(task)
 	}
 
 	// Check Content-Type
@@ -400,13 +425,14 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		taskManager.mu.Lock()
 		task.TotalSize = totalSize
 		taskManager.mu.Unlock()
-		runtime.EventsEmit(a.ctx, "task_updated", task)
+		a.emitTaskUpdated(task)
 	}
 
 	// Progress tracking
 	counter := &TaskWriteCounter{
 		Task:     task,
 		Ctx:      a.ctx,
+		App:      a,
 		Total:    totalSize,
 		LastTime: time.Now(),
 	}
@@ -417,7 +443,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		out.Close()
 		// Check if error is due to cancellation
 		if ctx.Err() != nil || errors.Is(err, context.Canceled) {
-			updateStatus("cancelled", "Cancelled by user")
+			a.markDownloadStoppedByContext(task, updateStatus)
 			os.Remove(tempPath)
 		} else {
 			updateStatus("failed", err.Error())
@@ -440,7 +466,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		taskManager.mu.Unlock()
 
 		targetPath = filepath.Join(rootDir, newFilename)
-		runtime.EventsEmit(a.ctx, "task_updated", task)
+		a.emitTaskUpdated(task)
 	}
 
 	// Rename to final

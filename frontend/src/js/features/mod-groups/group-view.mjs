@@ -266,6 +266,20 @@ export function formatGroupMissingNotice(missingNames, limit = 4) {
 }
 
 /**
+ * formatGroupSubtreeMissingNotice 生成"子组里有缺失"的汇总提示。
+ *
+ * 为什么需要（对齐 FireAxe 的 AddonChildrenProblem）：父组自己的成员可能一个不缺，
+ * 问题藏在展开后的子组里 —— 父组行如果什么都不显示，用户会以为整棵树都是健康的。
+ */
+export function formatGroupSubtreeMissingNotice(subtreeMissingCount, affectedChildCount) {
+  const missing = Number(subtreeMissingCount) || 0;
+  if (missing <= 0) return "";
+  const children = Number(affectedChildCount) || 0;
+  const scope = children > 0 ? `（涉及 ${children} 个子组）` : "";
+  return `子组里有 ${missing} 个缺失文件${scope}：展开子组即可看到`;
+}
+
+/**
  * formatFileGroupImpact 生成"这个文件属于哪些组"的提示文案。
  * 删除前用来说明"组成员会保留，只是变成缺失成员"。
  */

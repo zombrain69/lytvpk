@@ -9,6 +9,8 @@
 //   3. 标题栏可拖动移动窗口，位置按窗口记住（localStorage）。
 //
 // 缩放不需要在这里做：core/modal-resizer.js 已经给每个 .modal-content 装了八个方向的把手。
+import { clampWindowSize } from "./window-geometry.mjs";
+
 
 const FLOATING_CLASS = "is-floating";
 const POSITION_KEY_PREFIX = "lytvpk.floatingPos.";
@@ -101,8 +103,12 @@ function clearInlinePosition(content) {
 
 function pinContent(content, position) {
   const rect = content.getBoundingClientRect();
-  const width = Number(position?.width || rect.width);
-  const height = Number(position?.height || rect.height);
+  const { width, height } = clampWindowSize(
+    Number(position?.width || rect.width),
+    Number(position?.height || rect.height),
+    window.innerWidth,
+    window.innerHeight,
+  );
   const left = Number(position?.left ?? rect.left);
   const top = Number(position?.top ?? rect.top);
   const maxLeft = Math.max(0, window.innerWidth - width);
@@ -275,6 +281,25 @@ export function setupFloatingModal(modal, options = {}) {
   element
     .querySelector(options.dragHandleSelector || DEFAULT_HEADER_SELECTOR)
     ?.addEventListener("pointerdown", (event) => startModalDrag(event, element, { positionKey }));
+  // 双击标题栏 = 重置这个窗口记住的位置与大小。
+  // 这是"窗口被拖到屏幕外 / 拉得比屏幕还大"时的逃生口：不用去清 localStorage。
+  element
+    .querySelector(options.dragHandleSelector || DEFAULT_HEADER_SELECTOR)
+    ?.addEventListener("dblclick", (event) => {
+      if (event.target.closest("button, input, select, textarea, label, a")) return;
+      if (positionKey) {
+        try {
+          window.localStorage?.removeItem(positionKey);
+        } catch (error) {
+          /* 存储不可用时忽略：下面的样式仍然会复位 */
+        }
+      }
+      clearInlinePosition(content);
+      if (element.classList.contains(FLOATING_CLASS)) {
+        // 浮动状态下清掉内联几何后，再按当前布局钉一次，避免掉回"半浮动"的样式错位。
+        applyCurrent();
+      }
+    });
   // 弹窗每次打开时重新应用一次：位置可能在上次拖动后变了，偏好也可能被外部改过。
   const observer = new MutationObserver(() => {
     if (!element.classList.contains("hidden")) applyCurrent();
@@ -294,6 +319,35 @@ export function setupFloatingModal(modal, options = {}) {
 }
 
 /** getFloatingModal 返回已注册的浮动窗口（方便其它模块联动）。 */
+/**
+ * resetAllWindowGeometry 清掉所有"浮动窗口位置与大小"的记忆，并把当前浮动窗口
+ * 恢复到默认（CSS 居中）位置。
+ *
+ * 用途：把某个窗口拖到屏幕外 / 拉到超大之后的"一键自救"；由命令面板的
+ * 「重置所有窗口的位置与大小」调用。返回被清掉的记忆条数。
+ */
+export function resetAllWindowGeometry() {
+  let cleared = 0;
+  try {
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index);
+      if (key && key.startsWith(POSITION_KEY_PREFIX)) {
+        window.localStorage.removeItem(key);
+        cleared += 1;
+      }
+    }
+  } catch (error) {
+    /* 隐私模式 / 存储被禁用：下面的样式复位仍然会执行 */
+  }
+
+  registry.forEach((api) => {
+    const content = api?.element?.querySelector(".modal-content");
+    if (content) clearInlinePosition(content);
+    api?.refresh?.();
+  });
+  return cleared;
+}
+
 export function getFloatingModal(id) {
   return registry.get(String(id || "")) || null;
 }

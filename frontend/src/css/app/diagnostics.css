@@ -271,6 +271,35 @@
   padding: .35rem .55rem;
 }
 
+/* 搜索框 + `?` 说明书：浮层相对这一层定位（与 Mod 列表用同一套 .search-help-* 样式）。 */
+.archive-manager-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 20rem;
+  min-width: 14rem;
+}
+
+.archive-manager-search-wrap .archive-manager-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 命中计数（单独一个 span，键盘移动光标时只改它，不整块重画） */
+.archive-manager-search-count {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+/* 键盘光标行：与 Mod 列表同一套观感（左侧高亮描边 + 轻微底色） */
+.archive-manager-package.is-cursor {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
 .archive-manager-sort,
 .archive-manager-state-filter {
   max-width: 11rem;

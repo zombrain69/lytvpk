@@ -12,8 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Block status constants
@@ -55,16 +53,31 @@ type BlockManager struct {
 	errMu           sync.Mutex
 	lastReportTime  atomic.Value // stores time.Time
 	lastReportBytes atomic.Int64
+	// onBlockCompleted 在每个区块完整落盘后回调（用于写断点续传检查点）。
+	onBlockCompleted func()
 }
 
 // NewBlockManager creates a BlockManager that splits totalSize into fixed-size blocks
 func NewBlockManager(totalSize int64, workerCount int, blockSize int64) *BlockManager {
+	return newBlockManagerWithResume(totalSize, workerCount, blockSize, nil)
+}
+
+// newBlockManagerWithResume 建一个 BlockManager，并把 completed 里的区块直接标记为已完成：
+// 它们既不会再进队列，也不会被重新下载，只把字节数计入进度。
+// 用于"暂停 → 继续"（对齐 FireAxe DownloadService.Resume）。
+func newBlockManagerWithResume(totalSize int64, workerCount int, blockSize int64, completed []int) *BlockManager {
 	if blockSize <= 0 {
 		blockSize = 5 * 1024 * 1024 // 5MB default
 	}
 
 	numBlocks := int((totalSize + blockSize - 1) / blockSize)
 	blocks := make([]*Block, numBlocks)
+	resumeSet := make(map[int]bool, len(completed))
+	for _, index := range completed {
+		if index >= 0 && index < numBlocks {
+			resumeSet[index] = true
+		}
+	}
 	for i := 0; i < numBlocks; i++ {
 		start := int64(i) * blockSize
 		end := start + blockSize - 1
@@ -75,6 +88,9 @@ func NewBlockManager(totalSize int64, workerCount int, blockSize int64) *BlockMa
 			Index:     i,
 			StartByte: start,
 			EndByte:   end,
+		}
+		if resumeSet[i] {
+			blocks[i].status.Store(blockStatusCompleted)
 		}
 	}
 
@@ -90,13 +106,40 @@ func NewBlockManager(totalSize int64, workerCount int, blockSize int64) *BlockMa
 	bm.cancel = cancel
 	bm.lastReportTime.Store(time.Now())
 
-	// Initialize queue with all block indices
+	// Initialize queue with the blocks that still need downloading.
 	for i := 0; i < numBlocks; i++ {
+		if resumeSet[i] {
+			bm.completedBlocks.Add(1)
+			bm.completedBytes.Add(blocks[i].EndByte - blocks[i].StartByte + 1)
+			continue
+		}
 		bm.queue <- i
 	}
 	close(bm.queue)
 
 	return bm
+}
+
+// CompletedIndices 返回已完成的区块下标（升序），用于写断点续传检查点。
+func (bm *BlockManager) CompletedIndices() []int {
+	result := make([]int, 0, len(bm.blocks))
+	for _, block := range bm.blocks {
+		if block.Status() == blockStatusCompleted {
+			result = append(result, block.Index)
+		}
+	}
+	return result
+}
+
+// PendingBlockCount 返回还需要下载的区块数量（续传后用于日志与测试断言）。
+func (bm *BlockManager) PendingBlockCount() int {
+	count := 0
+	for _, block := range bm.blocks {
+		if block.Status() == blockStatusPending {
+			count++
+		}
+	}
+	return count
 }
 
 // NextBlock retrieves the next pending block from the queue
@@ -123,6 +166,9 @@ func (bm *BlockManager) NextBlock() (*Block, bool) {
 func (bm *BlockManager) MarkCompleted(block *Block) {
 	block.SetStatus(blockStatusCompleted)
 	bm.completedBlocks.Add(1)
+	if bm.onBlockCompleted != nil {
+		bm.onBlockCompleted()
+	}
 }
 
 // MarkFailed marks a block as failed and records the first error
@@ -381,7 +427,7 @@ func (a *App) progressReporter(bm *BlockManager, task *DownloadTask, stopChan <-
 			}
 			taskManager.mu.Unlock()
 
-			runtime.EventsEmit(a.ctx, "task_progress", task)
+			a.emitTaskProgress(task)
 		}
 	}
 }

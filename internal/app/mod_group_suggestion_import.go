@@ -1299,9 +1299,14 @@ func (a *App) workshopSnapshotFor(file parser.VPKFile, mod grouping.Mod, watchLa
 		snapshot.Author = strings.TrimSpace(meta.Author)
 		snapshot.Desc = strings.TrimSpace(meta.Description)
 		snapshot.Tags = meta.Tags
+		snapshot.SteamTags = meta.SteamTags
 		snapshot.PreviewURL = strings.TrimSpace(meta.PreviewURL)
 		snapshot.DownloadedAt = strings.TrimSpace(meta.DownloadedAt)
 		snapshot.TimeUpdated = strings.TrimSpace(meta.TimeUpdated)
+		// 官方统计（抓取过才有值）：稍后再看里的数字更"当场"，拿不到时用 .meta 里的。
+		snapshot.Views = int(meta.Views)
+		snapshot.Subscriptions = int(meta.Subscriptions)
+		snapshot.Favorited = int(meta.Favorited)
 	}
 	snapshot.ID = workshopID
 	if workshopID == "" {
@@ -1804,6 +1809,9 @@ type groupingCatalogWorkshop struct {
 	Author        string   `json:"author,omitempty"`
 	Desc          string   `json:"desc,omitempty"`
 	Tags          []string `json:"tags,omitempty"`
+	// SteamTags 是工坊官方标签（Steam 官方接口），比自动推断的标签更权威；
+	// 由「设置 → 工坊数据 → 抓取官方标签与统计」补齐，抓过之后才会出现。
+	SteamTags     []string `json:"steamTags,omitempty"`
 	URL           string   `json:"url,omitempty"`
 	PreviewURL    string   `json:"previewUrl,omitempty"`
 	DownloadedAt  string   `json:"downloadedAt,omitempty"`

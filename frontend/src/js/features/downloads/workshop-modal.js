@@ -170,6 +170,18 @@ export function openWorkshopModal() {
   refreshTaskList();
 }
 
+/**
+ * openWorkshopModalWithUrl 打开工坊下载页并带上链接后立刻解析。
+ * 剪贴板自动识别确认后走这里（等价于"用户粘贴链接 + 点检查"）。
+ */
+export async function openWorkshopModalWithUrl(url) {
+  openWorkshopModal();
+  const input = document.getElementById("workshop-url");
+  if (!input) return;
+  input.value = url;
+  await checkWorkshopUrl();
+}
+
 export function closeWorkshopModal() {
   workshopViewSession += 1;
   clearIPSelectionPollTimer();

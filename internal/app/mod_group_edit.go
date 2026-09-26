@@ -101,6 +101,11 @@ func (a *App) RenameModStrategyGroup(id string, name string, description string)
 	if err != nil {
 		return ModStrategyGroup{}, err
 	}
+	// 改名撞名直接拒绝（对齐 FireAxe 容器不允许同级重名）：
+	// 自动改名会让用户以为"改成功了"，但名字却不是自己输入的那个。
+	if conflict := findModStrategyGroupNameConflict(store.Groups, normalizedName, id); conflict != "" {
+		return ModStrategyGroup{}, fmt.Errorf("已有同名策略组「%s」：换个名字，或先重命名那一个", conflict)
+	}
 	for index := range store.Groups {
 		if store.Groups[index].ID != id {
 			continue

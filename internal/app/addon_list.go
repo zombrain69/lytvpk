@@ -234,10 +234,7 @@ func (a *App) SetVPKLoadOrder(filename string, newOrder int) error {
 	finalList = append(finalList, cleanList[index:]...)
 
 	// 4. 写入文件，并在开启监控时同步更新受保护版本。
-	if err := a.writeAddonList(path, finalList); err != nil {
-		return err
-	}
-	return a.syncManagedAddonListSnapshotLocked(path)
+	return a.commitAddonListItemsLocked(path, finalList, nil)
 }
 
 // GetAddonListOrder 读取并解析 addonlist.txt 获取加载顺序
@@ -883,14 +880,8 @@ func (a *App) updateAddonListEntriesLocked(values map[string]string, removals []
 	if !changed {
 		return nil
 	}
-	if err := a.writeAddonListDocument(doc, updated); err != nil {
-		return err
-	}
-	if err := a.syncManagedAddonListSnapshotLocked(path); err != nil {
-		return err
-	}
-	a.applyAddonListGameStates()
-	return nil
+	// 事务化：写盘 → 刷新游戏开关 → 快照同步，快照同步失败时回滚并重跑派生状态。
+	return a.commitAddonListDocumentLocked(doc, updated, a.applyAddonListGameStates)
 }
 
 func (a *App) updateAddonListEntries(values map[string]string, removals []string) error {
@@ -1065,15 +1056,18 @@ func (a *App) SetVPKGameEnabledBatch(filePaths []string, enabled bool) (BatchGam
 	if len(result.Updated) == 0 {
 		return result, nil
 	}
-	if err := a.writeAddonListDocument(doc, content); err != nil {
+	// 组内联动改写了别的成员 → 直接从文件刷新全部缓存；否则只更新这批条目的状态。
+	// 刷新缓存属于派生步骤，交给事务层：快照同步失败时会按回滚后的内容重跑一次。
+	afterWrite := func() {
+		if enforced > 0 {
+			a.applyAddonListGameStates()
+		}
+	}
+	if err := a.commitAddonListDocumentLocked(doc, content, afterWrite); err != nil {
 		return result, err
 	}
 	result.Enforced = enforced
 
-	// 组内联动改写了别的成员 → 直接从文件刷新全部缓存；否则只更新这批条目的状态。
-	if enforced > 0 {
-		a.applyAddonListGameStates()
-	}
 	a.mu.Lock()
 	for _, filePath := range result.Updated {
 		if latest, found := a.vpkCache.Load(filePath); found {
@@ -1084,9 +1078,6 @@ func (a *App) SetVPKGameEnabledBatch(filePaths []string, enabled bool) (BatchGam
 		}
 	}
 	a.mu.Unlock()
-	if err := a.syncManagedAddonListSnapshotLocked(doc.path); err != nil {
-		return result, err
-	}
 	return result, nil
 }
 
@@ -1153,14 +1144,15 @@ func (a *App) setVPKGameEnabledLocked(filePath string, enabled bool) (int, error
 	if err != nil {
 		return 0, err
 	}
-	if err := a.writeAddonListDocument(doc, updatedContent); err != nil {
+	if err := a.commitAddonListDocumentLocked(doc, updatedContent, func() {
+		if enforcedCount > 0 {
+			// 组内其它成员也被改写：直接从文件刷新所有缓存状态。
+			a.applyAddonListGameStates()
+		}
+	}); err != nil {
 		return 0, err
 	}
 
-	if enforcedCount > 0 {
-		// 组内其它成员也被改写：直接从文件刷新所有缓存状态。
-		a.applyAddonListGameStates()
-	}
 	a.mu.Lock()
 	if latest, found := a.vpkCache.Load(filePath); found {
 		cache = latest.(*VPKFileCache)
@@ -1169,8 +1161,5 @@ func (a *App) setVPKGameEnabledLocked(filePath string, enabled bool) (int, error
 	cache.File.GameStateKnown = true
 	a.vpkCache.Store(filePath, cache)
 	a.mu.Unlock()
-	if err := a.syncManagedAddonListSnapshotLocked(doc.path); err != nil {
-		return 0, err
-	}
 	return enforcedCount, nil
 }

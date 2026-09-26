@@ -12,28 +12,30 @@ import (
 
 func (a *App) GetDownloadTasks() []*DownloadTask {
 	taskManager.mu.RLock()
-	defer taskManager.mu.RUnlock()
-
-	tasks := make([]*DownloadTask, 0, len(taskManager.tasks))
-	for _, t := range taskManager.tasks {
-		tasks = append(tasks, t)
+	live := make(map[string]*DownloadTask, len(taskManager.tasks))
+	for id, t := range taskManager.tasks {
+		live[id] = t
 	}
+	taskManager.mu.RUnlock()
 
-	// Sort by created time desc (simple implementation)
-	// For now just return map values, frontend can sort
-	return tasks
+	// 先把上次退出时留下的快照补进内存（重试、清空等接口对它们同样可用），
+	// 再返回内存 + 快照的合并结果。
+	a.restoreDownloadTasksSnapshotTasks()
+
+	return mergeDownloadTaskSnapshot(a.readDownloadTaskSnapshot(), live)
 }
 
 // ClearCompletedTasks removes completed and failed tasks
 func (a *App) ClearCompletedTasks() {
 	taskManager.mu.Lock()
-	defer taskManager.mu.Unlock()
-
 	for id, t := range taskManager.tasks {
-		if t.Status == "completed" || t.Status == "failed" || t.Status == "cancelled" {
+		if isTerminalDownloadStatus(t.Status) || t.Status == "interrupted" {
 			delete(taskManager.tasks, id)
 		}
 	}
+	taskManager.mu.Unlock()
+
+	_ = a.persistDownloadTasks(true)
 	runtime.EventsEmit(a.ctx, "tasks_cleared", nil)
 }
 
@@ -91,6 +93,7 @@ type TaskWriteCounter struct {
 	Total       int64
 	Current     int64
 	Ctx         context.Context
+	App         *App
 	LastPercent int
 	LastTime    time.Time
 	LastBytes   int64
@@ -141,6 +144,10 @@ func (wc *TaskWriteCounter) Write(p []byte) (int, error) {
 		taskManager.mu.Unlock()
 
 		runtime.EventsEmit(wc.Ctx, "task_progress", wc.Task)
+		if wc.App != nil {
+			// 进度写盘同样按 1s 节流（对齐 FireAxe DownloadService.SaveDownloadProgressIntervalMs）。
+			wc.App.persistDownloadTasksThrottled()
+		}
 	}
 	return n, nil
 }

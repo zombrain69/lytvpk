@@ -10,6 +10,7 @@ import {
   saveConfig,
 } from "../core/config.js";
 import { applyUIScale, setupUIScaleShortcuts } from "../core/ui-scale.js";
+import { applyReadingComfort } from "../core/reading-comfort.mjs";
 import { setupModalResizers } from "../core/modal-resizer.js";
 import { setupFloatingModal } from "../core/floating-modal.js";
 import { initTheme, setupThemeToggle } from "../core/theme.js";
@@ -96,7 +97,13 @@ import {
 } from "./workshop/workshop-browser.js";
 import { showError, showNotification, handleError } from "../core/toast.js";
 import { appState, applyConfigToAppState } from "./state.js";
-import { renderFileList } from "./file-list/render.js";
+import { applySearchResultCursor, renderFileList } from "./file-list/render.js";
+import { collectResultPaths, describeResultCursor, nextResultPath } from "./file-list/result-cursor.mjs";
+import { buildSearchHelpHtml, buildSearchHelpTitle } from "./file-list/search-help.mjs";
+import { buildShortcutsHtml, buildShortcutsTitle, isTextEntryElement } from "../core/shortcuts.mjs";
+import { startFileOperationWatcher } from "../core/file-operation-watch.js";
+import { openCommandPalette, setupCommandPalette } from "../core/command-palette-ui.js";
+import { resetAllWindowGeometry } from "../core/floating-modal.js";
 import {
   handleSearch,
   performSearch,
@@ -114,6 +121,9 @@ import {
   exportZipSelected,
   deleteSelected,
   moveSelected,
+  cutSelected,
+  pasteMoveClipboard,
+  clearMoveClipboard,
   transferSelectedWorkshopFiles,
   batchToggleVisibility,
   disableAllMods,
@@ -143,6 +153,7 @@ import {
   downloadWorkshopFile,
   copyCurrentDownloadUrls,
 } from "./downloads/workshop-modal.js";
+import { startWorkshopClipboardWatch } from "./downloads/clipboard-watch.js";
 import {
   refreshTaskList,
   updateTaskInList,
@@ -190,8 +201,12 @@ import {
   GetWorkshopMetaEnabled,
   GetWorkshopUpdateCheckEnabled,
   GetWorkshopAutoRedownload,
+  GetOpenWithSettings,
+  SetOpenWithSettings,
   ParseWorkshopID,
   SetWorkshopAutoRedownload,
+  EnrichAllWorkshopMetadata,
+  IsFileOperationBusy,
   GetStockWhitelistStatus,
   GenerateStockWhitelistBatchesFromGame,
   ReloadStockWhitelist,
@@ -293,8 +308,19 @@ import {
   BrowserOpenURL,
   WindowMinimise,
   WindowToggleMaximise,
+  WindowGetSize,
+  WindowSetSize,
+  WindowIsMaximised,
+  WindowMaximise,
+  WindowUnmaximise,
+  ScreenGetAll,
   Quit,
 } from "../../../wailsjs/runtime/runtime";
+import {
+  pickPrimaryScreen,
+  sanitizeMainWindowGeometry,
+  shouldApplyMainWindowGeometry,
+} from "../core/main-window-geometry.mjs";
 
 // 暴露给全局使用，以便在 onclick 中调用
 window.BrowserOpenURL = BrowserOpenURL;
@@ -409,8 +435,11 @@ configureSettings({
   GetWorkshopMetaEnabled,
   GetWorkshopUpdateCheckEnabled,
   GetWorkshopAutoRedownload,
+  GetOpenWithSettings,
+  SetOpenWithSettings,
   ParseWorkshopID,
   SetWorkshopAutoRedownload,
+  EnrichAllWorkshopMetadata,
   GetStockWhitelistStatus,
   GenerateStockWhitelistBatchesFromGame,
   ReloadStockWhitelist,
@@ -676,6 +705,91 @@ function getPathBasename(path) {
   return String(path || "").split(/[\\/]/).pop() || "";
 }
 
+/**
+ * resolveShortcutTargetPath 解析 F2 / Delete 要作用在哪个 Mod 上：
+ * 优先用搜索光标那一行（键盘流程），没有光标时退化为"唯一选中项"。
+ */
+function resolveShortcutTargetPath() {
+  const cursorPath = String(appState.searchCursorPath || "");
+  if (cursorPath) return cursorPath;
+  const selected = Array.from(appState.selectedFiles || []);
+  if (selected.length === 1) return String(selected[0]);
+  return "";
+}
+
+/**
+ * restoreMainWindowGeometry 用 config.json 里记住的宽高 / 最大化状态恢复主窗口。
+ * - 没记录过（null）或尺寸非法 → 什么都不做，保持 Wails 默认尺寸；
+ * - 换到更小的屏幕时按屏幕钳制，避免窗口比屏幕还大、按钮够不着。
+ */
+async function restoreMainWindowGeometry() {
+  const config = getConfig();
+  const saved = {
+    width: config.mainWindowWidth,
+    height: config.mainWindowHeight,
+    maximised: config.mainWindowMaximised === true,
+  };
+  if (!shouldApplyMainWindowGeometry(saved)) return;
+
+  let screen = null;
+  try {
+    screen = pickPrimaryScreen(await ScreenGetAll());
+  } catch (error) {
+    console.warn("读取屏幕信息失败，按硬上限恢复主窗口尺寸:", error);
+  }
+  const geometry = sanitizeMainWindowGeometry(saved, screen);
+  if (!geometry) return;
+  try {
+    WindowSetSize(geometry.width, geometry.height);
+    if (geometry.maximised) WindowMaximise();
+    else WindowUnmaximise();
+  } catch (error) {
+    console.warn("恢复主窗口几何失败:", error);
+  }
+}
+
+/**
+ * trackMainWindowGeometry 监听窗口尺寸 / 最大化变化，防抖后写进 config.json。
+ * 只在真的变了时才写，避免每次启动都触发一次配置写盘。
+ */
+function trackMainWindowGeometry() {
+  let timer = null;
+  const save = async () => {
+    timer = null;
+    try {
+      const [size, maximised] = await Promise.all([WindowGetSize(), WindowIsMaximised()]);
+      const geometry = sanitizeMainWindowGeometry({ width: size?.w, height: size?.h, maximised: Boolean(maximised) });
+      if (!geometry) return;
+      const config = getConfig();
+      if (
+        config.mainWindowWidth === geometry.width &&
+        config.mainWindowHeight === geometry.height &&
+        (config.mainWindowMaximised === true) === geometry.maximised
+      ) {
+        return;
+      }
+      config.mainWindowWidth = geometry.width;
+      config.mainWindowHeight = geometry.height;
+      config.mainWindowMaximised = geometry.maximised;
+      saveConfig(config);
+    } catch (error) {
+      console.warn("保存主窗口几何失败:", error);
+    }
+  };
+  const schedule = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(() => void save(), 600);
+  };
+  window.addEventListener("resize", schedule);
+  // 最大化 / 还原不一定会触发 resize（尤其是"还原"），额外听一次 Wails 的窗口事件。
+  try {
+    EventsOn("wails:window-maximise", schedule);
+    EventsOn("wails:window-unmaximise", schedule);
+  } catch (error) {
+    console.warn("订阅窗口最大化事件失败（改用 resize 兜底）:", error);
+  }
+}
+
 async function initializeApp() {
   let migratedLegacyConfig = false;
   try {
@@ -685,6 +799,12 @@ async function initializeApp() {
   }
 
   await initConfig();
+  // 先定"文字大小 / 阅读舒适度"，再应用整体缩放：根字号是两者相乘的结果。
+  applyReadingComfort({
+    textSize: getConfig().textSize,
+    comfort: getConfig().readingComfort,
+    uiScale: getConfig().uiScale,
+  });
   applyUIScale(getConfig().uiScale);
   setupUIScaleShortcuts({ getConfig, saveConfig });
   applyConfigToAppState();
@@ -694,6 +814,11 @@ async function initializeApp() {
   initTheme();
   initAppShell();
   setupModalResizers();
+  // 主窗口几何记忆（对齐 FireAxe v0.7.3）：恢复上次的宽高 / 最大化状态，之后跟着保存。
+  void restoreMainWindowGeometry();
+  trackMainWindowGeometry();
+  // 剪贴板工坊链接自动识别（对齐 FireAxe v0.4.0）：复制链接切回来会提示是否解析。
+  startWorkshopClipboardWatch();
   // 复杂的管理类窗口统一支持"浮动"：打开后去掉背景虚化、可以直接操作主界面，
   // 标题栏可拖动、边缘可缩放（缩放由 setupModalResizers 提供），偏好逐个窗口记住。
   // 策略组管理窗口在 initStrategyGroupManager 里自己注册（默认值来自 config.json）。
@@ -703,7 +828,24 @@ async function initializeApp() {
     "conflict-modal",
     "file-conflict-modal",
     "model-stats-modal",
+    // 下面这些同为"复杂管理窗口"：详情 / 提示词编辑 / 标签 / 分组选择 / 服务器面板。
+    // 它们都有 .modal-header，浮动按钮会自动插到标题栏里。
+    "file-detail-modal",
+    "agent-prompt-modal",
+    "set-tags-modal",
+    "batch-set-tags-modal",
+    "group-picker-modal",
+    "group-tag-modal",
+    "server-details-modal",
+    "panel-map-modal",
+    "panel-upload-modal",
+    "panel-rcon-modal",
+    "panel-difficulty-modal",
+    "panel-server-details-modal",
   ].forEach((modalId) => setupFloatingModal(modalId, { defaultFloating: true }));
+  // 注意：`browser-modal` / `workshop-modal` / `server-modal` 三个**不是弹窗**——
+  // ui-shell.js 会把它们的 .modal-content 搬进独立页面（创意工坊 / 下载 / 收藏服务器），
+  // 原 modal 只留一个隐藏的壳。给它们注册浮动没有意义（也没有 .modal-content 可浮动）。
   // 「问题 Mod 查找」会真的切换 Mod 开关，要求排查期间保持打开（它自己的底部文案也这么写），
   // 所以只装浮动能力，不允许"点窗口外关闭"。
   setupFloatingModal("problem-scan-modal", { defaultFloating: true, closeOnBackdrop: false });
@@ -713,6 +855,18 @@ async function initializeApp() {
   setupEventListeners();
   setupWailsEvents();
   installFrontendCrashReporting();
+  // 文件操作忙碌状态：轮询后端闸门（移动 / 删除 / 打包共用一个锁），
+  // 忙碌时状态栏出提示、会写磁盘的批量按钮暂时变灰（CSS 见 reading-comfort.css）。
+  startFileOperationWatcher({
+    isBusy: IsFileOperationBusy,
+    // 后端进入/退出文件操作时会推事件（毫秒级任务也不会被轮询错过）。
+    subscribe: (handler) => EventsOn("file_operation_state", (busy) => handler(Boolean(busy))),
+  });
+  setupCommandPaletteWithDeps();
+  // 标题栏的搜索图标 = 命令面板入口（否则只有 Ctrl+K 是"藏起来"的功能）。
+  document
+    .getElementById("command-palette-btn")
+    ?.addEventListener("click", () => openCommandPalette());
   // 变更驱动的冲突自动复检：只注册事件与首次拉取，重算由后端按需触发。
   initConflictRecheck();
   // 策略组：绑定分组筛选/建议弹窗，并拉取一次组归属（扫描完成后 filters 会再刷新）。
@@ -808,6 +962,80 @@ function setupSettingsAndAboutListeners() {
 }
 
 // 设置事件监听器
+// waitForSelector 在页面刚切换、内容还在渲染时等待元素出现（命令面板要跳转到设置页的各面板）。
+async function waitForSelector(selector, timeoutMs = 1500) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const found = document.querySelector(selector);
+    if (found) return found;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return null;
+}
+
+// 命令面板：把"页面跳转 + 常用动作"做成一句检索（Ctrl+K 打开）。
+// 动作全部走**已有的按钮 / 页面切换**，不复制业务逻辑，避免两处实现跑偏。
+function setupCommandPaletteWithDeps() {
+  const gotoSettingsPanel = async (panel, targetId) => {
+    switchAppPage("settings");
+    const navItem = await waitForSelector(`.settings-nav-item[data-panel="${panel}"]`);
+    navItem?.click();
+    if (!targetId) return;
+    const target = await waitForSelector(`#${targetId}`);
+    target?.click();
+  };
+
+  const actions = {
+    "focus-mod-search": () => {
+      switchAppPage("mods");
+      document.getElementById("search-input")?.focus();
+    },
+    "page-mods": () => switchAppPage("mods"),
+    "page-workshop": () => switchAppPage("workshop"),
+    "page-downloads": () => switchAppPage("downloads"),
+    "page-servers": () => switchAppPage("servers"),
+    "page-diagnostics": () => switchAppPage("diagnostics"),
+    "page-settings": () => switchAppPage("settings"),
+    "page-about": () => switchAppPage("about"),
+    "interface-settings": () => void gotoSettingsPanel("interface", null),
+    "strategy-group-manager": () => document.getElementById("mod-group-manager-btn")?.click(),
+    "group-suggest": () => document.getElementById("mod-group-suggest-btn")?.click(),
+    "load-order": () => {
+      switchAppPage("mods");
+      document.getElementById("load-order-toolbar-btn")?.click();
+    },
+    "conflict-analysis": () => {
+      switchAppPage("mods");
+      document.getElementById("conflict-analysis-checkbox")?.click();
+    },
+    "health-check": () => void gotoSettingsPanel("addonlist", "settings-health-run"),
+    "workshop-enrich": () => void gotoSettingsPanel("workshop", "settings-workshop-enrich"),
+    "toggle-theme": () => document.getElementById("theme-toggle-btn")?.click(),
+    // 快捷键总览：直接用标题栏那个按钮，保证"命令面板点开的"和"按钮点开的"是同一个东西。
+    "show-shortcuts": () => document.getElementById("shortcuts-help-btn")?.click(),
+    "reset-window-geometry": () => {
+      const cleared = resetAllWindowGeometry();
+      showNotification(
+        cleared > 0
+          ? `已重置 ${cleared} 个窗口的位置与大小；重新打开窗口会回到默认位置`
+          : "窗口位置本来就是默认值",
+        "success",
+      );
+    },
+  };
+
+  setupCommandPalette({
+    runCommand: async (id) => {
+      const action = actions[id];
+      if (!action) {
+        showNotification("这条命令暂时没有实现", "info");
+        return;
+      }
+      await action();
+    },
+  });
+}
+
 function setupEventListeners() {
 	if (eventListenersSetup) return;
 	eventListenersSetup = true;
@@ -851,6 +1079,189 @@ function setupEventListeners() {
   document
     .getElementById("search-input")
     ?.addEventListener("input", handleSearch);
+
+  // 搜索语法说明书：悬停提示与 `?` 浮层都从 search-help.mjs 生成，避免"界面说的和实际行为不一致"。
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) searchInput.title = buildSearchHelpTitle();
+  const searchHelpBtn = document.getElementById("search-help-btn");
+  const searchHelpPopover = document.getElementById("search-help-popover");
+  if (searchHelpPopover) searchHelpPopover.innerHTML = buildSearchHelpHtml();
+  if (searchHelpBtn && searchHelpPopover) {
+    const setHelpOpen = (open) => {
+      searchHelpPopover.classList.toggle("hidden", !open);
+      searchHelpBtn.setAttribute("aria-expanded", String(open));
+      searchHelpBtn.classList.toggle("is-active", open);
+    };
+    searchHelpBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setHelpOpen(searchHelpPopover.classList.contains("hidden"));
+    });
+    document.addEventListener("click", (event) => {
+      if (searchHelpPopover.classList.contains("hidden")) return;
+      if (searchHelpPopover.contains(event.target) || searchHelpBtn.contains(event.target)) return;
+      setHelpOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || searchHelpPopover.classList.contains("hidden")) return;
+      setHelpOpen(false);
+    });
+  }
+
+  // 快捷键总览（标题栏 `?` 按钮 / 按 `?` / 命令面板）：内容来自 core/shortcuts.mjs，
+  // 与搜索说明书里的快捷键段同源 —— 改键位说明只改那一处。
+  const shortcutsBtn = document.getElementById("shortcuts-help-btn");
+  const shortcutsPopover = document.getElementById("shortcuts-help-popover");
+  if (shortcutsPopover) shortcutsPopover.innerHTML = buildShortcutsHtml();
+  if (shortcutsBtn) shortcutsBtn.title = buildShortcutsTitle();
+  if (shortcutsBtn && shortcutsPopover) {
+    const setShortcutsOpen = (open) => {
+      shortcutsPopover.classList.toggle("hidden", !open);
+      shortcutsBtn.setAttribute("aria-expanded", String(open));
+      shortcutsBtn.classList.toggle("is-active", open);
+    };
+    shortcutsBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setShortcutsOpen(shortcutsPopover.classList.contains("hidden"));
+    });
+    document.addEventListener("click", (event) => {
+      if (shortcutsPopover.classList.contains("hidden")) return;
+      if (shortcutsPopover.contains(event.target) || shortcutsBtn.contains(event.target)) return;
+      setShortcutsOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      // Esc 关掉总览；`?` 键切换。光标在输入框里时不当快捷键用（否则打不了问号）。
+      if (event.key === "Escape" && !shortcutsPopover.classList.contains("hidden")) {
+        setShortcutsOpen(false);
+        return;
+      }
+      if (event.key !== "?" || event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      event.preventDefault();
+      setShortcutsOpen(shortcutsPopover.classList.contains("hidden"));
+    });
+  }
+
+  // 检索快捷键：Ctrl+F 聚焦搜索框，Esc 清空（沿用"搜索后能一键回到全部"的习惯）。
+  document.addEventListener("keydown", (event) => {
+    const searchInput = document.getElementById("search-input");
+    if (!searchInput) return;
+
+    // Ctrl+K：打开命令面板（页面跳转 + 常用动作的统一入口）。
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "k") {
+      const palette = document.getElementById("command-palette-modal");
+      if (!palette) return;
+      event.preventDefault();
+      openCommandPalette();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
+
+    // Ctrl+X / Ctrl+V：对齐 FireAxe v0.5.1 的"剪切 / 移动"。
+    // 本项目没有"当前组"概念，粘贴时用现有"移动到…"的目录选择器确定目标。
+    // 只把"正在输入文字"的控件算作输入框：列表行的复选框/按钮拿到焦点时，
+    // Ctrl+X / Ctrl+V 仍然要生效（真机踩坑：勾选一行后快捷键失灵）。
+    const isEditableTarget = isTextEntryElement(event.target);
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      !isEditableTarget &&
+      event.key.toLowerCase() === "x"
+    ) {
+      event.preventDefault();
+      cutSelected();
+      return;
+    }
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      !isEditableTarget &&
+      event.key.toLowerCase() === "v"
+    ) {
+      event.preventDefault();
+      void pasteMoveClipboard();
+      return;
+    }
+
+    // ↑ / ↓ 在结果里移动键盘光标（焦点仍留在搜索框，手不用离开键盘）。
+    if (
+      (event.key === "ArrowDown" || event.key === "ArrowUp") &&
+      document.activeElement === searchInput
+    ) {
+      const container = document.getElementById("file-list");
+      const paths = collectResultPaths(container);
+      if (paths.length === 0) return;
+      event.preventDefault();
+      appState.searchCursorPath = nextResultPath(
+        paths,
+        appState.searchCursorPath,
+        event.key === "ArrowDown" ? 1 : -1,
+      );
+      applySearchResultCursor();
+      return;
+    }
+
+    // Enter 打开光标所在行的详情（等价于点那一行的"详情"按钮）。
+    if (event.key === "Enter" && document.activeElement === searchInput) {
+      const container = document.getElementById("file-list");
+      const path = String(appState.searchCursorPath || "");
+      if (!path) return;
+      const row = container?.querySelector(`.file-item[data-path="${CSS.escape(path)}"]`);
+      const detailButton = row?.querySelector(".detail-btn");
+      if (!detailButton) return;
+      event.preventDefault();
+      detailButton.click();
+      return;
+    }
+
+    if (event.key === "Escape" && document.activeElement === searchInput && searchInput.value) {
+      event.preventDefault();
+      searchInput.value = "";
+      handleSearch({ target: searchInput });
+      appState.searchCursorPath = "";
+      applySearchResultCursor();
+      searchInput.blur();
+      return;
+    }
+
+    // Esc 取消"待移动"标记（只在没有别的可关闭对象时生效）。
+    if (event.key === "Escape" && appState.moveClipboard?.size > 0) {
+      event.preventDefault();
+      clearMoveClipboard();
+      return;
+    }
+
+    // F2 / Delete：对齐 FireAxe v0.7.0 的编辑快捷键。
+    // 目标是"光标所在那一行"，没有光标时退化为"唯一选中的那个"。
+    if (event.key === "F2" || event.key === "Delete") {
+      const selectedCount = (appState.selectedFiles || new Set()).size;
+      // Delete 支持批量：勾选了多个就直接走批量删除（和"批量删除"按钮同一条链路）。
+      if (event.key === "Delete" && !appState.searchCursorPath && selectedCount > 1) {
+        event.preventDefault();
+        void deleteSelected();
+        return;
+      }
+      const target = resolveShortcutTargetPath();
+      if (!target) {
+        showNotification(
+          event.key === "F2"
+            ? "先用 ↑↓ 把光标移到要重命名的 Mod 上（或只选中一个）"
+            : "先用 ↑↓ 把光标移到要删除的 Mod 上（或勾选要删除的那些）",
+          "info",
+        );
+        return;
+      }
+      event.preventDefault();
+      if (event.key === "F2") void renameFile(target);
+      else void deleteFile(target);
+    }
+  });
 
   // 显示隐藏文件复选框
   const showHiddenCheckbox = document.getElementById("show-hidden-checkbox");
@@ -1298,6 +1709,48 @@ function setupBatchActionEvents() {
         showError("粘贴失败，请使用 Ctrl+V");
       }
     });
+
+  // 「打开文件方式」（对齐 FireAxe v0.7.2 的 process file customization）的保存 / 恢复默认。
+  // 用事件委托绑定：设置面板会整块重渲染，直接绑在按钮上的监听器会在重渲染后失效
+  // （真机上的表现就是"按钮拿到了焦点，但点了没反应"）。
+  document.addEventListener("click", async (event) => {
+    const saveButton = event.target?.closest?.("#settings-open-with-save");
+    const resetButton = event.target?.closest?.("#settings-open-with-reset");
+    if (!saveButton && !resetButton) return;
+    event.preventDefault();
+
+    const programInput = document.getElementById("settings-open-with-program");
+    const argsInput = document.getElementById("settings-open-with-arguments");
+    const status = document.getElementById("settings-open-with-status");
+    const program = resetButton ? "" : String(programInput?.value || "");
+    const argumentsTemplate = resetButton ? "" : String(argsInput?.value || "");
+
+    const button = saveButton || resetButton;
+    button.disabled = true;
+    try {
+      const applied = await SetOpenWithSettings(program, argumentsTemplate);
+      const config = getConfig();
+      config.openWithProgram = applied?.program ?? program;
+      config.openWithArguments = applied?.arguments ?? argumentsTemplate;
+      await saveConfig(config);
+      if (programInput) programInput.value = config.openWithProgram;
+      if (argsInput) argsInput.value = config.openWithArguments;
+      if (status) {
+        status.textContent = config.openWithProgram
+          ? `已保存：以后"打开所在位置"会用 ${config.openWithProgram}`
+          : "当前使用系统默认（资源管理器定位文件）";
+      }
+      showNotification(
+        config.openWithProgram ? "已保存：用自定义程序打开/定位" : "已恢复系统默认打开方式",
+        "success",
+      );
+    } catch (error) {
+      if (status) status.textContent = `保存失败：${String(error?.message || error)}`;
+      showError("保存打开方式失败: " + error);
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   document.getElementById("download-url")?.addEventListener("input", (e) => {
     const val = e.target.value;

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -128,10 +130,11 @@ func startDownloadTask(a *App, ctx context.Context, task *DownloadTask, url stri
 
 // emitTaskUpdated 广播任务状态；Wails 未就绪（测试或无界面调用）时静默跳过。
 func (a *App) emitTaskUpdated(task *DownloadTask) {
-	if a.ctx == nil || task == nil {
-		return
+	if a.ctx != nil && task != nil {
+		runtime.EventsEmit(a.ctx, "task_updated", task)
 	}
-	runtime.EventsEmit(a.ctx, "task_updated", task)
+	// 状态变化比进度重要，但仍走 1s 节流；关键节点由调用方 force 落盘。
+	a.persistDownloadTasksThrottled()
 }
 
 // maybeAutoRedownload 在任务失败后按策略自动重下一次。
@@ -223,16 +226,109 @@ func (a *App) HasActiveDownloads() bool {
 func (a *App) CancelDownloadTask(taskID string) {
 	taskManager.mu.Lock()
 	task, exists := taskManager.tasks[taskID]
-	if exists && task.cancelFunc != nil && (task.Status == "pending" || task.Status == "downloading") {
-		task.cancelFunc()
-		task.Status = "cancelled"
-		task.Error = "Cancelled by user"
+	if exists {
+		switch task.Status {
+		case "pending", "downloading", "paused", "selecting_ip":
+			if task.cancelFunc != nil {
+				task.cancelFunc()
+			}
+			task.Status = "cancelled"
+			task.Error = "Cancelled by user"
+		}
 	}
 	taskManager.mu.Unlock()
 
 	if exists {
-		runtime.EventsEmit(a.ctx, "task_updated", task)
+		// 取消 = 丢弃这次下载：把断点续传用的临时文件与检查点一起清掉。
+		a.removeDownloadTempFiles(taskID)
+		a.emitTaskUpdated(task)
+		_ = a.persistDownloadTasks(true)
 	}
+}
+
+// errDownloadPaused 表示"用户暂停"导致的提前结束，不是失败也不是取消。
+var errDownloadPaused = errors.New("download paused")
+
+// downloadTaskIsPaused 判断任务当前是否处于"用户暂停"状态。
+func downloadTaskIsPaused(taskID string) bool {
+	taskManager.mu.RLock()
+	defer taskManager.mu.RUnlock()
+	task, exists := taskManager.tasks[taskID]
+	return exists && task != nil && task.Status == "paused"
+}
+
+// markDownloadStoppedByContext：因为 ctx 结束而停止时的统一收尾。
+// 用户暂停要保持「已暂停」（否则界面会显示成"已取消"，继续按钮也消失），
+// 只有真正的取消才写「已取消」。
+func (a *App) markDownloadStoppedByContext(task *DownloadTask, updateStatus func(string, string)) {
+	if task != nil && downloadTaskIsPaused(task.ID) {
+		return
+	}
+	updateStatus("cancelled", "Cancelled by user")
+}
+
+// removeDownloadTempFiles 删除某个任务的临时下载文件与检查点。
+func (a *App) removeDownloadTempFiles(taskID string) {
+	rootDir := a.rootDirectorySnapshot()
+	if rootDir == "" || strings.TrimSpace(taskID) == "" {
+		return
+	}
+	removeDownloadCheckpointFiles(filepath.Join(rootDir, "temp", taskID+"_final"))
+}
+
+// PauseDownloadTask 暂停下载：保留已下载的数据与断点，之后可以继续。
+// 对齐 FireAxe `DownloadService.Pause`。
+func (a *App) PauseDownloadTask(taskID string) {
+	taskManager.mu.Lock()
+	task, exists := taskManager.tasks[taskID]
+	if !exists || task == nil {
+		taskManager.mu.Unlock()
+		return
+	}
+	switch task.Status {
+	case "pending", "downloading", "selecting_ip":
+		task.Status = "paused"
+		task.Speed = ""
+		task.Error = ""
+		if task.cancelFunc != nil {
+			task.cancelFunc()
+		}
+	default:
+		// 其它状态（已完成 / 已失败 / 已取消 / 已暂停）都不做处理。
+		taskManager.mu.Unlock()
+		return
+	}
+	taskManager.mu.Unlock()
+
+	a.emitTaskUpdated(task)
+	_ = a.persistDownloadTasks(true)
+}
+
+// ResumeDownloadTask 继续一个被暂停的下载：断点续传（只补没下完的区块）。
+// 对齐 FireAxe `DownloadService.Resume`。
+func (a *App) ResumeDownloadTask(taskID string) {
+	taskManager.mu.Lock()
+	task, exists := taskManager.tasks[taskID]
+	if !exists || task == nil || task.Status != "paused" {
+		taskManager.mu.Unlock()
+		return
+	}
+	if strings.TrimSpace(task.FileUrl) == "" {
+		task.Status = "failed"
+		task.Error = "缺少下载地址，无法继续"
+		taskManager.mu.Unlock()
+		a.emitTaskUpdated(task)
+		return
+	}
+	task.Status = "pending"
+	task.Error = ""
+	ctx, cancel := context.WithCancel(context.Background())
+	task.cancelFunc = cancel
+	taskManager.mu.Unlock()
+
+	a.emitTaskUpdated(task)
+	_ = a.persistDownloadTasks(true)
+	startDownloadTask(a, ctx, task, task.FileUrl)
 }
 
 // RetryDownloadTask retries a failed or cancelled task
@@ -246,15 +342,22 @@ func (a *App) RetryDownloadTask(taskID string) {
 
 	// 状态检查与重置必须在同一把锁内完成。否则快速双击“重试”时，
 	// 两个调用都可能先读到 failed/cancelled，进而为同一个任务启动两条下载协程。
-	if task.Status != "failed" && task.Status != "cancelled" {
+	// interrupted 是"上次退出时未完成"的恢复态，paused 是用户主动暂停：
+	// 两者都允许从这里继续（分块下载会按检查点只补缺的区块）。
+	if task.Status != "failed" && task.Status != "cancelled" && task.Status != "interrupted" && task.Status != "paused" {
 		taskManager.mu.Unlock()
 		return
 	}
 
 	// Reset task state while holding the lock acquired above.
+	// 取消会把临时文件删掉，所以只有取消需要把进度清零；失败 / 中断 / 暂停都保留进度，
+	// 续传时它们会被真实进度覆盖。
+	cancelled := task.Status == "cancelled"
 	task.Status = "pending"
-	task.Progress = 0
-	task.DownloadedSize = 0
+	if cancelled {
+		task.Progress = 0
+		task.DownloadedSize = 0
+	}
 	task.Error = ""
 	task.Speed = ""
 	task.FilePath = ""
@@ -264,7 +367,8 @@ func (a *App) RetryDownloadTask(taskID string) {
 	task.cancelFunc = cancel
 	taskManager.mu.Unlock()
 
-	runtime.EventsEmit(a.ctx, "task_updated", task)
+	a.emitTaskUpdated(task)
+	_ = a.persistDownloadTasks(true)
 
 	downloadTaskStarter(a, ctx, task, task.FileUrl)
 }

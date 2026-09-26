@@ -1169,6 +1169,14 @@ html.dark-mode .autoexec-analysis.is-warning {
   font-size: 0.75rem;
   line-height: 1.4;
 }
+
+/* 「子组里有缺失」的汇总提示：语气比本组缺失轻一点，避免父组行看起来更严重。
+   对齐 FireAxe 的 AddonChildrenProblem —— 问题在子节点，父节点只做提示。 */
+.settings-strategy-missing.is-subtree {
+  color: var(--text-secondary);
+  padding-left: 0.6rem;
+  border-left: 2px solid color-mix(in srgb, var(--warning, #f5a524) 45%, transparent);
+}
 /* 策略组批量管理工具条（多选组 → 批量删除 / 自动联动 / 权重）。 */
 .settings-strategy-batch {
   display: flex;
