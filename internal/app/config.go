@@ -173,8 +173,8 @@ func (a *App) loadConfig() {
 	a.openWithArguments = strings.TrimSpace(config.OpenWithArguments)
 	// 主窗口几何：只接受合理范围，避免手改配置把窗口变成 0×0 或超大。
 	if config.MainWindowWidth != nil && config.MainWindowHeight != nil {
-		width := sanitizeMainWindowDimension(*config.MainWindowWidth)
-		height := sanitizeMainWindowDimension(*config.MainWindowHeight)
+		width := sanitizeMainWindowDimension(*config.MainWindowWidth, mainWindowMinWidth)
+		height := sanitizeMainWindowDimension(*config.MainWindowHeight, mainWindowMinHeight)
 		if width > 0 && height > 0 {
 			a.mainWindowWidth = &width
 			a.mainWindowHeight = &height
@@ -191,14 +191,19 @@ func (a *App) loadConfig() {
 	log.Printf("已加载配置: 优选IP=%v, 固定IP=%s, 轮换=%v, 迁移版本=%d, meta存储=%v, 浏览器目标=%s", a.workshopPreferredIP, a.workshopFixedIP, a.modRotationConfig, a.migrationVersion, a.workshopMetaEnabled, a.workshopBrowserTarget)
 }
 
+// 主窗口几何的合法范围与前端 core/main-window-geometry.mjs 的
+// MAIN_WINDOW_MIN_WIDTH / MAIN_WINDOW_MIN_HEIGHT / MAIN_WINDOW_MAX_* 保持一致：
+// 两边下限不同会出现"前端存得下、后端读时丢弃"的静默失效（高度 600~800 就会中招）。
+const (
+	mainWindowMinWidth  = 900
+	mainWindowMinHeight = 600
+	mainWindowMaxSide   = 10000
+)
+
 // sanitizeMainWindowDimension 把主窗口宽/高限制在合理范围（返回 0 表示丢弃这个值）。
 // 手改配置或旧版本写坏时不该让窗口变成 0×0 或超出任何屏幕。
-func sanitizeMainWindowDimension(value int) int {
-	const (
-		minSide = 800
-		maxSide = 10000
-	)
-	if value < minSide || value > maxSide {
+func sanitizeMainWindowDimension(value, minSide int) int {
+	if value < minSide || value > mainWindowMaxSide {
 		return 0
 	}
 	return value
@@ -372,6 +377,21 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	if config.AutoDetectWorkshopLink != nil {
 		value := *config.AutoDetectWorkshopLink
 		a.autoDetectWorkshopLink = &value
+	}
+	// 主窗口几何（宽 / 高 / 最大化）：前端在 config.json 里带这三个字段，
+	// 这里必须写回内存，否则保存等于丢弃 —— GetAppConfig 永远返回 null，
+	// 启动时的"恢复上次窗口大小"直接跳过（真实缺陷：窗口大小完全记不住）。
+	if config.MainWindowWidth != nil && config.MainWindowHeight != nil {
+		width := sanitizeMainWindowDimension(*config.MainWindowWidth, mainWindowMinWidth)
+		height := sanitizeMainWindowDimension(*config.MainWindowHeight, mainWindowMinHeight)
+		if width > 0 && height > 0 {
+			a.mainWindowWidth = &width
+			a.mainWindowHeight = &height
+		}
+	}
+	if config.MainWindowMaximised != nil {
+		value := *config.MainWindowMaximised
+		a.mainWindowMaximised = &value
 	}
 	a.openWithProgram = strings.TrimSpace(config.OpenWithProgram)
 	if a.openWithProgram == "" {

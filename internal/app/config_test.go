@@ -751,3 +751,103 @@ func TestSaveAppConfigPersistsStrategyGroupFloating(t *testing.T) {
 		t.Fatalf("重启后停靠偏好应保持 false: %#v", got)
 	}
 }
+
+// 主窗口几何（宽 / 高 / 最大化）与上面同一类缺陷：前端在 config.json 里带了这三个字段，
+// 但 SaveAppConfig 没把它们写回内存，于是 GetAppConfig 永远返回 null ——
+// 启动时的"恢复上次窗口大小"拿到 null 直接跳过，功能整体失效。
+func TestSaveAppConfigPersistsMainWindowGeometry(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.loadConfig()
+
+	width, height := 1280, 760
+	maximised := true
+	if err := app.SaveAppConfig(ConfigFile{
+		MainWindowWidth:     &width,
+		MainWindowHeight:    &height,
+		MainWindowMaximised: &maximised,
+	}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	config := app.GetAppConfig()
+	if config.MainWindowWidth == nil || *config.MainWindowWidth != width {
+		t.Fatalf("主窗口宽度应落盘为 %d: %#v", width, config.MainWindowWidth)
+	}
+	if config.MainWindowHeight == nil || *config.MainWindowHeight != height {
+		t.Fatalf("主窗口高度应落盘为 %d: %#v", height, config.MainWindowHeight)
+	}
+	if config.MainWindowMaximised == nil || !*config.MainWindowMaximised {
+		t.Fatalf("最大化状态应落盘为 true: %#v", config.MainWindowMaximised)
+	}
+
+	// 重新读盘（模拟重启）后仍然记得几何 —— 这才是"窗口大小记得住"的必要条件。
+	restored := newConfigTestApp(t)
+	restored.configDir = app.configDir
+	restored.configPath = app.configPath
+	restored.loadConfig()
+	reloaded := restored.GetAppConfig()
+	if reloaded.MainWindowWidth == nil || *reloaded.MainWindowWidth != width {
+		t.Fatalf("重启后主窗口宽度应保持 %d: %#v", width, reloaded.MainWindowWidth)
+	}
+	if reloaded.MainWindowHeight == nil || *reloaded.MainWindowHeight != height {
+		t.Fatalf("重启后主窗口高度应保持 %d: %#v", height, reloaded.MainWindowHeight)
+	}
+	if reloaded.MainWindowMaximised == nil || !*reloaded.MainWindowMaximised {
+		t.Fatalf("重启后最大化状态应保持 true: %#v", reloaded.MainWindowMaximised)
+	}
+}
+
+// 前端允许的最小主窗口尺寸是 900×600（core/main-window-geometry.mjs），后端必须用同一套下限，
+// 否则用户把窗口拉成 1000×700 之后，高度会被判成非法、宽高一起被丢弃（记忆静默失效）。
+func TestMainWindowGeometryAcceptsFrontendMinimumSize(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.loadConfig()
+
+	width, height := 900, 600
+	if err := app.SaveAppConfig(ConfigFile{
+		MainWindowWidth:  &width,
+		MainWindowHeight: &height,
+	}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	restored := newConfigTestApp(t)
+	restored.configDir = app.configDir
+	restored.configPath = app.configPath
+	restored.loadConfig()
+	reloaded := restored.GetAppConfig()
+	if reloaded.MainWindowWidth == nil || *reloaded.MainWindowWidth != width {
+		t.Fatalf("900 宽应被接受: %#v", reloaded.MainWindowWidth)
+	}
+	if reloaded.MainWindowHeight == nil || *reloaded.MainWindowHeight != height {
+		t.Fatalf("600 高应被接受: %#v", reloaded.MainWindowHeight)
+	}
+}
+
+// 非法几何（0 / 负数 / 超出上限 / 手改配置写坏）一律丢弃，绝不能写出 0×0 或超大窗口。
+func TestMainWindowGeometryDropsInvalidSizes(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.loadConfig()
+
+	zeroWidth, zeroHeight := 0, 0
+	if err := app.SaveAppConfig(ConfigFile{
+		MainWindowWidth:  &zeroWidth,
+		MainWindowHeight: &zeroHeight,
+	}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if config := app.GetAppConfig(); config.MainWindowWidth != nil || config.MainWindowHeight != nil {
+		t.Fatalf("0×0 必须被丢弃: %#v / %#v", config.MainWindowWidth, config.MainWindowHeight)
+	}
+
+	huge := 99999
+	if err := app.SaveAppConfig(ConfigFile{
+		MainWindowWidth:  &huge,
+		MainWindowHeight: &huge,
+	}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if config := app.GetAppConfig(); config.MainWindowWidth != nil || config.MainWindowHeight != nil {
+		t.Fatalf("超大尺寸必须被丢弃: %#v / %#v", config.MainWindowWidth, config.MainWindowHeight)
+	}
+}

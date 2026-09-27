@@ -62,6 +62,41 @@ export function describeMainWindowGeometry(geometry) {
 }
 
 /**
+ * resolveMainWindowGeometryToSave 决定"这一拍要不要写、写什么"。
+ *
+ * 为什么要单独一个函数：
+ *   1. 最大化时 `WindowGetSize()` 返回的是**最大化之后的尺寸**（真机实测 2576×1416，比
+ *      2560×1440 的屏幕还大）。如果直接存，就把用户的还原尺寸覆盖了 —— 下次启动取消最大化
+ *      会弹出一个贴满屏幕的窗口，与设置页"最大化（还原尺寸 W×H）"的说明也不一致。
+ *      所以最大化时保留上一次记录的尺寸，只更新最大化标记。
+ *   2. 最小化时尺寸同样不可信（Windows 会给极小值），这一拍干脆不写，避免把记忆改成
+ *      900×600 这类下限值。
+ *
+ * @param {{width?: unknown, height?: unknown, maximised?: unknown, minimised?: unknown}} current
+ * @param {{mainWindowWidth?: unknown, mainWindowHeight?: unknown}} saved 上一次落盘的记录
+ * @returns {{width: number, height: number, maximised: boolean} | null} null = 这一拍不写
+ */
+export function resolveMainWindowGeometryToSave(current, saved = {}) {
+  if (!current || current.minimised === true) return null;
+
+  const geometry = sanitizeMainWindowGeometry({
+    width: current.width,
+    height: current.height,
+    maximised: current.maximised === true,
+  });
+  if (!geometry) return null;
+  if (!geometry.maximised) return geometry;
+
+  const previous = sanitizeMainWindowGeometry({
+    width: saved?.mainWindowWidth,
+    height: saved?.mainWindowHeight,
+    maximised: true,
+  });
+  if (!previous) return geometry;
+  return { width: previous.width, height: previous.height, maximised: true };
+}
+
+/**
  * pickPrimaryScreen 从 Wails `ScreenGetAll()` 的结果里挑出主窗口所在/主屏幕。
  * 找不到时返回 null（调用方就不做屏幕钳制）。
  */

@@ -6,19 +6,19 @@
 证据分级：**已自动验证**（本文第一部分与各节"已经自动化覆盖的部分"）、
 **只能人工验证**（各节"待人工验证"）、**仍未验证**（当前没有此类项）。
 
-## 最近一次全量验证基线（2026-09-26，本机）
+## 最近一次全量验证基线（2026-09-28，本机）
 
 复核时先跑这一组；全绿再看下面的"只能人工验证"清单。这份基线与
 `docs/development/fireaxe-parity.md` §5 各轮记录、`CHANGELOG.md` 的"验证"小节对应。
 
 | # | 命令 | 期望 | 最近结果 |
 | --- | --- | --- | --- |
-| 1 | `go test ./... -count=1` | 全部 ok（含仓库一致性审计） | ok（`internal/app` 等 6 个包） |
+| 1 | `go test ./... -count=1` | 全部 ok（含仓库一致性审计） | ok（`internal/app` 等 8 个包） |
 | 2 | `go vet ./...` | 无输出 | 无输出 |
-| 3 | `node --test`（在 `frontend/`） | 全通过 | **338 项 / 0 失败** |
+| 3 | `node --test`（在 `frontend/`） | 全通过 | **373 项 / 0 失败** |
 | 4 | `npm run build`（在 `frontend/`） | 产物正常（仅有既有的 chunk 体积警告） | 通过 |
-| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（18,466,816 字节） |
-| 6 | `npm run docs:build`（在 `docs/`） | VitePress 构建完成 | 7.70s |
+| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（18,535,424 字节，内含 2.7.1-community.3） |
+| 6 | `npm run docs:build`（在 `docs/`） | VitePress 构建完成（含内部链接检查） | 通过 |
 
 另外两项"不靠命令"的复核点：
 
@@ -1735,6 +1735,75 @@ requested=2 updated=2 failed=[] errors=[]
 ### 仍未验证
 
 本轮没有"计划内但完全未验证"的项目。
+
+### 第二十轮（窗口几何与双击复位：三个真实缺陷的复现与修复，打包 EXE 驱动验证）
+
+**背景**：用户要求"上游学得差不多了就转去看窗口、使用交互、功能正常运行"。
+本轮先做上游对账（`LaoYutang/lytvpk` master 仍是 `be3edfc`、`ktxiaok/FireAxe` main 仍是
+`f8aa1cf`，都没有新提交，v2.5.15→v2.7.1 的 20 个提交在 2.7.1-community.2 已全部处置），
+随后在打包 EXE 上做窗口 / 交互 / 功能扫查，抓到并修掉三个缺陷。
+
+**方法**：临时调试桥（`LYTVPK_CUA_BRIDGE=1`，只监听 `127.0.0.1`，随机端口写
+`%TEMP%\lytvpk-cua-bridge.log`）+ 沙箱 `APPDATA` + 真实 VPK 夹具
+（`.tmp-cua/sweep/`，脚本与夹具都在 gitignore 的 `.tmp-cua/` 下，不进仓库）。
+验证完删除桥接文件并重建，产物 ASCII 扫描确认无 `cua-bridge`。
+
+**缺陷 1：主窗口几何从未落盘（功能整体失效）**
+
+```text
+修复前：WindowSetSize(1180,820) → 等 1.8s → GetAppConfig()
+        mainWindowWidth=null  mainWindowHeight=null  mainWindowMaximised=null
+        最大化后再读：仍是全 null（config.json 里没有这三个键）
+根因：  SaveAppConfig 逐个写回配置字段，漏了 MainWindowWidth/Height/Maximised，
+        前端传来的值被静默丢弃 → GetAppConfig 永远 null → restoreMainWindowGeometry 直接 return
+修复后：set-1180x820 → saved {1180,820,false}
+        关闭应用 → 重新启动 → WindowGetSize() = 1180×820（config.json 同步落值）
+        最大化 → saved {1180,820,true} → 关闭 → 重启 → 仍为最大化（2576×1416，inner 2560×1400）
+        最小化期间（尺寸 160×28）不写盘，记忆保持 1180×820
+```
+
+**缺陷 2：最大化会把"还原尺寸"覆盖成贴屏尺寸**
+
+真机实测最大化后 `WindowGetSize()` 返回 **2576×1416**（比 2560×1440 的屏幕还大）。
+修复后最大化只更新标记、保留上一次的还原尺寸（`resolveMainWindowGeometryToSave`，
+6 组纯函数用例 + 上面那条"重启仍为最大化"的真机证据）。
+
+**缺陷 3：双击标题栏复位窗口几何抛 `ReferenceError`**
+
+```text
+修复前：在浮动窗口标题栏按下鼠标 → Uncaught ReferenceError: content is not defined
+        @ http://wails.localhost/assets/index.<hash>.js（floating-modal 双击处理器）
+        现象：localStorage 位置记忆被清掉，但内联 left/top/width/height 还在 —— 窗口纹丝不动
+修复后：双击后 innerStyle = {left:"",top:"",width:"",height:""}，窗口回到默认位置，
+        localStorage 记忆为 null，全程无未捕获异常
+```
+
+**同轮扫查过、未发现问题的部分**（同一套真机通道）：
+
+```text
+七个页面切换（MOD 管理 / 创意工坊 / 下载与解析 / 收藏服务器 / 工具箱 / 设置 / 关于）→ 无 JS 错误
+18 个浮动窗口全部注册浮动能力；拖动越界被钳制在视口内、位置记忆与重开恢复、双击复位均正常
+Ctrl+F 聚焦搜索 → "医疗箱" 命中 7/2421（14 处高亮）→ Esc 清空
+命令面板 Ctrl+K：打开 10 条、搜"窗口"命中「重置所有窗口的位置与大小」、输入框内 Esc 关闭
+行右键菜单：11 项，矩形完全在视口内，Esc 可关闭
+多选 2 行 → 批量栏出现「已选择: 2」
+行内开关：关闭 Mod 直接写盘；再开启时弹出风险确认框（设计如此），点「继续操作」后
+  addonlist.txt 立刻写回 "1"（夹具真值核对）
+夹具体检：正确报出「条目缺少文件 · ghost.vpk」与「缺少工坊信息 · 3115373375.vpk」
+夹具冲突检测：0 冲突，弹窗正常
+autoexec 编辑器：读取夹具 cfg（UTF-8 · CRLF · 91 B），命令说明表 193 行，含风险/未知命令提示
+VPK 完整性检测（截断的真实 VPK）：valid=false，逐条列出 checksum mismatch，未崩溃
+```
+
+**只能人工验证**：
+
+1. 「VPK 完整性检测」「压缩包管理」「解包 / 打包」三个工具的**入口按钮**会调用系统文件/文件夹选择框，
+   自动化无法点选（本轮改为直接调用同一条后端链路验证）。真实文件选择框的交互仍需人工确认。
+2. 最大化 / 最小化后的体感（本轮实测落盘有约 2–3 秒的延迟：最大化会连续触发几次 WM_SIZE，
+   防抖后才写盘；关得太快可能丢掉最后一次状态）。
+3. 多显示器之间来回移动后的窗口还原观感（与上一轮同一条）。
+
+**仍未验证**：无"计划内但完全未验证"的项目。
 
 ## 编辑快捷键 / 主窗口记忆 / 冗余副本 / 剪贴板识别 / Ctrl+X·V（2026-09-26，打包 EXE + 沙箱夹具）
 

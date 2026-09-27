@@ -122,3 +122,50 @@ test("停靠状态点窗口外要能关闭（统一处理，会改 Mod 状态的
     "策略组窗口不应再自带一套点外关闭",
   );
 });
+
+test("双击标题栏复位必须先清掉内联几何（真实缺陷：content is not defined）", async () => {
+  // 真机复现：在浮动窗口标题栏上按下鼠标 → 未捕获 ReferenceError:
+  //   content is not defined @ floating-modal.js 双击处理器
+  // 原因：处理器里调用了作用域中不存在的 `content`（弹窗元素叫 `element`，
+  // 内容节点要通过 element.querySelector(".modal-content") 取）。
+  // 后果：localStorage 里的位置记忆被清了，但内联 left/top/width/height 还留着 ——
+  // "把窗口拖出视口后双击标题栏救回来"这条逃生口实际不生效。
+  const setupBody = moduleSource.slice(
+    moduleSource.indexOf("export function setupFloatingModal"),
+    moduleSource.indexOf("export function resetAllWindowGeometry"),
+  );
+  assert.ok(setupBody.length > 0, "找不到 setupFloatingModal 的实现");
+  assert.equal(
+    /\bclearInlinePosition\(content\)/.test(setupBody),
+    false,
+    "setupFloatingModal 里不能再直接引用未定义的 content",
+  );
+  assert.match(setupBody, /resetFloatingModalGeometry\(element, positionKey\)/, "双击标题栏要调用复位函数");
+
+  const { resetFloatingModalGeometry } = await import("./floating-modal.js");
+  const clearedProps = [];
+  const removedKeys = [];
+  const content = {
+    style: { removeProperty: (key) => clearedProps.push(key) },
+  };
+  const element = {
+    querySelector: (selector) => (selector === ".modal-content" ? content : null),
+  };
+
+  const result = resetFloatingModalGeometry(element, "lytvpk.floatingPos.load-order-modal", {
+    storage: { removeItem: (key) => removedKeys.push(key) },
+  });
+
+  assert.deepEqual(removedKeys, ["lytvpk.floatingPos.load-order-modal"], "要清掉位置记忆");
+  assert.deepEqual(result, { memoryCleared: true, geometryCleared: true });
+  // 8 个内联定位属性都要被清掉（left/top/right/bottom/width/height/max-width/max-height）。
+  for (const property of ["left", "top", "right", "bottom", "width", "height", "max-width", "max-height"]) {
+    assert.ok(clearedProps.includes(property), `内联 ${property} 要清掉，否则窗口还停在原位置`);
+  }
+
+  // 取不到 .modal-content 时不能抛异常（外层的双击处理器要稳稳走完）。
+  assert.deepEqual(
+    resetFloatingModalGeometry({ querySelector: () => null }, "key", { storage: { removeItem: () => {} } }),
+    { memoryCleared: true, geometryCleared: false },
+  );
+});

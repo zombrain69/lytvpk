@@ -314,6 +314,7 @@ import {
   WindowGetSize,
   WindowSetSize,
   WindowIsMaximised,
+  WindowIsMinimised,
   WindowMaximise,
   WindowUnmaximise,
   ScreenGetAll,
@@ -321,6 +322,7 @@ import {
 } from "../../../wailsjs/runtime/runtime";
 import {
   pickPrimaryScreen,
+  resolveMainWindowGeometryToSave,
   sanitizeMainWindowGeometry,
   shouldApplyMainWindowGeometry,
 } from "../core/main-window-geometry.mjs";
@@ -760,10 +762,24 @@ function trackMainWindowGeometry() {
   const save = async () => {
     timer = null;
     try {
-      const [size, maximised] = await Promise.all([WindowGetSize(), WindowIsMaximised()]);
-      const geometry = sanitizeMainWindowGeometry({ width: size?.w, height: size?.h, maximised: Boolean(maximised) });
-      if (!geometry) return;
+      // 最小化 / 最大化时的尺寸都不可直接当作"用户想要的窗口大小"：
+      // 最大化时是贴满屏幕的尺寸、最小化时是 Windows 给的极小值 —— 纯函数里统一处理。
+      const [size, maximised, minimised] = await Promise.all([
+        WindowGetSize(),
+        WindowIsMaximised(),
+        WindowIsMinimised(),
+      ]);
       const config = getConfig();
+      const geometry = resolveMainWindowGeometryToSave(
+        {
+          width: size?.w,
+          height: size?.h,
+          maximised: Boolean(maximised),
+          minimised: Boolean(minimised),
+        },
+        config,
+      );
+      if (!geometry) return;
       if (
         config.mainWindowWidth === geometry.width &&
         config.mainWindowHeight === geometry.height &&

@@ -61,6 +61,42 @@ function writeStored(key, value) {
   }
 }
 
+/** safeStorage 取 localStorage，取不到（隐私模式 / node 环境）时返回 null。 */
+function safeStorage() {
+  try {
+    return window.localStorage || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * resetFloatingModalGeometry 把某个浮动窗口"复位"到默认位置：
+ *   ① 清掉记住的位置与大小（localStorage）；
+ *   ② 清掉拖动留下的内联几何（left/top/width/height/max-* 等）。
+ *
+ * 抽成独立函数的原因是一个真实缺陷：这段逻辑原来写在双击标题栏的处理器里，
+ * 引用了作用域中不存在的 `content`（弹窗元素叫 element，内容节点要 querySelector 取），
+ * 真机上抛 `ReferenceError: content is not defined` —— 位置记忆被清了，内联几何却留着，
+ * 于是"把窗口拖出视口后双击标题栏救回来"这条逃生口实际不生效。
+ * 抽出来之后可以在 node --test 里用假元素直接验证行为。
+ */
+export function resetFloatingModalGeometry(element, positionKey, options = {}) {
+  let memoryCleared = false;
+  if (positionKey) {
+    const storage = options.storage ?? safeStorage();
+    try {
+      storage?.removeItem(positionKey);
+      memoryCleared = true;
+    } catch (error) {
+      memoryCleared = false;
+    }
+  }
+  const content = element?.querySelector?.(".modal-content") || null;
+  if (content) clearInlinePosition(content);
+  return { memoryCleared, geometryCleared: Boolean(content) };
+}
+
 /** isFloatingModal 当前是不是浮动状态。 */
 export function isFloatingModal(modal) {
   return Boolean(resolveModal(modal)?.classList.contains(FLOATING_CLASS));
@@ -287,14 +323,7 @@ export function setupFloatingModal(modal, options = {}) {
     .querySelector(options.dragHandleSelector || DEFAULT_HEADER_SELECTOR)
     ?.addEventListener("dblclick", (event) => {
       if (event.target.closest("button, input, select, textarea, label, a")) return;
-      if (positionKey) {
-        try {
-          window.localStorage?.removeItem(positionKey);
-        } catch (error) {
-          /* 存储不可用时忽略：下面的样式仍然会复位 */
-        }
-      }
-      clearInlinePosition(content);
+      resetFloatingModalGeometry(element, positionKey);
       if (element.classList.contains(FLOATING_CLASS)) {
         // 浮动状态下清掉内联几何后，再按当前布局钉一次，避免掉回"半浮动"的样式错位。
         applyCurrent();

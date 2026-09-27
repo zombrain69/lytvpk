@@ -36,7 +36,7 @@
 | --- | --- | --- |
 | `da4a71b` `fix(parser): 修正界面资源导致人物误判并稳定关键词优先级` | 新增"界面/HUD 路径不作为角色证据"的黑名单；把关键词表从 `map` 改成有序切片（`map` 迭代顺序随机 → 同一 VPK 每次标签可能不同） | 我们用的是**白名单**：只有 `models/survivors/`、`materials/models/infected/`、`sound/player/survivor/` 等内容根才算角色证据；规则表本来就是有序切片。本轮补 `internal/parser/upstream_parity_test.go` 把上游的具体场景钉死：8 类界面路径（vgui / sprites / hud / particles / sound-ui / scripts / resource）+ `common_male_ceda` 非普通感染者优先 + 50 次运行结果一致 + 真角色仍能识别 |
 | `8c171c6` `fix addonlist写入编码问题` | 记录原编码（ANSI / UTF-8 / UTF-8 BOM）并按原编码写回 | 我们更早就实现了这套，且覆盖面更大：UTF-8 / UTF-8 BOM / **GBK** / **Windows-1252** / **UTF-16LE / UTF-16BE** 检测 + 保真写回，并有逐项回归测试（`TestSetVPKGameEnabledPreservesGBKLayoutAndWorkshopKey`、`TestAddonListDocumentPreservesUTF16LE`、`TestAddonListDocumentPreservesWindows1252ANSI` …） |
-| `5f2eb49` 窗口保持关闭前大小 | 记住窗口尺寸 | 我们同时记住**宽高 + 最大化状态**，并按当前屏幕可用区域钳制（换小屏不会把按钮顶到屏幕外） |
+| `5f2eb49` 窗口保持关闭前大小 | 记住窗口尺寸 | 我们同时记住**宽高 + 最大化状态**，并按当前屏幕可用区域钳制（换小屏不会把按钮顶到屏幕外）。<br>**2.7.1-community.3 补记**：这条此前只有代码、没有生效 —— 保存链路漏写这三个字段，重启后其实记不住；现已修好并在打包 EXE 上实测（普通尺寸与最大化两种往返、最小化期间不写盘） |
 | `a50cf4f` 标记 addonlist 中失效文件和新增文件 | 在加载顺序编辑器里标出"文件没了/新加的" | 我们用体检项 `missing_file`（`addonlist` 里有、磁盘上没有）+ 列表行"未记录"状态（磁盘上有、`addonlist` 里没有）覆盖同一判断，且能一键修复 |
 | `be3edfc` 更新 GitHub Actions 依赖版本 | 升 action 版本 | 我们已升到 Node 24 运行时（`checkout@v7` / `setup-go@v7` / `setup-node@v7` / `upload-artifact@v7`），并把文档工作流固定在 `ubuntu-24.04` |
 | `d0d406b` 工坊批量转移与自动 meta 获取 | 批量把工坊 VPK 转移出来并自动补 meta | 我们的"转移"保留 `workshop` 原件（Fork 语义：不破坏 Steam 识别）并同步 `addonlist.txt`；meta 与官方标签由「抓取工坊官方标签与统计」原生抓 Steam 官方接口 |

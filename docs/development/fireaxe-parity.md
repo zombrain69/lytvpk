@@ -892,3 +892,37 @@ node --test → 291 项，0 失败（新增 archive-search.test.mjs 9 项）
 **这一轮修掉的一个真问题**：分词器最初把 `\` 当转义符，`C:\Tools\tool.exe` 会被吃成 `C:Toolstool.exe`。
 正是那条"真启动 xcopy"的端到端测试暴露出来的（单测里的模板恰好没有反斜杠）。
 另外把设置页两个按钮改成**事件委托**绑定：设置面板会整块重渲染，直接绑在按钮上的监听器会失效。
+
+### 5.16 2026-09-28 第十九轮：上游对账收口 + 窗口 / 交互三个真实缺陷
+
+**上游对账（先做，避免重复造）**：
+
+```text
+LaoYutang/lytvpk  master = be3edfc1（2026-09-23，GitHub API 与本地 upstream/master 一致，无新提交）
+ktxiaok/FireAxe  main     = f8aa1cf1（v0.7.3，只有 main 一个分支，无 dev；即本文的对照基线）
+→ v2.5.15 → v2.7.1 的 20 个提交在 2.7.1-community.2 已逐条处置完毕，本轮没有新的上游能力可学。
+  落点抽查（文件真实存在）：internal/app/workshop_history.go、internal/serveraddress/address.go、
+  frontend/src/js/features/workshop/id-jump.js、ParseWorkshopID 绑定、required_items 模型字段。
+```
+
+**FireAxe 第 5 项（`5f2eb49` 窗口保持关闭前大小）的"隐含前提"没被验证过**：这一轮真机驱动发现
+本项目记了尺寸却从来没写进 `config.json` —— 也就是说"已对齐并加强（宽高 + 最大化 + 屏幕钳制）"
+这条只在**代码存在**的层面成立，功能层面是失效的。修好之后本轮才算真的对齐：
+
+| 项 | 修复前 | 修复后（真机证据） |
+| --- | --- | --- |
+| 保存链路 | `SaveAppConfig` 漏写 `MainWindowWidth/Height/Maximised`，`GetAppConfig()` 恒为 `null` | 落盘并回读；重启后 `WindowGetSize()` = 1180×820 |
+| 最大化语义 | 直接把 2576×1416（贴屏尺寸）当还原尺寸存 | 保留还原尺寸 1180×820 + `max=true`；重启仍为最大化 |
+| 最小化 | 会把 160×28 钳成 900×600 写进去 | 最小化期间不写盘 |
+| 双击标题栏复位 | `ReferenceError: content is not defined`，内联几何不清 | 8 个内联定位属性逐项清掉，窗口回默认位置 |
+
+**新增测试**：`internal/app/config_test.go` 3 组（保存即落盘 / 接受前端的 900×600 下限 / 丢弃
+0×0 与超大值）、`frontend/src/js/core/main-window-geometry.test.mjs` 6 组
+（`resolveMainWindowGeometryToSave` 的最大化保留还原尺寸、最小化不写、非法值不写）、
+`frontend/src/js/core/floating-modal.test.mjs` 1 组（用假元素验证 `resetFloatingModalGeometry`
+清记忆 + 清 8 个内联属性，并断言 `setupFloatingModal` 里不再出现未定义的 `content`）。
+
+**同轮扫查但未发现问题**：七个页面切换、18 个浮动窗口的注册 / 钳制 / 记忆 / 复位、
+`Ctrl+F` 搜索与 Esc、命令面板、行右键菜单（视口内）、多选批量栏、行内游戏开关（含风险确认框后
+写盘成功）、体检（夹具 ghost.vpk）、冲突检测、autoexec 编辑器、VPK 完整性检测（截断 VPK 报
+checksum mismatch）。细节见 `docs/development/manual-verification.md` 第二十轮。
