@@ -173,6 +173,7 @@ func TestCheckWorkshopCollectionUpdatesCoversAllLinks(t *testing.T) {
 
 // TestDownloadWorkshopCollectionSkipsPresentMembers 覆盖"下载跟随节点"。
 func TestDownloadWorkshopCollectionSkipsPresentMembers(t *testing.T) {
+	clearDownloadTaskStateForTest(t)
 	a, _ := newCollectionTestApp(t, map[string]WorkshopFileDetails{
 		"100": workshopDetailWithChildren("100", "1", "2"),
 		"1":   {Result: 1, PublishedFileId: "1", Title: "物品一", Filename: "1.vpk", FileUrl: "https://example.invalid/1.vpk"},

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -16,6 +17,31 @@ func countDownloadTasks() int {
 	taskManager.mu.RLock()
 	defer taskManager.mu.RUnlock()
 	return len(taskManager.tasks)
+}
+
+// clearDownloadTaskStateForTest 清空包级下载任务表与落盘节流状态，并在测试结束时再清一次。
+//
+// `taskManager` 和 `downloadTaskPersist` 都是包级变量：某个测试留下的任务会让后面测试的
+// "任务数量 / 快照内容 / 同一作品不重复入队"这类断言随机失败（`go test -count=2` 以上必现，
+// 单次跑也可能因为测试顺序变化而踩到）。凡是会读这两份状态的测试都应在开头调用本助手。
+func clearDownloadTaskStateForTest(t *testing.T) {
+	t.Helper()
+	resetDownloadTaskState()
+	t.Cleanup(resetDownloadTaskState)
+}
+
+func resetDownloadTaskState() {
+	taskManager.mu.Lock()
+	taskManager.tasks = make(map[string]*DownloadTask)
+	taskManager.mu.Unlock()
+
+	downloadTaskPersist.mu.Lock()
+	downloadTaskPersist.lastPath = ""
+	downloadTaskPersist.lastWrite = time.Time{}
+	downloadTaskPersist.lastHash = [sha256.Size]byte{}
+	downloadTaskPersist.hasHash = false
+	downloadTaskPersist.wroteOnce = false
+	downloadTaskPersist.mu.Unlock()
 }
 
 func TestDownloadTaskDedupeKeyPrefersWorkshopID(t *testing.T) {
@@ -62,6 +88,7 @@ func TestIsTerminalDownloadStatus(t *testing.T) {
 
 // TestStartDownloadTaskDeduplicatesActiveTask 覆盖"同一件工坊作品只排一个任务"。
 func TestStartDownloadTaskDeduplicatesActiveTask(t *testing.T) {
+	clearDownloadTaskStateForTest(t)
 	withDownloadTaskStarter(t, func(a *App, ctx context.Context, task *DownloadTask, url string) {})
 	a := &App{}
 
@@ -97,6 +124,7 @@ func TestStartDownloadTaskDeduplicatesActiveTask(t *testing.T) {
 
 // TestStartDownloadTaskDeduplicatesSameTargetFile 覆盖直链任务按目标文件去重。
 func TestStartDownloadTaskDeduplicatesSameTargetFile(t *testing.T) {
+	clearDownloadTaskStateForTest(t)
 	withDownloadTaskStarter(t, func(a *App, ctx context.Context, task *DownloadTask, url string) {})
 	a := &App{}
 
@@ -216,6 +244,7 @@ func TestDownloadTaskPersisterThrottlesAndSkipsIdenticalContent(t *testing.T) {
 }
 
 func TestPersistDownloadTasksWritesVersionedSnapshot(t *testing.T) {
+	clearDownloadTaskStateForTest(t)
 	dir := t.TempDir()
 	a := &App{configDir: dir}
 

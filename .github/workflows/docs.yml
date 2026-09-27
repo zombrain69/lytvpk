@@ -24,7 +24,9 @@ concurrency:
 jobs:
   build:
     name: Build docs
-    runs-on: ubuntu-latest
+    # 固定到具体 LTS，而不是 ubuntu-latest：GitHub 会在 ubuntu-latest 后面悄悄换镜像
+    # （例如 2026-10-19 起迁到 Ubuntu 26），文档构建不需要跟着漂。
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       DOCS_BASE: /${{ github.event.repository.name }}/

@@ -1,6 +1,53 @@
 # Changelog
 
+## 2.5.14-community.67 — 2026-09-27
+
+这一版是**文档与入口版**：应用功能没有改动，主要解决"新功能的教程看不到"。
+
+### 一、应用内「使用说明」改指向本 Fork 文档站
+
+- 左侧导航的**「使用说明」**按钮以前打开的是上游文档站（`lytvpk-docs.laoyutang.cn`），
+  那里没有本 Fork 的新功能说明；现在改为打开
+  **<https://zombrain69.github.io/lytvpk/>**（本 Fork 的 GitHub Pages 文档站）。
+- 文档站首页中间的「使用说明」按钮直接进**全功能地图**，少点一层。
+
+### 二、文档站上线（VitePress + GitHub Pages）
+
+- 新增工作流 `.github/workflows/docs.yml`：`docs/**` 变更时自动构建并发布到 GitHub Pages
+  （`configure-pages@v6` / `upload-pages-artifact@v5` / `deploy-pages@v5`）。
+- VitePress 增加 `base`（项目站点路径 `/lytvpk/`，由工作流按仓库名传入，Fork 无需改配置）；
+  站点图标与 **sitemap 34 条 URL** 都带上了正确前缀。
+- 固定文档构建运行器为 `ubuntu-24.04`，避免 `ubuntu-latest` 悄悄换镜像
+  （GitHub 公告 2026-10-19 起迁移到 Ubuntu 26）。
+
+### 三、新增三份指南（文档站与仓库同步）
+
+| 文档 | 内容 |
+| --- | --- |
+| 全功能地图 | 这个工具**能做什么**、每个按钮在哪儿、怎么开始（工具栏逐个说明、批量栏、设置页四个面板、工具箱 8 件套…） |
+| 本 Fork 新增功能一览 | 相对上游新增能力的**分步教程**（优先级分层、策略组、分组建议、忽略清单、体检、启用方案、检索语法、浮动窗口、自定义打开程序…） |
+| 为什么用这个 Fork | 与**上游 LytVPK** 和 **FireAxe** 的能力对照、借鉴清单、有意不采纳项，以及各能力的**整合点** |
+
+README 顶部也补了「相对上游 LytVPK 与 FireAxe」对比段与「基础操作 / 本 Fork 新增能力」入口速查表。
+
+### 四、CI 维护
+
+- GitHub Actions 升到 Node 24 运行时（`checkout@v7` / `setup-go@v7` / `setup-node@v7` / `upload-artifact@v7`），
+  消除每条运行的 "Node.js 20 is deprecated" 注解。
+
+### 验证
+
+```text
+go test ./... -count=1       全绿
+node --test                  354 项 / 0 失败
+npm run build                通过；打包产物只含新文档站地址
+wails build                  通过；EXE 内含新文档站地址、不含旧站地址
+docs npm run docs:build      通过；线上 7 个 URL 逐条 200
+```
+
 ## 未发布 — 自定义外部打开程序（对齐 FireAxe v0.7.2 process file customization）（2026-09-26）
+
+> 下面这些「未发布」小节的内容已随 `2.5.14-community.66` 发布，保留原始记录。
 
 **默认不变**：两项留空 = 完全走系统默认（Windows `explorer /select` 定位文件，macOS `open -R`，Linux `xdg-open`），
 `OpenFileLocation` 的原有分支一行没改；只有填了程序才替换。
