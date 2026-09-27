@@ -31,6 +31,7 @@ export default defineConfig({
         items: [
           { text: "项目介绍", link: "/" },
           { text: "快速开始", link: "/guide/quick-start" },
+          { text: "本 Fork 新增功能（入口 + 用法）", link: "/guide/whats-new" },
           { text: "安装与运行", link: "/guide/install" },
         ],
       },
