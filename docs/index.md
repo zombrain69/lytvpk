@@ -14,9 +14,10 @@ markdownStyles: false
     <h1>Left 4 Dead 2 MOD 管理器</h1>
     <p>创意工坊浏览 · MOD 管理 · 极速下载 · 一键启动</p>
     <div class="home-actions">
-      <a class="home-action primary" href="/guide/quick-start">立即开始</a>
-      <a class="home-action secondary" href="/guide/feature-tour">使用说明</a>
+      <a class="home-action primary" href="./guide/quick-start">立即开始</a>
+      <a class="home-action secondary" href="./guide/feature-tour">使用说明</a>
       <a class="home-action ghost" href="https://github.com/zombrain69/lytvpk/releases">立即下载</a>
     </div>
   </div>
 </section>
+

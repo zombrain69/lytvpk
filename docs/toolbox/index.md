@@ -5,47 +5,53 @@
 ## 工具列表
 
 <div class="tool-grid">
-  <a class="tool-card" href="/toolbox/problem-mod-scan">
+  <a class="tool-card" href="./problem-mod-scan">
     <span class="tool-card-mark">01</span>
     <strong>问题 Mod 查找</strong>
     <span>按二分法逐轮缩小范围，帮助找出导致异常的 Mod。</span>
   </a>
-  <a class="tool-card" href="/toolbox/conflict-check">
+  <a class="tool-card" href="./conflict-check">
     <span class="tool-card-mark">02</span>
     <strong>Mod 冲突检测</strong>
     <span>扫描多个 VPK 是否覆盖了相同文件。</span>
   </a>
-  <a class="tool-card" href="/toolbox/mod-health-check">
+  <a class="tool-card" href="./mod-health-check">
     <span class="tool-card-mark">03</span>
     <strong>Mod 体检</strong>
     <span>比对开关记录与磁盘文件，找出缺文件、重复条目与损坏 VPK。</span>
   </a>
-  <a class="tool-card" href="/toolbox/model-stats">
+  <a class="tool-card" href="./model-stats">
     <span class="tool-card-mark">04</span>
     <strong>模型面数检测</strong>
     <span>读取模型顶点和三角形数量，定位高面数资源。</span>
   </a>
-  <a class="tool-card" href="/toolbox/vpk-unpack">
+  <a class="tool-card" href="./vpk-unpack">
     <span class="tool-card-mark">05</span>
     <strong>VPK 解包</strong>
     <span>把 VPK 按内部目录结构解包到文件夹。</span>
   </a>
-  <a class="tool-card" href="/toolbox/vpk-pack">
+  <a class="tool-card" href="./vpk-pack">
     <span class="tool-card-mark">06</span>
     <strong>VPK 打包</strong>
     <span>把 materials、scripts 等资源目录打包成 VPK。</span>
   </a>
-  <a class="tool-card" href="/toolbox/mdmp-report">
+  <a class="tool-card" href="./mdmp-report">
     <span class="tool-card-mark">07</span>
     <strong>崩溃转储查看器</strong>
     <span>打开 .mdmp 或 .dmp，查看异常、线程和模块信息。</span>
   </a>
-  <a class="tool-card" href="/toolbox/spray-tool">
+  <a class="tool-card" href="./spray-tool">
     <span class="tool-card-mark">08</span>
     <strong>喷漆制作</strong>
     <span>导入图片或动画，生成 L4D2 可用的 VTF/VMT。</span>
   </a>
 </div>
+
+应用里的工具箱还有三个工具（本页暂未单独展开，用法见应用内提示与「全功能地图」）：
+
+- **autoexec.cfg 编辑器**：识别已用到的控制台命令、含义与风险，并保留原文件编码、BOM 与换行。
+- **VPK 完整性检测**：校验 VPK 目录、文件校验和与 `addoninfo.txt`，可安全修复并另存为新 VPK。
+- **压缩包管理**：递归查看 ZIP / RAR / 7Z / TAR，识别其中的 VPK 并与当前 Mod 对比。
 
 ## 使用建议
 
