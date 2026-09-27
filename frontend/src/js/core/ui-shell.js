@@ -9,7 +9,9 @@ const NAV_ICONS = {
   about: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
 };
 
-const DOCS_URL = "https://lytvpk-docs.laoyutang.cn";
+// 本 Fork 的文档站：GitHub Pages 项目站点（docs/ 由 .github/workflows/docs.yml 发布）。
+// 应用里左侧「使用说明」指向这里，而不是上游文档站 —— 这样新增功能的教程一键可达。
+const DOCS_URL = "https://zombrain69.github.io/lytvpk/";
 
 const MENU_ITEMS = [
   { page: "mods", id: "app-nav-mods", label: "MOD 管理", icon: NAV_ICONS.mods },

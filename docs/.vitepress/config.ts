@@ -1,19 +1,35 @@
 import { defineConfig } from "vitepress";
 
+// 文档部署在 GitHub Pages 的**项目站点**：https://<owner>.github.io/<repo>/，
+// 所以必须给 VitePress 一个 base（否则 /assets、/logo.png 这些绝对路径会 404）。
+// 默认 `"/lytvpk/"`；工作流会用 DOCS_BASE 传仓库名，这样 Fork 到别的仓库也不用改这份配置。
+const base = process.env.DOCS_BASE || "/lytvpk/";
+
+// sitemap 的 hostname 是"站点根"，而 VitePress 生成的条目是 `/guide/xxx` 这种绝对路径，
+// 直接交给 sitemap 库会按"绝对路径替换"解析，把 base 段吃掉（变成 .../guide/xxx）。
+// 所以这里把 base 明确补到每个条目上。
+const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+
 export default defineConfig({
+  base,
   lang: "zh-CN",
   title: "LytVPK",
   description: "Left 4 Dead 2 VPK Mod 管理器使用文档",
   cleanUrls: true,
   sitemap: {
-    hostname: "https://lytvpk-docs.laoyutang.cn",
+    hostname: "https://zombrain69.github.io",
+    transformItems: (items) =>
+      items.map((item) => ({
+        ...item,
+        url: `${normalizedBase}/${String(item.url || "").replace(/^\//, "")}`,
+      })),
   },
   appearance: "force-dark",
   lastUpdated: true,
   head: [
     ["meta", { name: "theme-color", content: "#07142f" }],
-    ["link", { rel: "icon", type: "image/png", href: "/logo.png" }],
-    ["link", { rel: "apple-touch-icon", href: "/logo.png" }],
+    ["link", { rel: "icon", type: "image/png", href: `${base}logo.png` }],
+    ["link", { rel: "apple-touch-icon", href: `${base}logo.png` }],
   ],
   themeConfig: {
     logo: "/logo.png",

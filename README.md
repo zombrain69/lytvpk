@@ -17,7 +17,12 @@
 
 ## 📖 文档范围
 
-基础功能及一般操作方式延续上游项目的[使用文档](https://lytvpk-docs.laoyutang.cn)。本 README 只记录 `zombrain69/lytvpk` 相对上游新增或显著强化的部分，避免把上游已有能力重复列为本 Fork 功能。
+**本 Fork 的文档站：<https://zombrain69.github.io/lytvpk/>** —— 应用里左侧「使用说明」按钮就指向这里，
+里面包含[全功能地图](https://zombrain69.github.io/lytvpk/guide/feature-tour)、
+[本 Fork 新增功能](https://zombrain69.github.io/lytvpk/guide/whats-new)、
+[为什么用这个 Fork](https://zombrain69.github.io/lytvpk/guide/why-this-fork) 等页面。
+上游项目的基础功能说明见[上游使用文档](https://lytvpk-docs.laoyutang.cn)；本 README 只记录
+`zombrain69/lytvpk` 相对上游新增或显著强化的部分，避免把上游已有能力重复列为本 Fork 功能。
 
 仓库里有三份配套文档，按需要挑着看：
 
