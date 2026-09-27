@@ -6,7 +6,7 @@
     "build": "vitepress build",
     "docs:check": "node scripts/check-links.mjs",
     "docs:dev": "vitepress --host 0.0.0.0",
-    "docs:build": "vitepress build",
+    "docs:build": "vitepress build && node scripts/check-links.mjs",
     "docs:preview": "vitepress preview --host 0.0.0.0"
   },
   "devDependencies": {

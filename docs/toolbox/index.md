@@ -45,13 +45,22 @@
     <strong>喷漆制作</strong>
     <span>导入图片或动画，生成 L4D2 可用的 VTF/VMT。</span>
   </a>
+  <a class="tool-card" href="./autoexec">
+    <span class="tool-card-mark">09</span>
+    <strong>autoexec.cfg 编辑器</strong>
+    <span>逐行识别控制台命令的含义与风险，保留原编码、BOM 与换行。</span>
+  </a>
+  <a class="tool-card" href="./vpk-integrity">
+    <span class="tool-card-mark">10</span>
+    <strong>VPK 完整性检测</strong>
+    <span>校验归档结构、条目校验和与 addoninfo.txt，可安全修复并另存。</span>
+  </a>
+  <a class="tool-card" href="./archive-manager">
+    <span class="tool-card-mark">11</span>
+    <strong>压缩包管理</strong>
+    <span>递归查看 ZIP / RAR / 7Z / TAR，识别其中的 VPK 并与当前 Mod 对比。</span>
+  </a>
 </div>
-
-应用里的工具箱还有三个工具（本页暂未单独展开，用法见应用内提示与「全功能地图」）：
-
-- **autoexec.cfg 编辑器**：识别已用到的控制台命令、含义与风险，并保留原文件编码、BOM 与换行。
-- **VPK 完整性检测**：校验 VPK 目录、文件校验和与 `addoninfo.txt`，可安全修复并另存为新 VPK。
-- **压缩包管理**：递归查看 ZIP / RAR / 7Z / TAR，识别其中的 VPK 并与当前 Mod 对比。
 
 ## 使用建议
 
@@ -62,3 +71,6 @@
 - 需要查看或修改 VPK 内容时，用解包和打包。
 - 有 `.mdmp` 或 `.dmp` 文件时，用崩溃转储查看器。
 - 想制作喷漆时，用喷漆制作工具。
+- 想改 `cfg/autoexec.cfg`（并看清每条命令的风险）时，用 autoexec.cfg 编辑器。
+- 怀疑某个 VPK 下载不完整、被打包坏了时，用 VPK 完整性检测。
+- 整理一堆下载回来的压缩包时，用压缩包管理先分清"待导入 / 已有"。

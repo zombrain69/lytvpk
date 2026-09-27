@@ -160,15 +160,15 @@
 
 左侧导航 **工具箱**：
 
-1. **问题 Mod 查找**（二分法）
-2. **Mod 冲突检测**
-3. **Mod 模型面数检测**（LOD0 顶点 / 三角面）
-4. **崩溃转储查看器**（`.mdmp` / `.dmp`）
-5. **喷漆制作**（图片 / 序列帧 → VTF/VMT，可导入到 addons）
-6. **autoexec.cfg 编辑器**（命令含义 / 风险 / 来源，保留原编码与换行）
-7. **VPK 解包 / VPK 打包**（按内部目录结构拆包；把资源目录打包成 VPK）
-8. **VPK 完整性检测**（校验目录、校验和与 `addoninfo.txt`，可安全修复并另存）
-9. **压缩包管理**（ZIP / RAR / 7Z / TAR 里识别 VPK 并与现有 Mod 对比）
+1. [问题 Mod 查找](/toolbox/problem-mod-scan)（二分法）
+2. [Mod 冲突检测](/toolbox/conflict-check)
+3. [Mod 模型面数检测](/toolbox/model-stats)（LOD0 顶点 / 三角面）
+4. [崩溃转储查看器](/toolbox/mdmp-report)（`.mdmp` / `.dmp`）
+5. [喷漆制作](/toolbox/spray-tool)（图片 / 序列帧 → VTF/VMT，可导入到 addons）
+6. [autoexec.cfg 编辑器](/toolbox/autoexec)（命令含义 / 风险 / 来源，保留原编码与换行）
+7. [VPK 解包](/toolbox/vpk-unpack) / [VPK 打包](/toolbox/vpk-pack)（按内部目录结构拆包；把资源目录打包成 VPK）
+8. [VPK 完整性检测](/toolbox/vpk-integrity)（校验目录、校验和与 `addoninfo.txt`，可安全修复并另存）
+9. [压缩包管理](/toolbox/archive-manager)（ZIP / RAR / 7Z / TAR 里识别 VPK 并与现有 Mod 对比）
 
 详见 [工具箱总览](/toolbox/)。
 

@@ -50,10 +50,6 @@ jobs:
         working-directory: docs
         run: npm run docs:build
 
-      - name: Check internal links
-        working-directory: docs
-        run: npm run docs:check
-
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
 
