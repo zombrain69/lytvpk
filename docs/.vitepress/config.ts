@@ -31,7 +31,9 @@ export default defineConfig({
         items: [
           { text: "项目介绍", link: "/" },
           { text: "快速开始", link: "/guide/quick-start" },
+          { text: "全功能地图（能做什么 · 在哪儿点）", link: "/guide/feature-tour" },
           { text: "本 Fork 新增功能（入口 + 用法）", link: "/guide/whats-new" },
+          { text: "为什么用这个 Fork（对比上游与 FireAxe）", link: "/guide/why-this-fork" },
           { text: "安装与运行", link: "/guide/install" },
         ],
       },

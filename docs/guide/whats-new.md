@@ -259,6 +259,7 @@
 
 ## 十六、相关文档
 
+- [全功能地图（能做什么 · 在哪儿点）](/guide/feature-tour)｜[为什么用这个 Fork（对比上游与 FireAxe）](/guide/why-this-fork)
 - [MOD 管理](/features/mod-management)｜[分组建议与外部导入](/features/group-suggestion-import)｜[导入与拖拽](/features/import-drag-drop)
 - [创意工坊浏览](/features/workshop)｜[下载与解析](/features/downloads)｜[收藏服务器](/features/servers)｜[设置](/features/settings)
 - [工具箱总览](/toolbox/)｜[Mod 体检](/toolbox/mod-health-check)｜[Mod 冲突检测](/toolbox/conflict-check)｜[模型面数检测](/toolbox/model-stats)
