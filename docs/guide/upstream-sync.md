@@ -9,7 +9,16 @@
 > 判断原则：**上游修的是真 bug → 一定同步；上游新增能力而我们已经做得更完整 → 保留我们的实现**；
 > 上游换了一套做法但我们的设计更贴合"直接管理真实文件 + 可验证"的路线 → 记录差异而不是照搬。
 
-## 一、本轮已同步（2.7.1-community.1）
+## 一、已同步
+
+### 2.7.1-community.2
+
+| 上游提交 | 能力 | 我们的落地 | 证据 |
+| --- | --- | --- | --- |
+| `c1b4972` `favoriteServer` 外部协议 | 外部程序 / 网页用 `lytvpk://favoriteServer/名字/地址` 把服务器推进收藏 | 新增 `internal/serveraddress`（地址规范化：补 27015、IPv6、端口范围）；协议解析新增 `favoriteServer` 动作；`addFavoriteServer` 按规范化地址**幂等**写入；前端收到事件后切到收藏页刷新并提示；表单保存也复用同一套规范化 | `internal/serveraddress/address_test.go`、`internal/platform/protocol/url_protocol_test.go`、`internal/app/server_favorite_test.go`、`frontend/src/js/features/servers/address.test.mjs` + `favorite-protocol-wiring.test.mjs` |
+| `361dc9a` 工坊详情显示依赖物品 | 普通物品的 `required_items`（必需前置）在详情里列出 | `WorkshopItemDetail` 新增 `required_items`，图片处理抽成可测的 `processWorkshopDetailImages`（复制切片、不改缓存）；前端新增「依赖物品」区块（卡片可点、无预览图给占位、标题转义） | `internal/app/workshop_detail_dependencies_test.go`、`frontend/src/js/features/workshop/required-items.test.mjs` |
+
+### 2.7.1-community.1
 
 | 上游提交 | 能力 | 我们的落地 | 证据 |
 | --- | --- | --- | --- |
@@ -42,12 +51,10 @@
 | `cd93ea6` cf 工坊接口添加 ip 令牌桶 | 服务端限流 | 客户端不依赖该限流；我们有自己的优选 IP / 固定 IP / 镜像列表 |
 | `d367670` / `e9069c8` 更新加速源、预热 | 换镜像源、更新弹框预热 | 我们的网络设置提供优选 IP、固定 IP、系统代理与测速结果 |
 
-## 四、暂未同步（已记录，按需再做）
+## 四、暂未同步
 
-| 上游提交 | 能力 | 为什么先不做 |
-| --- | --- | --- |
-| `c1b4972` `favoriteServer` 外部协议 | 让外部程序/网页把服务器推进收藏列表 | 需要动协议注册 + 服务器地址解析 + 前端表单三处；我们的"收藏服务器"已支持手动添加与导入导出，优先级不高 |
-| `361dc9a` 详情显示依赖物品 | 工坊详情里列出该物品依赖的其它物品 | 依赖数据在外层 worker 接口里，需要 worker 与前端一起改；我们已有 Mod 依赖管理（本地层面） |
+目前上游 v2.5.15 → v2.7.1 的提交都已逐条处置：能直接学的已同步，其余都有等价实现或按我们的设计保留。
+如果之后对账时又发现新的上游提交，按第五节的方法继续，并更新本页。
 
 ## 五、维护者：怎么继续做同步
 

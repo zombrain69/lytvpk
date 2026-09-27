@@ -1933,6 +1933,24 @@ function setupWailsEvents() {
     }
   });
 
+  // 外部程序 / 网页通过 lytvpk://favoriteServer/... 添加收藏服务器（对齐上游 c1b4972）。
+  EventsOn("protocol:favoriteServer", async (data) => {
+    console.log("收到协议添加收藏服务器请求:", data);
+    try {
+      await initServerStorage();
+      await renderServers();
+      switchAppPage("servers", { silent: true });
+      if (data?.added) {
+        showNotification(`已收藏服务器：${data.name || data.address}`, "success");
+      } else {
+        showNotification(`服务器已在收藏里：${data?.name || data?.address || ""}`, "info");
+      }
+    } catch (error) {
+      console.error("刷新服务器列表失败:", error);
+      showError("已添加服务器，但刷新列表失败: " + error);
+    }
+  });
+
   // 监听Mod更新检测事件
   EventsOn("mod_update_check_complete", () => {
     refreshFilesKeepFilter();

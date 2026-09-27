@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"vpk-manager/internal/serveraddress"
 )
 
 // ProtocolAction 协议操作类型
@@ -16,6 +18,8 @@ const (
 	ProtocolActionParse ProtocolAction = "parse"
 	// ProtocolActionWorkshop 在管理器中打开工坊页面
 	ProtocolActionWorkshop ProtocolAction = "workshop"
+	// ProtocolActionFavoriteServer 把外部传入的服务器加进收藏（对齐上游 c1b4972）
+	ProtocolActionFavoriteServer ProtocolAction = "favoriteServer"
 )
 
 const WorkshopIDDelimiter = ","
@@ -24,6 +28,9 @@ const WorkshopIDDelimiter = ","
 type ProtocolURL struct {
 	Action     ProtocolAction
 	WorkshopID string
+	// ServerName / ServerAddress 仅 FavoriteServer 使用；地址已按 27015 补全端口。
+	ServerName    string
+	ServerAddress string
 }
 
 // ParseProtocolURL 解析 lytvpk:// 协议URL
@@ -31,6 +38,7 @@ type ProtocolURL struct {
 //   - lytvpk://parse/{workshop_id}
 //   - lytvpk://parse/{workshop_id},{workshop_id}
 //   - lytvpk://workshop/{workshop_id}
+//   - lytvpk://favoriteServer/{server_name}/{server_address}
 func ParseProtocolURL(rawURL string) (*ProtocolURL, error) {
 	// 检查协议前缀
 	if !strings.HasPrefix(rawURL, "lytvpk://") {
@@ -47,11 +55,6 @@ func ParseProtocolURL(rawURL string) (*ProtocolURL, error) {
 	}
 
 	action := strings.ToLower(parts[0])
-	id := parts[1]
-	decodedID, err := neturl.PathUnescape(id)
-	if err != nil {
-		return nil, fmt.Errorf("协议URL编码错误: %s", id)
-	}
 
 	// 验证操作类型
 	var protocolAction ProtocolAction
@@ -60,31 +63,81 @@ func ParseProtocolURL(rawURL string) (*ProtocolURL, error) {
 		protocolAction = ProtocolActionParse
 	case "workshop":
 		protocolAction = ProtocolActionWorkshop
+	case "favoriteserver":
+		protocolAction = ProtocolActionFavoriteServer
 	default:
 		return nil, fmt.Errorf("未知的协议操作: %s", action)
 	}
 
 	switch protocolAction {
 	case ProtocolActionParse:
+		decodedID, err := decodePathSegment(parts[1])
+		if err != nil {
+			return nil, err
+		}
 		ids, err := ParseWorkshopIDList(decodedID)
 		if err != nil {
 			return nil, err
 		}
-		id = strings.Join(ids, WorkshopIDDelimiter)
+		return &ProtocolURL{
+			Action:     protocolAction,
+			WorkshopID: strings.Join(ids, WorkshopIDDelimiter),
+		}, nil
 	case ProtocolActionWorkshop:
+		decodedID, err := decodePathSegment(parts[1])
+		if err != nil {
+			return nil, err
+		}
 		if strings.Contains(decodedID, WorkshopIDDelimiter) {
 			return nil, fmt.Errorf("工坊打开协议只支持单个工坊ID: %s", decodedID)
 		}
 		if !IsValidWorkshopID(decodedID) {
 			return nil, fmt.Errorf("无效的工坊ID: %s", decodedID)
 		}
-		id = decodedID
+		return &ProtocolURL{
+			Action:     protocolAction,
+			WorkshopID: decodedID,
+		}, nil
+	case ProtocolActionFavoriteServer:
+		if len(parts) < 3 {
+			return nil, fmt.Errorf("收藏服务器协议格式应为 lytvpk://favoriteServer/{名称}/{地址}")
+		}
+		name, err := decodePathSegment(parts[1])
+		if err != nil {
+			return nil, err
+		}
+		rawAddress, err := decodePathSegment(strings.Join(parts[2:], "/"))
+		if err != nil {
+			return nil, err
+		}
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return nil, fmt.Errorf("服务器名称不能为空")
+		}
+		address, err := serveraddress.Normalize(rawAddress)
+		if err != nil {
+			return nil, err
+		}
+		return &ProtocolURL{
+			Action:        protocolAction,
+			ServerName:    name,
+			ServerAddress: address,
+		}, nil
 	}
 
 	return &ProtocolURL{
 		Action:     protocolAction,
-		WorkshopID: id,
+		WorkshopID: "",
 	}, nil
+}
+
+// decodePathSegment 解析协议 URL 里的路径段（做一次 URL 解码）。
+func decodePathSegment(segment string) (string, error) {
+	decoded, err := neturl.PathUnescape(segment)
+	if err != nil {
+		return "", fmt.Errorf("协议URL编码错误: %s", segment)
+	}
+	return decoded, nil
 }
 
 // ParseWorkshopIDList 解析由英文逗号分隔的工坊ID列表。
@@ -141,5 +194,8 @@ func IsValidWorkshopID(id string) bool {
 
 // String 返回协议URL的字符串表示
 func (p *ProtocolURL) String() string {
+	if p.Action == ProtocolActionFavoriteServer {
+		return fmt.Sprintf("lytvpk://%s/%s/%s", p.Action, p.ServerName, p.ServerAddress)
+	}
 	return fmt.Sprintf("lytvpk://%s/%s", p.Action, p.WorkshopID)
 }

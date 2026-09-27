@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.7.1-community.2 — 2026-09-27
+
+把上一轮标记为"暂未同步"的两条上游能力补齐；至此 **上游 v2.5.15 → v2.7.1 的 20 个提交全部处置完毕**
+（同步 / 已有且更强 / 等价实现，逐条见 [上游同步状态](docs/guide/upstream-sync.md)）。
+
+### 一、`lytvpk://favoriteServer` 外部协议（同步自上游 `c1b4972`）
+
+- 新增 `internal/serveraddress`：地址规范化（不写端口补 `27015`、IPv6 用方括号、端口 1–65535），
+  带 8 组合法 + 11 组非法用例。
+- 协议解析新增 `favoriteServer` 动作：`lytvpk://favoriteServer/{名称}/{地址}`，名称/地址都支持 URL 编码。
+- `addFavoriteServer` 按**规范化地址幂等**写入收藏（同一台服务器写不写端口都只存一条），
+  已存在返回 `added=false` 而不是报错；写入沿用 `SaveServerStorage`（面板密码等字段照旧保留）。
+- 前端：收到 `protocol:favoriteServer` 后自动切到「收藏服务器」页、刷新列表并提示"已收藏 / 已在收藏里"；
+  手动添加服务器的表单也复用同一套地址规范化，避免"手填"和"深链"写出两个不同的键。
+
+### 二、工坊详情显示依赖物品（同步自上游 `361dc9a`）
+
+- `WorkshopItemDetail` 新增 `required_items`（普通物品的必需前置；合集仍走 `child_items`）。
+- 图片处理抽成可测的 `processWorkshopDetailImages`：复制切片后再改写预览图 URL，
+  不修改缓存里的原始数据；依赖项与子项走同一条处理。
+- 前端新增「依赖物品」区块：卡片可点进详情、无预览图给占位、标题做 HTML 转义；
+  没有依赖时不占位。顺手把 HTML 转义抽成 DOM 无关的 `core/escape-html.mjs`（可在 node --test 里跑）。
+
+### 验证
+
+```text
+go test ./... -count=1       全绿（新增 serveraddress / server_favorite / 依赖物品 测试）
+go vet ./...                 exit 0
+node --test                  370 项 / 0 失败
+npm run build                通过
+wails build                  通过；EXE 内含 2.7.1-community.2
+docs: build + docs:check     通过（内部链接 0 处失效）
+```
+
 ## 2.7.1-community.1 — 2026-09-27
 
 **版本号改为跟随上游编号**：本 Fork 从上游 `v2.5.14` 分叉，上游此后发到 `v2.7.1`。

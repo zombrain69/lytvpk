@@ -84,6 +84,9 @@ type WorkshopItemDetail struct {
 		Tag string `json:"tag"`
 	} `json:"tags"`
 	ChildItems []WorkshopPreviewItem `json:"child_items"`
+	// RequiredItems 是普通物品的依赖项（"必需物品"），对齐上游 361dc9a：
+	// 工坊接口的 children 对合集是子项、对普通物品就是依赖项，worker 会按类型分开返回。
+	RequiredItems []WorkshopPreviewItem `json:"required_items"`
 }
 
 type SteamDetailResponse struct {
@@ -282,19 +285,31 @@ func (a *App) FetchWorkshopDetail(id string) (WorkshopItemDetail, error) {
 
 	item := result.Response.PublishedFileDetails[0]
 
-	if a.GetWorkshopPreferredIP() {
-		item.PreviewUrl = a.processWorkshopImage(item.PreviewUrl)
-		for i := range item.Previews {
-			item.Previews[i].PreviewUrl = a.processWorkshopImage(item.Previews[i].PreviewUrl)
-		}
-		for i := range item.ChildItems {
-			item.ChildItems[i].PreviewUrl = a.processWorkshopImage(item.ChildItems[i].PreviewUrl)
-		}
-	}
+	item = a.processWorkshopDetailImages(item)
 
 	setWorkshopCache(cacheKey, item)
 
 	return item, nil
+}
+
+// processWorkshopDetailImages 返回详情的一份副本，并把其中的预览图按「优选 IP」重写。
+// 复制切片是为了不修改缓存里的原始 URL（缓存项会被反复返回给前端）。
+func (a *App) processWorkshopDetailImages(item WorkshopItemDetail) WorkshopItemDetail {
+	item.Previews = append([]WorkshopPreviewImage(nil), item.Previews...)
+	item.ChildItems = append([]WorkshopPreviewItem(nil), item.ChildItems...)
+	item.RequiredItems = append([]WorkshopPreviewItem(nil), item.RequiredItems...)
+
+	item.PreviewUrl = a.processWorkshopImage(item.PreviewUrl)
+	for i := range item.Previews {
+		item.Previews[i].PreviewUrl = a.processWorkshopImage(item.Previews[i].PreviewUrl)
+	}
+	for i := range item.ChildItems {
+		item.ChildItems[i].PreviewUrl = a.processWorkshopImage(item.ChildItems[i].PreviewUrl)
+	}
+	for i := range item.RequiredItems {
+		item.RequiredItems[i].PreviewUrl = a.processWorkshopImage(item.RequiredItems[i].PreviewUrl)
+	}
+	return item
 }
 
 func (a *App) processWorkshopImage(url string) string {

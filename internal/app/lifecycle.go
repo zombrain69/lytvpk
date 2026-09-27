@@ -126,6 +126,24 @@ func (a *App) HandleProtocolURL(url string) {
 			"workshopId": protocolURL.WorkshopID,
 		})
 
+	case protocol.ProtocolActionFavoriteServer:
+		// 外部程序 / 网页把服务器推进收藏（对齐上游 c1b4972）。
+		added, err := a.addFavoriteServer(protocolURL.ServerName, protocolURL.ServerAddress)
+		if err != nil {
+			log.Printf("添加收藏服务器失败: %v", err)
+			runtime.EventsEmit(a.ctx, "protocol:error", map[string]string{
+				"url":     url,
+				"message": err.Error(),
+			})
+			return
+		}
+		log.Printf("收藏服务器: %s (%s) 新增=%v", protocolURL.ServerName, protocolURL.ServerAddress, added)
+		runtime.EventsEmit(a.ctx, "protocol:favoriteServer", map[string]interface{}{
+			"name":    protocolURL.ServerName,
+			"address": protocolURL.ServerAddress,
+			"added":   added,
+		})
+
 	default:
 		log.Printf("未知的协议操作: %s", protocolURL.Action)
 		runtime.EventsEmit(a.ctx, "protocol:error", map[string]string{

@@ -1,3 +1,5 @@
+import { escapeHtmlText } from "./escape-html.mjs";
+
 export function getLocationDisplayName(tag) {
   const displayNames = {
     root: "根目录",
@@ -124,7 +126,5 @@ export function getUniqueDisplayTags(primaryTag, secondaryTags = []) {
 }
 
 export function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
+  return escapeHtmlText(text);
 }

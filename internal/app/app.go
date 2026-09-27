@@ -202,6 +202,8 @@ type App struct {
 	profilesMu             sync.Mutex
 	// workshopHistoryMu 串行化解析历史的读写（避免两次写入互相覆盖）。
 	workshopHistoryMu sync.Mutex
+	// serverStorageMu 串行化服务器收藏的读改写（深链添加与前端保存可能同时发生）。
+	serverStorageMu sync.Mutex
 	groupsPath             string
 	groupsMu               sync.Mutex
 	dependenciesPath       string

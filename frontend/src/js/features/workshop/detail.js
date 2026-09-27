@@ -1,4 +1,5 @@
 import { workshopDeps } from "./deps.js";
+import { buildRequiredItemsHtml } from "./required-items.mjs";
 import {
   getWorkshopPreviewImages,
   renderThumbnails,
@@ -300,6 +301,7 @@ function renderItemDetail(detail, parentDetail) {
                   ${renderDetailDownloadButton("下载并安装")}
               </div>
           </div>
+          ${buildRequiredItemsHtml(detail, { formatCount: (value) => formatNumber(value) })}
           ${renderDescriptionBox(detail, "MOD 介绍")}
         </div>
     </div>

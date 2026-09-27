@@ -1,4 +1,5 @@
 import { normalizePanelUrl } from "./panel-url.js";
+import { normalizeServerAddress } from "./address.js";
 
 let showError;
 let showNotification;
@@ -128,7 +129,7 @@ export async function saveServerForm() {
   if (savingSessionId === sessionId) return;
 
   const name = document.getElementById("form-server-name").value.trim();
-  const address = document.getElementById("form-server-address").value.trim();
+  const rawAddress = document.getElementById("form-server-address").value.trim();
   const weight =
     parseInt(document.getElementById("form-server-weight").value) || 0;
   const panelUrl = normalizePanelUrl(
@@ -140,8 +141,18 @@ export async function saveServerForm() {
     document.getElementById("form-clear-panel-password")?.checked
   );
 
-  if (!name || !address) {
+  if (!name || !rawAddress) {
     showError("请输入服务器名称和地址");
+    return;
+  }
+
+  // 地址统一走规范化：没写端口补 27015，非法地址在这里就拦下。
+  // 与后端 serveraddress.Normalize 同一套规则，避免"手填的"和"协议推进来的"写法不一致。
+  let address;
+  try {
+    address = normalizeServerAddress(rawAddress);
+  } catch (error) {
+    showError(String(error?.message || error));
     return;
   }
 
