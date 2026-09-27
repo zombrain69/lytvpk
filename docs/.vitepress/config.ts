@@ -50,6 +50,7 @@ export default defineConfig({
           { text: "全功能地图（能做什么 · 在哪儿点）", link: "/guide/feature-tour" },
           { text: "本 Fork 新增功能（入口 + 用法）", link: "/guide/whats-new" },
           { text: "为什么用这个 Fork（对比上游与 FireAxe）", link: "/guide/why-this-fork" },
+          { text: "上游同步状态（v2.5.15 → v2.7.1）", link: "/guide/upstream-sync" },
           { text: "安装与运行", link: "/guide/install" },
         ],
       },

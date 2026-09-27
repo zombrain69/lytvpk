@@ -6,6 +6,8 @@
 > 想知道"相对上游 LytVPK 和 FireAxe 多了什么、为什么更好用"，走
 > [为什么用这个 Fork](/guide/why-this-fork)；只关心新增能力的分步教程，走
 > [本 Fork 新增功能一览](/guide/whats-new)。
+> 想看"上游 v2.5.15→v2.7.1 我们同步了什么、哪些保留了自己的做法"，走
+> [上游同步状态](/guide/upstream-sync)。
 
 ## 1. 选择 addons 目录
 

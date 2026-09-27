@@ -152,6 +152,7 @@ import {
   checkWorkshopUrl,
   downloadWorkshopFile,
   copyCurrentDownloadUrls,
+  applyWorkshopGroups,
 } from "./downloads/workshop-modal.js";
 import { startWorkshopClipboardWatch } from "./downloads/clipboard-watch.js";
 import {
@@ -160,6 +161,8 @@ import {
   updateTaskProgress,
   setupClearCompletedTasks,
 } from "./downloads/task-list.js";
+import { setupWorkshopHistory } from "./downloads/workshop-history.js";
+import { setupWorkshopIdJump } from "./workshop/id-jump.js";
 import { openSetTagsModal, setupTagModalListeners } from "./file-list/tags.js";
 import {
   openBatchSetTagsModal,
@@ -1290,6 +1293,16 @@ function setupEventListeners() {
 
   // 清除已完成任务
   setupClearCompletedTasks();
+
+  // 「解析历史」下拉：点一条记录就用存下来的快照重画结果，不再请求接口。
+  setupWorkshopHistory({
+    onSelect: (item) => {
+      if (!item?.group) return;
+      applyWorkshopGroups([item.group]);
+    },
+  });
+  // 「工坊 ID 直达」：输入作品 ID / 链接直接打开详情。
+  setupWorkshopIdJump();
 
   // ESC 键取消所有 mod 选择
   document.addEventListener("keydown", function (e) {

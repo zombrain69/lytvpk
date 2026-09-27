@@ -6,6 +6,10 @@ export function AddModStrategyGroupMembers(arg1, arg2) {
   return window['go']['app']['App']['AddModStrategyGroupMembers'](arg1, arg2);
 }
 
+export function AddWorkshopHistoryEntries(arg1) {
+  return window['go']['app']['App']['AddWorkshopHistoryEntries'](arg1);
+}
+
 export function AnalyzeAutoexecCommands(arg1) {
   return window['go']['app']['App']['AnalyzeAutoexecCommands'](arg1);
 }
@@ -132,6 +136,10 @@ export function ClearModPriority(arg1) {
 
 export function ClearPanelMaps(arg1) {
   return window['go']['app']['App']['ClearPanelMaps'](arg1);
+}
+
+export function ClearWorkshopHistory() {
+  return window['go']['app']['App']['ClearWorkshopHistory']();
 }
 
 export function CloseCrashReporter() {
@@ -512,6 +520,10 @@ export function GetWorkshopDetailsGrouped(arg1) {
 
 export function GetWorkshopFixedIP() {
   return window['go']['app']['App']['GetWorkshopFixedIP']();
+}
+
+export function GetWorkshopHistory() {
+  return window['go']['app']['App']['GetWorkshopHistory']();
 }
 
 export function GetWorkshopIPOptions() {

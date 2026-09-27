@@ -8,6 +8,7 @@ import {
   StartDownloadTask,
   IsSelectingIP,
 } from "../../../../wailsjs/go/app/App";
+import { closeWorkshopHistory, recordWorkshopHistory } from "./workshop-history.js";
 
 const DOWNLOAD_ICON_SVG = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -226,6 +227,8 @@ function resetWorkshopParseState() {
   document.getElementById("optimized-ip-container").classList.add("hidden");
   document.getElementById("use-optimized-ip-global").checked = false;
   currentWorkshopResult = null;
+  // 切页 / 重置时收起历史下拉，避免浮层留在界面上。
+  closeWorkshopHistory();
 }
 
 export async function checkWorkshopUrl() {
@@ -270,43 +273,9 @@ export async function checkWorkshopUrl() {
 
     if (!isWorkshopParseRequestActive(viewSession, requestId)) return;
 
-    currentWorkshopResult = groupedResult;
-    const groups = getCurrentGroups();
-
-    if (groups.length === 0) {
-      showError("未找到相关文件");
-      return;
-    }
-
-    const downloadBtn = document.getElementById("download-workshop-btn");
-    const optimizedIpContainer = document.getElementById("optimized-ip-container");
-    const downloadableItems = getAllDownloadableItems();
-    // 子合集嵌套过深时后端会截断，这里给出明确提示，避免用户以为已经解析完整。
-    const truncatedGroupCount = groups.filter((group) => group?.child_collections_truncated).length;
-    const truncatedHint = truncatedGroupCount > 0 ? `（${truncatedGroupCount} 个合集的子合集过多，仅展开到上限）` : "";
-
-    downloadUrlInput.placeholder =
-      downloadableItems.length > 0
-        ? `已解析 ${groups.length} 组 / ${downloadableItems.length} 个可下载文件${truncatedHint}`
-        : `已解析 ${groups.length} 组，但没有可下载文件${truncatedHint}`;
-    downloadBtn.innerHTML = DOWNLOAD_ICON_SVG + "<span>全部下载</span>";
-
-    const hasSteamCDN = downloadableItems.some((details) =>
-      details.file_url.includes("cdn.steamusercontent.com")
-    );
-
-    if (hasSteamCDN && optimizedIpContainer) {
-      optimizedIpContainer.classList.remove("hidden");
-    } else if (optimizedIpContainer) {
-      optimizedIpContainer.classList.add("hidden");
-    }
-
-    groups.forEach((group, groupIndex) => {
-      result.appendChild(renderWorkshopGroup(group, groupIndex));
-    });
-
-    bindWorkshopResultEvents(result, viewSession);
-    result.classList.remove("hidden");
+    applyWorkshopGroups(groupedResult?.groups, { viewSession });
+    // 解析成功后写入「解析历史」；写失败只打日志，不影响解析结果。
+    recordWorkshopHistory(groupedResult?.groups);
   } catch (err) {
     if (isWorkshopParseRequestActive(viewSession, requestId)) {
       showError("解析失败: " + err);
@@ -697,6 +666,62 @@ export async function downloadWorkshopFile() {
       if (btn?.isConnected) btn.disabled = false;
     }
   }
+}
+
+/**
+ * applyWorkshopGroups 把解析结果渲染到结果区。
+ *
+ * 实时解析与「解析历史」快照共用这一条渲染路径：从历史里点一条记录时，
+ * 直接用存下来的 group 快照重画，不再请求接口（对齐上游 b635ea3）。
+ * 返回 true 表示确实渲染了内容。
+ */
+export function applyWorkshopGroups(groups, { viewSession = workshopViewSession } = {}) {
+  const result = document.getElementById("workshop-result");
+  const downloadUrlInput = document.getElementById("download-url");
+  const downloadBtn = document.getElementById("download-workshop-btn");
+  const optimizedIpContainer = document.getElementById("optimized-ip-container");
+  const safeGroups = Array.isArray(groups) ? groups : [];
+
+  currentWorkshopResult = { groups: safeGroups };
+  if (result) {
+    result.classList.add("hidden");
+    result.innerHTML = "";
+  }
+  if (downloadUrlInput) downloadUrlInput.value = "";
+
+  if (safeGroups.length === 0) {
+    showError("未找到相关文件");
+    return false;
+  }
+
+  const downloadableItems = getAllDownloadableItems();
+  // 子合集嵌套过深时后端会截断，这里给出明确提示，避免用户以为已经解析完整。
+  const truncatedGroupCount = safeGroups.filter((group) => group?.child_collections_truncated).length;
+  const truncatedHint = truncatedGroupCount > 0 ? `（${truncatedGroupCount} 个合集的子合集过多，仅展开到上限）` : "";
+
+  if (downloadUrlInput) {
+    downloadUrlInput.placeholder =
+      downloadableItems.length > 0
+        ? `已解析 ${safeGroups.length} 组 / ${downloadableItems.length} 个可下载文件${truncatedHint}`
+        : `已解析 ${safeGroups.length} 组，但没有可下载文件${truncatedHint}`;
+  }
+  if (downloadBtn) downloadBtn.innerHTML = DOWNLOAD_ICON_SVG + "<span>全部下载</span>";
+
+  const hasSteamCDN = downloadableItems.some((details) =>
+    String(details?.file_url || "").includes("cdn.steamusercontent.com")
+  );
+  if (optimizedIpContainer) {
+    optimizedIpContainer.classList.toggle("hidden", !hasSteamCDN);
+  }
+
+  if (result) {
+    safeGroups.forEach((group, groupIndex) => {
+      result.appendChild(renderWorkshopGroup(group, groupIndex));
+    });
+    bindWorkshopResultEvents(result, viewSession);
+    result.classList.remove("hidden");
+  }
+  return true;
 }
 
 function formatBytes(bytes, decimals = 2) {

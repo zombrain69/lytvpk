@@ -196,8 +196,12 @@ type App struct {
 	serversPath            string
 	workshopWatchLaterPath string
 	problemScanPath        string
+	// workshopHistoryPath 是"工坊解析历史"文件（最近 10 次解析结果的快照）。
+	workshopHistoryPath string
 	profilesPath           string
 	profilesMu             sync.Mutex
+	// workshopHistoryMu 串行化解析历史的读写（避免两次写入互相覆盖）。
+	workshopHistoryMu sync.Mutex
 	groupsPath             string
 	groupsMu               sync.Mutex
 	dependenciesPath       string
@@ -394,6 +398,7 @@ func NewApp() *App {
 	serversPath := filepath.Join(appConfigDir, "servers.json")
 	workshopWatchLaterPath := filepath.Join(appConfigDir, "workshop_watch_later.json")
 	problemScanPath := filepath.Join(appConfigDir, "problem_mod_scan.json")
+	workshopHistoryPath := filepath.Join(appConfigDir, workshopHistoryFileName)
 	profilesPath := filepath.Join(appConfigDir, "profiles.json")
 	groupsPath := filepath.Join(appConfigDir, "groups.json")
 	dependenciesPath := filepath.Join(appConfigDir, "dependencies.json")
@@ -410,7 +415,8 @@ func NewApp() *App {
 		configPath:                      configPath,
 		serversPath:                     serversPath,
 		workshopWatchLaterPath:          workshopWatchLaterPath,
-		problemScanPath:                 problemScanPath,
+	problemScanPath:                 problemScanPath,
+	workshopHistoryPath:             workshopHistoryPath,
 		profilesPath:                    profilesPath,
 		groupsPath:                      groupsPath,
 		dependenciesPath:                dependenciesPath,

@@ -7,6 +7,8 @@ import {minidump} from '../models';
 
 export function AddModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
 
+export function AddWorkshopHistoryEntries(arg1:Array<app.WorkshopHistoryItem>):Promise<app.WorkshopHistoryStorage>;
+
 export function AnalyzeAutoexecCommands(arg1:string):Promise<Array<app.AutoexecCommandMatch>>;
 
 export function ApplyAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
@@ -70,6 +72,8 @@ export function ClearExternalGroupSuggestions():Promise<void>;
 export function ClearModPriority(arg1:string):Promise<void>;
 
 export function ClearPanelMaps(arg1:string):Promise<string>;
+
+export function ClearWorkshopHistory():Promise<void>;
 
 export function CloseCrashReporter():Promise<void>;
 
@@ -260,6 +264,8 @@ export function GetWorkshopDetails(arg1:string):Promise<Array<app.WorkshopFileDe
 export function GetWorkshopDetailsGrouped(arg1:string):Promise<app.WorkshopDetailsResult>;
 
 export function GetWorkshopFixedIP():Promise<string>;
+
+export function GetWorkshopHistory():Promise<app.WorkshopHistoryStorage>;
 
 export function GetWorkshopIPOptions():Promise<Array<network.IPOption>>;
 

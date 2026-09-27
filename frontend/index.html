@@ -1203,6 +1203,33 @@
                     </svg>
                   </span>
                 </button>
+                <div class="workshop-history-host">
+                  <button
+                    id="workshop-history-btn"
+                    class="btn btn-ghost btn-icon-only"
+                    title="最近解析记录"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                  >
+                    <span class="icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                        <path d="M12 7v5l4 2"></path>
+                      </svg>
+                    </span>
+                  </button>
+                  <div id="workshop-history-menu" class="workshop-history-menu hidden">
+                    <div class="workshop-history-header">
+                      <span>最近解析</span>
+                      <button id="workshop-history-clear" class="btn-text-small" type="button">
+                        清空
+                      </button>
+                    </div>
+                    <div id="workshop-history-list" class="workshop-history-list"></div>
+                    <div id="workshop-history-empty" class="dropdown-empty hidden">暂无解析记录</div>
+                  </div>
+                </div>
                 <button id="check-workshop-btn" class="btn btn-primary">
                   <span class="icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none">
@@ -1303,8 +1330,33 @@
         </div>
       </div>
 
-      <!-- 服务器收藏对话框 -->
-      <div id="server-modal" class="modal hidden">
+    <!-- 服务器收藏对话框 -->
+    <!-- 工坊 ID 直达（对齐上游 ce2b268）：输入 ID 或链接直接进详情 -->
+    <div id="workshop-id-jump-modal" class="modal hidden">
+      <div class="modal-content modal-small">
+        <div class="modal-header">
+          <h3>工坊 ID 直达</h3>
+          <button id="close-workshop-id-jump-btn" class="close-btn" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-20">
+            <label for="workshop-id-jump-input" class="form-label">工坊 ID 或链接</label>
+            <input
+              type="text"
+              id="workshop-id-jump-input"
+              class="form-input w-100"
+              placeholder="例如: 3803082047 或工坊链接"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="workshop-id-jump-cancel-btn" class="btn btn-outline" type="button">取消</button>
+          <button id="workshop-id-jump-confirm-btn" class="btn btn-primary" type="button">前往</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="server-modal" class="modal hidden">
         <div class="modal-content server-modal-content">
           <div class="modal-body">
             <div class="server-toolbar">
@@ -3059,16 +3111,29 @@
               <button id="browser-reset-btn" class="btn btn-outline">
                 <span class="icon">↺</span> 重置
               </button>
-              <button id="browser-watch-later-btn" class="btn btn-outline browser-watch-later-btn">
-                <span class="icon" aria-hidden="true">
-                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 6v6l4 2"></path>
-                    <circle cx="12" cy="12" r="9"></circle>
-                  </svg>
-                </span>
-                <span>稍后再看</span>
-                <span id="browser-watch-later-count" class="watch-later-count hidden">0</span>
-              </button>
+<button id="browser-watch-later-btn" class="btn btn-outline browser-watch-later-btn">
+  <span class="icon" aria-hidden="true">
+    <svg class="icon-svg" viewBox="0 0 24 24" fill="none">
+      <path d="M12 6v6l4 2"></path>
+      <circle cx="12" cy="12" r="9"></circle>
+    </svg>
+  </span>
+  <span>稍后再看</span>
+  <span id="browser-watch-later-count" class="watch-later-count hidden">0</span>
+</button>
+<button
+  id="browser-id-jump-btn"
+  class="btn btn-outline"
+  title="输入工坊 ID 或链接，直接打开详情（不用先搜索）"
+>
+  <span class="icon" aria-hidden="true">
+    <svg class="icon-svg" viewBox="0 0 24 24" fill="none">
+      <path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10.5 5.43"></path>
+      <path d="M14 11a5 5 0 0 0-7.07 0L5.52 12.4a5 5 0 0 0 7.07 7.07l.9-.9"></path>
+    </svg>
+  </span>
+  <span>ID 直达</span>
+</button>
             </div>
             <div class="browser-grid-container" id="browser-scroll-container">
               <div id="browser-grid" class="workshop-grid">
