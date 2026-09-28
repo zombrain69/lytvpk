@@ -45,3 +45,32 @@ test("卡片签名覆盖变更驱动复检角标的值", () => {
   );
   assert.ok(body.includes("conflictRecheck:"), "签名应显式记录 conflictRecheck 字段");
 });
+
+// 真实回归：对比范围分析结果里新增了“覆盖关系”（override_groups）之后，
+// 卡片签名只记录冲突组数，于是「0 冲突 + 9 处覆盖」与「什么都没有」签名相同，
+// 复用的卡片会一直停在“无冲突”。
+test("卡片签名覆盖对比范围角标的值", () => {
+  const body = functionBody("getFileCardRenderSignature");
+  assert.ok(
+    body.includes("getScopedConflictBadgeModel"),
+    "签名必须包含对比范围角标，否则冲突/覆盖数量变化后角标不会重绘",
+  );
+  assert.ok(body.includes("conflict:"), "签名应显式记录 conflict 字段");
+});
+
+test("对比范围角标的文案同时反映冲突与覆盖", () => {
+  const body = functionBody("getConflictSummaryBadge");
+  assert.ok(
+    body.includes("getScopedConflictBadgeModel"),
+    "角标必须走统一的模型函数（它同时统计冲突组与覆盖组）",
+  );
+  const model = functionBody("getScopedConflictBadgeModel");
+  assert.ok(
+    model.includes("formatScopedConflictLabel"),
+    "角标文案必须来自 scoped-conflict-summary，避免再把已判定的覆盖写成“无冲突”",
+  );
+  assert.ok(
+    model.includes("matchesConflictBaseline"),
+    "需要区分“没有重叠”和“不满足对比范围、根本没参与分析”",
+  );
+});

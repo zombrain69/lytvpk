@@ -4780,6 +4780,14 @@ button.mod-conflict-badge:hover {
   background: rgba(99, 102, 241, 0.1);
 }
 
+/* 只有“已判定覆盖关系”时使用：与列表里 dashed 的覆盖角标同一语义。 */
+.mod-conflict-badge.has-conflict.override {
+  color: var(--text-secondary);
+  border-style: dashed;
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+}
+
 .mod-conflict-dot {
   width: 0.42rem;
   height: 0.42rem;

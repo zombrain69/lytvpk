@@ -20,6 +20,7 @@ import {
   describeConflictSearch,
   searchConflictGroups,
 } from "./conflict-search.mjs";
+import { buildScopedConflictSummary } from "./scoped-conflict-summary.mjs";
 
 let EventsOn;
 let showError;
@@ -377,34 +378,6 @@ function setConflictChecking(checking) {
 // 与后端保持一致：放宽大筛选范围，同时保留硬上限避免误触发超大扫描。
 const SCOPED_CONFLICT_MAX_VPKS = 5000;
 
-function conflictSeverityRank(severity) {
-  if (severity === "critical") return 3;
-  if (severity === "warning") return 2;
-  return 1;
-}
-
-function buildScopedConflictSummary(result) {
-  const byPath = new Map();
-  for (const group of result?.conflict_groups || []) {
-    const severity = group.severity || "info";
-    for (const vpk of group.vpk_files || []) {
-      if (!vpk?.path) continue;
-      const previous = byPath.get(vpk.path) || {
-        severity: "info",
-        groups: 0,
-        files: 0,
-      };
-      previous.groups += 1;
-      previous.files += Number(group.file_count || 0);
-      if (conflictSeverityRank(severity) > conflictSeverityRank(previous.severity)) {
-        previous.severity = severity;
-      }
-      byPath.set(vpk.path, previous);
-    }
-  }
-  return byPath;
-}
-
 function updateScopedConflictControl() {
   const checkbox = document.getElementById("conflict-analysis-checkbox");
   const status = document.getElementById("conflict-analysis-status");
@@ -419,7 +392,13 @@ function updateScopedConflictControl() {
     } else if (appState.conflictAnalysisEnabled) {
       const count = (appState.vpkFiles || []).length;
       const groups = appState.conflictAnalysisResult?.total_conflicts || 0;
-      status.textContent = `已分析 ${count} 个筛选目标 · 对比：${appState.conflictAnalysisScopeLabel || "游戏内开启"} · ${groups} 组冲突`;
+      const overrides = appState.conflictAnalysisResult?.total_overrides || 0;
+      const scopeLabel = appState.conflictAnalysisScopeLabel || "游戏内开启";
+      // 开启“按加载顺序判定胜负”后，多数重叠会判成覆盖关系；
+      // 状态栏只说“0 组冲突”会让人以为什么都没有。
+      status.textContent = overrides > 0
+        ? `已分析 ${count} 个筛选目标 · 对比：${scopeLabel} · 冲突 ${groups} 组 / 覆盖 ${overrides} 组`
+        : `已分析 ${count} 个筛选目标 · 对比：${scopeLabel} · ${groups} 组冲突`;
       status.className = "conflict-analysis-status active";
     } else {
       status.textContent = "默认关闭，按当前筛选分析";
@@ -530,11 +509,17 @@ async function executeScopedConflictAnalysis({ silent = false } = {}) {
     updateScopedConflictControl();
     renderFileList?.();
     if (!silent) {
+      const conflicts = Number(appState.conflictAnalysisResult.total_conflicts || 0);
+      const overrides = Number(appState.conflictAnalysisResult.total_overrides || 0);
+      const scopeLabel = appState.conflictAnalysisScopeLabel || "游戏内开启";
+      const findings = [];
+      if (conflicts > 0) findings.push(`${conflicts} 组潜在冲突`);
+      if (overrides > 0) findings.push(`${overrides} 组已判定覆盖`);
       showNotification?.(
-        appState.conflictAnalysisResult.total_conflicts > 0
-          ? `已将当前筛选的 ${files.length} 个 Mod 与“${appState.conflictAnalysisScopeLabel}”对比，发现 ${appState.conflictAnalysisResult.total_conflicts} 组潜在冲突`
-          : `已将当前筛选的 ${files.length} 个 Mod 与“${appState.conflictAnalysisScopeLabel}”对比，未发现文件冲突`,
-        appState.conflictAnalysisResult.total_conflicts > 0 ? "warning" : "success",
+        findings.length
+          ? `已将当前筛选的 ${files.length} 个 Mod 与“${scopeLabel}”对比，发现 ${findings.join("、")}`
+          : `已将当前筛选的 ${files.length} 个 Mod 与“${scopeLabel}”对比，未发现文件重叠`,
+        conflicts > 0 ? "warning" : overrides > 0 ? "info" : "success",
       );
     }
   } catch (error) {
@@ -601,11 +586,12 @@ export async function showConflictDetailsForFile(filePath) {
     return;
   }
 
-  const groups = (result.conflict_groups || []).filter((group) =>
-    (group.vpk_files || []).some((vpk) => vpk.path === filePath),
-  );
-  if (groups.length === 0) {
-    showNotification?.(`这个 Mod 与“${appState.conflictAnalysisScopeLabel || "游戏内开启"}”没有发现文件冲突`, "success");
+  const involvesFile = (group) => (group.vpk_files || []).some((vpk) => vpk.path === filePath);
+  const groups = (result.conflict_groups || []).filter(involvesFile);
+  // 已判定的覆盖关系同样要能点开：否则角标写着“N 处覆盖”，点进去却说没有冲突。
+  const overrides = (result.override_groups || []).filter((group) => involvesFile(group));
+  if (groups.length === 0 && overrides.length === 0) {
+    showNotification?.(`这个 Mod 与“${appState.conflictAnalysisScopeLabel || "游戏内开启"}”没有发现重叠文件`, "success");
     return;
   }
 
@@ -613,7 +599,12 @@ export async function showConflictDetailsForFile(filePath) {
   showConflictModal({
     title: "Mod 冲突详情",
     severityFilter: "all",
-    result: { total_conflicts: groups.length, conflict_groups: groups },
+    result: {
+      total_conflicts: groups.length,
+      total_overrides: overrides.length,
+      conflict_groups: groups,
+      override_groups: overrides,
+    },
   });
 }
 

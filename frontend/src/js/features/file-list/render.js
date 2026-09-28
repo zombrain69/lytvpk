@@ -31,6 +31,11 @@ import {
   shouldShowConflictBadge,
 } from "../conflicts/conflict-badge.mjs";
 import {
+  buildScopedConflictTitle,
+  formatScopedConflictLabel,
+  matchesConflictBaseline,
+} from "../conflicts/scoped-conflict-summary.mjs";
+import {
   formatGroupChip,
   formatGroupChipTitle,
   groupsForFile,
@@ -185,11 +190,25 @@ function getCardPreviewRevision(file) {
 // separate from the file object lets a scan return fresh objects without
 // forcing Chromium to rebuild hundreds of unchanged image elements.
 function getFileCardRenderSignature(file, panelServersAvailable) {
-  const conflict = appState.conflictByPath?.get(file.path);
   // 角标内容同样参与签名：分层（优先级 #N（分层 T））与变更驱动复检角标
   // 都是卡片里渲染出来的值，漏掉它们会导致卡片被复用、角标停留在旧状态。
   const priority = getFilePriorityEntry(file);
   const conflictRecheck = findConflictRecheckBadge(file);
+  // 「当前筛选 × 对比范围」角标同样要进签名：汇总同时包含冲突组与覆盖组，
+  // 只记录冲突数会让“0 组冲突 → 覆盖 9 处”这种变化不触发重绘。
+  const scopedConflict = appState.conflictAnalysisEnabled
+    ? getScopedConflictBadgeModel(file)
+    : null;
+  const scopedConflictSignature = scopedConflict
+    ? [
+        scopedConflict.label,
+        scopedConflict.summary
+          ? scopedConflict.summary.groups > 0
+            ? scopedConflict.summary.severity || "info"
+            : "override"
+          : "none",
+      ]
+    : null;
   // 组徽标同样参与签名：加入/移出分组、整组改名后卡片必须重绘。
   const groupBadges = groupsForFile(file, appState.modGroupIndex, appState.currentDirectory)
     .map((membership) => membership.groupId)
@@ -216,9 +235,7 @@ function getFileCardRenderSignature(file, panelServersAvailable) {
     groups: groupBadges,
     conflictEnabled: Boolean(appState.conflictAnalysisEnabled),
     conflictLoading: Boolean(appState.conflictAnalysisLoading),
-    conflict: conflict
-      ? [conflict.groups, conflict.files, conflict.severity]
-      : null,
+    conflict: scopedConflictSignature,
     panelServersAvailable,
   });
 }
@@ -335,30 +352,48 @@ export function getGameStateActionControls(file) {
   return '<div class="game-state-controls game-state-action-group" role="group" aria-label="未记录 Mod 游戏内状态">' + options + "</div>";
 }
 
+// getScopedConflictBadgeModel 把「当前筛选 × 对比范围」的结果整理成角标模型。
+// 同时覆盖两类重叠：冲突组（胜负未定）与覆盖组（已按 addonlist 判定）。
+function getScopedConflictBadgeModel(file) {
+  const summary = appState.conflictByPath?.get(file.path) || null;
+  const options = appState.conflictAnalysisOptions || {};
+  const matchedBaseline = matchesConflictBaseline(
+    file,
+    options.baselineRules,
+    options.matchMode,
+  );
+  return {
+    summary,
+    matchedBaseline,
+    label: formatScopedConflictLabel(summary, { matchedBaseline }),
+    title: buildScopedConflictTitle(summary, {
+      matchedBaseline,
+      scopeLabel: appState.conflictAnalysisScopeLabel || "游戏内开启",
+    }),
+  };
+}
+
 function getConflictSummaryBadge(file, className = "mod-conflict-badge") {
   if (!appState.conflictAnalysisEnabled) return "";
   if (appState.conflictAnalysisLoading) {
-    return `<span class="${className} pending" title="正在将当前筛选目标与全部游戏内开启 Mod 对比">冲突分析中…</span>`;
+    return `<span class="${className} pending" title="正在按当前对比范围分析重叠文件">冲突分析中…</span>`;
   }
 
-  const summary = appState.conflictByPath?.get(file.path);
-  if (!summary) {
-    return `<span class="${className} none" title="未发现此 Mod 与任何游戏内开启 Mod 重叠的文件">无冲突</span>`;
+  const model = getScopedConflictBadgeModel(file);
+  if (!model.summary) {
+    return `<span class="${className} none" title="${escapeHtml(model.title)}">${escapeHtml(model.label)}</span>`;
   }
 
-  const severityText =
-    summary.severity === "critical"
-      ? "严重"
-      : summary.severity === "warning"
-        ? "警告"
-        : "普通";
+  // 只有覆盖关系（没有未判定冲突）时用 dashed 边框，与列表里的覆盖角标同一语义。
+  const level =
+    model.summary.groups > 0 ? model.summary.severity || "info" : "override";
   return `
-    <button class="${className} has-conflict ${summary.severity}"
+    <button class="${className} has-conflict ${level}"
             data-action="view-conflicts"
             data-file-path="${escapeHtml(file.path)}"
-            title="点击查看此 Mod 的冲突文件与风险分级">
+            title="${escapeHtml(model.title)}">
       <span class="mod-conflict-dot" aria-hidden="true"></span>
-      冲突 ${summary.groups} 组 · ${summary.files} 文件 · ${severityText}
+      ${escapeHtml(model.label)}
     </button>
   `;
 }

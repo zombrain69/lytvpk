@@ -1464,6 +1464,16 @@ function bindConflictAnalysisSettings(deps) {
         ...deps.appState.conflictAnalysisOptions,
         priorityAware: enabled,
       };
+      // 口径变了，列表角标必须立刻按新口径重算：同一批重叠会从“冲突”
+      // 变成“覆盖关系”（或反过来），不重算就会停在旧结论上。
+      if (deps.appState.conflictAnalysisEnabled) {
+        try {
+          const { runScopedConflictAnalysis } = await import("../conflicts/conflicts.js");
+          await runScopedConflictAnalysis({ silent: true });
+        } catch (error) {
+          console.warn("按新口径重算冲突分析失败:", error);
+        }
+      }
       deps.showNotification(
         enabled ? "已开启：按加载顺序判定覆盖" : "已关闭：所有重叠都按冲突显示",
         "success",
