@@ -361,6 +361,9 @@ func (a *App) RetryDownloadTask(taskID string) {
 	task.Error = ""
 	task.Speed = ""
 	task.FilePath = ""
+	// 手动重试视为新一轮尝试：把自动重下的预算清零，否则"已经自动重试过一次"
+	// 的任务即使开关还开着也不会再自动重下，界面看起来像开关失效。
+	task.RedownloadAttempts = 0
 
 	// Create new context
 	ctx, cancel := context.WithCancel(context.Background())

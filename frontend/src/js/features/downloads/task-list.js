@@ -10,6 +10,7 @@ import {
   PauseDownloadTask,
   ResumeDownloadTask,
   RetryDownloadTask,
+  SetDownloadTaskAutoRedownload,
   ClearCompletedTasks,
 } from "../../../../wailsjs/go/app/App";
 
@@ -187,6 +188,7 @@ export function createTaskElement(task) {
         <span class="task-size">${formatBytes(task.downloaded_size)} / ${formatBytes(task.total_size)} ${task.speed ? `(${task.speed})` : ""}</span>
         <span class="task-percent">${progress}%</span>
       </div>
+      ${formatTaskAutoRedownloadToggle(task, taskId)}
       ${taskError ? `<div style="color: var(--danger, #f44336); font-size: 0.6875rem; margin-top: 2px;">${taskError}</div>` : ""}
     </div>
   `;
@@ -278,7 +280,43 @@ export function createTaskElement(task) {
     });
   }
 
+  // 任务级「失败后自动重下」：后端已有 SetDownloadTaskAutoRedownload，
+  // 这里补上界面入口，让"在下载队列里单独开关某个任务"真的可用。
+  const autoRedownloadInput = div.querySelector(".task-auto-redownload-input");
+  if (autoRedownloadInput) {
+    autoRedownloadInput.addEventListener("change", async (e) => {
+      e.stopPropagation();
+      const enabled = autoRedownloadInput.checked;
+      autoRedownloadInput.disabled = true;
+      try {
+        await SetDownloadTaskAutoRedownload(task.id, enabled);
+        showNotification(enabled ? "已开启：该任务失败后自动重下一次" : "已关闭：该任务失败后不再自动重下", "info");
+      } catch (err) {
+        // 写回失败时把勾选状态还原，避免界面显示与后端不一致。
+        autoRedownloadInput.checked = !enabled;
+        console.error("切换任务自动重下失败:", err);
+        showError("切换自动重下失败: " + err);
+      } finally {
+        autoRedownloadInput.disabled = false;
+      }
+    });
+  }
+
   return div;
+}
+
+// formatTaskAutoRedownloadToggle 渲染任务级的「失败后自动重下」开关。
+// 已完成的任务不再需要这个策略，直接不渲染；其余状态（含失败 / 已中断）
+// 都允许单独开关，与文档里"中断任务同样可以单独开关"一致。
+export function formatTaskAutoRedownloadToggle(task, escapedTaskId = "") {
+  if (!task || task.status === "completed") return "";
+  const id = escapedTaskId || escapeHtml(task.id);
+  const checked = task.auto_redownload === true ? " checked" : "";
+  return `
+      <label class="task-auto-redownload" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; color: var(--text-tertiary); margin-top: 4px; cursor: pointer;" title="开启后，这个任务在下载失败时自动重试一次；用户主动取消的任务不会重试">
+        <input type="checkbox" class="task-auto-redownload-input" data-id="${id}"${checked}>
+        <span>失败后自动重下</span>
+      </label>`;
 }
 
 function createCompletedTaskActions(task) {

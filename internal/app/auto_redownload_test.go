@@ -110,6 +110,49 @@ func TestMaybeAutoRedownloadIgnoresDisabledTasks(t *testing.T) {
 	}
 }
 
+// TestRetryDownloadTaskResetsAutoRedownloadBudget 保证"已经自动重试过一次"的任务
+// 在用户手动重试之后，开关仍然有效。否则任务看起来像"开关打开了却没反应"。
+func TestRetryDownloadTaskResetsAutoRedownloadBudget(t *testing.T) {
+	a := &App{}
+	started := make([]string, 0)
+	withDownloadTaskStarter(t, func(_ *App, _ context.Context, task *DownloadTask, _ string) {
+		started = append(started, task.ID)
+	})
+
+	task := &DownloadTask{
+		ID:                 "auto-retry-manual",
+		Status:             "failed",
+		Error:              "network down",
+		FileUrl:            "https://example.invalid/2.vpk",
+		AutoRedownload:     true,
+		RedownloadAttempts: 1,
+	}
+	seedDownloadTask(task)
+	t.Cleanup(func() { removeDownloadTask(task.ID) })
+
+	a.RetryDownloadTask(task.ID)
+
+	taskManager.mu.RLock()
+	attempts := taskManager.tasks[task.ID].RedownloadAttempts
+	status := taskManager.tasks[task.ID].Status
+	taskManager.mu.RUnlock()
+	if attempts != 0 || status != "pending" {
+		t.Fatalf("手动重试后应重置自动重下预算，实际 status=%s attempts=%d", status, attempts)
+	}
+	if len(started) != 1 {
+		t.Fatalf("手动重试应启动一次下载，实际 %#v", started)
+	}
+
+	// 新一轮尝试再失败时，自动重下仍应生效。
+	taskManager.mu.Lock()
+	taskManager.tasks[task.ID].Status = "failed"
+	taskManager.tasks[task.ID].Error = "failed again"
+	taskManager.mu.Unlock()
+	if !a.maybeAutoRedownload(task.ID) {
+		t.Fatal("手动重试后再次失败应仍然能自动重下一次")
+	}
+}
+
 // TestWorkshopAutoRedownloadDefaultsOffAndPersists 覆盖全局默认开关（默认关闭）。
 func TestWorkshopAutoRedownloadDefaultsOffAndPersists(t *testing.T) {
 	a, _ := newPriorityTestApp(t)
