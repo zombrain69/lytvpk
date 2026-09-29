@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.7.1-community.8 — 2026-09-30
+
+**服务器查询失败不再把原始英文网络错误抛给用户**，并把这一周期的真机联调补到
+“常用功能全链路”：工坊在线下载、崩溃转储查看器、主列表批量、喷漆制作、A2S。
+
+### 一、A2S 服务器查询错误中文化
+
+真机查询 `127.0.0.1:1` 时界面显示 `查询服务器失败(重试3次): read udp …: i/o timeout`：
+前缀是中文，但尾巴是原始英文网络错误。新增 `formatServerQueryError`，把三种常见失败
+翻译成可行动提示：
+
+| 底层错误 | 现在显示 |
+| --- | --- |
+| i/o timeout / deadline exceeded | 服务器没有响应（可能已离线、端口不对，或被防火墙/代理拦截） |
+| connection refused | 服务器拒绝连接（可能已离线或端口不对） |
+| no such host / lookup | 无法解析服务器地址（请检查地址拼写） |
+
+未知错误仍保留原始细节方便排查；`FetchServerInfo` 与 `FetchPlayerList` 走同一套格式化。
+
+### 二、本轮真机联调覆盖（测试文件夹 + 14 个自造 Mod + 沙箱 AppData，真实库零写入）
+
+- 工坊在线：搜索 40 条真实结果 → 详情 271ms / 5809 字 → 真实下载「No spray cooldown」
+  2.0s 落到沙箱 addons，字节完整
+- 崩溃转储查看器：MiniDumpWriteDump 生成真实 645KB `.dmp` → 解析出 12 streams / 27 线程 /
+  76 模块 / 1347 内存范围，7 个标签页与 27 行表格正常
+- 主列表批量：全选计数、批量禁用/启用（含 VPK 风险弹窗）、游戏内关闭/启用
+  （只改 addonlist.txt 不搬文件）
+- 喷漆制作：canvas 生成 PNG → 真实导入 → VTF（base64 43776 字符）/ VMT 保存调用
+- A2S：本地 mock UDP 服务器真实查询（ZZ-Test Server / c1m1_hotel / 3/8）+ 不可达降级可读
+
+### 验证
+
+`go test ./...` 全绿（新增 `TestFormatServerQueryError`）；`node --test` 420 项全绿；
+`npm run build` 通过；真机 A2S 2/2 PASS；`build-release` / `verify-release` 通过。
+
 ## 2.7.1-community.7 — 2026-09-30
 
 **真机联调（测试文件夹 + 14 个自造测试 Mod）抓到两条会让"下载"彻底不可用的回归，

@@ -28,7 +28,27 @@ func (a *App) FetchPlayerList(address string) ([]PlayerInfo, error) {
 			time.Sleep(time.Duration(200*(i+1)) * time.Millisecond)
 		}
 	}
-	return nil, fmt.Errorf("查询玩家列表失败(重试3次): %v", lastErr)
+	return nil, formatServerQueryError("查询玩家列表失败（已重试 3 次）", lastErr)
+}
+
+// formatServerQueryError 把 A2S 查询的底层网络错误翻译成用户能看懂的中文提示。
+// 已知的三种常见失败（超时 / 拒绝 / 域名解析不了）不再把原始英文错误直接丢给用户；
+// 其它未知错误仍保留原始细节，方便排查。
+func formatServerQueryError(stage string, err error) error {
+	if err == nil {
+		return nil
+	}
+	lower := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(lower, "i/o timeout") || strings.Contains(lower, "deadline exceeded"):
+		return fmt.Errorf("%s：服务器没有响应（可能已离线、端口不对，或被防火墙/代理拦截）", stage)
+	case strings.Contains(lower, "connection refused"):
+		return fmt.Errorf("%s：服务器拒绝连接（可能已离线或端口不对）", stage)
+	case strings.Contains(lower, "no such host") || strings.Contains(lower, "lookup"):
+		return fmt.Errorf("%s：无法解析服务器地址（请检查地址拼写）", stage)
+	default:
+		return fmt.Errorf("%s：%v", stage, err)
+	}
 }
 
 // queryA2SPlayers 使用 UDP 协议查询服务器玩家列表
@@ -369,7 +389,7 @@ func (a *App) FetchServerInfo(address string) (*ServerInfo, error) {
 			time.Sleep(time.Duration(200*(i+1)) * time.Millisecond)
 		}
 	}
-	return nil, fmt.Errorf("查询服务器失败(重试3次): %v", lastErr)
+	return nil, formatServerQueryError("查询服务器失败（已重试 3 次）", lastErr)
 }
 
 func parseGameMode(gametypeStr string) string {
