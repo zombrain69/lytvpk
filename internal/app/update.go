@@ -168,7 +168,7 @@ func fetchReleases(repo string) ([]GithubRelease, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %s", resp.Status)
+		return nil, fmt.Errorf("检查更新失败：服务器返回 %s（稍后重试，或换镜像）", resp.Status)
 	}
 
 	var releases []GithubRelease
@@ -451,7 +451,7 @@ func (a *App) downloadWithProgress(url string, destPath string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: %s", resp.Status)
+		return fmt.Errorf("更新包下载失败：%s（稍后重试，或换镜像/优选线路）", resp.Status)
 	}
 
 	out, err := os.Create(destPath)

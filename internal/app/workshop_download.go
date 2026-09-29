@@ -345,7 +345,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 			}
 			// If status is not OK, close body and retry if it's a server error
 			resp.Body.Close()
-			reqErr = fmt.Errorf("HTTP status: %d", resp.StatusCode)
+			reqErr = fmt.Errorf("下载失败：服务器返回 HTTP %d（稍后重试，或换镜像/优选线路）", resp.StatusCode)
 
 			// Don't retry on 404
 			if resp.StatusCode == http.StatusNotFound {

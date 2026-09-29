@@ -57,13 +57,13 @@ func queryA2SPlayers(address string) ([]PlayerInfo, error) {
 
 	// Parse response header
 	if n < 5 || !bytes.Equal(resp[:4], []byte{0xFF, 0xFF, 0xFF, 0xFF}) {
-		return nil, fmt.Errorf("invalid response header")
+		return nil, fmt.Errorf("服务器响应无效：不是预期的源引擎响应头（可能不是 L4D2 服务器，或被防火墙/代理拦截）")
 	}
 
 	// Handle Challenge (0x41 'A') - This is expected for A2S_PLAYER
 	if resp[4] == 0x41 {
 		if n < 9 {
-			return nil, fmt.Errorf("invalid challenge response length")
+			return nil, fmt.Errorf("服务器响应无效：挑战响应长度不对（可能是代理或非源引擎服务器）")
 		}
 		challenge := resp[5:9]
 
@@ -86,12 +86,12 @@ func queryA2SPlayers(address string) ([]PlayerInfo, error) {
 
 		// Check header again
 		if n < 5 || !bytes.Equal(resp[:4], []byte{0xFF, 0xFF, 0xFF, 0xFF}) {
-			return nil, fmt.Errorf("invalid response header after challenge")
+			return nil, fmt.Errorf("服务器响应无效：挑战之后返回了非预期响应（可能是代理或非源引擎服务器）")
 		}
 	}
 
 	if resp[4] != 0x44 { // 'D' for Players
-		return nil, fmt.Errorf("invalid response type: %x", resp[4])
+		return nil, fmt.Errorf("服务器返回了非预期的响应类型：0x%x（期望玩家列表）", resp[4])
 	}
 
 	reader := bytes.NewBuffer(resp[5:])
@@ -168,13 +168,13 @@ func queryA2S(address string) (*ServerInfo, error) {
 
 	// Parse response header
 	if n < 5 || !bytes.Equal(resp[:4], []byte{0xFF, 0xFF, 0xFF, 0xFF}) {
-		return nil, fmt.Errorf("invalid response header")
+		return nil, fmt.Errorf("服务器响应无效：不是预期的源引擎响应头（可能不是 L4D2 服务器，或被防火墙/代理拦截）")
 	}
 
 	// Handle Challenge (0x41 'A')
 	if resp[4] == 0x41 {
 		if n < 9 {
-			return nil, fmt.Errorf("invalid challenge response length")
+			return nil, fmt.Errorf("服务器响应无效：挑战响应长度不对（可能是代理或非源引擎服务器）")
 		}
 		challenge := resp[5:9]
 
@@ -204,12 +204,12 @@ func queryA2S(address string) (*ServerInfo, error) {
 
 		// Check header again
 		if n < 5 || !bytes.Equal(resp[:4], []byte{0xFF, 0xFF, 0xFF, 0xFF}) {
-			return nil, fmt.Errorf("invalid response header after challenge")
+			return nil, fmt.Errorf("服务器响应无效：挑战之后返回了非预期响应（可能是代理或非源引擎服务器）")
 		}
 	}
 
 	if resp[4] != 0x49 { // 'I'
-		return nil, fmt.Errorf("invalid response type: %x", resp[4])
+		return nil, fmt.Errorf("服务器返回了非预期的响应类型：0x%x（期望服务器信息）", resp[4])
 	}
 
 	reader := bytes.NewBuffer(resp[5:])

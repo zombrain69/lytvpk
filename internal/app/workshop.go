@@ -396,7 +396,7 @@ func (a *App) ParseWorkshopID(workshopUrl string) (string, error) {
 
 	u, err := url.Parse(workshopUrl)
 	if err != nil {
-		return "", fmt.Errorf("invalid URL")
+		return "", fmt.Errorf("链接格式不正确：请粘贴完整的创意工坊链接（例如 https://steamcommunity.com/sharedfiles/filedetails/?id=1234567890）")
 	}
 
 	// 只有 Steam 相关域名才提取 id 参数
@@ -422,7 +422,7 @@ func (a *App) ParseWorkshopID(workshopUrl string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("could not find valid workshop ID in URL")
+	return "", fmt.Errorf("链接里没有找到工坊 ID：请粘贴作品或合集页面链接，也可以直接输入纯数字 ID")
 }
 
 func (a *App) parseWorkshopIDs(workshopInput string) ([]string, error) {
@@ -477,7 +477,7 @@ func (a *App) GetWorkshopDetails(workshopUrl string) ([]WorkshopFileDetails, err
 	}
 
 	if len(details) == 0 {
-		return nil, fmt.Errorf("no details found")
+		return nil, fmt.Errorf("工坊接口没有返回这个作品的详情：确认链接指向公开作品，稍后重试")
 	}
 
 	// Check if it's a collection (has children)
@@ -491,7 +491,7 @@ func (a *App) GetWorkshopDetails(workshopUrl string) ([]WorkshopFileDetails, err
 		childPayload := "[" + strings.Join(childIDs, ",") + "]"
 		childrenDetails, err := a.fetchWorkshopDetails(childPayload)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch children details: %v", err)
+			return nil, fmt.Errorf("读取合集子项失败：%v（检查网络或稍后重试）", err)
 		}
 
 		// If the parent item is also a valid file, include it
@@ -530,13 +530,13 @@ func (a *App) getWorkshopDetailsGroup(rootID string) (WorkshopDetailsGroup, erro
 	}
 
 	if len(details) == 0 {
-		return WorkshopDetailsGroup{}, fmt.Errorf("no details found")
+		return WorkshopDetailsGroup{}, fmt.Errorf("工坊接口没有返回这个作品的详情：确认链接指向公开作品，稍后重试")
 	}
 
 	main := details[0]
 	items, truncated, err := collectWorkshopGroupItems(rootID, main, a.fetchWorkshopDetails, workshopCollectionExpandLimit)
 	if err != nil {
-		return WorkshopDetailsGroup{}, fmt.Errorf("failed to fetch children details: %v", err)
+		return WorkshopDetailsGroup{}, fmt.Errorf("读取合集子项失败：%v（检查网络或稍后重试）", err)
 	}
 
 	childrenDetails := []WorkshopFileDetails{}
@@ -674,7 +674,7 @@ func (a *App) fetchWorkshopDetails(payload string) ([]WorkshopFileDetails, error
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("工坊接口返回 HTTP %d：稍后重试，或换一个网络/镜像再试", resp.StatusCode)
 	}
 
 	var details []WorkshopFileDetails
@@ -694,7 +694,7 @@ func (a *App) processDetails(details []WorkshopFileDetails) ([]WorkshopFileDetai
 	}
 
 	if len(validDetails) == 0 {
-		return nil, fmt.Errorf("no valid details found")
+		return nil, fmt.Errorf("工坊接口没有返回有效详情：作品可能已下架或设为私密")
 	}
 
 	return validDetails, nil

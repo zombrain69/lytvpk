@@ -118,7 +118,7 @@ func (a *App) processChunkedDownload(ctx context.Context, task *DownloadTask, do
 	stat, err := os.Stat(finalPath)
 	if err != nil || stat.Size() != totalSize {
 		removeDownloadCheckpointFiles(finalPath)
-		return "", fmt.Errorf("final size mismatch: expected %d, got %d", totalSize, stat.Size())
+		return "", fmt.Errorf("下载完成后大小校验不通过：应为 %d 字节，实际 %d 字节（临时文件已清理，请重试）", totalSize, stat.Size())
 	}
 
 	// 11. 收尾：文件已完整，检查点不再需要（临时文件由调用方改名）。

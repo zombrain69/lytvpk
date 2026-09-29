@@ -219,11 +219,11 @@ func (a *App) FetchWorkshopList(opts WorkshopQueryOptions) (WorkshopListResult, 
 
 	if err != nil {
 		runtime.LogErrorf(a.ctx, "Failed to fetch workshop list: %v", err)
-		return WorkshopListResult{}, fmt.Errorf("network error: %w", err)
+		return WorkshopListResult{}, fmt.Errorf("网络错误：%w（检查网络或代理设置后重试）", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return WorkshopListResult{}, fmt.Errorf("API returned status: %d", resp.StatusCode())
+		return WorkshopListResult{}, fmt.Errorf("工坊接口返回 HTTP %d：稍后重试", resp.StatusCode())
 	}
 
 	result := resp.Result().(*SteamMsgResponse)
@@ -275,12 +275,12 @@ func (a *App) FetchWorkshopDetail(id string) (WorkshopItemDetail, error) {
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return WorkshopItemDetail{}, fmt.Errorf("API error: %d", resp.StatusCode())
+		return WorkshopItemDetail{}, fmt.Errorf("工坊接口错误（HTTP %d）：稍后重试", resp.StatusCode())
 	}
 
 	result := resp.Result().(*SteamDetailResponse)
 	if len(result.Response.PublishedFileDetails) == 0 {
-		return WorkshopItemDetail{}, fmt.Errorf("item not found")
+		return WorkshopItemDetail{}, fmt.Errorf("工坊里找不到这个作品：可能已下架，或 ID 不正确")
 	}
 
 	item := result.Response.PublishedFileDetails[0]

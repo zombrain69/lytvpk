@@ -244,7 +244,7 @@ func createPreallocatedFile(path string, size int64) (*os.File, error) {
 	if err := file.Truncate(size); err != nil {
 		file.Close()
 		os.Remove(path)
-		return nil, fmt.Errorf("truncate failed: %w", err)
+		return nil, fmt.Errorf("续传准备失败（无法截断临时文件）：%w", err)
 	}
 
 	return file, nil
@@ -373,7 +373,7 @@ func (a *App) downloadBlock(
 		return errRangeNotSupported
 	}
 	if resp.StatusCode != http.StatusPartialContent {
-		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
+		return fmt.Errorf("下载失败：服务器返回 HTTP %d（稍后重试，或换镜像/优选线路）", resp.StatusCode)
 	}
 
 	offset := block.StartByte
@@ -384,7 +384,7 @@ func (a *App) downloadBlock(
 		if n > 0 {
 			written, writeErr := file.WriteAt(buf[:n], offset)
 			if writeErr != nil {
-				return fmt.Errorf("write at offset %d failed: %w", offset, writeErr)
+				return fmt.Errorf("写入下载文件失败（偏移 %d）：%w", offset, writeErr)
 			}
 			offset += int64(written)
 			bm.completedBytes.Add(int64(written))
@@ -400,7 +400,7 @@ func (a *App) downloadBlock(
 	expected := block.EndByte - block.StartByte + 1
 	actual := offset - block.StartByte
 	if actual != expected {
-		return fmt.Errorf("block %d size mismatch: expected %d, got %d", block.Index, expected, actual)
+		return fmt.Errorf("下载分块校验失败：第 %d 块应为 %d 字节，实际 %d 字节（可直接重试，会续传缺失区块）", block.Index, expected, actual)
 	}
 
 	return nil
