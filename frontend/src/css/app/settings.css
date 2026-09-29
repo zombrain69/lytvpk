@@ -1002,7 +1002,10 @@ html.dark-mode .autoexec-analysis.is-warning {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  max-height: 240px;
+  /* 跟随窗口高度：合并窗口拉高后冲突清单多显示几条。 */
+  flex: 1 1 auto;
+  min-height: 6rem;
+  max-height: none;
   margin: 12px 0;
   overflow: auto;
 }

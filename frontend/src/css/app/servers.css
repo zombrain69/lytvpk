@@ -154,7 +154,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 400px;
+  /* 服务器名跟随容器宽度，不再固定 400px。 */
+  max-width: 100%;
 }
 
 .server-detail-item {
@@ -669,7 +670,10 @@
 }
 
 .panel-player-list-container {
-  max-height: 320px;
+  /* 跟随窗口高度：服务器面板拉高后玩家表多显示几行（表头已 sticky）。 */
+  flex: 1 1 auto;
+  min-height: 8rem;
+  max-height: none;
   overflow: auto;
 }
 
@@ -684,7 +688,9 @@
 .panel-player-steamid {
   font-family: var(--font-mono);
   color: var(--text-secondary);
-  max-width: 12rem;
+  /* 不再固定 12rem：窗口宽了就完整显示，窄了才省略。 */
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1241,7 +1247,7 @@
 
 .panel-upload-task-meta span {
   min-width: 0;
-  max-width: 14rem;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1314,7 +1320,9 @@
 
 .panel-rcon-output {
   min-height: 12rem;
-  max-height: 18rem;
+  /* RCON 输出跟着窗口长，不再固定 18rem。 */
+  flex: 1 1 auto;
+  max-height: none;
   overflow: auto;
   margin: 0;
   padding: var(--spacing-4);

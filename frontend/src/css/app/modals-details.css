@@ -402,7 +402,8 @@ body.is-modal-resizing-nw * { cursor: nwse-resize !important; }
 
 .preview-image {
   max-width: 100%;
-  max-height: 400px;
+  /* 预览图跟随窗口高度（原来固定 400px，窗口拉高也不变大）。 */
+  max-height: 60vh;
   width: auto;
   height: auto;
   border-radius: var(--radius-md);

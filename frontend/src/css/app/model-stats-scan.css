@@ -60,7 +60,8 @@
 
 .model-stats-loading p,
 .model-stats-error p {
-  max-width: 520px;
+  /* 说明文字跟随容器宽度：窗口拉宽后不再固定 520px 提前折行。 */
+  max-width: 100%;
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.9rem;

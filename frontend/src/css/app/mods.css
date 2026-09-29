@@ -1336,7 +1336,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  max-height: 180px;
+  /* 不再固定 180px 高：窗口拉高就多显示成员（外层自己滚）。 */
+  max-height: none;
   overflow-y: auto;
   padding: var(--spacing-2);
   border: 1px dashed var(--border-default);

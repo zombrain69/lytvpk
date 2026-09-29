@@ -70,3 +70,41 @@ test("策略组成员行在加了勾选框之后仍然让中间那列自己撑�
     "勾选框 + 成员信息 + 行内按钮三列：中间列必须用 minmax(0,1fr) 才能随窗口展开",
   );
 });
+
+// 第二类"缩着"：窗口里的清单/说明被固定 px 高度或宽度卡住，窗口拉大也不动。
+// 统一改成"跟随窗口高度"（flex: 1 1 auto; max-height: none）或 max-width: 100%。
+const WINDOW_CONTENT_RULES = [
+  ["app/diagnostics.css", ".archive-manager-tree"],
+  ["app/diagnostics.css", ".archive-manager-conflict-choice ul"],
+  ["app/diagnostics.css", ".vpk-integrity-issues"],
+  ["app/diagnostics.css", ".autoexec-matches"],
+  ["app/problem-scan.css", ".problem-scan-candidate-list"],
+  ["app/servers.css", ".panel-player-list-container"],
+  ["app/servers.css", ".panel-rcon-output"],
+  ["app/forms-tags.css", ".player-list-container"],
+  ["app/mdmp-report.css", ".mdmp-report-two-col"],
+  ["app/settings.css", ".addonlist-merge-conflicts"],
+];
+
+test("窗口内的清单跟随窗口高度，不再用固定 px 高度卡住", () => {
+  const offenders = [];
+  for (const [file, selector] of WINDOW_CONTENT_RULES) {
+    const source = read(file);
+    const block =
+      source.match(new RegExp(`\\${selector}\\s*\\{[^}]*\\}`, "s"))?.[0] || "";
+    if (!block) {
+      offenders.push(`${file} ${selector}: 规则不存在`);
+      continue;
+    }
+    if (/max-height:\s*[0-9.]+(px|rem)/.test(block)) {
+      offenders.push(`${file} ${selector}: 仍然写死高度`);
+    }
+    if (!/max-height:\s*none/.test(block)) {
+      offenders.push(`${file} ${selector}: 缺少 max-height: none`);
+    }
+    if (!/flex:\s*1 1 auto/.test(block)) {
+      offenders.push(`${file} ${selector}: 缺少 flex: 1 1 auto（不跟随窗口高度）`);
+    }
+  }
+  assert.deepEqual(offenders, [], `这些窗口内容不会随窗口变大：\n${offenders.join("\n")}`);
+});

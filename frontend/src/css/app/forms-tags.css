@@ -155,7 +155,10 @@
 }
 
 .player-list-container {
-  max-height: 300px;
+  /* 跟随窗口高度：服务器详情窗口拉高后玩家列表多显示几行。 */
+  flex: 1 1 auto;
+  min-height: 8rem;
+  max-height: none;
   overflow-y: auto;
 }
 

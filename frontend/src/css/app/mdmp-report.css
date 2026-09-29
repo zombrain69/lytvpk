@@ -325,7 +325,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  max-height: 280px;
+  /* 跟随窗口高度：报告窗口拉高后两栏一起变高，不再固定 280px。 */
+  flex: 1 1 auto;
+  max-height: none;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;

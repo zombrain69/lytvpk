@@ -177,7 +177,10 @@
 }
 
 .problem-scan-candidate-list {
-  max-height: 280px;
+  /* 跟随窗口高度：问题 Mod 查找窗口拉高后多显示候选，不再固定 280px。 */
+  flex: 1 1 auto;
+  min-height: 8rem;
+  max-height: none;
   overflow-y: auto;
   display: flex;
   flex-direction: column;

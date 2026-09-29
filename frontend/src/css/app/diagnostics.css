@@ -409,7 +409,10 @@
 .archive-manager-tree {
   display: grid;
   gap: 2px;
-  max-height: 18rem;
+  /* 跟随窗口高度：把「压缩包管理」窗口拉高就多显示几层目录，自己滚。 */
+  flex: 1 1 auto;
+  min-height: 10rem;
+  max-height: none;
   overflow: auto;
   margin-top: var(--spacing-2);
   padding: var(--spacing-2);
@@ -553,7 +556,10 @@
 }
 
 .archive-manager-conflict-choice ul {
-  max-height: 14rem;
+  /* 候选清单同样跟着窗口长，不再固定 14rem。 */
+  flex: 1 1 auto;
+  min-height: 6rem;
+  max-height: none;
   overflow: auto;
   padding-left: 1.25rem;
   overflow-wrap: anywhere;
@@ -766,7 +772,10 @@
 .vpk-integrity-issues {
   display: grid;
   gap: 0.45rem;
-  max-height: 16rem;
+  /* 窗口拉高 → 问题清单跟着变高（与「模型统计」列表同一套写法）。 */
+  flex: 1 1 auto;
+  min-height: 8rem;
+  max-height: none;
   margin: 0;
   padding: 0 0 0 1.25rem;
   overflow: auto;
@@ -881,7 +890,10 @@ html.dark-mode .autoexec-analysis.is-warning {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  max-height: 11rem;
+  /* 匹配结果列表跟随窗口高度，不再固定 11rem。 */
+  flex: 1 1 auto;
+  min-height: 6rem;
+  max-height: none;
   margin-top: 0.6rem;
   overflow-y: auto;
 }
