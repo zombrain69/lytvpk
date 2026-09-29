@@ -1693,6 +1693,24 @@
   background: #fee2e2;
 }
 
+/* 失效条目提示：文件不存在 / 文件在 disabled（只读标记，不影响排序操作）。 */
+.load-order-preview-status {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.load-order-preview-status.is-missing {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.load-order-preview-status.is-disabled {
+  color: #7c2d12;
+  background: #ffedd5;
+}
+
 .load-order-policy-actions {
   margin-top: var(--spacing-5);
   padding-top: var(--spacing-4);

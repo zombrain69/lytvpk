@@ -5,6 +5,11 @@ import { renderFileList } from "../file-list/render.js";
 import { refreshLoadOrderMap } from "../file-list/sorting.js";
 import { initLoadOrderPriorityControls, syncLoadOrderPriorityPanel } from "./load-order-priority.js";
 import {
+  LOAD_ORDER_ENTRY_STATUS,
+  classifyLoadOrderEntries,
+  normalizeLoadOrderKey,
+} from "./load-order-entry-status.mjs";
+import {
   ApplyAddonListLoadOrderPolicy,
   GetAddonListLoadOrderEntries,
   GetVPKLoadOrder,
@@ -469,7 +474,17 @@ function renderPreview(entries, summary) {
   const container = document.getElementById("load-order-preview");
   const summaryEl = document.getElementById("load-order-preview-summary");
   if (!container) return;
-  if (summaryEl) summaryEl.textContent = `${summary} · ${entries.length} 个条目`;
+  // 失效条目（文件不存在 / 在 disabled）与未记录 Mod 是排查加载顺序时最常用的两条线索。
+  const { statuses, invalidCount, unrecorded } = classifyLoadOrderEntries(
+    entries,
+    appState.allVpkFiles || appState.vpkFiles || [],
+  );
+  if (summaryEl) {
+    const extra = [];
+    if (invalidCount > 0) extra.push(`${invalidCount} 个失效`);
+    if (unrecorded > 0) extra.push(`${unrecorded} 个未记录`);
+    summaryEl.textContent = [`${summary} · ${entries.length} 个条目`, ...extra].join(" · ");
+  }
   container.replaceChildren();
   if (entries.length === 0) {
     const empty = document.createElement("div");
@@ -515,6 +530,19 @@ function renderPreview(entries, summary) {
     state.className = `load-order-preview-state ${enabled ? "enabled" : "disabled"}`;
     state.textContent = enabled ? "游戏内开启" : "游戏内关闭";
     row.append(order, type, key, state);
+
+    const status = statuses.get(normalizeLoadOrderKey(entry.key));
+    if (status && status !== LOAD_ORDER_ENTRY_STATUS.existing) {
+      const badge = document.createElement("span");
+      badge.className = `load-order-preview-status is-${status}`;
+      badge.textContent =
+        status === LOAD_ORDER_ENTRY_STATUS.disabled ? "文件在 disabled" : "文件不存在";
+      badge.title =
+        status === LOAD_ORDER_ENTRY_STATUS.disabled
+          ? "addonlist.txt 里有这条记录，但文件当前在 disabled 目录，不会参与加载"
+          : "addonlist.txt 里有这条记录，但磁盘上找不到对应文件（失效条目）";
+      row.appendChild(badge);
+    }
     fragment.appendChild(row);
   });
   container.appendChild(fragment);
