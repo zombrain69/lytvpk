@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.7.1-community.11 — 2026-09-30
+
+**修复「抓取工坊标签与统计」在直连 Steam 官方 API 被拦的网络里必然失败的问题。**
+
+### 问题
+
+`EnrichWorkshopMetadata`（工坊 Meta 抓取）是应用里唯一直接请求
+`api.steampowered.com` 的路径。真机复现：本机直连该域名超时
+（`wsarecv: 连接尝试失败`），而同一台机器经系统代理访问同一接口是 200 / 689ms ——
+也就是说，在所有「需要系统代理才能出网」的环境里，工坊标签/统计抓取必然报错，
+而其它工坊功能正常（它们都走 fork 的工坊 worker）。
+
+### 修复
+
+新增 worker 回退：官方接口失败（或没有返回请求条目）时，逐个 ID 调用
+`{WorkshopWorkerURL}/detail`，把 worker 的作品详情映射成官方结构
+（标题 / 订阅 / 收藏 / 浏览 / 标签），再走原有 `.meta` 合并逻辑。
+官方可用时仍以官方为准；两边都失败时保留官方错误信息。
+
+- 新增 `workerItemToSteamDetail` / `interfaceToUint32`（兼容 worker 的数字与字符串字段）
+- 新增单测：字段映射、官方失败 → worker 回退、官方成功不调用 worker、两边失败保留错误
+- 既有「整批失败」测试改为同时打桩 worker，保持测试隔离
+
+### 真机验证
+
+沙箱预置真实工坊作品 `3295519579`（`No spray cooldown`，1233 字节，无 `.meta`）：
+
+- 修复前：`updated=0, failed=[3295519579]`，原因是直连 api.steampowered.com 超时
+- 修复后：首次 `updated=1`、二次 `unchanged=1`（证明标签/统计已写入并可读回）；
+  更新检测 `CheckModUpdates()` 正常返回 0 更新
+
+`go test ./...` 全绿；`node --test` 428 项全绿；`npm run build` 通过。
+
 ## 2.7.1-community.10 — 2026-09-30
 
 **加载顺序窗口补齐上游 `a50cf4f` 的诊断能力：预览里直接标出失效 / 未记录条目。**

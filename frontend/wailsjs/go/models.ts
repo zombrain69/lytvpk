@@ -3369,7 +3369,7 @@ export namespace app {
 	    views: number;
 	    subscriptions: number;
 	    favorited: number;
-	    tags: [];
+	    tags: steamTag[];
 	
 	    static createFrom(source: any = {}) {
 	        return new WorkshopPreviewItem(source);
@@ -3385,7 +3385,7 @@ export namespace app {
 	        this.views = source["views"];
 	        this.subscriptions = source["subscriptions"];
 	        this.favorited = source["favorited"];
-	        this.tags = this.convertValues(source["tags"], );
+	        this.tags = this.convertValues(source["tags"], steamTag);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -3406,11 +3406,11 @@ export namespace app {
 		    return a;
 		}
 	}
-	export class  {
+	export class steamTag {
 	    tag: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new (source);
+	        return new steamTag(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -3446,7 +3446,7 @@ export namespace app {
 	    subscriptions: any;
 	    favorited: any;
 	    views: any;
-	    tags: [];
+	    tags: steamTag[];
 	    child_items: WorkshopPreviewItem[];
 	    required_items: WorkshopPreviewItem[];
 	
@@ -3469,7 +3469,7 @@ export namespace app {
 	        this.subscriptions = source["subscriptions"];
 	        this.favorited = source["favorited"];
 	        this.views = source["views"];
-	        this.tags = this.convertValues(source["tags"], );
+	        this.tags = this.convertValues(source["tags"], steamTag);
 	        this.child_items = this.convertValues(source["child_items"], WorkshopPreviewItem);
 	        this.required_items = this.convertValues(source["required_items"], WorkshopPreviewItem);
 	    }

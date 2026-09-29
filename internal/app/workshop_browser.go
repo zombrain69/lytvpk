@@ -32,17 +32,15 @@ type WorkshopQueryOptions struct {
 
 // WorkshopPreviewItem 列表页专用的精简结构
 type WorkshopPreviewItem struct {
-	PublishedFileId string `json:"publishedfileid"`
-	Title           string `json:"title"`
-	PreviewUrl      string `json:"preview_url"`
-	Author          string `json:"creator"` // 注意：Steam 有时返回的是 ID，可能需要二次查询用户名
-	FileType        int    `json:"file_type"`
-	Views           int    `json:"views"`
-	Subscriptions   int    `json:"subscriptions"`
-	Favorited       int    `json:"favorited"`
-	Tags            []struct {
-		Tag string `json:"tag"`
-	} `json:"tags"`
+	PublishedFileId string     `json:"publishedfileid"`
+	Title           string     `json:"title"`
+	PreviewUrl      string     `json:"preview_url"`
+	Author          string     `json:"creator"` // 注意：Steam 有时返回的是 ID，可能需要二次查询用户名
+	FileType        int        `json:"file_type"`
+	Views           int        `json:"views"`
+	Subscriptions   int        `json:"subscriptions"`
+	Favorited       int        `json:"favorited"`
+	Tags            []steamTag `json:"tags"`
 }
 
 // SteamMsgResponse 是 Steam API 的顶层包装
@@ -80,10 +78,8 @@ type WorkshopItemDetail struct {
 	Subscriptions   interface{}            `json:"subscriptions"`
 	Favorited       interface{}            `json:"favorited"`
 	Views           interface{}            `json:"views"`
-	Tags            []struct {
-		Tag string `json:"tag"`
-	} `json:"tags"`
-	ChildItems []WorkshopPreviewItem `json:"child_items"`
+	Tags            []steamTag             `json:"tags"`
+	ChildItems      []WorkshopPreviewItem  `json:"child_items"`
 	// RequiredItems 是普通物品的依赖项（"必需物品"），对齐上游 361dc9a：
 	// 工坊接口的 children 对合集是子项、对普通物品就是依赖项，worker 会按类型分开返回。
 	RequiredItems []WorkshopPreviewItem `json:"required_items"`

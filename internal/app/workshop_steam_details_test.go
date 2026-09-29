@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,7 +18,9 @@ import (
 
 // steamDetailsTestServer 造一个 Steam 官方接口替身：**用真实抓取的响应当夹具**
 // （testdata/steam_published_file_details.json，2026-09-24 从
-//  ISteamRemoteStorage/GetPublishedFileDetails 真实抓下来的两个作品），
+//
+//	ISteamRemoteStorage/GetPublishedFileDetails 真实抓下来的两个作品），
+//
 // 这样测试断言的是真实响应结构，而不是我们自己手写的形状。
 func steamDetailsTestServer(t *testing.T) (*httptest.Server, *[]string, *sync.Mutex) {
 	t.Helper()
@@ -90,6 +93,121 @@ func itoa(value int) string {
 	return string(digits)
 }
 
+// TestWorkerItemToSteamDetailMapping 覆盖 worker 详情 → 官方结构的字段映射。
+func TestWorkerItemToSteamDetailMapping(t *testing.T) {
+	item := WorkshopItemDetail{
+		PublishedFileId: "2302720558",
+		Title:           "No spray cooldown",
+		Subscriptions:   float64(1234),
+		Favorited:       "56",
+		Views:           json.Number("789"),
+		Tags:            []steamTag{{Tag: " Gameplay "}, {Tag: ""}, {Tag: "Tools"}},
+	}
+
+	detail := workerItemToSteamDetail(item, "fallback-id")
+	if detail.PublishedFileID != "2302720558" || detail.Result != 1 {
+		t.Fatalf("基础字段映射错误: %+v", detail)
+	}
+	if detail.Subscriptions != 1234 || detail.Favorited != 56 || detail.Views != 789 {
+		t.Fatalf("统计字段映射错误: %+v", detail)
+	}
+	if len(detail.Tags) != 2 || detail.Tags[0].Tag != "Gameplay" || detail.Tags[1].Tag != "Tools" {
+		t.Fatalf("标签映射错误: %+v", detail.Tags)
+	}
+
+	blank := workerItemToSteamDetail(WorkshopItemDetail{}, "only-id")
+	if blank.PublishedFileID != "only-id" || blank.Result != 1 || len(blank.Tags) != 0 {
+		t.Fatalf("空详情应只保留 ID/result: %+v", blank)
+	}
+}
+
+// TestFetchSteamPublishedFileDetailsFallsBackToWorker 官方接口失败时必须退回 worker。
+func TestFetchSteamPublishedFileDetailsFallsBackToWorker(t *testing.T) {
+	official := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(official.Close)
+	previousURL := steamPublishedFileDetailsURL
+	steamPublishedFileDetailsURL = official.URL
+	t.Cleanup(func() { steamPublishedFileDetailsURL = previousURL })
+
+	previousFetcher := workshopWorkerDetailFetcher
+	workerCalls := 0
+	workshopWorkerDetailFetcher = func(ids []string) (map[string]steamPublishedFileDetail, error) {
+		workerCalls++
+		return map[string]steamPublishedFileDetail{
+			ids[0]: {
+				PublishedFileID: ids[0],
+				Result:          1,
+				Title:           "worker 回退",
+				Subscriptions:   42,
+				Tags:            []steamTag{{Tag: "Gameplay"}},
+			},
+		}, nil
+	}
+	t.Cleanup(func() { workshopWorkerDetailFetcher = previousFetcher })
+
+	got, err := fetchSteamPublishedFileDetails(&http.Client{Timeout: 5 * time.Second}, []string{"2302720558"})
+	if err != nil {
+		t.Fatalf("有 worker 回退时不应返回错误: %v", err)
+	}
+	if workerCalls != 1 {
+		t.Fatalf("worker 回退调用次数 = %d", workerCalls)
+	}
+	detail, ok := got["2302720558"]
+	if !ok || detail.Title != "worker 回退" || detail.Subscriptions != 42 {
+		t.Fatalf("回退结果异常: %+v", got)
+	}
+}
+
+// TestFetchSteamPublishedFileDetailsPrefersOfficial 官方可用时不应打扰 worker。
+func TestFetchSteamPublishedFileDetailsPrefersOfficial(t *testing.T) {
+	server, _, _ := steamDetailsTestServer(t)
+	previousURL := steamPublishedFileDetailsURL
+	steamPublishedFileDetailsURL = server.URL
+	t.Cleanup(func() { steamPublishedFileDetailsURL = previousURL })
+
+	previousFetcher := workshopWorkerDetailFetcher
+	workerCalls := 0
+	workshopWorkerDetailFetcher = func(ids []string) (map[string]steamPublishedFileDetail, error) {
+		workerCalls++
+		return nil, nil
+	}
+	t.Cleanup(func() { workshopWorkerDetailFetcher = previousFetcher })
+
+	got, err := fetchSteamPublishedFileDetails(&http.Client{Timeout: 5 * time.Second}, []string{"2302720558"})
+	if err != nil {
+		t.Fatalf("官方可用时不应报错: %v", err)
+	}
+	if workerCalls != 0 {
+		t.Fatalf("官方成功时不应调用 worker（%d 次）", workerCalls)
+	}
+	if _, ok := got["2302720558"]; !ok {
+		t.Fatalf("官方结果缺失: %+v", got)
+	}
+}
+
+// TestFetchSteamPublishedFileDetailsReportsOfficialErrorWhenBothFail 两边都失败时保留官方错误。
+func TestFetchSteamPublishedFileDetailsReportsOfficialErrorWhenBothFail(t *testing.T) {
+	official := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	t.Cleanup(official.Close)
+	previousURL := steamPublishedFileDetailsURL
+	steamPublishedFileDetailsURL = official.URL
+	t.Cleanup(func() { steamPublishedFileDetailsURL = previousURL })
+
+	previousFetcher := workshopWorkerDetailFetcher
+	workshopWorkerDetailFetcher = func(ids []string) (map[string]steamPublishedFileDetail, error) {
+		return nil, nil
+	}
+	t.Cleanup(func() { workshopWorkerDetailFetcher = previousFetcher })
+
+	if _, err := fetchSteamPublishedFileDetails(&http.Client{Timeout: 5 * time.Second}, []string{"1"}); err == nil {
+		t.Fatal("两边都失败时应返回错误")
+	}
+}
+
 func TestApplySteamDetailToMeta(t *testing.T) {
 	fetchedAt := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
 	meta := &WorkshopMeta{
@@ -106,9 +224,7 @@ func TestApplySteamDetailToMeta(t *testing.T) {
 		LifetimeSubscriptions: 30000,
 		LifetimeFavorited:     9000,
 		Views:                 53208,
-		Tags: []struct {
-			Tag string `json:"tag"`
-		}{
+		Tags: []steamTag{
 			{Tag: "Survivors"},
 			{Tag: " Sounds "},
 			{Tag: "sounds"},
@@ -220,7 +336,7 @@ func TestEnrichWorkshopMetadataEndToEnd(t *testing.T) {
 	}
 }
 
-// 官方接口整批失败时：返回错误摘要，但不影响本地文件。
+// 官方接口与 worker 回退都失败时：返回错误摘要，但不影响本地文件。
 func TestEnrichWorkshopMetadataReportsBatchFailure(t *testing.T) {
 	a, addonsDir := newPriorityTestApp(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -230,6 +346,13 @@ func TestEnrichWorkshopMetadataReportsBatchFailure(t *testing.T) {
 	previous := steamPublishedFileDetailsURL
 	steamPublishedFileDetailsURL = server.URL
 	t.Cleanup(func() { steamPublishedFileDetailsURL = previous })
+
+	// worker 回退也失败：否则会走真实网络，测试就不隔离了。
+	previousFetcher := workshopWorkerDetailFetcher
+	workshopWorkerDetailFetcher = func(ids []string) (map[string]steamPublishedFileDetail, error) {
+		return nil, errors.New("worker 回退不可用（测试替身）")
+	}
+	t.Cleanup(func() { workshopWorkerDetailFetcher = previousFetcher })
 
 	workshopDir := filepath.Join(addonsDir, "workshop")
 	if err := os.MkdirAll(workshopDir, 0o755); err != nil {

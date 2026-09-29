@@ -40,19 +40,22 @@ const (
 // steamPublishedFileDetailsURL 可注入：测试用 httptest 替身，生产用官方端点。
 var steamPublishedFileDetailsURL = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
 
+// steamTag 是官方接口里的标签条目。
+type steamTag struct {
+	Tag string `json:"tag"`
+}
+
 // steamPublishedFileDetail 是 Steam 官方接口的返回条目（只取本项目要用的字段）。
 type steamPublishedFileDetail struct {
-	PublishedFileID       string `json:"publishedfileid"`
-	Result                int    `json:"result"`
-	Title                 string `json:"title"`
-	Subscriptions         uint32 `json:"subscriptions"`
-	Favorited             uint32 `json:"favorited"`
-	LifetimeSubscriptions uint32 `json:"lifetime_subscriptions"`
-	LifetimeFavorited     uint32 `json:"lifetime_favorited"`
-	Views                 uint32 `json:"views"`
-	Tags                  []struct {
-		Tag string `json:"tag"`
-	} `json:"tags"`
+	PublishedFileID       string     `json:"publishedfileid"`
+	Result                int        `json:"result"`
+	Title                 string     `json:"title"`
+	Subscriptions         uint32     `json:"subscriptions"`
+	Favorited             uint32     `json:"favorited"`
+	LifetimeSubscriptions uint32     `json:"lifetime_subscriptions"`
+	LifetimeFavorited     uint32     `json:"lifetime_favorited"`
+	Views                 uint32     `json:"views"`
+	Tags                  []steamTag `json:"tags"`
 }
 
 type steamPublishedFileDetailsResponse struct {
@@ -81,7 +84,38 @@ func steamTagNames(detail steamPublishedFileDetail) []string {
 }
 
 // fetchSteamPublishedFileDetails 拉取一批作品的官方详情。
+//
+// 先走 Steam 官方接口；如果直连被拦/超时（例如本机需要系统代理才能访问
+// api.steampowered.com），退回本项目工坊 worker 的 /detail —— 这与应用其它
+// 工坊功能使用同一个可达入口，避免「只有抓取标签/统计失败」的割裂体验。
 func fetchSteamPublishedFileDetails(client *http.Client, ids []string) (map[string]steamPublishedFileDetail, error) {
+	if len(ids) == 0 {
+		return map[string]steamPublishedFileDetail{}, nil
+	}
+
+	official, officialErr := fetchSteamPublishedFileDetailsOfficial(client, ids)
+	if officialErr == nil && len(official) > 0 {
+		return official, nil
+	}
+
+	fallback, fallbackErr := workshopWorkerDetailFetcher(ids)
+	if len(fallback) > 0 {
+		for id, detail := range official {
+			fallback[id] = detail
+		}
+		return fallback, nil
+	}
+	if officialErr != nil {
+		return official, officialErr
+	}
+	if fallbackErr != nil {
+		return official, fallbackErr
+	}
+	return official, nil
+}
+
+// fetchSteamPublishedFileDetailsOfficial 只走 Steam 官方接口（原始实现）。
+func fetchSteamPublishedFileDetailsOfficial(client *http.Client, ids []string) (map[string]steamPublishedFileDetail, error) {
 	result := make(map[string]steamPublishedFileDetail, len(ids))
 	if len(ids) == 0 {
 		return result, nil
@@ -122,6 +156,112 @@ func fetchSteamPublishedFileDetails(client *http.Client, ids []string) (map[stri
 		result[id] = detail
 	}
 	return result, nil
+}
+
+// workshopWorkerDetailFetcher 是「退回工坊 worker 取详情」的可注入入口（测试替换用）。
+var workshopWorkerDetailFetcher = fetchWorkshopWorkerDetails
+
+// fetchWorkshopWorkerDetails 逐个工坊 ID 调用 worker 的 /detail，并映射成官方结构。
+// 用 getWorkshopClient（15s 超时 + IPv4），与浏览/详情功能走同一条可达链路。
+func fetchWorkshopWorkerDetails(ids []string) (map[string]steamPublishedFileDetail, error) {
+	result := make(map[string]steamPublishedFileDetail, len(ids))
+	client := getWorkshopClient()
+	var lastErr error
+	for _, id := range ids {
+		var payload SteamDetailResponse
+		response, err := client.R().
+			SetQueryParam("id", id).
+			SetResult(&payload).
+			Get(WorkshopWorkerURL + "/detail")
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if response.StatusCode() != http.StatusOK {
+			lastErr = fmt.Errorf("工坊接口返回 %d", response.StatusCode())
+			continue
+		}
+		if len(payload.Response.PublishedFileDetails) == 0 {
+			lastErr = fmt.Errorf("工坊接口没有返回作品 %s 的详情", id)
+			continue
+		}
+		result[id] = workerItemToSteamDetail(payload.Response.PublishedFileDetails[0], id)
+	}
+	if len(result) == 0 && lastErr != nil {
+		return result, lastErr
+	}
+	return result, nil
+}
+
+// workerItemToSteamDetail 把 worker 作品详情映射成官方结构（只映射本项目会用到的字段）。
+func workerItemToSteamDetail(item WorkshopItemDetail, id string) steamPublishedFileDetail {
+	detail := steamPublishedFileDetail{
+		PublishedFileID: firstNonEmptyString(item.PublishedFileId, id),
+		Result:          1,
+		Title:           item.Title,
+		Subscriptions:   interfaceToUint32(item.Subscriptions),
+		Favorited:       interfaceToUint32(item.Favorited),
+		Views:           interfaceToUint32(item.Views),
+	}
+	for _, tag := range item.Tags {
+		name := strings.TrimSpace(tag.Tag)
+		if name == "" {
+			continue
+		}
+		detail.Tags = append(detail.Tags, steamTag{Tag: name})
+	}
+	return detail
+}
+
+// interfaceToUint32 兼容 worker 返回的数字/字符串（interface{} 字段）。
+func interfaceToUint32(value any) uint32 {
+	switch typed := value.(type) {
+	case nil:
+		return 0
+	case float64:
+		if typed <= 0 {
+			return 0
+		}
+		return uint32(typed)
+	case float32:
+		if typed <= 0 {
+			return 0
+		}
+		return uint32(typed)
+	case int:
+		if typed <= 0 {
+			return 0
+		}
+		return uint32(typed)
+	case int64:
+		if typed <= 0 {
+			return 0
+		}
+		return uint32(typed)
+	case json.Number:
+		parsed, err := typed.Int64()
+		if err != nil || parsed <= 0 {
+			return 0
+		}
+		return uint32(parsed)
+	case string:
+		parsed, err := strconv.ParseUint(strings.TrimSpace(typed), 10, 32)
+		if err != nil {
+			return 0
+		}
+		return uint32(parsed)
+	default:
+		return 0
+	}
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 // applySteamDetailToMeta 把官方详情合并进 .meta；返回是否有变化。
