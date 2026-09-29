@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.7.1-community.12 — 2026-09-30
+
+**真机实测「立即更新」全链路后修两处问题：下载失败提示可读化 + 旧备份被占用时的替换回退。**
+
+### 一、更新包下载失败时给出可行动的中文提示
+
+直连 GitHub 被拦时（本机实测 `dial tcp … connectex: A connection attempt failed …`），
+界面原来直接显示原始英文/系统错误。新增 `formatUpdateDownloadError`：
+
+- 超时（`i/o timeout` / `deadline exceeded` / Windows `connectex`、
+  `A connection attempt failed…`、中文「连接尝试失败/连接超时/没有正确答复」）
+  → 「更新包下载失败：连接超时（可在下方切换 GitHub 加速镜像后重试）」
+- `connection refused` → 「连接被拒绝（可在下方切换镜像后重试）」
+- DNS 失败 → 「无法解析下载地址（请检查网络或换镜像）」
+- 未知错误仍保留原始细节
+
+### 二、旧备份被占用时不再报 “Access is denied”
+
+`installUpdate` 原来固定把当前 EXE 备份成 `<exe>.old`，且只尝试删除旧 `.old` 一次。
+实测场景：成功更新后未重启（`.old` 就是正在运行的自身，Windows 不允许删除运行中的镜像），
+再次点「立即更新」会在重命名时报 `Access is denied`。
+
+修复：删不掉旧 `.old` 时改用时间戳备份名 `<exe>.old-YYYYmmddHHMMSS[-n]`，
+不再因为备份名冲突中断更新。
+
+### 验证
+
+- 新增 `update_download_message_test.go`（5 类错误，含真机抓到的 Windows connectex 文案）
+- 新增 `update_install_test.go`：常规替换、非空 `.old` 占位时改用时间戳备份
+- 真机（沙箱、community.9 测试构建）：检测到 community.11 → 镜像下载替换成功 →
+  **同一会话内再次更新仍然成功**，磁盘留下 `.old`、`.old-20260930063914`、
+  `.old-20260930063914-1` 三个备份，新 EXE 字节核对为 community.11
+- `go test ./...` 全绿；`node --test` 428 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.11 — 2026-09-30
 
 **修复「抓取工坊标签与统计」在直连 Steam 官方 API 被拦的网络里必然失败的问题。**

@@ -431,7 +431,7 @@ func (a *App) DoUpdate(mirror string) string {
 
 	// 下载带进度
 	if err := a.downloadWithProgress(targetURL, tmpFile.Name()); err != nil {
-		return "下载失败: " + err.Error()
+		return formatUpdateDownloadError(err)
 	}
 
 	// 安装更新
@@ -440,6 +440,34 @@ func (a *App) DoUpdate(mirror string) string {
 	}
 
 	return "success"
+}
+
+// formatUpdateDownloadError 把更新包下载的底层网络错误翻译成可行动的中文提示。
+// 直连 GitHub 在部分网络会被拦（表现为超时/"连接尝试失败"），提示里要引导用户换镜像。
+func formatUpdateDownloadError(err error) string {
+	if err == nil {
+		return ""
+	}
+	lower := strings.ToLower(err.Error())
+	text := err.Error()
+	switch {
+	case strings.Contains(lower, "i/o timeout"),
+		strings.Contains(lower, "deadline exceeded"),
+		strings.Contains(lower, "connectex"),
+		strings.Contains(lower, "connection attempt failed"),
+		strings.Contains(lower, "did not properly respond"),
+		strings.Contains(lower, "failed to respond"),
+		strings.Contains(text, "连接尝试失败"),
+		strings.Contains(text, "连接超时"),
+		strings.Contains(text, "没有正确答复"):
+		return "更新包下载失败：连接超时（可在下方切换 GitHub 加速镜像后重试）"
+	case strings.Contains(lower, "connection refused"), strings.Contains(text, "拒绝"):
+		return "更新包下载失败：连接被拒绝（可在下方切换镜像后重试）"
+	case strings.Contains(lower, "no such host"), strings.Contains(lower, "lookup"):
+		return "更新包下载失败：无法解析下载地址（请检查网络或换镜像）"
+	default:
+		return "更新包下载失败：" + text
+	}
 }
 
 // downloadWithProgress 下载文件并发送进度
@@ -540,8 +568,12 @@ func installUpdate(zipPath, currentExe string) error {
 	// 3. 替换逻辑 (Windows)
 	oldExePath := currentExe + ".old"
 
-	// 如果存在旧的 .old，先删除
-	os.Remove(oldExePath)
+	// 如果存在旧的 .old，先删除；删不掉时换一个带时间戳的备份名。
+	// 典型场景：上次更新后没有重启（.old 就是正在运行的自身，Windows 不允许删除运行中的镜像），
+	// 或者 .old 被同步盘/杀软占用。否则重命名会直接报 “Access is denied”。
+	if err := os.Remove(oldExePath); err != nil && !os.IsNotExist(err) {
+		oldExePath = nextAvailableUpdateBackupPath(currentExe)
+	}
 
 	// 重命名当前 exe -> .old
 	if err := os.Rename(currentExe, oldExePath); err != nil {
@@ -556,4 +588,16 @@ func installUpdate(zipPath, currentExe string) error {
 	}
 
 	return nil
+}
+
+// nextAvailableUpdateBackupPath 返回一个不冲突的时间戳备份路径（currentExe.old-YYYYmmddHHMMSS[-n]）。
+func nextAvailableUpdateBackupPath(currentExe string) string {
+	base := currentExe + ".old-" + time.Now().Format("20060102150405")
+	candidate := base
+	for index := 1; ; index++ {
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+		candidate = fmt.Sprintf("%s-%d", base, index)
+	}
 }
