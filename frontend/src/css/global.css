@@ -126,10 +126,37 @@
   min-width: 0;
 }
 
-.conflict-scope-mode-btn.active {
-  border-color: rgba(79, 70, 229, 0.35);
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.14), rgba(59, 130, 246, 0.09));
-  color: var(--primary);
+/* 组合方式按钮：未选中用描边、选中填色 + ✓。
+   旧样式两个按钮都是灰底，用户看不出当前选的是哪一个，误以为按钮坏了。 */
+.conflict-scope-mode-switch .conflict-scope-mode-btn {
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.conflict-scope-mode-switch .conflict-scope-mode-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.conflict-scope-mode-switch .conflict-scope-mode-btn.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.conflict-scope-mode-switch .conflict-scope-mode-btn.active::after {
+  content: "✓";
+  font-size: 0.8em;
+  line-height: 1;
+}
+
+.conflict-scope-mode-switch.is-disabled .conflict-scope-mode-btn {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .conflict-scope-hint {

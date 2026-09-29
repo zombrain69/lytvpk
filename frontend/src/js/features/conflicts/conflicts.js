@@ -21,6 +21,12 @@ import {
   searchConflictGroups,
 } from "./conflict-search.mjs";
 import { buildScopedConflictSummary } from "./scoped-conflict-summary.mjs";
+import {
+  conflictScopeSummaryLabel,
+  describeConflictScope,
+  formatConflictScopeText,
+  serializeConflictScopeOptions,
+} from "./conflict-scope-label.mjs";
 
 let EventsOn;
 let showError;
@@ -162,13 +168,6 @@ const CONFLICT_PAGE_SIZE = 20;
 // 覆盖关系通常数量更多，且每条都是“胜负已判定”的普通重叠，做适度截断避免长列表卡顿。
 const CONFLICT_OVERRIDE_LIMIT = 50;
 
-const CONFLICT_SCOPE_RULES = [
-  { type: "enabled", label: "游戏内开启", description: "addonlist.txt 为 1 且不在 disabled" },
-  { type: "not_disabled", label: "未禁用", description: "文件不在 disabled 目录" },
-  { type: "root", label: "根目录", description: "当前 addons 目录下的 Mod" },
-  { type: "workshop", label: "创意工坊", description: "workshop 子目录下的 Mod" },
-];
-
 function getConflictScopeOptions() {
   const configured = appState.conflictAnalysisOptions || {};
   const rules = Array.isArray(configured.baselineRules) && configured.baselineRules.length
@@ -182,14 +181,7 @@ function getConflictScopeOptions() {
 }
 
 function getConflictScopeLabel(options = getConflictScopeOptions()) {
-  const labels = options.baselineRules.map((rule) => {
-    if (rule.type === "tag") return `标签：${rule.value || "未指定"}`;
-    return CONFLICT_SCOPE_RULES.find((item) => item.type === rule.type)?.label || rule.type;
-  });
-  const base = labels.length
-    ? `${options.matchMode === "and" ? "同时满足" : "满足任一"}：${labels.join(options.matchMode === "and" ? " + " : " / ")}`
-    : "游戏内开启";
-  return options.priorityAware ? `${base} · 按加载顺序判定覆盖` : base;
+  return conflictScopeSummaryLabel(options);
 }
 
 function getAvailableConflictTags() {
@@ -234,8 +226,75 @@ function syncConflictScopeDialog() {
   if (priorityAwareInput) priorityAwareInput.checked = options.priorityAware === true;
   const targetCount = document.getElementById("conflict-scope-target-count");
   if (targetCount) targetCount.textContent = `${(appState.vpkFiles || []).length} 个当前筛选目标`;
+  refreshConflictScopeDialogPreview();
+}
+
+// refreshConflictScopeDialogPreview 让弹窗里的预览行跟着勾选/组合方式实时变化。
+//
+// 真实反馈：此前预览只在打开弹窗时刷新一次，用户点「满足全部 / 满足任一」时
+// 看不到任何反馈，以为组合开关失效。现在：
+//   - 未改动 → “当前：…”，改动未应用 → “将按：…（点“应用并分析”生效）”；
+//   - 只有 1 个条件时禁用组合开关并解释原因（此时两种组合结果相同）。
+function refreshConflictScopeDialogPreview() {
+  const draft = readConflictScopeDialog();
+  const saved = getConflictScopeOptions();
+  const described = describeConflictScope(draft);
+  const changed = serializeConflictScopeOptions(draft) !== serializeConflictScopeOptions(saved);
+
   const preview = document.getElementById("conflict-scope-preview");
-  if (preview) preview.textContent = `当前：${getConflictScopeLabel(options)}`;
+  if (preview) {
+    preview.textContent = changed
+      ? `${formatConflictScopeText(draft, "将按")}（点“应用并分析”生效）`
+      : formatConflictScopeText(saved, "当前");
+  }
+
+  const modeHint = document.getElementById("conflict-scope-mode-hint");
+  if (modeHint) {
+    modeHint.textContent = described.usesCombination
+      ? "例如“游戏内开启 + 创意工坊”可只比较已开启的工坊 Mod；“根目录或创意工坊”可覆盖两类来源。"
+      : "当前只勾选了 1 个条件 —— 此时“满足全部”与“满足任一”结果相同，多勾选几个条件后组合方式才会生效。";
+  }
+  document.querySelectorAll("[data-conflict-match-mode]").forEach((button) => {
+    const disabled = !described.usesCombination;
+    button.disabled = disabled;
+    button.setAttribute("aria-disabled", disabled ? "true" : "false");
+  });
+  document
+    .querySelector(".conflict-scope-mode-switch")
+    ?.classList.toggle("is-disabled", !described.usesCombination);
+}
+
+// bindConflictScopeDialogEvents 让弹窗内的所有输入都能触发实时预览；
+// 组合方式的 active 状态也在这里维护，避免和别处重复绑定导致顺序不一致。
+function bindConflictScopeDialogEvents() {
+  const modal = document.getElementById("conflict-scope-modal");
+  if (!modal) return;
+  modal.querySelectorAll("[data-conflict-scope-rule]").forEach((input) => {
+    input.addEventListener("change", (event) => {
+      if (String(input.dataset.conflictScopeRule || "") === "tag") {
+        const tagSelect = document.getElementById("conflict-scope-tag");
+        if (tagSelect) tagSelect.disabled = !event.target.checked;
+      }
+      refreshConflictScopeDialogPreview();
+    });
+  });
+  document.getElementById("conflict-scope-tag")?.addEventListener("change", () => {
+    refreshConflictScopeDialogPreview();
+  });
+  document.getElementById("conflict-priority-aware")?.addEventListener("change", () => {
+    refreshConflictScopeDialogPreview();
+  });
+  modal.querySelectorAll("[data-conflict-match-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      modal.querySelectorAll("[data-conflict-match-mode]").forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      refreshConflictScopeDialogPreview();
+    });
+  });
 }
 
 function readConflictScopeDialog() {
@@ -645,6 +704,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+// 对比范围弹窗：勾选条件、切换组合方式、选标签、切覆盖判定都要实时刷新预览。
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindConflictScopeDialogEvents);
+} else {
+  bindConflictScopeDialogEvents();
+}
 
 export async function startConflictCheck() {
   if (isConflictChecking) return;

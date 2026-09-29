@@ -1588,19 +1588,8 @@ function setupBatchActionEvents() {
   document
     .getElementById("apply-conflict-scope-btn")
     ?.addEventListener("click", applyConflictScopeOptions);
-  document.querySelectorAll("[data-conflict-match-mode]").forEach((button) => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll("[data-conflict-match-mode]").forEach((item) => {
-        const active = item === button;
-        item.classList.toggle("active", active);
-        item.setAttribute("aria-pressed", active ? "true" : "false");
-      });
-    });
-  });
-  document.querySelector('[data-conflict-scope-rule="tag"]')?.addEventListener("change", (event) => {
-    const tagSelect = document.getElementById("conflict-scope-tag");
-    if (tagSelect) tagSelect.disabled = !event.target.checked;
-  });
+  // 「对比范围」弹窗内的条件勾选 / 组合方式由 conflicts.js 统一绑定：
+  // 那里要在同一次事件里刷新预览行，绑在别处会因监听顺序读到旧状态。
 
   // 冲突检测弹窗按钮
   document
