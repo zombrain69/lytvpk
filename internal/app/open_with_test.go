@@ -30,8 +30,8 @@ func TestSplitOpenWithArguments(t *testing.T) {
 		{
 			// 真机复现过的 bug：反斜杠被当成转义符，Windows 路径被吃成 C:Toolstool.exe。
 			name:     "Windows 路径里的反斜杠要原样保留",
-			template: `-L "C:\Users\Administrator\Desktop" -file "D:\Mods\武器包"`,
-			want:     []string{"-L", `C:\Users\Administrator\Desktop`, "-file", `D:\Mods\武器包`},
+			template: `-L "C:\Users\Example\Desktop" -file "D:\Mods\武器包"`,
+			want:     []string{"-L", `C:\Users\Example\Desktop`, "-file", `D:\Mods\武器包`},
 		},
 		{
 			name:     "未加引号的 Windows 路径同样保留反斜杠",

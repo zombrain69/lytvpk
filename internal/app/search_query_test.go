@@ -146,7 +146,7 @@ func TestNegativeTermUsesSubstringNotFuzzy(t *testing.T) {
 		Name:      "ak47-hd.vpk",
 		PrimaryTag: "武器",
 		// 长字段（搜索材料里的路径/主体）是"模糊误伤"的温床：这里用一段含 o/l/d 散落字符的文本
-		SubjectSummary: `E:\SteamLibrary\steamapps\common\Left 4 Dead 2\program\lytvpk\internal\.tmp-cua\fixture8\left4dead2\addons\ak47-hd.vpk`,
+		SubjectSummary: `C:\fixtures\fixture8\left4dead2\addons\ak47-hd.vpk`,
 	}
 	// 正向词仍然是模糊的（保持既有手感）：`a4` 能命中 ak47
 	if !parseModSearchQuery("a4").matches(fields) {

@@ -631,7 +631,7 @@ re:[          → 计数直接显示「正则表达式无效：...Unterminated c
 | 29 | `AddonFileMissingProblem.FileTypeMismatch` | 上游把"该是文件却是目录"从"文件不存在"里拆出来。本项目原来对 `addons\foo.vpk` 是个文件夹的情况会报"磁盘上找不到对应文件"，**描述是错的**（文件夹就在那儿），处理方式也不同 |
 | 30 | `InvalidPublishedFileIdProblem` + `WorkshopVpkMetaInfo.PublishedFileId` | 上游用 `metaInfo.PublishedFileId != publishedFileId` 判定本地记录不可信。本项目之前完全不查这条：`workshop\123.meta` 里写着别的作品时，更新检测会拿**另一个作品的时间戳**比较，静默漏报 / 误报 |
 | 31 | `ValidRef` / `ValidTaskCreator` / `RegisterInvalidHandler` | `IValidity` 家族的另一半：不只是"缓存失效"，而是**异步任务持有的目标失效后不许再落地结果**。本项目 `runModUpdateCheck` 正好有这个洞 —— 检测请求还在飞行中、用户把 Mod 移进 `disabled`，旧代码会把时间戳写回已经不存在的路径（留下孤立 `.meta`） |
-| 32 | `GamePathUtils.CheckValidity` / `TryFind` | 上游找游戏目录是"注册表 → 逐盘扫描 → 用 `left4dead2` 子目录验证"。本项目的 `AutoDiscoverAddons` 只有 5 条硬编码相对路径，**自定义库名**（`D:\Games\SteamLibrary`、`F:\steam-libs\lib2`）找不到；而且没有"这里真的装了游戏"的验证，猜中的可能是空目录。补上之后多解析一层 `libraryfolders.vdf`，一次读清单胜过扫全部盘符 |
+| 32 | `GamePathUtils.CheckValidity` / `TryFind` | 上游找游戏目录是"注册表 → 逐盘扫描 → 用 `left4dead2` 子目录验证"。本项目的 `AutoDiscoverAddons` 只有 5 条硬编码相对路径，**自定义库名**（`H:\Games\SteamLibrary`、`F:\steam-libs\lib2`）找不到；而且没有"这里真的装了游戏"的验证，猜中的可能是空目录。补上之后多解析一层 `libraryfolders.vdf`，一次读清单胜过扫全部盘符 |
 | 33 | `FileSystemUtils.ThrowIfPathInvalid` / `FileOutOfAddonRootException` | 上游对**每一个**进入模型的路径都做"合法 + 在受管根内"校验（`AddonNode.cs:405-413` 直接 `StartsWith("..")` 就抛异常）。本项目此前只有备份名 / 崩溃报告 / 白名单批次做了同类守卫，**真正的文件操作（删除、移动源、隐藏改名）只检查"文件存在"**：用户中途换过 addons 目录、或前端状态陈旧时，一条过期路径就会被照做。现在这层补上了，同时体检会把"addonlist 条目指向受管目录之外"单独报出来 |
 
 **证据分级**：
@@ -669,15 +669,14 @@ re:[          → 计数直接显示「正则表达式无效：...Unterminated c
 **第 32 项的真机数据**（只读探针：真读注册表与真实的 `libraryfolders.vdf`，跑完即删）：
 
 ```text
-注册表 Steam 安装路径 = "C:\\steam"
-libraryfolders.vdf 解析出 5 个库：C:\steam, G:\SteamLibrary, D:\SteamLibrary,
-                                  E:\SteamLibrary, F:\SteamLibrary
-findAddonsInSteamLibraries(...) = E:\SteamLibrary\steamapps\common\Left 4 Dead 2\left4dead2\addons
-AutoDiscoverAddons()            = 同上（命中用户真实游戏目录，err=nil）
+注册表 Steam 安装路径 = <本机 Steam 安装目录>
+libraryfolders.vdf 解析出 5 个库（含非默认库名的自定义目录）
+findAddonsInSteamLibraries(...) = <命中库>\steamapps\common\Left 4 Dead 2\left4dead2\addons
+AutoDiscoverAddons()            = 同上（命中真实游戏目录，err=nil）
 ```
 
-说明：这台机器的库目录名恰好是 `SteamLibrary`，所以旧的"盘符 + 固定路径"扫描**也**能命中；
-新逻辑的收益在**自定义库名 / 自定义库位置**（例如 `D:\Games\SteamLibrary`）与
+说明：如果库目录名恰好是默认的 `SteamLibrary`，旧的"盘符 + 固定路径"扫描**也**能命中；
+新逻辑的收益在**自定义库名 / 自定义库位置**（例如 `H:\Games\SteamLibrary`）与
 "不再逐盘盲扫"（先读注册表 + 一份清单文件）。
 
 **对照表自检（承接 §5.9 的机器核对）**：本轮新增引用后重新跑一次，本文引用的仓库内文件

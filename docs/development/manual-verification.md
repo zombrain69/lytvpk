@@ -594,7 +594,7 @@ clusterHints 60 条 = 8.3 KB，duplicateGroups 400 组
 
 ### 第十轮（按外部智能体实测反馈修正）
 
-反馈文件：`E:\SteamLibrary\steamapps\common\Left 4 Dead 2\program\LytVPK-分组建议-实测反馈-20260922.md`
+反馈文件：`LytVPK-分组建议-实测反馈-20260922.md`（维护者本机记录，不在仓库里）
 （外部 agent 用 1968 个 Mod 产出 187 组 / 1714 成员后的复盘）。本轮按"只处理 addons / workshop /
 disabled"的范围落地的项与证据：
 
@@ -1968,10 +1968,9 @@ fixture：addons\real.vpk、master.vpk、dep-off.vpk，addons\ghost.vpk 是文�
 自动找游戏目录（只读探针，不写任何文件；跑完已删除该探针）：
 
 ```text
-注册表 Steam 安装路径 = "C:\\steam"
-libraryfolders.vdf 解析出 5 个库：C:\steam, G:\SteamLibrary, D:\SteamLibrary,
-                                  E:\SteamLibrary, F:\SteamLibrary
-AutoDiscoverAddons() = E:\SteamLibrary\steamapps\common\Left 4 Dead 2\left4dead2\addons
+注册表 Steam 安装路径 = <本机 Steam 安装目录>
+libraryfolders.vdf 解析出 5 个库（含非默认库名的自定义目录）
+AutoDiscoverAddons() = <命中的库>\steamapps\common\Left 4 Dead 2\left4dead2\addons
 ```
 
 ### 只能人工验证的部分

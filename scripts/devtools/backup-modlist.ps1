@@ -6,12 +6,17 @@
 #   pwsh -File scripts/devtools/backup-modlist.ps1 -GameDir 'D:\Steam\...\left4dead2' -BackupRoot 'D:\backups'
 
 param(
-    [string]$GameDir = 'E:\SteamLibrary\steamapps\common\Left 4 Dead 2\left4dead2',
-    [string]$BackupRoot = 'E:\SteamLibrary\steamapps\common\Left 4 Dead 2\program\modlist-backups',
+    # 不内置本机路径：显式传你的 left4dead2 目录与备份根目录。
+    [string]$GameDir = '',
+    [string]$BackupRoot = '',
     [string]$ConfigDir = "$env:APPDATA\LytVPK"
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $GameDir -or -not $BackupRoot) {
+    throw "请显式传入 -GameDir（left4dead2 目录）与 -BackupRoot（备份根目录）。示例：" +
+          "pwsh -File scripts/devtools/backup-modlist.ps1 -GameDir 'D:\Steam\steamapps\common\Left 4 Dead 2\left4dead2' -BackupRoot 'D:\backups'"
+}
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $target = Join-Path $BackupRoot $stamp
 New-Item -ItemType Directory -Force -Path $target | Out-Null

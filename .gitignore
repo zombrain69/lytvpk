@@ -15,3 +15,15 @@ frontend/dist/*
 .codegraph
 # 本地调试产物（截图、抓窗脚本、临时快照）
 .tmp-cua/
+
+# 本机凭据 / 本地环境（绝不入库；发布令牌、面板密码等只放在本地或 GitHub Secrets）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+secrets.*
+credentials.json

@@ -56,6 +56,6 @@ require (
 	golang.org/x/tools v0.40.0 // indirect
 )
 
-// replace github.com/wailsapp/wails/v2 v2.6.0 => C:\Users\PC\go\pkg\mod
+// 如需临时指向本地模块缓存：replace github.com/wailsapp/wails/v2 v2.6.0 => C:\path\to\go\pkg\mod
 
 replace l4d2-manager-next => github.com/LaoYutang/l4d2-server-next/backend v0.0.0-20260729080826-da389d5401a9

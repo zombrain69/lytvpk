@@ -741,8 +741,8 @@ re:[           → 计数与空列表都显示「正则表达式无效：…」
 - **真机**（打包 EXE + 临时调试桥 + 沙箱配置目录）：fixture 根目录造出 `ghost.vpk` 文件夹与
   指向作品 999 的 `123.meta`，体检如实报出两条新诊断；依赖行点「修复」后 `dep-off.vpk` 由 `"0"` 变 `"1"`、
   体检问题 4 → 3。真实 `%AppData%\LytVPK` 开跑前后 19 个文件的 SHA256 完全一致（写入全部落在沙箱）。
-- **真机只读探针**（第 32 项）：真实注册表 `C:\steam` + 真实 `libraryfolders.vdf`（解析出 5 个库）
-  → 自动定位到 `E:\SteamLibrary\steamapps\common\Left 4 Dead 2\left4dead2\addons`。
+- **真机只读探针**（第 32 项）：真实 Steam 注册表项 + 真实 `libraryfolders.vdf`（解析出 5 个库）
+  → 自动定位到 `<Steam 库>\steamapps\common\Left 4 Dead 2\left4dead2\addons`。
 - 验收后调试桥已删除并重新构建，产物确认不含 `cua-bridge`。
 
 ## 未发布 — 命令面板入口 + 窗口几何一键重置 + 对照表机器核对（2026-09-26）

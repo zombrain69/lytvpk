@@ -12,7 +12,7 @@ import (
 // 同义的判断确认"这里真的装了 L4D2"（必须存在 `left4dead2` 子目录）。
 //
 // 比上游多一步：解析 `libraryfolders.vdf`。上游只扫"盘符 + 固定相对路径"，
-// 而把游戏装在第二个库（例如 `E:\SteamLibrary`）或自定义目录是常态，
+// 而把游戏装在第二个库（例如 `H:\SteamLibrary`）或自定义目录是常态，
 // 固定路径猜不到，读库清单才稳。
 
 // vdfStringPattern 匹配 KeyValues 里的一个带引号字符串（支持 `\"` 转义）。
@@ -22,8 +22,8 @@ var vdfStringPattern = regexp.MustCompile(`"((?:[^"\\]|\\.)*)"`)
 //
 // 同时兼容两种写法（Steam 在不同版本里都写过）：
 //
-//	新版："1" { "path" "E:\\SteamLibrary" ... }
-//	旧版："1" "E:\\SteamLibrary"
+//	新版："1" { "path" "H:\\SteamLibrary" ... }
+//	旧版："1" "H:\\SteamLibrary"
 //
 // 只认像路径的值，`label` / `apps` / `contentid` / `totalsize` 之类自然被跳过。
 func parseSteamLibraryFolders(content string) []string {
