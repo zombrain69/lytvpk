@@ -48,6 +48,13 @@ export async function refreshConflictBadges() {
   } catch (error) {
     console.warn("刷新冲突角标后重绘列表失败:", error);
   }
+  // 自动复检刚做过一轮全量扫描（后端互斥锁此时已释放）：
+  // 通知“对比范围”分析按新状态重算，避免它的角标停留在旧结论。
+  try {
+    window.dispatchEvent(new CustomEvent("conflict-badges-refreshed"));
+  } catch (error) {
+    console.warn("广播复检完成事件失败:", error);
+  }
 }
 
 /** getConflictRecheckStatus 供设置页/诊断页展示缓存状态。 */

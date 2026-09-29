@@ -15,9 +15,9 @@
 | --- | --- | --- | --- |
 | 1 | `go test ./... -count=1` | 全部 ok（含仓库一致性审计） | ok（`internal/app` 等 8 个包） |
 | 2 | `go vet ./...` | 无输出 | 无输出 |
-| 3 | `node --test`（在 `frontend/`） | 全通过 | **394 项 / 0 失败** |
+| 3 | `node --test`（在 `frontend/`） | 全通过 | **401 项 / 0 失败** |
 | 4 | `npm run build`（在 `frontend/`） | 产物正常（仅有既有的 chunk 体积警告） | 通过 |
-| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（18,545,152 字节，内含 2.7.1-community.4） |
+| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（18,546,688 字节，内含 2.7.1-community.4） |
 | 6 | `npm run docs:build`（在 `docs/`） | VitePress 构建完成（含内部链接检查） | 通过 |
 
 另外两项"不靠命令"的复核点：
@@ -26,6 +26,8 @@
   在 Go / 前端标签 / 用户文档三层一致""文档里的验证命令与工程脚本一致"，这两份审计都做过变异验证
   （故意制造回归会失败）。
 - **交付产物卫生**：`build/bin/LytVPK-Community-Fork.exe` 里不应出现 `cua-bridge`（临时调试桥残留）。
+- **隐私守卫**：`go test ./...` 会跑 `internal/app/privacy_guard_test.go` —— 跟踪文件里再出现
+  本机用户目录 / Steam 库路径 / Steam 安装目录，或 GitHub token、私钥等凭据形状，测试直接失败。
 
 > **读历史轮次时注意**：下面各轮记录里的"仍未验证：`IValidity` 的增量级联传播"是**当时**的状态。
 > 该项已在 `fireaxe-parity.md` §5.13 用真实库实测闭环（定位到根因是索引缓存容量、修复后热重算
@@ -2416,6 +2418,52 @@ re:[           → 「正则表达式无效：…」
 ### 仍未验证
 
 本轮没有"计划内但完全未验证"的项目。
+
+## 第二十八轮：撞上“其他冲突检测”时不再整屏“无冲突”（2026-09-30，打包 EXE + 真实库）
+
+**用户反馈**：筛选 Mod 之后，冲突分析有时没有正确地显示。
+
+### 根因（真机复现）
+
+后端 `checkConflicts` 用 **TryLock**：同一时间只允许一轮冲突扫描。而自动复检
+（`GetConflictBadges → RecheckConflictsNow`）在每次游戏侧状态变化后都会跑一次全量扫描。
+两者撞上时，前端旧逻辑直接放弃：`loading=false` + 结果清空 →
+`enabled=true + result=null` → **所有卡片渲染成“无冲突”**，直到用户再改一次筛选才恢复。
+
+真机证据（并发同一份全库扫描，第二次立即被拒）：
+
+```text
+busyError = "冲突检测正在进行中，请稍候"
+```
+
+### 本次改动
+
+| 文件 | 改动 |
+| --- | --- |
+| `frontend/src/js/features/conflicts/scoped-conflict-retry.mjs`（新增） | 重试策略：识别“正在检测中”、指数退避（300ms→2s）、最多 8 次 |
+| `frontend/src/js/features/conflicts/conflicts.js` | 撞锁时保持“分析中”并自动重试；状态栏显示“等待其他冲突检测完成…（第 N 次重试）”；监听复检完成事件后自动重算 |
+| `frontend/src/js/features/file-list/render.js` | 本轮没有结果时角标显示 **“待分析”**（pending 样式），不再谎报“无冲突” |
+| `frontend/src/js/features/conflicts/conflict-recheck.js` | 复检完成（后端锁已释放）广播 `conflict-badges-refreshed` |
+| `internal/app/privacy_guard_test.go`（新增） | 防回归：跟踪文件里再出现本机用户目录 / Steam 库路径 / 凭据形状时 `go test` 直接失败 |
+
+### 真机验证（打包 EXE + 临时调试桥 + 沙箱 AppData，真实库 2852 个 Mod）
+
+```text
+并发占锁：第二次扫描返回「冲突检测正在进行中，请稍候」
+占锁窗口内：状态「分析中…」；四个抽样卡片角标全部「冲突分析中…」(class=pending)
+          ← 修复前这一瞬间会整屏显示“无冲突”
+锁释放后：状态「已分析 2852 个筛选目标 · 对比：游戏内开启 · 87 组冲突」；
+        卡片角标恢复正确（如「冲突 1 组 · 1 文件 · 警告」）
+```
+
+### 只能人工验证的部分
+
+1. **重试等待的体感**：正常情况下重试发生在几百毫秒内，你基本看不到“等待其他冲突检测完成…”这一行；
+   只有后端在做大扫描时才会出现 —— 下次撞上时可以留意它是否会自己恢复。
+
+### 仍未验证
+
+本轮没有“计划内但完全未验证”的项目。
 
 ## 第二十七轮：对比范围“组合方式”实时反馈 + 单条件不再让人以为坏了（2026-09-30，打包 EXE + 真实库）
 

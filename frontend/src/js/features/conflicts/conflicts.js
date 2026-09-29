@@ -27,6 +27,11 @@ import {
   formatConflictScopeText,
   serializeConflictScopeOptions,
 } from "./conflict-scope-label.mjs";
+import {
+  isConflictCheckBusyError,
+  scopedConflictRetryDelay,
+  shouldRetryScopedConflict,
+} from "./scoped-conflict-retry.mjs";
 
 let EventsOn;
 let showError;
@@ -51,6 +56,8 @@ let scopedConflictTimer = null;
 let scopedConflictInFlight = null;
 let scopedConflictQueued = false;
 let scopedConflictQueuedSilent = true;
+// 撞上后端互斥锁（自动复检等正在全量扫描）时的重试计数。
+let scopedConflictRetryCount = 0;
 let conflictOrderByPath = new Map();
 let conflictOrderByKey = new Map();
 let conflictOrderEntryCount = 0;
@@ -446,7 +453,9 @@ function updateScopedConflictControl() {
   }
   if (status) {
     if (appState.conflictAnalysisLoading) {
-      status.textContent = "分析中…";
+      status.textContent = scopedConflictRetryCount > 0
+        ? `等待其他冲突检测完成…（第 ${scopedConflictRetryCount} 次重试）`
+        : "分析中…";
       status.className = "conflict-analysis-status loading";
     } else if (appState.conflictAnalysisEnabled) {
       const count = (appState.vpkFiles || []).length;
@@ -520,8 +529,10 @@ export function scheduleScopedConflictAnalysis() {
   }, 450);
 }
 
-async function executeScopedConflictAnalysis({ silent = false } = {}) {
+async function executeScopedConflictAnalysis({ silent = false, retry = false } = {}) {
   const runId = ++scopedConflictRunId;
+  // 新一轮（非重试）分析的开始会清掉上一轮的重试计数。
+  if (!retry) scopedConflictRetryCount = 0;
 
   if (typeof CheckConflictsWithOptions !== "function" && typeof CheckConflictsForPaths !== "function") {
     appState.conflictAnalysisLoading = false;
@@ -584,11 +595,27 @@ async function executeScopedConflictAnalysis({ silent = false } = {}) {
   } catch (error) {
     if (runId !== scopedConflictRunId) return;
     const errorMessage = String(error?.message || error || "");
-    if (errorMessage.includes("冲突检测正在进行中")) {
+    if (isConflictCheckBusyError(errorMessage)) {
+      scopedConflictRetryCount += 1;
+      if (shouldRetryScopedConflict(scopedConflictRetryCount)) {
+        // 关键：等锁期间保持“分析中”，绝不退化成整屏“无冲突”。
+        appState.conflictAnalysisLoading = true;
+        updateScopedConflictControl();
+        renderFileList?.();
+        if (scopedConflictTimer) clearTimeout(scopedConflictTimer);
+        scopedConflictTimer = setTimeout(() => {
+          scopedConflictTimer = null;
+          void runScopedConflictAnalysis({ silent, retry: true });
+        }, scopedConflictRetryDelay(scopedConflictRetryCount));
+        return;
+      }
+      // 重试用尽：保持“待分析”，明确告诉用户当前结果不可信。
       appState.conflictAnalysisLoading = false;
+      appState.conflictAnalysisResult = null;
+      appState.conflictByPath = new Map();
       updateScopedConflictControl();
       renderFileList?.();
-      if (!silent) showError?.("当前有其他冲突检测正在进行，请稍候重试");
+      showError?.("其他冲突检测占用时间过长，本次对比范围分析没有结果；请稍后重新点“应用并分析”");
       return;
     }
     appState.conflictAnalysisEnabled = false;
@@ -711,6 +738,12 @@ if (document.readyState === "loading") {
 } else {
   bindConflictScopeDialogEvents();
 }
+
+// 自动复检（角标）跑完一轮后，按新状态重算“对比范围”结果：
+// 否则手动开关 Mod / 移动文件之后，对比范围角标会停在旧结论上。
+window.addEventListener("conflict-badges-refreshed", () => {
+  scheduleScopedConflictAnalysis();
+});
 
 export async function startConflictCheck() {
   if (isConflictChecking) return;

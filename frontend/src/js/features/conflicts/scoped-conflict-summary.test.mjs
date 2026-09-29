@@ -79,6 +79,20 @@ test("formatScopedConflictLabel 不会把已判定的覆盖说成什么都没有
   );
 });
 
+test("分析还没有结果时不能显示“无冲突”", () => {
+  assert.equal(formatScopedConflictLabel(null, { analyzed: false }), "待分析");
+  assert.equal(
+    formatScopedConflictLabel(null, { analyzed: false, matchedBaseline: false }),
+    "待分析",
+  );
+  assert.match(
+    buildScopedConflictTitle(null, { analyzed: false, scopeLabel: "游戏内开启" }),
+    /还没有结果/,
+  );
+  // 有结果时行为不变
+  assert.equal(formatScopedConflictLabel(null, { analyzed: true }), "无冲突");
+});
+
 test("buildScopedConflictTitle 说明冲突、覆盖与胜者", () => {
   const title = buildScopedConflictTitle(
     {

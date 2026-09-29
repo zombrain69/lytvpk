@@ -85,7 +85,12 @@ export function buildScopedConflictSummary(result) {
  */
 export function formatScopedConflictLabel(summary, options = {}) {
   const matchedBaseline = options.matchedBaseline !== false;
-  if (!summary) return matchedBaseline ? "无冲突" : "未参与对比";
+  const analyzed = options.analyzed !== false;
+  if (!summary) {
+    // 分析还没结果（被其他检测打断/重试用尽）时不能说“无冲突”。
+    if (!analyzed) return "待分析";
+    return matchedBaseline ? "无冲突" : "未参与对比";
+  }
 
   const groups = Number(summary.groups || 0);
   const files = Number(summary.files || 0);
@@ -108,8 +113,12 @@ export function formatScopedConflictLabel(summary, options = {}) {
 /** buildScopedConflictTitle 生成角标悬停说明（区分“没重叠”与“不参与对比”）。 */
 export function buildScopedConflictTitle(summary, options = {}) {
   const matchedBaseline = options.matchedBaseline !== false;
+  const analyzed = options.analyzed !== false;
   const scopeLabel = String(options.scopeLabel || "游戏内开启");
   if (!summary) {
+    if (!analyzed) {
+      return `本次与“${scopeLabel}”的对比分析还没有结果（可能被其他冲突检测打断）；点工具栏的“对比范围 → 应用并分析”可重试`;
+    }
     return matchedBaseline
       ? `已与“${scopeLabel}”对比：未发现重叠文件`
       : `此 Mod 不满足对比范围“${scopeLabel}”，本次分析未把它计入对比`;

@@ -357,6 +357,8 @@ export function getGameStateActionControls(file) {
 function getScopedConflictBadgeModel(file) {
   const summary = appState.conflictByPath?.get(file.path) || null;
   const options = appState.conflictAnalysisOptions || {};
+  // 本轮分析是否已有结果：没有结果时角标显示“待分析”，不能谎报“无冲突”。
+  const analyzed = Boolean(appState.conflictAnalysisResult);
   const matchedBaseline = matchesConflictBaseline(
     file,
     options.baselineRules,
@@ -365,9 +367,11 @@ function getScopedConflictBadgeModel(file) {
   return {
     summary,
     matchedBaseline,
-    label: formatScopedConflictLabel(summary, { matchedBaseline }),
+    analyzed,
+    label: formatScopedConflictLabel(summary, { matchedBaseline, analyzed }),
     title: buildScopedConflictTitle(summary, {
       matchedBaseline,
+      analyzed,
       scopeLabel: appState.conflictAnalysisScopeLabel || "游戏内开启",
     }),
   };
@@ -381,7 +385,9 @@ function getConflictSummaryBadge(file, className = "mod-conflict-badge") {
 
   const model = getScopedConflictBadgeModel(file);
   if (!model.summary) {
-    return `<span class="${className} none" title="${escapeHtml(model.title)}">${escapeHtml(model.label)}</span>`;
+    // 分析被打断/还没结果时用 pending 样式，避免和“确实没有重叠”混淆。
+    const stateClass = model.analyzed ? "none" : "pending";
+    return `<span class="${className} ${stateClass}" title="${escapeHtml(model.title)}">${escapeHtml(model.label)}</span>`;
   }
 
   // 只有覆盖关系（没有未判定冲突）时用 dashed 边框，与列表里的覆盖角标同一语义。
