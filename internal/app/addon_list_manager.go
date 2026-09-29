@@ -375,16 +375,18 @@ func (a *App) SetAddonListGuardEnabled(enabled bool) (AddonListInfo, error) {
 			a.addonListGuardMu.Unlock()
 			return AddonListInfo{}, err
 		}
-		if !fileExists(addonListManagedSnapshotPath(path)) {
-			content, err := os.ReadFile(path)
-			if err != nil {
-				a.addonListGuardMu.Unlock()
-				return AddonListInfo{}, fmt.Errorf("启用监控前无法读取 addonlist.txt: %w", err)
-			}
-			if err := writeAddonListBytesAtomically(addonListManagedSnapshotPath(path), content); err != nil {
-				a.addonListGuardMu.Unlock()
-				return AddonListInfo{}, fmt.Errorf("无法创建受保护版本: %w", err)
-			}
+		// 每次启用都按"当前文件"重建受保护版本，而不是只在快照不存在时创建：
+		// 外部工具 / 游戏 / 其它脚本改过 addonlist.txt 时，旧快照会变成一份过期版本
+		// （真机上出现过 8/28 的快照对上 9/30 的列表）。启用保护本该"从现在开始盯住"，
+		// 用旧快照则会在几分钟后把整份列表回退成几个月前的状态。
+		content, err := os.ReadFile(path)
+		if err != nil {
+			a.addonListGuardMu.Unlock()
+			return AddonListInfo{}, fmt.Errorf("启用监控前无法读取 addonlist.txt: %w", err)
+		}
+		if err := writeAddonListBytesAtomically(addonListManagedSnapshotPath(path), content); err != nil {
+			a.addonListGuardMu.Unlock()
+			return AddonListInfo{}, fmt.Errorf("无法创建受保护版本: %w", err)
 		}
 	}
 	a.setAddonListGuardEnabled(enabled)

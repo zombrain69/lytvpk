@@ -97,6 +97,44 @@ func TestAddonListLifecycleManagement(t *testing.T) {
 	}
 }
 
+// TestAddonListGuardEnableRebaselinesStaleSnapshot 覆盖一个会动用户 Mod 开关的真实缺陷：
+// 受保护版本（addonlist.txt.lytvpk-managed）可能是几个月前留下的，
+// 而 addonlist.txt 早就被其它工具改过。旧行为只在"快照不存在"时才创建，
+// 于是启用保护的几分钟后监控就会按旧快照把整份列表回退。
+func TestAddonListGuardEnableRebaselinesStaleSnapshot(t *testing.T) {
+	current := "\"AddonList\"\n{\n\t\"current.vpk\"\t\t\"1\"\n}\n"
+	app, addonListPath := newAddonListManagerTestApp(t, current)
+	t.Cleanup(app.stopAddonListMonitor)
+
+	// 造一份"过期快照"：内容与当前列表完全不同（模拟外部脚本改过 addonlist）。
+	stale := "\"AddonList\"\n{\n\t\"stale.vpk\"\t\t\"0\"\n}\n"
+	if err := os.WriteFile(addonListManagedSnapshotPath(addonListPath), []byte(stale), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := app.SetAddonListGuardEnabled(true); err != nil {
+		t.Fatalf("enable guard: %v", err)
+	}
+
+	snapshot, err := os.ReadFile(addonListManagedSnapshotPath(addonListPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(snapshot, []byte(current)) {
+		t.Fatalf("启用保护后受保护版本必须等于当前列表，实际 = %q", snapshot)
+	}
+
+	// 当前文件没有被动过：监控不应该在启用后立刻"恢复"成旧内容。
+	time.Sleep(300 * time.Millisecond)
+	content, err := os.ReadFile(addonListPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(content, []byte(current)) {
+		t.Fatalf("启用保护不应改写当前列表，实际 = %q", content)
+	}
+}
+
 func TestAddonListGuardRestoresStableExternalOverwrite(t *testing.T) {
 	desired := "\"AddonList\"\n{\n\t\"desired.vpk\"\t\t\"1\"\n}\n"
 	app, addonListPath := newAddonListManagerTestApp(t, desired)
