@@ -107,7 +107,8 @@
   padding: 12px;
   border-radius: 6px;
   border: 1px solid var(--border-light);
-  max-height: 200px;
+  /* 跟随窗口高度：外层 .modal-body 已经能滚，更新说明不再单独卡 200px。 */
+  max-height: none;
   overflow-y: auto;
   font-size: 0.9em;
   white-space: pre-wrap;

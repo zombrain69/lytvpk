@@ -182,7 +182,9 @@
 }
 
 .drop-import-results {
-  max-height: 220px;
+  /* 跟随窗口高度：结果多时由面板自身滚动，不再固定 220px。 */
+  max-height: none;
+  min-height: 0;
   display: grid;
   gap: 8px;
   overflow: auto;

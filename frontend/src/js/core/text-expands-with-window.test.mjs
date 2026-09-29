@@ -108,3 +108,41 @@ test("窗口内的清单跟随窗口高度，不再用固定 px 高度卡住", (
   }
   assert.deepEqual(offenders, [], `这些窗口内容不会随窗口变大：\n${offenders.join("\n")}`);
 });
+
+// 第三类"缩着"：页面/弹窗里的文字区被固定 px 高度卡住（窗口拉高也不展开）。
+// 这些区域外层本来就能滚动，直接放开高度上限即可。
+const WINDOW_TEXT_RULES = [
+  ["app/forms-tags.css", ".download-tasks-list", "none"],
+  ["app/settings.css", ".autoexec-help-column", "viewport"],
+  ["app/updates.css", ".notes-content", "none"],
+  ["app/drop-import.css", ".drop-import-results", "none"],
+];
+
+// 同一个选择器可能出现多次（例如基础布局 + 具体尺寸），这里把所有匹配块合并判断。
+function selectorBlocks(source, selector) {
+  return [...source.matchAll(new RegExp(`\\${selector}\\s*\\{[^}]*\\}`, "gs"))].map(
+    (match) => match[0],
+  );
+}
+
+test("文字/任务区跟随窗口高度，不再固定高度", () => {
+  const offenders = [];
+  for (const [file, selector, mode] of WINDOW_TEXT_RULES) {
+    const source = read(file);
+    const blocks = selectorBlocks(source, selector);
+    if (blocks.length === 0) {
+      offenders.push(`${file} ${selector}: 规则不存在`);
+      continue;
+    }
+    if (blocks.some((block) => /max-height:\s*[0-9.]+(px|rem)/.test(block))) {
+      offenders.push(`${file} ${selector}: 仍然写死高度`);
+    }
+    if (mode === "none" && !blocks.some((block) => /max-height:\s*none/.test(block))) {
+      offenders.push(`${file} ${selector}: 缺少 max-height: none`);
+    }
+    if (mode === "viewport" && !blocks.some((block) => /max-height:\s*calc\(100vh/.test(block))) {
+      offenders.push(`${file} ${selector}: 缺少随窗口高度变化的 max-height: calc(100vh …)`);
+    }
+  }
+  assert.deepEqual(offenders, [], `这些文字区不会随窗口变大：\n${offenders.join("\n")}`);
+});

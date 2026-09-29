@@ -36,15 +36,18 @@ func (a *App) StartDownloadTask(details WorkshopFileDetails, useOptimizedIP bool
 	// Clean filename
 	filename := cleanFilename(details.Filename)
 
+	// 直链下载是用户粘贴的任意地址，优选 IP 只对 Steam CDN 工坊下载有意义。
+	isDirectDownload := strings.HasPrefix(details.PublishedFileId, "direct-")
+
 	// If it's a workshop download (not direct), use the ID as filename
-	if !strings.HasPrefix(details.PublishedFileId, "direct-") {
+	if !isDirectDownload {
 		ext := filepath.Ext(filename)
 		filename = fmt.Sprintf("%s%s", details.PublishedFileId, ext)
 	}
 
 	// If it's a direct download, use the cleaned filename as title
 	title := details.Title
-	if strings.HasPrefix(details.PublishedFileId, "direct-") {
+	if isDirectDownload {
 		title = filename
 	}
 
@@ -52,14 +55,15 @@ func (a *App) StartDownloadTask(details WorkshopFileDetails, useOptimizedIP bool
 	ctx, cancel := context.WithCancel(context.Background())
 
 	task := &DownloadTask{
-		ID:             taskID,
-		WorkshopID:     details.PublishedFileId,
-		Title:          title,
-		Filename:       filename,
-		PreviewUrl:     details.PreviewUrl,
-		FileUrl:        details.FileUrl,
-		Description:    details.Description,
-		UseOptimizedIP: useOptimizedIP,
+		ID:          taskID,
+		WorkshopID:  details.PublishedFileId,
+		Title:       title,
+		Filename:    filename,
+		PreviewUrl:  details.PreviewUrl,
+		FileUrl:     details.FileUrl,
+		Description: details.Description,
+		// 直链不能走 Steam 优选 IP：否则会拿 CDN 的 IP 去拨号直链主机，进度永远是 0。
+		UseOptimizedIP: useOptimizedIP && !isDirectDownload,
 		Status:         "pending",
 		Progress:       0,
 		TotalSize:      totalSize,
@@ -85,7 +89,7 @@ func (a *App) StartDownloadTask(details WorkshopFileDetails, useOptimizedIP bool
 	// 新任务入队是关键节点，立刻落盘一次，之后由节流逻辑接管。
 	_ = a.persistDownloadTasks(true)
 
-	downloadTaskStarter(a, ctx, task, details.FileUrl)
+	startDownloadTask(a, ctx, task, details.FileUrl)
 
 	return taskID
 }
@@ -122,8 +126,11 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 
 	// IP Optimization
 	var bestIP string
-	// Check global preferred IP setting
-	if a.GetWorkshopPreferredIP() {
+	// 直链任务一律不走 Steam 优选 IP；旧快照里被标成 true 的也在这里纠正，
+	// 否则重启后手动重试仍然会用 CDN 的 IP 去拨号直链主机。
+	if isDirectDownloadTask(task) {
+		task.UseOptimizedIP = false
+	} else if shouldUseOptimizedIP(a.GetWorkshopPreferredIP(), task) {
 		task.UseOptimizedIP = true
 	}
 

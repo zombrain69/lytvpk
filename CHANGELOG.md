@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.7.1-community.7 — 2026-09-30
+
+**真机联调（测试文件夹 + 14 个自造测试 Mod）抓到两条会让"下载"彻底不可用的回归，
+以及又一批"窗口拉大但内容缩着"的固定高度。**
+
+### 一、下载任务永远停在 pending（严重回归）
+
+`ef3bf31`（FireAxe 对齐那轮）为了让测试能注入替身，把真实下载启动改成包级变量
+`downloadTaskStarter`，但生产代码从未给它赋值：`StartDownloadTask` 入队并落盘后直接调用
+nil，RPC 侧 panic，任务永远停在 pending、0 字节。真机表现为"点了下载没有任何进度"。
+
+- 修复：新增 `startDownloadTask` 统一入口（测试注入优先，否则启动真实下载协程），
+  `StartDownloadTask` 与 `RetryDownloadTask` 两处都改走它。
+- 回归测试：`TestStartDownloadTaskStartsRealWorkerWithoutInjection`
+  （红：nil panic → 绿：任务快速进入失败分支）。
+
+### 二、直链下载被 Steam 优选 IP 劫持
+
+开启"优选IP"（默认开）时，`processDownloadTask` 会把全局设置应用到**直链**任务上，
+拨号目标被换成 Steam CDN 的 IP（实测 `23.206.175.162:8731`），分块下载全部失败、进度恒为 0。
+
+- 修复：新增 `shouldUseOptimizedIP`，只对工坊任务启用优选；直链（`direct-` 前缀）
+  在创建与执行两处都不使用 Steam 优选 IP。
+- 回归测试：`TestShouldUseOptimizedIP` +
+  `TestStartDownloadTaskDirectDownloadIgnoresOptimizedIPFlag`。
+
+真机（打包 EXE + 沙箱 AppData + 本地 HTTP 12MB VPK，4MB/s 限速）5/5 PASS：
+入队并开始下载 → 同文件重复排队复用同一任务 → 暂停保留 6,291,456 字节 →
+继续跑到 completed 且 12,582,912/12,582,912 → 完成后任务仍在队列可查看；
+最终 VPK 落在沙箱 `left4dead2\addons`，真实 Mod 库全程零写入。
+
+### 三、更多"窗口拉大但内容缩着"的固定高度
+
+- 下载与解析：任务队列不再固定 300px
+- 设置 → 游戏配置：autoexec 帮助栏改为跟随窗口高度（实测 598px → 948px）+ 内部滚动，
+  不再写死 430px，也不会把设置页撑成上万像素
+- 更新弹窗：更新说明不再固定 200px（外层 modal-body 已可滚动）
+- 拖拽导入：结果清单不再固定 220px
+
+`frontend/src/js/core/text-expands-with-window.test.mjs` 新增第三组断言，逐个钉住这些规则。
+
+### 四、真实 Mod 库审计（本轮只在沙箱联调）
+
+- 真实 `left4dead2` 目录：本轮沙箱联调（02:49 起）后没有任何文件被写入；
+  最后写入是 02:47:52 的 `addonlist.txt`，属于另一个会话的角色包开关操作
+- 真实 `addonlist.txt` 与该会话的备份对比：恰好 9 条角色包开关（4 关 5 开），
+  与该会话自己生成的 `.tmp-groups-v2/diff_addonlist.txt` 完全一致
+- 真实库没有新增 `*.lytvpk.bak` / `addonlist.txt.lytvpk-managed`；
+  本轮所有 EXE 都用沙箱 AppData（`.tmp-cua/zz-*`）+ 测试库启动
+
+### 验证
+
+`go test ./...` 全绿；`node --test` 420 项全绿；`npm run build` 通过；
+Wails 打包 EXE 通过；真机下载 5/5 + 窗口测量 2/2 PASS；联调临时脚本已删除。
+
 ## 2.7.1-community.6 — 2026-09-30
 
 **用户可见报错从英文底层错误改成中文 + 下一步**。这轮真机联调（测试文件夹 + 测试 Mod）

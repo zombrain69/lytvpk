@@ -119,6 +119,20 @@ func shouldAutoRedownload(task *DownloadTask) bool {
 // 默认 nil 表示走真实下载；显式赋值（测试）时优先使用注入实现。
 var downloadTaskStarter func(a *App, ctx context.Context, task *DownloadTask, url string)
 
+// isDirectDownloadTask 直链任务（用户粘贴的任意地址）以 direct- 前缀标记。
+func isDirectDownloadTask(task *DownloadTask) bool {
+	return task != nil && strings.HasPrefix(task.WorkshopID, "direct-")
+}
+
+// shouldUseOptimizedIP 判断一次下载是否该套用 Steam CDN 优选 IP。
+// 直链套用优选 IP 会把 Steam CDN 的 IP 当成直链主机去拨号，导致下载永远停在 0 字节。
+func shouldUseOptimizedIP(preferredIP bool, task *DownloadTask) bool {
+	if task == nil {
+		return false
+	}
+	return preferredIP && !isDirectDownloadTask(task)
+}
+
 // startDownloadTask 统一入口：默认在协程里跑真实下载，测试可注入替身。
 func startDownloadTask(a *App, ctx context.Context, task *DownloadTask, url string) {
 	if downloadTaskStarter != nil {
@@ -373,7 +387,7 @@ func (a *App) RetryDownloadTask(taskID string) {
 	a.emitTaskUpdated(task)
 	_ = a.persistDownloadTasks(true)
 
-	downloadTaskStarter(a, ctx, task, task.FileUrl)
+	startDownloadTask(a, ctx, task, task.FileUrl)
 }
 
 func parseFileSize(sizeStr string) int64 {

@@ -760,7 +760,10 @@ html.dark-mode .autoexec-analysis.is-warning {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 430px;
+  /* 跟随窗口高度：窗口越高显示越多；内部滚动，避免几百条说明把设置页撑成上万像素。 */
+  max-height: calc(100vh - 22rem);
+  min-height: 12rem;
+  overflow-y: auto;
 }
 
 .autoexec-help-title {
@@ -1052,7 +1055,8 @@ html.dark-mode .autoexec-analysis.is-warning {
   }
 
   .autoexec-help-column {
-    max-height: 300px;
+    /* 窄窗口只改成单列，高度仍跟随窗口，不再写死 300px。 */
+    max-height: calc(100vh - 20rem);
   }
 
   .addonlist-status-grid {
