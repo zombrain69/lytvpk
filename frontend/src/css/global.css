@@ -479,7 +479,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 20ch;
+  /* 不给固定字数上限：窗口/容器有多宽就用多宽，放不下才省略号。
+     固定 20ch 会让"把窗口拉宽"完全不起作用（真机上表现为标题永远缩着）。 */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .conflict-vpk-filename {
@@ -488,7 +492,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 15ch;
+  /* 同上：文件名/键也要跟着可用宽度伸缩。 */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .conflict-vpk-priority {

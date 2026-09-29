@@ -9,7 +9,7 @@
 
 import { appState, onFileSelectionChanged } from "../state.js";
 import { escapeHtml } from "../../core/utils.js";
-import { showNotification } from "../../core/toast.js";
+import { showError, showNotification } from "../../core/toast.js";
 import { getConfig, saveConfig } from "../../core/config.js";
 import { getFloatingModal, setupFloatingModal } from "../../core/floating-modal.js";
 import {
@@ -28,9 +28,19 @@ import {
   CreateModStrategyGroupChild,
   SetModStrategyGroupEnforcement,
   SetModStrategyGroupTier,
+  SetVPKGameEnabledBatch,
+  ToggleVPKFile,
 } from "../../../../wailsjs/go/app/App";
 import { renderFileList } from "../file-list/render.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
+import {
+  confirmVPKOperationWarning,
+  moveWorkshopFilesToAddons,
+} from "../file-list/operations.js";
+import {
+  formatBatchGameStateConfirm,
+  formatBatchGameStateSummary,
+} from "../file-list/batch-game-state-format.mjs";
 import { formatPriorityLabel, normalizePriorityTier } from "../file-list/priority-label.mjs";
 import { GROUP_MANAGER_SEARCH_HELP_VARIANT, buildSearchHelpHtml, buildSearchHelpTitle } from "../file-list/search-help.mjs";
 import { buildGroupMembersFromSelection } from "../settings/selection-args.mjs";
@@ -57,6 +67,13 @@ import {
   normalizeGroupKey,
 } from "./group-view.mjs";
 import { buildModMemberRow } from "./member-row.js";
+import {
+  collectMemberBatchTargets,
+  describeMemberBatchActions,
+  formatMemberBatchResult,
+  formatMemberBatchSelectionLabel,
+  planMemberRemoval,
+} from "./member-batch.mjs";
 import { onModGroupMembershipChanged } from "./group-state.mjs";
 import { showConfirmModal } from "../modals/confirm.js";
 import { showPromptModal } from "../modals/prompt.js";
@@ -220,11 +237,108 @@ function visibleGroupIds() {
   );
 }
 
+// ── 成员级批量 ─────────────────────────────────────────────────────────────
+// 组级批量（上面那条工具条）管的是"组"；这里管的是"展开出来的组成员"。
+// 选择状态按 addonlist 键归一化保存，窗口重画后仍然保留。
+let memberSelection = new Set();
+
+function groupMemberKeys(group) {
+  return (Array.isArray(group?.members) ? group.members : [])
+    .map((member) => String(typeof member === "string" ? member : member?.key || "").trim())
+    .filter(Boolean);
+}
+
+/** expandedMemberKeys 当前展开的所有组成员键（"全选成员"的作用范围）。 */
+function expandedMemberKeys() {
+  const expanded = expandedSet();
+  const keys = [];
+  (managerState?.groups || []).forEach((group) => {
+    if (!expanded.has(String(group.id))) return;
+    groupMemberKeys(group).forEach((key) => keys.push(normalizeGroupKey(key)));
+  });
+  return [...new Set(keys)];
+}
+
+function pruneMemberSelection() {
+  if (memberSelection.size === 0) return;
+  const valid = new Set();
+  (managerState?.groups || []).forEach((group) => {
+    groupMemberKeys(group).forEach((key) => valid.add(normalizeGroupKey(key)));
+  });
+  [...memberSelection].forEach((key) => {
+    if (!valid.has(normalizeGroupKey(key))) memberSelection.delete(key);
+  });
+}
+
+function currentMemberTargets() {
+  const files = appState.allVpkFiles?.length ? appState.allVpkFiles : appState.vpkFiles || [];
+  const fileIndex = buildSuggestionFileIndex(files, appState.currentDirectory);
+  return collectMemberBatchTargets([...memberSelection], fileIndex);
+}
+
+// 成员批量按钮的 id：与 member-batch.mjs 里的动作 id 一一对应。
+const MEMBER_BATCH_BUTTON_IDS = {
+  "game-on": "strategy-group-member-batch-game-on",
+  "game-off": "strategy-group-member-batch-game-off",
+  enable: "strategy-group-member-batch-enable",
+  disable: "strategy-group-member-batch-disable",
+  transfer: "strategy-group-member-batch-transfer",
+  remove: "strategy-group-member-batch-remove",
+};
+
+/** updateMemberBatchBar 刷新成员批量条的计数、按钮可用性与"为什么不能点"。 */
+function updateMemberBatchBar() {
+  const bar = element("strategy-group-member-batch");
+  if (!bar) return;
+  pruneMemberSelection();
+  bar.classList.toggle("hidden", expandedSet().size === 0);
+
+  const selectionLabel = element("strategy-group-member-selection");
+  if (selectionLabel) {
+    selectionLabel.textContent = formatMemberBatchSelectionLabel(memberSelection.size);
+  }
+  const hint = element("strategy-group-member-batch-hint");
+  if (hint) {
+    hint.textContent =
+      memberSelection.size > 0
+        ? "批量按钮一次作用于勾选的成员；每一行右侧的按钮仍然只作用那一行"
+        : "勾选成员行最左边的方框后，这些按钮会一次作用于全部选中（和右侧单行按钮同义）";
+    hint.classList.toggle("is-ready", memberSelection.size > 0);
+  }
+
+  describeMemberBatchActions(currentMemberTargets()).forEach((action) => {
+    const button = element(MEMBER_BATCH_BUTTON_IDS[action.id]);
+    if (!button) return;
+    button.disabled = action.disabled;
+    button.title = action.title;
+  });
+
+  const selectAll = element("strategy-group-member-select-all");
+  if (selectAll) {
+    const keys = expandedMemberKeys();
+    const selected = keys.filter((key) => memberSelection.has(key)).length;
+    selectAll.checked = keys.length > 0 && selected >= keys.length;
+    selectAll.indeterminate = selected > 0 && selected < keys.length;
+    selectAll.disabled = keys.length === 0;
+    selectAll.title = "全选 / 取消全选当前展开的组成员";
+  }
+}
+
+/** syncMemberCheckboxes 只同步勾选框状态，不整表重画（避免滚动位置跳动）。 */
+function syncMemberCheckboxes() {
+  document
+    .querySelectorAll("#strategy-group-list .mod-member-pick input[data-member-key]")
+    .forEach((input) => {
+      input.checked = memberSelection.has(normalizeGroupKey(input.dataset.memberKey));
+    });
+}
+
 /** 渲染批量工具条与组列表（整体重画，动作完成后调用）。 */
 function renderManager() {
   if (!managerState) return;
   pruneSelection();
   pruneExpanded();
+  pruneMemberSelection();
   syncSelectAll();
   const list = element("strategy-group-list");
   const batch = element("strategy-group-batch");
@@ -407,6 +521,8 @@ function renderManager() {
     .join("");
   renderExpandedMembers();
   bindRowActions();
+  // 成员批量条：只在有组展开时出现；计数与按钮可用性跟着勾选走。
+  updateMemberBatchBar();
 }
 
 /**
@@ -449,6 +565,17 @@ function renderExpandedMembers() {
           row: { key, name: String(member?.name || key) },
           file,
           priorityLabel: planEntry ? formatPriorityLabel(planEntry) : "",
+          // 成员勾选框：勾上后用上面的批量条一次处理多个成员。
+          // 与「分组建议」共用同一行实现，视觉与语义保持一致。
+          pick: {
+            checked: memberSelection.has(normalizedKey),
+            title: "勾选这个 Mod，用上方的成员批量按钮一次处理多个（游戏开关 / 启用·禁用 / 复制到 addons / 移出本组）",
+            onChange: (checked) => {
+              if (checked) memberSelection.add(normalizedKey);
+              else memberSelection.delete(normalizedKey);
+              updateMemberBatchBar();
+            },
+          },
           extraActions: [
             {
               text: "移出本组",
@@ -550,6 +677,131 @@ async function runBatchAction(action, tier) {
     } catch (error) {
       setStatus("批量操作失败: " + String(error?.message || error));
     }
+  });
+}
+
+// ── 成员级批量动作 ─────────────────────────────────────────────────────────
+// 语义与成员行右侧的单行按钮完全一致，只是把手动逐个点变成一次处理全部勾选：
+//   游戏内开启/关闭 → addonlist.txt 的 0/1；
+//   批量启用/禁用   → 在 addons 与 disabled 之间搬文件；
+//   复制到 addons   → 工坊成员转正（原件保留并关闭）；
+//   移出本组        → 只写 groups.json。
+
+async function runMemberBatchGameState(enabled) {
+  const targets = currentMemberTargets();
+  if (targets.game.length === 0) {
+    showNotification("勾选的成员都不能改游戏开关（都在 disabled 目录里）", "info");
+    return;
+  }
+  showConfirmModal(
+    enabled ? "批量游戏内启用" : "批量游戏内关闭",
+    formatBatchGameStateConfirm(
+      {
+        total: targets.game.length,
+        skipped: targets.gameSkipped.length,
+        unrecorded: targets.gameUnrecorded.length,
+      },
+      enabled,
+    ),
+    async () => {
+      try {
+        const result = await SetVPKGameEnabledBatch(targets.game, enabled);
+        await reload();
+        await refreshAfterChange();
+        const updated = (result?.updated || []).length;
+        showNotification(
+          formatBatchGameStateSummary(result, enabled),
+          updated > 0 ? "success" : "info",
+        );
+      } catch (error) {
+        showError("批量设置游戏内开关失败: " + String(error?.message || error));
+      }
+    },
+  );
+}
+
+async function runMemberBatchFileToggle(kind) {
+  const targets = currentMemberTargets();
+  const paths = kind === "enable" ? targets.enable : targets.disable;
+  const label = kind === "enable" ? "启用" : "禁用";
+  if (paths.length === 0) {
+    showNotification(
+      kind === "enable"
+        ? "没有可启用的成员：只有 disabled 目录里的 Mod 需要搬回 addons"
+        : "没有可禁用的成员：只有 addons 根目录里的 Mod 能搬进 disabled",
+      "info",
+    );
+    return;
+  }
+  // 与主列表的批量启用 / 禁用同一条风险提示（VPK 完整性问题不阻断，但要先说清）。
+  if (!(await confirmVPKOperationWarning(paths, `批量${label}策略组成员`))) return;
+  const results = await Promise.all(
+    paths.map(async (path) => {
+      try {
+        await ToggleVPKFile(path);
+        return true;
+      } catch (error) {
+        console.error(`批量${label}失败:`, path, error);
+        return false;
+      }
+    }),
+  );
+  const succeeded = results.filter(Boolean).length;
+  await reload();
+  await refreshAfterChange();
+  showNotification(
+    formatMemberBatchResult({ label, succeeded, failed: paths.length - succeeded }),
+    succeeded > 0 ? "success" : "error",
+  );
+}
+
+async function runMemberBatchTransfer() {
+  const targets = currentMemberTargets();
+  if (targets.transfer.length === 0) {
+    showNotification("没有可复制的成员：只有创意工坊里的 Mod 需要复制到 addons", "info");
+    return;
+  }
+  // 复用主列表的批量转移（一次确认 + 进度事件 + 冲突处理），避免这里再写一套。
+  await moveWorkshopFilesToAddons(targets.transfer);
+  await reload();
+  await refreshAfterChange();
+}
+
+async function runMemberBatchRemove() {
+  const plan = planMemberRemoval([...memberSelection], managerState?.groups || []);
+  if (plan.length === 0) {
+    showNotification("请先勾选要移出的成员", "info");
+    return;
+  }
+  const totalKeys = plan.reduce((sum, item) => sum + item.keys.length, 0);
+  const emptying = plan.filter((item) => item.wouldEmpty);
+  const lines = [
+    `把勾选的 ${totalKeys} 个成员从所属策略组移出？`,
+    "· 只写 groups.json，不移动、不删除任何 Mod 文件",
+  ];
+  if (emptying.length > 0) {
+    lines.push(
+      `· 「${emptying.map((item) => item.groupName).join("」「")}」会被清空，后端会拒绝（每个组至少要保留 1 个成员）`,
+    );
+  }
+  showConfirmModal("批量移出成员", lines.join("\n"), async () => {
+    let succeeded = 0;
+    const failures = [];
+    for (const item of plan) {
+      try {
+        await RemoveModStrategyGroupMembers(item.groupId, item.keys);
+        succeeded += item.keys.length;
+      } catch (error) {
+        failures.push(`${item.groupName}: ${String(error?.message || error)}`);
+      }
+    }
+    memberSelection.clear();
+    await reload();
+    await refreshAfterChange();
+    if (failures.length > 0) {
+      showError(`有 ${failures.length} 个组没有移出成功：${failures[0]}`);
+    }
+    if (succeeded > 0) showNotification(`已从策略组移出 ${succeeded} 个成员`, "success");
   });
 }
 
@@ -1002,6 +1254,8 @@ export async function openStrategyGroupManager() {
   modal.classList.remove("hidden");
   // 每次打开都按当前偏好重新落位（偏好由 core/floating-modal.js 统一管理）。
   getFloatingModal("strategy-group-modal")?.refresh();
+  // 成员批量选择不跨窗口生命周期保留：重新打开就是一次新的批量操作。
+  memberSelection = new Set();
   managerState = await loadManagerData();
   renderManager();
   updateCaptureButton();
@@ -1045,6 +1299,41 @@ export function initStrategyGroupManager() {
   element("strategy-group-capture")?.addEventListener("click", () => void captureGroupFromSelection());
   element("strategy-group-close-btn")?.addEventListener("click", closeStrategyGroupManager);
   element("strategy-group-close-footer-btn")?.addEventListener("click", closeStrategyGroupManager);
+  // 成员批量条：元素是静态的（index.html），这里绑定一次；
+  // 计数与可用性由 updateMemberBatchBar() 在每次重画/勾选后刷新。
+  element("strategy-group-member-select-all")?.addEventListener("change", (event) => {
+    const checked = Boolean(event.target?.checked);
+    expandedMemberKeys().forEach((key) => {
+      if (checked) memberSelection.add(key);
+      else memberSelection.delete(key);
+    });
+    syncMemberCheckboxes();
+    updateMemberBatchBar();
+  });
+  element("strategy-group-member-batch-game-on")?.addEventListener(
+    "click",
+    () => void runMemberBatchGameState(true),
+  );
+  element("strategy-group-member-batch-game-off")?.addEventListener(
+    "click",
+    () => void runMemberBatchGameState(false),
+  );
+  element("strategy-group-member-batch-enable")?.addEventListener(
+    "click",
+    () => void runMemberBatchFileToggle("enable"),
+  );
+  element("strategy-group-member-batch-disable")?.addEventListener(
+    "click",
+    () => void runMemberBatchFileToggle("disable"),
+  );
+  element("strategy-group-member-batch-transfer")?.addEventListener(
+    "click",
+    () => void runMemberBatchTransfer(),
+  );
+  element("strategy-group-member-batch-remove")?.addEventListener(
+    "click",
+    () => void runMemberBatchRemove(),
+  );
   // 拖放排序：底部"变成顶层组"是静态元素，只在这里绑一次（列表内的行随重画绑定）。
   bindGroupDropRoot();
   // ESC 关闭窗口（只在窗口打开时拦截）；点击窗口外的遮罩同样关闭。

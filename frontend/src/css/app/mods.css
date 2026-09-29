@@ -141,7 +141,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2);
-  max-height: 220px;
+  /* 用视口比例而不是固定 220px：窗口（这个清单在可缩放的 Mod 详情窗口里）
+     拉高之后，清单跟着变高，内容不再挤在一条窄缝里。 */
+  max-height: 45vh;
   overflow-y: auto;
 }
 
@@ -734,7 +736,15 @@
 }
 
 #strategy-group-modal .mod-member-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* 勾选框 + 成员信息 + 行内按钮：中间那列必须能自己撑开（minmax(0,1fr)），
+     否则窗口拉宽后标题仍然被挤在左边一小条里。 */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+/* 成员批量条：与组级批量条同形，左侧加一条实线，避免和「批量管组」混淆。 */
+.settings-strategy-member-batch {
+  border-style: solid;
+  border-left: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
 }
 
 #strategy-group-modal .mod-member-actions .btn {
@@ -856,7 +866,8 @@
 }
 
 .group-tag-preview-name {
-  max-width: 24ch;
+  /* 跟随容器宽度伸缩：窗口拉宽后标签名不再被 24ch 截断。 */
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1060,7 +1071,8 @@
 }
 
 .mod-group-suggest-preview-item {
-  max-width: 26ch;
+  /* 同上：候选成员名随卡片宽度展开。 */
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1098,7 +1110,8 @@
   flex-direction: column;
   flex-wrap: nowrap;
   gap: 2px;
-  max-height: 320px;
+  /* 不给固定高度：把窗口拉高就多看几个成员（外层的 body 自己滚动）。 */
+  max-height: none;
 }
 
 #mod-group-suggest-modal .conflict-vpk-item,
@@ -1113,13 +1126,8 @@
   overflow: visible;
 }
 
-#mod-group-suggest-modal .mod-group-suggest-member .conflict-vpk-title {
-  max-width: 34ch;
-}
-
-#mod-group-suggest-modal .mod-group-suggest-member .conflict-vpk-filename {
-  max-width: 28ch;
-}
+/* 成员标题/文件名不再设置固定字数上限：交给 .conflict-vpk-title 的
+   "能放多宽就放多宽，放不下才省略" 规则（窗口拉宽后自动展开更多文字）。 */
 
 #mod-group-suggest-modal .mod-group-suggest-select-actions {
   display: inline-flex;
