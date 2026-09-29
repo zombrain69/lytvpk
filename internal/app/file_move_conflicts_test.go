@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -71,5 +72,22 @@ func TestMoveVpkFilesWithConflictActionReplaceAndSkip(t *testing.T) {
 	}
 	if _, statErr := os.Stat(source); !os.IsNotExist(statErr) {
 		t.Fatalf("replace move should remove source, stat err=%v", statErr)
+	}
+}
+// TestNormalizeMoveConflictActionListsValidValues 防止"传错动作只得到一句不支持"：
+// 界面/脚本写错时，错误信息必须能直接看出可用取值。
+func TestNormalizeMoveConflictActionListsValidValues(t *testing.T) {
+	if _, err := normalizeMoveConflictAction("Replace"); err != nil {
+		t.Fatalf("大小写不同的合法取值应被接受: %v", err)
+	}
+	_, err := normalizeMoveConflictAction("overwrite")
+	if err == nil {
+		t.Fatal("非法动作应报错")
+	}
+	message := err.Error()
+	for _, want := range []string{"replace", "skip", "cancel"} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("错误信息里应列出可用取值 %q，实际: %s", want, message)
+		}
 	}
 }

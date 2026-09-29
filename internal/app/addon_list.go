@@ -479,6 +479,12 @@ func addonListDisplayKeyForVPKPathFromRoot(rootDir, filePath string) (string, er
 	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
 	}
+	// 这里只接受"受管目录内的绝对路径"。传相对路径时 filepath.Rel 会抛英文的
+	// `Rel: can't make ... relative to ...`，对用户/脚本都看不出该怎么改；
+	// 直接给一句中文说明（调用方要写 addonlist 键请用 addonListKeyForReference）。
+	if !filepath.IsAbs(filePath) {
+		return "", fmt.Errorf("Mod 路径必须是受管目录内的绝对路径: %s", filePath)
+	}
 
 	relativePath, err := filepath.Rel(rootDir, filePath)
 	if err != nil {
@@ -497,6 +503,9 @@ func addonListDisplayKeyForVPKPathFromRoot(rootDir, filePath string) (string, er
 func addonListKeyForVPKPathFromRoot(rootDir, filePath string) (string, error) {
 	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
+	}
+	if !filepath.IsAbs(filePath) {
+		return "", fmt.Errorf("Mod 路径必须是受管目录内的绝对路径: %s", filePath)
 	}
 
 	relativePath, err := filepath.Rel(rootDir, filePath)
@@ -800,6 +809,11 @@ func (a *App) addonListKeyForManagedVPKPath(filePath string) (string, error) {
 func addonListKeyForManagedVPKPathFromRoot(rootDir, filePath string) (string, error) {
 	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
+	}
+	// 与上面两个同源函数一致：只接受受管目录内的绝对路径，
+	// 传相对名字时给中文提示，而不是把 filepath.Rel 的英文错误抛出去。
+	if !filepath.IsAbs(filePath) {
+		return "", fmt.Errorf("Mod 路径必须是受管目录内的绝对路径: %s", filePath)
 	}
 	relativePath, err := filepath.Rel(rootDir, filePath)
 	if err != nil {

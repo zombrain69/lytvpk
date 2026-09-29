@@ -3,12 +3,30 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func newDependencyTestApp(t *testing.T, rootDir string) *App {
 	t.Helper()
 	return newProfileTestApp(t, rootDir)
+}
+
+// TestSetModDependenciesRejectsRelativePathWithFriendlyMessage 覆盖"入参写法不对"的提示：
+// 传 addonlist 键（相对名字）时，不能把 Go 的 `Rel: can't make ... relative to ...`
+// 原样抛给用户 —— 要说明"这里要的是受管目录内的绝对路径"。
+func TestSetModDependenciesRejectsRelativePathWithFriendlyMessage(t *testing.T) {
+	root := t.TempDir()
+	writeModGroupFixture(t, root, "master.vpk")
+	a := newDependencyTestApp(t, root)
+
+	_, err := a.SetModDependencies("master.vpk", nil)
+	if err == nil {
+		t.Fatal("相对路径应被拒绝")
+	}
+	if !strings.Contains(err.Error(), "绝对路径") {
+		t.Fatalf("提示应说明需要绝对路径，实际: %v", err)
+	}
 }
 
 func TestSetModDependenciesStoresAndRemovesRecords(t *testing.T) {

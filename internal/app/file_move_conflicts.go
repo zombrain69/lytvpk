@@ -45,7 +45,12 @@ func normalizeMoveConflictAction(action string) (string, error) {
 	if action == "" || action == moveConflictActionReplace || action == moveConflictActionSkip || action == moveConflictActionCancel {
 		return action, nil
 	}
-	return "", fmt.Errorf("不支持的文件冲突处理方式: %s", action)
+	// 把可用取值写进错误里：界面/脚本传错时能直接看出该填什么，
+	// 而不是看到一句"不支持"却不知道支持什么。
+	return "", fmt.Errorf(
+		"不支持的文件冲突处理方式: %s（可用：%s / %s / %s）",
+		action, moveConflictActionReplace, moveConflictActionSkip, moveConflictActionCancel,
+	)
 }
 
 func moveCandidatesForPath(srcPath, destDir string) []moveFileCandidate {
