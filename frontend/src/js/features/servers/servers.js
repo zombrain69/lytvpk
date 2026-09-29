@@ -15,6 +15,10 @@ import {
   setupPanelModalListeners as setupPanelListeners,
 } from "./panel-modal.js";
 import { normalizePanelUrl } from "./panel-url.js";
+import {
+  configureDirectConnect,
+  setupDirectConnectListeners,
+} from "./direct-connect.js";
 
 let showError;
 let showNotification;
@@ -940,6 +944,9 @@ export function setupServerModalListeners() {
   setupFormListeners();
   setupDetailsListeners();
   setupPanelListeners();
+  // IP 直连：输入解析 → 复用 connectServer（不写入收藏列表）
+  configureDirectConnect({ showError, connectServer });
+  setupDirectConnectListeners();
 
   // 数据导入导出
   document
