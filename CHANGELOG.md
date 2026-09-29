@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.7.1-community.6 — 2026-09-30
+
+**用户可见报错从英文底层错误改成中文 + 下一步**。这轮真机联调（测试文件夹 + 测试 Mod）
+里撞到的第一个真实体验问题：无效工坊链接会在界面上原样显示
+`解析失败: could not find valid workshop ID in URL`。顺着扫了全部 Go 错误文案
+（脚本挑出"纯英文"的 33 处），把用户会看到的那批中文化：
+
+| 场景 | 之前 | 现在 |
+| --- | --- | --- |
+| 粘贴无效工坊链接 | `could not find valid workshop ID in URL` | 链接里没有找到工坊 ID：请粘贴作品或合集页面链接，也可以直接输入纯数字 ID |
+| 链接格式不对 | `invalid URL` | 链接格式不正确：请粘贴完整的创意工坊链接（含示例） |
+| 工坊详情为空 | `no details found` | 工坊接口没有返回详情：确认公开作品、稍后重试；下架/私密会单独提示 |
+| 合集子项读取失败 | `failed to fetch children details: …` | 读取合集子项失败：…（检查网络或稍后重试） |
+| 工坊接口状态码 | `API request failed with status: 502` | 工坊接口返回 HTTP 502：稍后重试，或换一个网络/镜像再试 |
+| 工坊浏览网络/接口错误 | `network error` / `API error: 500` / `item not found` | 中文说明 + “可能已下架或 ID 不正确” |
+| 下载失败（状态码/分块/写入/大小校验） | `HTTP status: 502`、`block 3 size mismatch…` | 中文说明 + “可重试，会续传缺失区块”/“临时文件已清理” |
+| 检查更新 / 更新包下载 | `status: 502 Bad Gateway`、`download failed: …` | 检查更新失败 / 更新包下载失败 + 换镜像提示 |
+| 服务器查询（A2S） | `invalid response header` 等 8 条 | 服务器响应无效：可能不是 L4D2 服务器，或被防火墙/代理拦截 |
+
+保留不动的：`errDownloadPaused` / `errRangeNotSupported` 这类 `errors.Is` 用的内部哨兵，
+以及模型解析里的偏移诊断细节。
+
+### 验证
+
+- 新增 `TestParseWorkshopIDErrorsAreActionable`：中文提示 + 不再出现英文原文 + 正常链接仍可解析
+- 真机（打包 EXE + 沙箱）：三种无效输入与 `GetWorkshopDetails` 全部返回中文提示
+- 英文文案扫描：33 处 → 5 处（剩余均为内部哨兵/诊断）
+- `go test ./...` 全绿；`node --test` 419 项全绿；`npm run build` 通过
+
+### 本轮联调覆盖（测试文件夹 + 14 个自造测试 Mod，不碰真实库）
+
+`zz-test-drive.js` 39 项（解析/冲突两口径/优先级/策略组/体检与一键修复/完整性/打包解包/
+文件生命周期/工坊转移/依赖/启用方案/原版白名单降级/报告/GBK 编码保真）、
+`zz-ui-drive.js` 16 项（7 页面/设置 4 分面/命令面板/快捷键/检索语法/浮动窗口/主题）、
+`zz-ux-drive.js` 9 项（对比范围弹窗、冲突分析开关、加载顺序窗口预览+应用、Mod 详情、
+工具箱入口、网络非法输入降级），全部 PASS。
+
 ## 2.7.1-community.5 — 2026-09-30
 
 ### 一、分析被“其他冲突检测”占用时，不再整屏变“无冲突”
