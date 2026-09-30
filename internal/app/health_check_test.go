@@ -140,7 +140,9 @@ func TestRunModHealthCheckWithoutAddonListSkipsComparison(t *testing.T) {
 	}
 }
 
-func TestRemoveDuplicateAddonListEntriesKeepsFirstOccurrence(t *testing.T) {
+// 去重必须保住"实际生效的开关"：游戏与 addonListStateMap 都是后者覆盖，
+// 只保留第一条会把用户看到的开启状态改成禁用（真机复现）。
+func TestRemoveDuplicateAddonListEntriesKeepsPositionButLastValue(t *testing.T) {
 	root := t.TempDir()
 	writeHealthCheckFixture(t, root, "a.vpk", "b.vpk")
 	writeConflictTestAddonList(t, root, []conflictTestAddonListEntry{
@@ -149,6 +151,15 @@ func TestRemoveDuplicateAddonListEntriesKeepsFirstOccurrence(t *testing.T) {
 		{Name: "b.vpk", Value: "0"},
 	})
 	a := newProfileTestApp(t, root)
+
+	// 去重前：程序自己认为 a.vpk 是关闭的（最后一条 "0" 生效）。
+	before, _, err := a.readAddonList()
+	if err != nil {
+		t.Fatalf("read addonlist: %v", err)
+	}
+	if states := addonListStateMap(before); states["a.vpk"] {
+		t.Fatalf("前置状态应为关闭（后者覆盖），实际 %#v", states)
+	}
 
 	removed, err := a.RemoveDuplicateAddonListEntries()
 	if err != nil {
@@ -162,8 +173,9 @@ func TestRemoveDuplicateAddonListEntriesKeepsFirstOccurrence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read addonlist: %v", err)
 	}
+	// 位置保留第一次出现，取值取最后一次出现。
 	want := []AddonListItem{
-		{Name: "a.vpk", Value: "1"},
+		{Name: "a.vpk", Value: "0"},
 		{Name: "b.vpk", Value: "0"},
 	}
 	if len(list) != len(want) {
@@ -182,6 +194,32 @@ func TestRemoveDuplicateAddonListEntriesKeepsFirstOccurrence(t *testing.T) {
 	}
 	if removed != 0 {
 		t.Fatalf("expected a no-op second run, got %d removals", removed)
+	}
+}
+
+// 重复条目值相同（最常见的情况）：去重后开关不变，只是少了一条。
+func TestRemoveDuplicateAddonListEntriesKeepsValueWhenDuplicatesAgree(t *testing.T) {
+	root := t.TempDir()
+	writeHealthCheckFixture(t, root, "a.vpk")
+	writeConflictTestAddonList(t, root, []conflictTestAddonListEntry{
+		{Name: "a.vpk", Value: "1"},
+		{Name: "a.vpk", Value: "1"},
+	})
+	a := newProfileTestApp(t, root)
+
+	removed, err := a.RemoveDuplicateAddonListEntries()
+	if err != nil {
+		t.Fatalf("remove duplicates: %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("应删除 1 条重复项，实际 %d", removed)
+	}
+	list, _, err := a.readAddonList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Value != "1" {
+		t.Fatalf("去重后应保留开启状态，实际 %#v", list)
 	}
 }
 

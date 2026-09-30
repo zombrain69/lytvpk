@@ -424,18 +424,23 @@ func (a *App) RemoveDuplicateAddonListEntries() (int, error) {
 	}
 
 	deduped := make([]AddonListItem, 0, len(list))
-	seen := make(map[string]struct{}, len(list))
+	indexByKey := make(map[string]int, len(list))
 	removed := 0
 	for _, item := range list {
 		key := normalizeAddonListKey(item.Name)
 		if key == "" {
 			continue
 		}
-		if _, duplicate := seen[key]; duplicate {
+		if index, duplicate := indexByKey[key]; duplicate {
+			// 位置保留第一次出现（顺序就是加载顺序），取值取最后一次出现：
+			// 游戏的 KeyValues 与程序自己的 addonListStateMap 都是"后者覆盖"，
+			// 只保留第一条会把用户实际生效的开关悄悄改掉
+			// （真机复现：界面显示"游戏内开启" → 去重后变成禁用）。
+			deduped[index].Value = item.Value
 			removed++
 			continue
 		}
-		seen[key] = struct{}{}
+		indexByKey[key] = len(deduped)
 		deduped = append(deduped, item)
 	}
 	if removed == 0 {
