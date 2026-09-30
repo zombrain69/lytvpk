@@ -295,8 +295,17 @@ $real = "<真实>\left4dead2\addonlist.txt"
   - 预期：两者相对顺序保持不变（同层稳定），冲突检测把它们视为“同层冲突”。
 - [ ] 到「分组 → 策略组管理…」窗口给某个组填权重 `-1` 保存，回到加载顺序弹窗点“按分层应用”。
   - 预期：组内成员整体前移；未设置分层的其它 Mod 仍按原顺序号排在其后。
+  - 说明（2026-10-01）：已自动化覆盖 —— `internal/app/priority_test.go` 的
+    `TestApplyModPriorityLayersMovesStrategyGroupBlock`（夹具 `a.vpk, workshop\123.vpk, b.vpk`，
+    组内成员 `a.vpk + b.vpk` 权重 `-1` → 应用后变成 `a.vpk, b.vpk, workshop\123.vpk`）。
 - [ ] 在策略组里清空权重并保存，再点“按分层应用”。
   - 预期：组内成员回到按顺序号排序，与设置权重前一致。
+  - ⚠️ **更正（2026-10-01，实测）**：这条预期**不成立**。所谓“顺序号”就是 `addonlist.txt`
+    里的位置（`GetVPKLoadOrder` 返回 1-based 下标），上一次“按分层应用”已经把位置本身改写；
+    而且“没有任何分层时不写盘”是刻意的硬约束（同一轮 `go test` 里逐字节守着）。
+    实测：清空权重再应用后顺序仍是 `a.vpk, b.vpk, workshop\123.vpk`。
+    想要随时回到之前的顺序：动手前先在「设置 → 游戏配置 → 历史备份」里创建一份 `addonlist.txt`
+    备份（“按分层应用”本身不会自动记录“应用前顺序”，也不会还原）。
 - [ ] 真实游戏内覆盖方向确认（本项目唯一未实测的语义假设，见
   `docs/superpowers/specs/2026-09-21-priority-aware-conflict-design.md` 第 8 节）：
   做两个含同名文件的小 VPK，交换 `addonlist.txt` 顺序，观察游戏内实际生效的是哪一个。

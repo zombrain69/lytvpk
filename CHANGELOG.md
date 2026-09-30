@@ -1,5 +1,32 @@
 # Changelog
 
+## 未发布 — 更正 §7「清空组权重后顺序会还原」的错误预期（2026-10-01）
+
+`docs/development/manual-verification.md` §7 有一条人工项写着：给策略组填权重 `-1` → 按分层应用后，
+再清空权重并应用，**组内成员应回到设置权重前的顺序**。实测（夹具 `a.vpk, workshop\123.vpk, b.vpk`，
+组内成员 `a.vpk + b.vpk`）：
+
+```
+组权重 -1 → 应用：a.vpk, b.vpk, workshop\123.vpk      ← 整组前移、组内保持原序（符合预期）
+清空权重 → 应用：a.vpk, b.vpk, workshop\123.vpk        ← 没有回到 a, workshop\123, b（预期不成立）
+```
+
+原因不是实现漏了：所谓「顺序号」就是 `addonlist.txt` 里的位置（`GetVPKLoadOrder` 返回 1-based 下标），
+上一次应用已经把位置本身改写；而「没有任何分层时不写盘」是刻意的硬约束
+（`TestApplyModPriorityLayersSortsStablyAndSkipsNoopWrites`、`TestParity01UnifiedPriorityModelEndToEnd`
+逐字节守着）。也就是说：应用过后的文件顺序**就是新的基准**，光清空分层不可能还原。
+
+**改动**
+
+- `docs/development/manual-verification.md` §7：更正那条预期，并写明"要还原请先在
+  「设置 → 游戏配置 → 历史备份」创建/恢复 `addonlist.txt` 备份（按分层应用本身不记录'应用前顺序'）"。
+- `internal/app/priority_test.go`：新增 `TestApplyModPriorityLayersMovesStrategyGroupBlock`，
+  把两条语义都锁住（组权重 -1 → 整组前移且组内保序；清空后再应用 → 顺序保持不变）。
+- `strategy-group-manager.js`：清除权重的提示补一句「不会自动还原原顺序；要还原请用
+  「历史备份」里的 addonlist.txt 备份」——真机上这一步最容易让人以为按钮没生效。
+
+**验证**：`go test ./... -count=1` 全 ok；`go vet ./...` 退出码 0；`node --test`（frontend/）482 项 0 失败。
+
 ## 未发布 — 体检补两类「看不见的死重」：根目录与 disabled 各一份、子目录里的 VPK（2026-10-01）
 
 **发现方式**：把真实库导出的分组目录（2872 个 Mod）与真实 `addons\`、`addons\disabled\` 对照，

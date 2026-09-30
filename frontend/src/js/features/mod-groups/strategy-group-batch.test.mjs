@@ -261,6 +261,18 @@ test("每组都有「＋ 子组」快捷入口，走 CreateModStrategyGroupChild
   assert.match(managerSource, /另有 \$\{dropped\} 个无法加入/, "被丢掉的成员要说明");
 });
 
+test("清空组权重要说明顺序不会自动还原（真机实测过）", () => {
+  // 「顺序号」就是 addonlist 里的位置，上一次应用已经把位置改写；而且"没有任何分层时不写盘"
+  // 是刻意的硬约束。所以清空权重后再点「按分层应用」不会回到设置前的顺序 —— 提示里要说清楚，
+  // 否则用户会以为按钮没生效（manual-verification.md §7 原来的预期就是这么写的，已更正）。
+  assert.match(
+    managerSource,
+    /已清除策略组权重（不会自动还原原顺序/,
+    "清空权重时要说明不会自动还原",
+  );
+  assert.match(managerSource, /「历史备份」里的 addonlist\.txt 备份/, "要指路怎么还原");
+});
+
 test("应用策略前先预检（对齐 FireAxe CheckEnableStrategy）", () => {
   assert.match(managerSource, /CheckModStrategyGroupApply\(id, \{/, "应用前要调用后端预检");
   // 不可执行 → 直接拦下并说明原因。

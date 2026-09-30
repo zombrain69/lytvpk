@@ -334,6 +334,47 @@ func TestApplyModPriorityLayersSortsStablyAndSkipsNoopWrites(t *testing.T) {
 	}
 }
 
+// 对应 manual-verification.md §7 的两条人工项：给策略组填权重 -1 → 按分层应用 → 清空权重 → 再应用。
+// 夹具初始 addonlist 顺序是 a.vpk, workshop\123.vpk, b.vpk。
+func TestApplyModPriorityLayersMovesStrategyGroupBlock(t *testing.T) {
+	a, addonsDir := newPriorityTestApp(t)
+
+	group, err := a.CaptureModStrategyGroup("打包组", "", modStrategyGroupAll, []string{
+		filepath.Join(addonsDir, "a.vpk"),
+		filepath.Join(addonsDir, "b.vpk"),
+	})
+	if err != nil {
+		t.Fatalf("capture group: %v", err)
+	}
+	tier := -1
+	if _, err := a.SetModStrategyGroupTier(group.ID, &tier); err != nil {
+		t.Fatalf("set group tier: %v", err)
+	}
+
+	preview, err := a.ApplyModPriorityLayers()
+	if err != nil {
+		t.Fatalf("apply layers: %v", err)
+	}
+	if want := []string{"a.vpk", "b.vpk", `workshop\123.vpk`}; !reflect.DeepEqual(loadOrderKeys(preview.Entries), want) {
+		t.Fatalf("组权重 -1 后应整组前移、组内保持原序：got=%#v want=%#v", loadOrderKeys(preview.Entries), want)
+	}
+
+	if _, err := a.SetModStrategyGroupTier(group.ID, nil); err != nil {
+		t.Fatalf("clear group tier: %v", err)
+	}
+	preview, err = a.ApplyModPriorityLayers()
+	if err != nil {
+		t.Fatalf("apply layers after clearing: %v", err)
+	}
+	// 清空权重后再点「按分层应用」**不会**还原成设置权重前的顺序：所谓"顺序号"就是 addonlist
+	// 里的位置，上一次应用已经把位置改写成 a,b,workshop；而且"没有任何分层时不写盘"是硬约束
+	// （TestApplyModPriorityLayersSortsStablyAndSkipsNoopWrites 逐字节守着）。
+	// manual-verification.md §7 原来写的"回到设置权重前一致"不成立，已在文档里更正并指路历史备份。
+	if want := []string{"a.vpk", "b.vpk", `workshop\123.vpk`}; !reflect.DeepEqual(loadOrderKeys(preview.Entries), want) {
+		t.Fatalf("清空权重后不应再改动顺序（顺序号已被上次应用改写）：got=%#v want=%#v", loadOrderKeys(preview.Entries), want)
+	}
+}
+
 func TestApplyModPriorityLayersPreservesGBKEncoding(t *testing.T) {
 	content := "\"AddonList\"\r\n{\r\n\t\"根目录测试.vpk\"\t\"1\"\r\n\t\"workshop\\123.vpk\"\t\"1\"\r\n}\r\n"
 	encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(content))

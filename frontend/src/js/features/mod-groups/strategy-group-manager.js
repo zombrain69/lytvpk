@@ -1118,7 +1118,9 @@ function bindRowActions() {
       try {
         await SetModStrategyGroupTier(id, tier);
         showNotification(
-          tier === null ? "已清除策略组权重" : `已保存策略组权重 ${tier}（需按分层应用才会重排）`,
+          tier === null
+            ? "已清除策略组权重（不会自动还原原顺序；要还原请用「历史备份」里的 addonlist.txt 备份）"
+            : `已保存策略组权重 ${tier}（需按分层应用才会重排）`,
           "success",
         );
         await reload();
