@@ -1,5 +1,51 @@
 # Changelog
 
+## 2.7.1-community.41 — 2026-09-30
+
+**设置页三个开关点了完全没反应（勾选状态会变，但配置不写、也没有任何提示）。**
+
+真机把设置页的开关逐个点了一遍并核对配置，抓到三个死控件：
+
+- 工坊设置 →「下载失败后自动重下一次」
+- 工坊设置 →「剪贴板工坊链接自动识别」
+- 工坊设置 →「抓取工坊官方标签与统计」
+
+```
+下载失败后自动重下一次：点击前 checked=false config=false → 点击后 checked=true config=false；通知=[]
+剪贴板工坊链接自动识别：点击前 checked=true  config=true  → 点击后 checked=false config=true；通知=[]
+对照组·工坊信息存储：  点击前 checked=false config=false → 点击后 checked=true  config=true；通知=["已开启工坊信息存储"]
+```
+
+根因：`settings-page.js` 里「立即触发检测」的绑定头
+`document.getElementById("settings-manual-check-btn")?.addEventListener("click", async () => {`
+被写在了这三个绑定**前面**、又没有紧跟自己的函数体，于是这三个 `addEventListener`
+被解析成了那个回调的**函数体** —— 只有点「立即触发检测」时才会被"注册"，等于永远不生效。
+（副作用：点一次「立即触发检测」反而会把这三个控件临时"激活"。）
+用 `git log` 逐版本核对，这个回归从 **ef3bf31（2026-09-22，FireAxe 对齐那批）** 就存在了。
+
+修复：把「立即触发检测」的绑定头挪到它自己的函数体前面，三个绑定回到
+`bindSettingsPage` 的同一层。另加护栏用例，防止再次出现"绑定头吞掉后面绑定"。
+
+### 验证
+
+- 新增 `settings-binding-structure.test.mjs`：绑定头下一行必须就是它自己的函数体；
+  被它挡在后面的绑定必须在它之前（同层）。旧代码在这条用例下会失败
+- `go test ./... -count=1` / `go vet ./...` 全绿；`node --test` 454 项全绿；`npm run build` 通过
+- 真机两阶段（打包 EXE + 沙箱库，真实库零写入）：
+
+```
+改后：uiScale=1.2 displayMode=card boxSelection=false ctrlClick=false placement=start
+      meta=false autoRedownload=true autoDetect=false target=steam priorityAware=true
+PASS  8+2 项设置全部改成功（内存配置已更新）
+PASS  「抓取工坊官方标签与统计」已生效：「工坊官方资料抓取完成：更新 0 个，本来就最新 2 个」
+杀进程重启后：
+PASS  10 项设置重启后全部保留
+PASS  界面控件反映了重启前的设置（缩放 120、卡片模式、框选/ Ctrl 多选关闭）
+PASS  工坊设置面板：跳转目标=Steam、工坊信息存储=关闭
+```
+
+- 顺带全仓扫描"绑定头吞掉后面绑定"的同类写法：0 处残留
+
 ## 2.7.1-community.40 — 2026-09-30
 
 **取消下载后界面还停在「已取消 · 12% / 1.4 MB」，但数据其实已经删了。**

@@ -2166,8 +2166,6 @@ function bindSettingsPage(deps) {
     }
   });
 
-  document.getElementById("settings-manual-check-btn")?.addEventListener("click", async () => {
-
   // 下载失败自动重下：默认关闭；只影响新建任务的默认值。
   document.getElementById("settings-auto-redownload")?.addEventListener("change", async (event) => {
     const toggle = event.currentTarget;
@@ -2233,7 +2231,9 @@ function bindSettingsPage(deps) {
       button.disabled = false;
       label.textContent = original;
     }
-  });
+   });
+
+  document.getElementById("settings-manual-check-btn")?.addEventListener("click", async () => {
     const btn = document.getElementById("settings-manual-check-btn");
     if (!btn || btn.disabled) return;
     btn.disabled = true;
