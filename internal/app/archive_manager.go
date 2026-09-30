@@ -551,7 +551,17 @@ func scanArchivePackageWithPassword(path, format string, existing archiveExistin
 		info.Size = stat.Size()
 		info.Modified = stat.ModTime().Format(time.RFC3339)
 	} else {
-		info.Error = err.Error()
+		// os.Stat 的原始英文（CreateFile ...）不该直接显示在卡片上：
+		// 认得出原因就用中文，认不出也保留原文到详情里。
+		info.ErrorKind = archiveErrorKindUnreadable
+		info.ErrorDetail = err.Error()
+		if errors.Is(err, os.ErrNotExist) {
+			info.Error = "找不到这个压缩包：它可能已被移动或删除，请重新选择目录。"
+		} else if reason := describeFileMoveFailure(err); reason != "" {
+			info.Error = reason
+		} else {
+			info.Error = "无法访问压缩包：" + err.Error()
+		}
 		return info
 	}
 	var err error
@@ -574,10 +584,38 @@ func scanArchivePackageWithPassword(path, format string, existing archiveExistin
 			info.Error = state.Message
 		} else {
 			info.ErrorKind = archiveErrorKindUnreadable
-			info.Error = err.Error()
+			// 与 7z 一致：卡片上只放中文可行动提示，库的英文原文留在 ErrorDetail（悬停详情）。
+			info.Error = describeArchiveReadFailure(format, err)
 		}
 	}
 	return info
+}
+
+// describeArchiveReadFailure 把"读不了这个压缩包"翻译成中文可行动提示。
+// 原始错误（zip/rardecode 等库的英文）由调用方放进 ErrorDetail 做排查。
+func describeArchiveReadFailure(format string, err error) string {
+	if err == nil {
+		return ""
+	}
+	lower := strings.ToLower(err.Error())
+	text := err.Error()
+	if strings.Contains(lower, "password") || strings.Contains(lower, "encrypted") ||
+		strings.Contains(text, "密码") || strings.Contains(text, "加密") {
+		return "压缩包已加密：请输入密码后再读取（文件树与 VPK 信息都需要解密后才能读取）。"
+	}
+	switch format {
+	case "zip":
+		return "无法读取 ZIP：文件可能已损坏或不完整，也可能不是有效的 ZIP 压缩包。"
+	case "rar":
+		return "无法读取 RAR：文件可能已损坏或不完整，也可能不是有效的 RAR 压缩包。"
+	case "7z":
+		return "无法读取 7Z：文件可能已损坏、分卷不完整，或使用了当前解码器不支持的压缩方法。"
+	case "tar":
+		return "无法读取 TAR：文件可能已损坏，或不是有效的 TAR 包。"
+	case "tar.gz":
+		return "无法读取 TAR.GZ：文件可能已损坏，或不是有效的 gzip 包。"
+	}
+	return "无法读取压缩包：文件可能已损坏或格式不受支持。"
 }
 
 func classifySevenZipError(err error) archiveErrorState {

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.7.1-community.17 — 2026-09-30
+
+**压缩包管理里损坏 / 缺失的包不再把库的英文原文摆给用户。**
+
+真机复现（往目录里放一个损坏的 zip 和一个截断的 rar）：
+
+```
+zz-broken.zip:    无法打开 ZIP: zip: not a valid zip file
+zz-truncated.rar: 无法创建 RAR 读取器: rardecode: RAR signature not found
+```
+
+前缀是中文，后面却直接跟着解码库的英文。7z 分支早就是「中文可行动提示 + 原始细节进悬停」，
+zip / rar / tar 没跟上。现在：
+
+- 卡片文案统一成中文可行动提示（`无法读取 ZIP：文件可能已损坏或不完整，也可能不是有效的 ZIP 压缩包。`
+  / RAR / TAR / TAR.GZ 同理）
+- 原始错误（含库的英文）保留在 `errorDetail`，界面上仍能在悬停详情里看到，便于排查
+- 加密包给出「请输入密码后再读取」；文件不存在时给「找不到这个压缩包：它可能已被移动或删除，请重新选择目录。」
+- `os.Stat` 失败也不再直接显示 Go 的原始英文
+
+### 验证
+
+- 新增 `archive_error_message_test.go`（3 项）：坏 zip 的中文文案 + 原始细节保留、
+  文件不存在的中文提示、加密包的关键词识别
+- 真机（沙箱目录里放假 zip / 假 rar，真实库零写入）：修复前卡片文案含
+  `zip: not a valid zip file` / `rardecode: RAR signature not found`；修复后卡片文案全中文，
+  悬停详情里仍能看到这两条原始错误
+- `go test ./...` 全绿；`node --test` 434 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.16 — 2026-09-30
 
 **真机复现「批量设置标签」只报失败个数、不说原因，补齐同类入口。**
