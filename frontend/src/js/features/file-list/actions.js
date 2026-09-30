@@ -74,14 +74,13 @@ export async function setSelectedGameEnabled(enabled) {
 }
 
 export function selectAll() {
-  const checkboxes = document.querySelectorAll(".file-checkbox");
-  checkboxes.forEach((checkbox, index) => {
-    checkbox.checked = true;
-    const file = appState.vpkFiles[index];
-    if (file) {
-      toggleFileSelection(file.path, true);
-    }
+  // 只作用于当前列表里的文件；不要用 DOM 序号去索引文件数组 ——
+  // 页面上还有别的 .file-checkbox（例如导出弹窗的两个选项），序号一对不上就会
+  // 勾错文件、还把弹窗的选项一起改掉。按路径选择，再让 DOM 跟着状态走。
+  appState.vpkFiles.forEach((file) => {
+    if (file?.path) toggleFileSelection(file.path, true);
   });
+  syncSelectedFiles();
   const lastVisibleFile = appState.vpkFiles[appState.vpkFiles.length - 1];
   appState.selectionAnchorPath = lastVisibleFile?.path || "";
 }
@@ -89,7 +88,7 @@ export function selectAll() {
 export function deselectAll() {
   appState.selectedFiles.clear();
   appState.selectionAnchorPath = "";
-  document.querySelectorAll(".file-checkbox").forEach((checkbox) => {
+  document.querySelectorAll("#file-list .file-checkbox").forEach((checkbox) => {
     checkbox.checked = false;
   });
   updateStatusBar();
@@ -102,7 +101,12 @@ export async function enableSelected() {
   }
 
   const filesToToggle = Array.from(appState.selectedFiles).filter((filePath) => {
-    const file = appState.vpkFiles.find((f) => f.path === filePath);
+    // 只按当前筛选结果查，会在"选了 Mod 之后再改筛选"时把看不见的已选项静默丢掉：
+    // 状态栏还写着 已选择: N，实际操作却只处理了筛选后仍然可见的那几个。
+    // 选择集本身是跨筛选保留的，这里必须回退到完整列表。
+    const file =
+      appState.vpkFiles.find((f) => f.path === filePath) ||
+      appState.allVpkFiles?.find((f) => f.path === filePath);
     return file && !file.enabled && file.location === "disabled";
   });
 
@@ -154,7 +158,10 @@ export async function disableSelected() {
   }
 
   const filesToToggle = Array.from(appState.selectedFiles).filter((filePath) => {
-    const file = appState.vpkFiles.find((f) => f.path === filePath);
+    // 同上：批量操作的作用域是"整个选择"，不是"当前筛选可见的那几个"。
+    const file =
+      appState.vpkFiles.find((f) => f.path === filePath) ||
+      appState.allVpkFiles?.find((f) => f.path === filePath);
     return file && file.enabled && file.location === "root";
   });
 
@@ -639,11 +646,13 @@ function updateSingleFileDisplay(file) {
 }
 
 export function syncSelectedFiles() {
-  const checkboxes = document.querySelectorAll(".file-checkbox");
-  checkboxes.forEach((checkbox, index) => {
-    const file = appState.vpkFiles[index];
-    if (file) {
-      checkbox.checked = appState.selectedFiles.has(file.path);
-    }
-  });
+  // 与框选那份实现保持同一种做法：按行上的 data-path 判断，不用序号。
+  document
+    .querySelectorAll("#file-list .file-item, #file-list .file-card")
+    .forEach((item) => {
+      const checkbox = item.querySelector(".file-checkbox");
+      if (checkbox && item.dataset.path) {
+        checkbox.checked = appState.selectedFiles.has(item.dataset.path);
+      }
+    });
 }

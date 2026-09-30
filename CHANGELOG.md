@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.7.1-community.28 — 2026-09-30
+
+**选了 Mod 之后再改筛选，批量启用/禁用只处理「筛选后仍然可见」的那几个 ——
+状态栏还写着 已选择: N，用户以为整批都处理了。**
+
+真机复现（沙箱测试库，14 个 Mod、其中 10 个可被禁用）：
+
+```
+未筛选点「全选」   状态栏 已选择=14，列表可见 14
+搜索框输入 zztest_rifle   列表可见 3，状态栏 已选择=14   ← 选择集跨筛选保留
+点「批量禁用」     提示「成功禁用 3 个文件」             ← 另外 7 个被静默跳过
+```
+
+根因：`enableSelected` / `disableSelected` 用 `appState.vpkFiles`（当前筛选结果）解析已选项，
+找不到就当成"不适用"直接丢掉。同文件里其它批量动作（删除 / 导出 ZIP / 移动 / 批量游戏开关 /
+工坊转移）用的都是整个选择，只有这两个把作用域缩成了可见列表。
+
+同一轮还修掉两处"用 DOM 序号索引文件数组"的写法（`selectAll` / `syncSelectedFiles`）：
+它们用 `document.querySelectorAll(".file-checkbox")` 的**全文档**序号去取 `appState.vpkFiles[i]`，
+而导出 ZIP 弹窗里也有两个 `.file-checkbox` —— 序号一旦错位就会勾错文件，
+并把弹窗自己的选项（例如「自动重命名为 mod 名称」）一起改掉。
+
+修复：
+
+- `enableSelected` / `disableSelected` 解析已选项时回退到 `appState.allVpkFiles`，
+  作用域回到"整个选择"，与其它批量动作一致。
+- `selectAll` 改为遍历 `appState.vpkFiles` 按路径选择，再让 DOM 跟着状态走；
+  `deselectAll` / `syncSelectedFiles` 的查询限定在 `#file-list` 内，
+  并按行上的 `data-path` 判断勾选（与框选那份实现同一种做法）。
+
+### 验证
+
+- 新增 `selection-scope.test.mjs`（2 项）：修正前第一项即失败，修正后 439 项全绿
+- `go test ./... -count=1` / `go vet ./...` 全绿；`npm run build` / `wails build` 通过
+- 真机（打包 EXE + 沙箱 APPDATA + 测试库，真实库零写入）：
+
+```
+全选                          状态栏 已选择=14，列表可见 14，其中已勾选 14
+导出弹窗打开时再点全选        弹窗选项 false→false、缩略图选项保持 true，已选择仍是 14
+筛选到 3 个后点「批量禁用」    被禁用 10 个，被静默跳过 0 个  → 作用域=整个选择（正确）
+```
+
+其中"被禁用 10 个"与修复前的"成功禁用 3 个文件"是同一条操作路径的对照结果。
+
 ## 2.7.1-community.27 — 2026-09-30
 
 **addonlist 条目名/前缀被写错的三条链路：禁用→启用会把含大写的条目写成小写、
