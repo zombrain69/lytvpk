@@ -386,6 +386,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 	a.mu.Unlock()
 
 	values := map[string]string{}
+	displayNames := map[string]string{}
 	removals := []string{}
 	if vpkFile.Location == "disabled" {
 		removals = append(removals, managedKey)
@@ -394,11 +395,16 @@ func (a *App) ToggleVPKFile(filePath string) error {
 		}
 	} else {
 		values[managedKey] = "1"
+		// 重新启用时这条记录往往已经被删掉，需要新插入；
+		// 新条目要用磁盘上的真实拼写，而不是规范化小写键。
+		if display, displayErr := addonListDisplayKeyForVPKPathFromRoot(rootDir, vpkFile.Path); displayErr == nil {
+			displayNames[managedKey] = display
+		}
 		if workshopKey != "" {
 			values[workshopKey] = "0"
 		}
 	}
-	if err := a.updateAddonListEntries(values, removals); err != nil {
+	if err := a.updateAddonListEntriesWithNames(values, removals, displayNames); err != nil {
 		return fmt.Errorf("文件已移动，但 addonlist.txt 同步失败: %w", err)
 	}
 	// 文件在 addons / workshop / disabled 之间移动会改变游戏侧可用资源集合，
@@ -496,10 +502,15 @@ func (a *App) moveWorkshopToAddonsWithConflictAction(filePath, action string) (M
 	if keyErr != nil {
 		return result, keyErr
 	}
-	if err := a.updateAddonListEntries(map[string]string{
+	// 复制到 addons 会新建 root 条目：同样要写磁盘上的真实拼写。
+	displayNames := map[string]string{}
+	if display, displayErr := addonListDisplayKeyForVPKPathFromRoot(rootDir, newPath); displayErr == nil {
+		displayNames[rootKey] = display
+	}
+	if err := a.updateAddonListEntriesWithNames(map[string]string{
 		rootKey:     "1",
 		workshopKey: "0",
-	}, nil); err != nil {
+	}, nil, displayNames); err != nil {
 		return result, fmt.Errorf("已复制到 addons，但 addonlist.txt 同步失败: %w", err)
 	}
 	// 保留 workshop 原件意味着 Steam/游戏可能在下次启动时重新写入 1。
@@ -543,12 +554,33 @@ func (a *App) ToggleVPKVisibility(filePath string) (string, error) {
 	// 同步重命名同名图片
 	a.handleSidecarFile(filePath, newPath, "move")
 
+	// 扫描缓存跟着改名走：与 RenameVPKFile 保持一致，
+	// 否则隐藏成功后立刻读 GetVPKFiles() 还是旧路径、旧名字。
+	if cached, ok := a.vpkCache.Load(filePath); ok {
+		cache := cached.(*VPKFileCache)
+		cache.File.Path = newPath
+		cache.File.Name = filepath.Base(newPath)
+		a.vpkCache.Delete(filePath)
+		a.deleteVPKPreviewCaches(filePath)
+		a.vpkCache.Store(newPath, cache)
+	} else {
+		a.processVPKFileWithCache(newPath)
+	}
+
 	// 隐藏/显示会加/去掉 `_` 前缀，addonlist 键随之变化：
 	// 本地记录（策略组 / 分层 / 依赖 / 忽略清单）必须跟着改绑。
+	// 条目名要用受管键的真实拼写（工坊文件带 workshop\ 前缀），
+	// 用 filepath.Base 会把工坊条目写成裸文件名。
+	entryName := filepath.Base(newPath)
+	if display, displayErr := addonListDisplayKeyForManagedVPKPathFromRoot(
+		a.rootDirectorySnapshot(), newPath,
+	); displayErr == nil {
+		entryName = display
+	}
 	a.rebindModKeyOnRename(
 		a.addonListKeyForPath(filePath),
 		a.addonListKeyForPath(newPath),
-		filepath.Base(newPath),
+		entryName,
 	)
 
 	return newPath, nil
@@ -833,10 +865,16 @@ func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error)
 
 	// 改名后把本地记录（策略组 / 分层 / 依赖 / 忽略清单）里的旧键迁移到新键，
 	// 否则这些记录会变成指向旧文件名的悬空条目。
+	entryName := filepath.Base(newPath)
+	if display, displayErr := addonListDisplayKeyForManagedVPKPathFromRoot(
+		a.rootDirectorySnapshot(), newPath,
+	); displayErr == nil {
+		entryName = display
+	}
 	a.rebindModKeyOnRename(
 		a.addonListKeyForPath(filePath),
 		a.addonListKeyForPath(newPath),
-		filepath.Base(newPath),
+		entryName,
 	)
 
 	a.updateCompletedDownloadTaskPath(filePath, newPath)

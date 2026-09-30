@@ -500,6 +500,24 @@ func addonListDisplayKeyForVPKPathFromRoot(rootDir, filePath string) (string, er
 	return displayName, nil
 }
 
+// addonListDisplayKeyForManagedVPKPathFromRoot 与 addonListKeyForManagedVPKPathFromRoot
+// 同源，但返回磁盘上的真实拼写：disabled 目录里的文件在 addonlist 里仍记成裸文件名，
+// 其它位置带各自的前缀（例如 workshop\名字.vpk）。
+//
+// 改名 / 隐藏之后写回 addonlist 要用它：光用 filepath.Base 会把工坊条目的
+// "workshop\xxx.vpk" 写成裸 "xxx.vpk"，游戏按根目录去找，这条记录直接失效。
+func addonListDisplayKeyForManagedVPKPathFromRoot(rootDir, filePath string) (string, error) {
+	display, err := addonListDisplayKeyForVPKPathFromRoot(rootDir, filePath)
+	if err != nil {
+		return "", err
+	}
+	const disabledPrefix = "disabled\\"
+	if len(display) > len(disabledPrefix) && strings.EqualFold(display[:len(disabledPrefix)], disabledPrefix) {
+		return display[len(disabledPrefix):], nil
+	}
+	return display, nil
+}
+
 func addonListKeyForVPKPathFromRoot(rootDir, filePath string) (string, error) {
 	if rootDir == "" {
 		return "", fmt.Errorf("未选择L4D2目录")
@@ -892,7 +910,11 @@ func workshopAddonListKey(workshopID string) string {
 
 // updateAddonListEntriesLocked applies removals and value updates in one
 // preserved-format write. The caller must hold addonListGuardMu.
-func (a *App) updateAddonListEntriesLocked(values map[string]string, removals []string) error {
+//
+// values 的键是大小写无关的匹配键；displayNames 可选，提供"匹配键 → 磁盘真实拼写"，
+// 只在条目不存在、需要新插入时使用。不传就会用小写键插入 —— 那正是 community.25
+// 修过的同一类问题（禁用 → 启用一个含大写的 Mod，条目会以小写形式回来）。
+func (a *App) updateAddonListEntriesLocked(values map[string]string, removals []string, displayNames map[string]string) error {
 	path, err := a.addonListPath()
 	if err != nil {
 		return err
@@ -935,8 +957,12 @@ func (a *App) updateAddonListEntriesLocked(values map[string]string, removals []
 	sort.Strings(keys)
 	for _, key := range keys {
 		value := normalizedValues[key]
+		entryName := strings.TrimSpace(displayNames[key])
+		if entryName == "" {
+			entryName = key
+		}
 		var replaced bool
-		updated, replaced, err = replaceAddonListValue(updated, key, value)
+		updated, replaced, err = replaceAddonListValueWithName(updated, key, entryName, value)
 		if err != nil {
 			return err
 		}
@@ -952,9 +978,15 @@ func (a *App) updateAddonListEntriesLocked(values map[string]string, removals []
 }
 
 func (a *App) updateAddonListEntries(values map[string]string, removals []string) error {
+	return a.updateAddonListEntriesWithNames(values, removals, nil)
+}
+
+// updateAddonListEntriesWithNames 与 updateAddonListEntries 相同，但允许调用方
+// 给"需要新插入"的条目指定磁盘真实拼写（见 updateAddonListEntriesLocked 的说明）。
+func (a *App) updateAddonListEntriesWithNames(values map[string]string, removals []string, displayNames map[string]string) error {
 	a.addonListGuardMu.Lock()
 	defer a.addonListGuardMu.Unlock()
-	return a.updateAddonListEntriesLocked(values, removals)
+	return a.updateAddonListEntriesLocked(values, removals, displayNames)
 }
 
 func (a *App) cleanupAddonListForRemovedVPK(filePath string, cachedFile *VPKFile) error {

@@ -1,5 +1,50 @@
 # Changelog
 
+## 2.7.1-community.27 — 2026-09-30
+
+**addonlist 条目名/前缀被写错的三条链路：禁用→启用会把含大写的条目写成小写、
+「复制到 addons」新建的条目也是小写、工坊文件改名或隐藏后条目丢了 `workshop\` 前缀。**
+
+真机复现（沙箱里造了两个含大写的测试 Mod：根目录 `ZzTest_MixedCase.VPK`、
+工坊 `WsTest_MixedCase.VPK`）：
+
+```
+禁用 → 启用           "ZzTest_MixedCase.VPK"   →  "zztest_mixedcase.vpk"        ← 丢磁盘拼写
+复制到 addons         ZzTest_Workshop_Copy.VPK →  "zztest_workshop_copy.vpk"   ← 同上
+工坊改名              "workshop\WsTest_...vpk" →  "WsTest_..._Renamed.vpk"     ← 丢了 workshop\ 前缀
+工坊隐藏              "workshop\555000222.vpk" →  "_555000222.vpk"             ← 同上
+```
+
+前两条与 community.25 是同一类问题的另一条入口：`updateAddonListEntries` 把 values 的键
+同时当成"匹配键"和"新条目名"，于是**需要新插入**的条目一律用小写键。后两条是
+`RenameVPKFile` / `ToggleVPKVisibility` 用 `filepath.Base(newPath)` 当条目名，
+工坊文件的前缀就这么丢了 —— 条目于是指向根目录里一个不存在的文件，游戏直接忽略它。
+
+修复：
+
+- `updateAddonListEntries` 增加可选的 `displayNames`（匹配键 → 磁盘真实拼写），
+  只在需要插入新条目时使用；新增 `updateAddonListEntriesWithNames` 供调用方传拼写。
+  `ToggleVPKFile`（启用）与「复制到 addons」都改走它。
+- 新增 `addonListDisplayKeyForManagedVPKPathFromRoot`（与受管键同源，但返回真实拼写，
+  disabled 目录仍记成裸文件名）；`RenameVPKFile` / `ToggleVPKVisibility` 用它当新条目名。
+- `ToggleVPKVisibility` 顺带补上扫描缓存更新 —— 原来只有 `RenameVPKFile` 会更新，
+  隐藏成功后立刻读 `GetVPKFiles()` 还是旧路径/旧名字（界面靠重扫掩盖了这一点）。
+
+### 验证
+
+- 新增 4 个 Go 回归测试（禁用→启用保留拼写、复制到 addons 保留拼写、
+  工坊改名/隐藏保留 `workshop\` 前缀、隐藏后扫描缓存同步）；修复前均失败，修复后全绿
+- `go test ./... -count=1` / `go vet ./...` 全绿；`npm run build` / `wails build` 通过
+- 真机（打包 EXE + 沙箱 APPDATA + 测试库，真实库零写入）6/6 PASS，并直接读回沙箱
+  `addonlist.txt`（GBK）核对原文：
+
+```
+line 16 | "ZzTest_MixedCase.VPK"                    "1"   ← 禁用→启用后仍是大写
+line 17 | "workshop\WsTest_MixedCase_Renamed.VPK"   "1"   ← 工坊改名后前缀与拼写都在
+line  4 | "zztest_rifle_b.vpk"                      "1"   ← 隐藏→显示可还原
+中文条目仍可正常解码（GBK 编码没有被改坏）
+```
+
 ## 2.7.1-community.26 — 2026-09-30
 
 **窄窗口下底部状态栏被压成「一列一个字」；主列表卡片徽标与创意工坊卡片标题写死宽度，
