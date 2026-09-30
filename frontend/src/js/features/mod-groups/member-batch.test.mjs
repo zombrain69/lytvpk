@@ -62,17 +62,28 @@ test("未记录在 addonlist 的成员单独计数，供确认弹窗提示", () 
   assert.deepEqual(targets.gameUnrecorded, ["E:/addons/new.vpk"]);
 });
 
-test("按钮可用性与「为什么不能点」的文案", () => {
+test("一个成员都没勾选时，按钮理由说的是「还没选」", () => {
   const none = describeMemberBatchActions(collectMemberBatchTargets([], index));
-  const byId = Object.fromEntries(none.map((item) => [item.id, item]));
-  assert.equal(byId["game-on"].disabled, true);
-  assert.equal(byId.enable.disabled, true);
-  assert.equal(byId.disable.disabled, true);
-  assert.equal(byId.transfer.disabled, true);
-  assert.equal(byId.remove.disabled, true);
-  assert.match(byId.enable.title, /disabled 目录/);
-  assert.match(byId.disable.title, /addons 根目录/);
-  assert.match(byId.transfer.title, /创意工坊/);
+  // 真机联调：没勾选时原来会说"没有可禁用的成员：只有 addons 根目录里的 Mod 能搬进 disabled"，
+  // 答非所问。六个按钮的理由应与组级批量条同形（先勾选）。
+  assert.deepEqual(
+    none.map((item) => item.id),
+    ["game-on", "game-off", "enable", "disable", "transfer", "remove"],
+    "返回顺序要与界面上的按钮顺序一致",
+  );
+  for (const item of none) {
+    assert.equal(item.disabled, true, `${item.id} 没勾选时应不可点`);
+    assert.match(item.title, /先勾选/, `${item.id} 的理由应说明"还没勾选"`);
+  }
+});
+
+test("勾了成员但某个动作不适用时，说明具体原因", () => {
+  const onlyRoot = describeMemberBatchActions(collectMemberBatchTargets(["root_a.vpk"], index));
+  const rootById = Object.fromEntries(onlyRoot.map((item) => [item.id, item]));
+  assert.equal(rootById.disable.disabled, false, "根目录成员可以禁用");
+  assert.equal(rootById.enable.disabled, true);
+  assert.match(rootById.enable.title, /disabled 目录/);
+  assert.match(rootById.transfer.title, /创意工坊/);
 
   const onlyDisabled = describeMemberBatchActions(
     collectMemberBatchTargets(["off.vpk"], index),

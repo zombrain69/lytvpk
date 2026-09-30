@@ -68,12 +68,28 @@ export function formatMemberBatchSelectionLabel(count) {
   return total > 0 ? `已选 ${total} 个成员` : "先在成员行左侧勾选 Mod";
 }
 
+// 成员批量条上的按钮顺序（与 index.html 一致）。
+const MEMBER_BATCH_ACTION_IDS = ["game-on", "game-off", "enable", "disable", "transfer", "remove"];
+
+// 一个成员都没勾选时，六个按钮的理由都是"还没选"。
+// 组级批量条（strategy-group-manager.js）也是这套说法，两处保持一致。
+const MEMBER_BATCH_EMPTY_TITLE = "先勾选要批量操作的成员（每行最左边的方框，或点「全选成员」）";
+
 /**
  * describeMemberBatchActions 算出每个批量按钮是否可点、不可点时为什么。
  * 返回顺序与界面上的按钮顺序一致。
  */
 export function describeMemberBatchActions(targets) {
   const t = targets || {};
+  if ((t.total || 0) === 0) {
+    // 原来这里回的是"没有可禁用的成员：只有 addons 根目录里的 Mod 能搬进 disabled" ——
+    // 用户还没勾任何东西，这句话答非所问（真机联调时在策略组管理窗口复现）。
+    return MEMBER_BATCH_ACTION_IDS.map((id) => ({
+      id,
+      disabled: true,
+      title: MEMBER_BATCH_EMPTY_TITLE,
+    }));
+  }
   const game = (t.game || []).length;
   const enable = (t.enable || []).length;
   const disable = (t.disable || []).length;
