@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.7.1-community.21 — 2026-09-30
+
+**面板上传失败时把整页 HTML 错误页原样塞进了任务提示。**
+
+真机复现（本地 mock 面板对 `/upload/init` 返回 500 + 886 字节 HTML，模拟反向代理/网关挡下来）：
+
+```
+panel map upload task.error（899 字）：
+面板请求失败(500): <html><head><title>500 Internal Server Error</title></head><body>
+<center><h1>500 Internal Server Error</h1></center><hr><center>nginx/1.24.0</center>…
+```
+
+两处同样的写法（上传接口 `panel_upload.go`、普通面板 API `server_panel.go`）
+都是 `面板请求失败(%d): %s` 直接拼响应体，没有长度上限、也不区分 HTML。
+
+修复后同一场景：
+
+```
+面板请求失败(500)：面板返回了 HTML 错误页（通常是反向代理或网关的错误）；
+请检查面板服务是否正常、地址是否指向了正确端口。      ← 66 字
+```
+
+- 新增 `describePanelErrorBody`：HTML（`<!doctype` / `<html` / `</html>`）换成一句说明；
+  纯文本折掉换行与连续空白并截断到 160 字；空正文交给调用方回退成状态行
+- 两处调用点统一走它，错误提示里不再出现整页标记
+
+### 验证
+
+- 新增 `panel_error_body_test.go`（2 项）：用 `httptest` 造 500+HTML 的响应，
+  断言提示是中文说明、不含 `<html`/`<!--`、长度 ≤200 字；纯文本折叠与截断
+- 真机（沙箱 + 本地 mock 面板，真实库零写入）：899 字 HTML → 66 字中文可行动提示
+- `go test ./...` 全绿；`node --test` 434 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.20 — 2026-09-30
 
 **压缩包「移动到目录」失败时前缀重复了两次，读起来像机器拼接的。**

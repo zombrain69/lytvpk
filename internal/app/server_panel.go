@@ -388,14 +388,38 @@ func (a *App) panelPostRequest(serverID string, endpoint string, configure func(
 		return response, fmt.Errorf("没有权限执行该面板操作")
 	}
 	if !response.IsSuccess() {
-		body := strings.TrimSpace(response.String())
-		if body == "" {
-			body = response.Status()
+		detail := describePanelErrorBody(response.String())
+		if detail == "" {
+			detail = response.Status()
 		}
-		return response, fmt.Errorf("面板请求失败(%d): %s", response.StatusCode(), body)
+		return response, fmt.Errorf("面板请求失败(%d)：%s", response.StatusCode(), detail)
 	}
 
 	return response, nil
+}
+
+// describePanelErrorBody 把面板/网关返回的错误正文压成一句人话。
+//
+// 真机复现：上传接口被反向代理挡下时返回 500 + 886 字节 HTML，
+// 上传任务里直接显示整页 `<html>…</html>`，用户既看不懂也看不到重点。
+// HTML 一律换成一句说明；纯文本折掉换行并截断，避免超长响应体占满提示。
+func describePanelErrorBody(body string) string {
+	text := strings.TrimSpace(body)
+	if text == "" {
+		return ""
+	}
+	lower := strings.ToLower(text)
+	if strings.HasPrefix(lower, "<!doctype") || strings.HasPrefix(lower, "<html") ||
+		strings.Contains(lower, "</html>") {
+		return "面板返回了 HTML 错误页（通常是反向代理或网关的错误）；请检查面板服务是否正常、地址是否指向了正确端口。"
+	}
+	text = strings.Join(strings.Fields(text), " ")
+	const panelErrorBodyLimit = 160
+	runes := []rune(text)
+	if len(runes) > panelErrorBodyLimit {
+		text = string(runes[:panelErrorBodyLimit]) + "…"
+	}
+	return text
 }
 
 func normalizePanelBaseURL(raw string) (string, error) {

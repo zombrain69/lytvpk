@@ -703,10 +703,11 @@ func doPanelUploadRequest(req *http.Request, result interface{}) (string, error)
 		return "", fmt.Errorf("没有权限执行该面板操作")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		if bodyText == "" {
-			bodyText = resp.Status
+		detail := describePanelErrorBody(bodyText)
+		if detail == "" {
+			detail = resp.Status
 		}
-		return "", fmt.Errorf("面板请求失败(%d): %s", resp.StatusCode, bodyText)
+		return "", fmt.Errorf("面板请求失败(%d)：%s", resp.StatusCode, detail)
 	}
 
 	if result != nil && len(body) > 0 {
