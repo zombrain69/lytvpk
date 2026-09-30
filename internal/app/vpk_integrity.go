@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"vpk-manager/internal/parser"
 	"vpk-manager/internal/platform/protocol"
@@ -38,25 +40,125 @@ type VPKRepairBatchResult struct {
 	Error             string                           `json:"error,omitempty"`
 }
 
-// InspectVPKIntegrity scans one VPK for structural, checksum, encoding and
-// game-facing addoninfo.txt problems.
-func (a *App) InspectVPKIntegrity(filePath string) (parser.VPKIntegrityReport, error) {
-	return parser.InspectVPKIntegrity(filePath)
+// vpkIntegrityCacheEntry 是一次校验结果的记忆化条目。
+//
+// 键用 (路径, 大小, 修改时间)：文件没被动过就直接复用上一次的结论。
+// 这条缓存是"启用游戏内 Mod 之前先做风险提示"能便宜下来的关键 ——
+// 同一个包第二次、第三次启用时是 0 成本，而不是把整包再读一遍。
+type vpkIntegrityCacheEntry struct {
+	size    int64
+	modTime time.Time
+	report  parser.VPKIntegrityReport
 }
+
+type vpkIntegrityCache struct {
+	mu      sync.Mutex
+	entries map[string]vpkIntegrityCacheEntry
+}
+
+func integrityCacheKey(filePath string) string {
+	return strings.ToLower(filepath.Clean(filePath))
+}
+
+func (c *vpkIntegrityCache) lookup(filePath string, info os.FileInfo) (parser.VPKIntegrityReport, bool) {
+	if info == nil {
+		return parser.VPKIntegrityReport{}, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.entries[integrityCacheKey(filePath)]
+	if !ok {
+		return parser.VPKIntegrityReport{}, false
+	}
+	if entry.size != info.Size() || !entry.modTime.Equal(info.ModTime()) {
+		return parser.VPKIntegrityReport{}, false
+	}
+	return cloneIntegrityReport(entry.report), true
+}
+
+func (c *vpkIntegrityCache) store(filePath string, info os.FileInfo, report parser.VPKIntegrityReport) {
+	if info == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = make(map[string]vpkIntegrityCacheEntry)
+	}
+	c.entries[integrityCacheKey(filePath)] = vpkIntegrityCacheEntry{
+		size:    info.Size(),
+		modTime: info.ModTime(),
+		report:  cloneIntegrityReport(report),
+	}
+}
+
+// cloneIntegrityReport 复制一份结果：Issues 是切片，直接返回会让调用方改到缓存里的那份。
+func cloneIntegrityReport(report parser.VPKIntegrityReport) parser.VPKIntegrityReport {
+	cloned := report
+	if len(report.Issues) > 0 {
+		cloned.Issues = append([]parser.VPKIntegrityIssue(nil), report.Issues...)
+	}
+	return cloned
+}
+
+// InspectVPKIntegrity scans one VPK for structural, encoding and game-facing
+// addoninfo.txt problems，并按 (路径, 大小, 修改时间) 复用上一次的结果。
+//
+// 索引级校验本身已经是 O(条目数)；缓存再兜住"同一个包被反复启用/禁用"的场景。
+func (a *App) InspectVPKIntegrity(filePath string) (parser.VPKIntegrityReport, error) {
+	info, statErr := os.Stat(filePath)
+	if statErr != nil {
+		// 交给 parser 产出统一的中文错误文案（路径为空 / 不是 .vpk / 文件不存在）。
+		return parser.InspectVPKIntegrity(filePath)
+	}
+	if cached, ok := a.integrityCache.lookup(filePath, info); ok {
+		return cached, nil
+	}
+	report, err := parser.InspectVPKIntegrity(filePath)
+	if err != nil {
+		return report, err
+	}
+	a.integrityCache.store(filePath, info, report)
+	return report, nil
+}
+
+// integrityBatchWorkers 是批量校验的并发度：校验是"读索引 + 少量随机读"，
+// 并发几路就能把多个大包的等待重叠起来，又不会把磁盘打满。
+const integrityBatchWorkers = 4
 
 // InspectVPKIntegrityBatch checks each selected VPK independently and keeps
 // processing after an individual path fails.
+//
+// 并发执行（老实现是串行 for 循环：选 3 个 1GB 的包就是十几分钟起步），
+// 每个路径的结论仍然按 (路径, 大小, 修改时间) 记忆化，结果顺序与请求一致。
 func (a *App) InspectVPKIntegrityBatch(filePaths []string) []VPKIntegrityBatchResult {
 	paths := uniqueVPKIntegrityPaths(filePaths)
-	results := make([]VPKIntegrityBatchResult, 0, len(paths))
-	for _, filePath := range paths {
-		report, err := parser.InspectVPKIntegrity(filePath)
-		item := VPKIntegrityBatchResult{Path: filePath, Report: report}
-		if err != nil {
-			item.Error = err.Error()
-		}
-		results = append(results, item)
+	results := make([]VPKIntegrityBatchResult, len(paths))
+	if len(paths) == 0 {
+		return results
 	}
+
+	workers := integrityBatchWorkers
+	if workers > len(paths) {
+		workers = len(paths)
+	}
+	slots := make(chan struct{}, workers)
+	var wg sync.WaitGroup
+	for index, filePath := range paths {
+		wg.Add(1)
+		slots <- struct{}{}
+		go func(index int, filePath string) {
+			defer wg.Done()
+			defer func() { <-slots }()
+			report, err := a.InspectVPKIntegrity(filePath)
+			item := VPKIntegrityBatchResult{Path: filePath, Report: report}
+			if err != nil {
+				item.Error = err.Error()
+			}
+			results[index] = item
+		}(index, filePath)
+	}
+	wg.Wait()
 	return results
 }
 

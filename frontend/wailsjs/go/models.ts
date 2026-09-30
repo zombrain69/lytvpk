@@ -4955,6 +4955,7 @@ export namespace parser {
 	    name: string;
 	    valid: boolean;
 	    totalFiles: number;
+	    scanMode: string;
 	    verifiedFiles: number;
 	    addonInfoFound: boolean;
 	    addonInfoValid: boolean;
@@ -4971,6 +4972,7 @@ export namespace parser {
 	        this.name = source["name"];
 	        this.valid = source["valid"];
 	        this.totalFiles = source["totalFiles"];
+	        this.scanMode = source["scanMode"];
 	        this.verifiedFiles = source["verifiedFiles"];
 	        this.addonInfoFound = source["addonInfoFound"];
 	        this.addonInfoValid = source["addonInfoValid"];

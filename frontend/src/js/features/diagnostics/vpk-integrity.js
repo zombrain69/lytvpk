@@ -325,7 +325,10 @@ function createRepairMetadataSummary(summary = {}) {
 function createIntegrityStats(report = {}) {
   const stats = document.createElement("p");
   stats.className = "vpk-integrity-stats";
-  stats.textContent = `目录文件 ${Number(report.totalFiles || 0)} 个，已校验 ${Number(report.verifiedFiles || 0)} 个；addoninfo.txt ${report.addonInfoFound ? (report.addonInfoValid ? "有效" : "无效") : "缺失"}。`;
+  // 默认是索引级校验（读目录表 + 每个条目末尾一字节 + addoninfo.txt），不做整包 CRC；
+  // 说清是哪种，免得用户以为"已校验 M 个"连数据都读过了。
+  const scanLabel = report.scanMode === "full" ? "整包" : "索引级";
+  stats.textContent = `目录文件 ${Number(report.totalFiles || 0)} 个，已校验 ${Number(report.verifiedFiles || 0)} 个（${scanLabel}校验）；addoninfo.txt ${report.addonInfoFound ? (report.addonInfoValid ? "有效" : "无效") : "缺失"}。`;
   return stats;
 }
 

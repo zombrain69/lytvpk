@@ -195,9 +195,9 @@ type App struct {
 	openWithProgram   string
 	openWithArguments string
 	// mainWindowWidth / mainWindowHeight / mainWindowMaximised 记住主窗口几何（nil 表示没记录过）。
-	mainWindowWidth     *int
-	mainWindowHeight    *int
-	mainWindowMaximised *bool
+	mainWindowWidth        *int
+	mainWindowHeight       *int
+	mainWindowMaximised    *bool
 	theme                  string
 	ignoredVersion         string
 	lastUpdateCheckTime    string
@@ -208,20 +208,20 @@ type App struct {
 	problemScanPath        string
 	// workshopHistoryPath 是"工坊解析历史"文件（最近 10 次解析结果的快照）。
 	workshopHistoryPath string
-	profilesPath           string
-	profilesMu             sync.Mutex
+	profilesPath        string
+	profilesMu          sync.Mutex
 	// workshopHistoryMu 串行化解析历史的读写（避免两次写入互相覆盖）。
 	workshopHistoryMu sync.Mutex
 	// serverStorageMu 串行化服务器收藏的读改写（深链添加与前端保存可能同时发生）。
-	serverStorageMu sync.Mutex
-	groupsPath             string
-	groupsMu               sync.Mutex
-	dependenciesPath       string
-	dependenciesMu         sync.Mutex
-	priorityPath           string
-	priorityMu             sync.Mutex
-	ignorePath             string
-	ignoreMu               sync.Mutex
+	serverStorageMu  sync.Mutex
+	groupsPath       string
+	groupsMu         sync.Mutex
+	dependenciesPath string
+	dependenciesMu   sync.Mutex
+	priorityPath     string
+	priorityMu       sync.Mutex
+	ignorePath       string
+	ignoreMu         sync.Mutex
 	// localStoreBackup* 是本地记录备份轮转的可注入参数（测试用于控制时钟、间隔、上限与删除方式）。
 	localStoreBackupClock    func() time.Time
 	localStoreBackupInterval time.Duration
@@ -234,13 +234,16 @@ type App struct {
 	// stockIndex 懒加载「游戏本体文件索引」（标签识别的精确证据来源）。
 	// 加载失败时保持 nil —— 所有依赖它的判定自动跳过，不影响既有标签产出。
 	stockIndex stockIndexCache
+	// integrityCache 记忆化 VPK 完整性校验结果（键 = 路径 + 大小 + 修改时间）。
+	// 「启用游戏内 Mod」之前的风险提示会反复问同一个包，没有它就要反复读盘。
+	integrityCache vpkIntegrityCache
 	// collectionsPath / collectionsMu 管理"工坊合集实体化"记录。
 	collectionsPath string
 	// downloadTasksPath 是下载任务快照（download_tasks.json）的路径。
 	downloadTasksPath string
 	// fileOpsMu 是文件操作（移动 / 删除 / 打包）的互斥闸门，见 file_op_gate.go。
-	fileOpsMu sync.Mutex
-	collectionsMu     sync.Mutex
+	fileOpsMu     sync.Mutex
+	collectionsMu sync.Mutex
 	// workshopDetailsFetcher 允许测试注入工坊详情获取器（默认走真实接口）。
 	workshopDetailsFetcher workshopDetailFetcher
 	// workshopItemDetailFetcher 允许测试注入"单个作品详情"获取器（更新检测用，默认走真实接口）。
@@ -430,8 +433,8 @@ func NewApp() *App {
 		configPath:                      configPath,
 		serversPath:                     serversPath,
 		workshopWatchLaterPath:          workshopWatchLaterPath,
-	problemScanPath:                 problemScanPath,
-	workshopHistoryPath:             workshopHistoryPath,
+		problemScanPath:                 problemScanPath,
+		workshopHistoryPath:             workshopHistoryPath,
 		profilesPath:                    profilesPath,
 		groupsPath:                      groupsPath,
 		dependenciesPath:                dependenciesPath,
