@@ -1,5 +1,48 @@
 # Changelog
 
+## 未发布 — 策略组：建子组不再虚报成员数 + 补上「删父组不动子组成员」回归测试（2026-10-01）
+
+**背景**：`docs/development/manual-verification.md` §12 最后一项「删除一个还有下级分组的上级 →
+成员与策略不受影响」在 CUA 探针里一直报 FAIL，需要判定是产品缺陷还是探针问题。
+
+### 一、判定：不是产品缺陷，是探针用错了 API
+
+`DeleteModStrategyGroup` 只做两件事：移除该组、把子组的 `parentId` 清空 —— **没有任何一行碰 `Members`**。
+
+探针失败的真实原因是它把 addonlist **键**（`zztest_rifle_b.vpk`）传给了 `CreateModStrategyGroupChild`：
+这个接口收的是**受管目录内的绝对路径**（`modStrategyGroupMemberFromPath` →
+`addonListKeyForManagedVPKPathFromRoot`，相对路径直接报错），而建组循环对解析失败的成员是
+`continue`（子组允许没有成员），于是「建组后成员本来就是 0」，最后被误判成「删父组清空了成员」。
+
+修正后的探针改用 `SetModStrategyGroupMembers(id, [键])`（语义与界面上的「加入策略组…」一致），
+并把「子组回到顶层」也一起断言。
+
+### 二、真问题：建子组的提示拿「勾选数」当「入组数」
+
+`strategy-group-manager.js` 建完子组后报的是 `selected.length`（Mod 管理页勾选个数），不是后端真正
+收下的成员数。选择里混进失效路径时后端会静默丢成员，提示照样报满 —— 真机上就是「提示含 3 个 Mod，
+点开只有 1 个」。
+
+修复：改为报 `created.members.length`，差值用「另有 N 个无法加入」说出来；与「批量启用/禁用只报实际
+成功数 + 第一个失败原因」的既有口径一致。
+
+### 三、测试
+
+- `internal/app/mod_group_lifecycle_test.go` 新增 `TestDeleteModStrategyGroupPreservesChildGroupMembers`：
+  3 个成员（含 `workshop\123.vpk`）的子组，删父组后成员键与显示名逐项不变、`parentId` 变空 ——
+  这是原有测试没有覆盖的数据丢失级回归点。
+- `strategy-group-batch.test.mjs` 增加两条断言：提示必须取实际入组数、被丢掉的成员要有说明。
+
+### 四、本轮跑过的验证
+
+```
+go test ./... -count=1                 全 ok
+go test -race ./internal/app -count=1  ok（无数据竞争）
+go vet ./internal/app                  无输出
+node --test（frontend/）                481 项 / 0 失败
+npm run build（frontend/）              通过（仅既有 chunk 体积警告）
+```
+
 ## 2.7.1-community.49 — 2026-10-01
 
 这一版是三处"底层链路 / 可读性"问题的批量修复（用仓库内置的 CUA 调试桥做的实机复验）。

@@ -468,6 +468,54 @@ func TestDeleteModStrategyGroupReattachesChildGroups(t *testing.T) {
 	}
 }
 
+// 删除父组只允许改层级，绝不能顺手清掉子组的成员 —— 那是用户数据丢失级别的问题。
+// 对应 manual-verification.md §12 的最后一项（CUA 探针曾把它误判成 FAIL）。
+func TestDeleteModStrategyGroupPreservesChildGroupMembers(t *testing.T) {
+	a, addonsDir := newPriorityTestApp(t)
+	parent, err := a.CaptureModStrategyGroup("父组", "", modStrategyGroupAll, []string{
+		filepath.Join(addonsDir, "a.vpk"),
+	})
+	if err != nil {
+		t.Fatalf("capture parent: %v", err)
+	}
+	child, err := a.CreateModStrategyGroupChild(parent.ID, "子组", modStrategyGroupSingle, []string{
+		filepath.Join(addonsDir, "b.vpk"),
+		filepath.Join(addonsDir, "c.vpk"),
+		filepath.Join(addonsDir, "workshop", "123.vpk"),
+	})
+	if err != nil {
+		t.Fatalf("create child: %v", err)
+	}
+	before, err := a.findModStrategyGroup(child.ID)
+	if err != nil {
+		t.Fatalf("find child before delete: %v", err)
+	}
+	if len(before.Members) != 3 {
+		t.Fatalf("子组应有 3 个成员: %#v", before.Members)
+	}
+
+	if err := a.DeleteModStrategyGroup(parent.ID); err != nil {
+		t.Fatalf("delete parent: %v", err)
+	}
+
+	after, err := a.findModStrategyGroup(child.ID)
+	if err != nil {
+		t.Fatalf("子组不应被连带删除: %v", err)
+	}
+	if after.ParentID != "" {
+		t.Fatalf("子组应回到顶层: parentId=%q", after.ParentID)
+	}
+	if got, want := groupMemberKeys(after), groupMemberKeys(before); !reflect.DeepEqual(got, want) {
+		t.Fatalf("删除父组不应改动子组成员\n删除前: %#v\n删除后: %#v", want, got)
+	}
+	// 成员顺序与显示名也要保持原样（顺序来自建组时的勾选顺序）。
+	for index, member := range after.Members {
+		if member.Name != before.Members[index].Name {
+			t.Fatalf("第 %d 个成员的显示名变了: %q → %q", index, before.Members[index].Name, member.Name)
+		}
+	}
+}
+
 func TestDeleteModStrategyGroupKeepsAddonListUntouched(t *testing.T) {
 	a, addonsDir := newPriorityTestApp(t)
 	group, err := a.CaptureModStrategyGroup("只删记录", "", modStrategyGroupAll, []string{

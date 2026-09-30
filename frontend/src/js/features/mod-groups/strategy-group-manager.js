@@ -982,10 +982,17 @@ function bindRowActions() {
             }
             try {
               const created = await CreateModStrategyGroupChild(parentId, name, "single", selected);
+              // 后端只会收下能解析成 addonlist 键的成员：选择里混进失效路径时会被静默丢掉。
+              // 所以这里必须报"实际入组数"，否则提示会拿勾选数骗人（真机联调时踩到过）。
+              const added = Array.isArray(created?.members) ? created.members.length : selected.length;
+              const dropped = Math.max(0, selected.length - added);
+              const groupLabel = `已在「${parentName}」下创建子组「${created?.name || name}」`;
               showNotification(
-                selected.length > 0
-                  ? `已在「${parentName}」下创建子组「${created?.name || name}」（含 ${selected.length} 个 Mod）`
-                  : `已在「${parentName}」下创建子组「${created?.name || name}」`,
+                dropped > 0
+                  ? `${groupLabel}（加入 ${added} 个 Mod，另有 ${dropped} 个无法加入）`
+                  : added > 0
+                    ? `${groupLabel}（含 ${added} 个 Mod）`
+                    : groupLabel,
                 "success",
               );
               await reload();

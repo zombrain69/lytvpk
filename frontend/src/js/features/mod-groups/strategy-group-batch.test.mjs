@@ -256,6 +256,9 @@ test("每组都有「＋ 子组」快捷入口，走 CreateModStrategyGroupChild
   assert.match(managerSource, /showPromptModal\(\s*"新建子组"/, "新建子组要用应用内输入弹窗");
   // 没勾 Mod 时允许建空子组，并在弹窗里说明。
   assert.match(managerSource, /现在没有勾选 Mod，会先建一个空子组/, "空子组要说明");
+  // 后端会静默丢掉解析不了的成员：提示必须报实际入组数，并把丢掉的个数说出来。
+  assert.match(managerSource, /const added = Array\.isArray\(created\?\.members\) \? created\.members\.length/, "提示要取实际入组数");
+  assert.match(managerSource, /另有 \$\{dropped\} 个无法加入/, "被丢掉的成员要说明");
 });
 
 test("应用策略前先预检（对齐 FireAxe CheckEnableStrategy）", () => {
