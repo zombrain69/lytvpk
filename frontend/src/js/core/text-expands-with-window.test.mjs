@@ -146,3 +146,67 @@ test("文字/任务区跟随窗口高度，不再固定高度", () => {
   }
   assert.deepEqual(offenders, [], `这些文字区不会随窗口变大：\n${offenders.join("\n")}`);
 });
+
+// 第四类"缩着"：中文可以在任意两个字之间断行，flex 项的自动最小宽度会缩到 1 个字宽，
+// 于是窗口不够宽时，一排统计项会被压成"一列一个字"（实测：每项 17px 宽、139px 高）。
+// 修法是「条目内部不许换行 + 放不下整条换行」。
+test("底部状态栏的统计项不会被压成一列一个字", () => {
+  const mods = read("app/mods.css");
+  const info = mods.match(/\.status-info\s*\{[^}]*\}/s)?.[0] || "";
+  assert.ok(info, "没找到 .status-info 规则");
+  assert.match(info, /flex-wrap:\s*wrap/, "统计区要允许整条换行，否则只能挤压每一条");
+  const span = mods.match(/\.status-info span\s*\{[^}]*\}/s)?.[0] || "";
+  assert.ok(span, "没找到 .status-info span 规则");
+  assert.match(span, /white-space:\s*nowrap/, "统计项内部不许断行，否则会一字一行");
+});
+
+// 第五类"缩着"：卡片徽标（主体/优先级/分组/冲突角标…）原来写死 max-width，
+// 卡片变宽、窗口变宽都不会展开，只能用省略号收尾。
+const CARD_BADGE_RULES = [
+  [".card-badge", /max-width:\s*100%/],
+  [".card-badge.subject-badge", /max-width:\s*100%/],
+  [".card-badge.secondary-tag-badge.is-long", /max-width:\s*100%/],
+  [".card-badge.xdr-badge", /max-width:\s*100%/],
+  [".mod-conflict-badge", /max-width:\s*100%/],
+];
+
+test("卡片徽标不再写死宽度，能跟着卡片展开", () => {
+  const mods = read("app/mods.css");
+  const offenders = [];
+  for (const [selector, expected] of CARD_BADGE_RULES) {
+    const blocks = selectorBlocks(mods, selector);
+    if (blocks.length === 0) {
+      offenders.push(`${selector}: 规则不存在`);
+      continue;
+    }
+    const merged = blocks.join("\n");
+    if (/max-width:\s*[0-9.]+(rem|px)/.test(merged)) {
+      offenders.push(`${selector}: 仍然写死 max-width（窗口/卡片变宽也不会展开）`);
+      continue;
+    }
+    if (!expected.test(merged)) {
+      offenders.push(`${selector}: 缺少 max-width: 100%`);
+    }
+  }
+  assert.deepEqual(offenders, [], `这些徽标不会随卡片展开：\n${offenders.join("\n")}`);
+});
+
+// 第六类"缩着"：两条同名规则互相顶掉。
+// Mod 列表卡片的 .card-title 是单行 nowrap，创意工坊卡片的 .card-title 是两行截断；
+// 前者不限定作用域时会跟着创意工坊一起生效，把工坊卡片标题压成一行。
+test("Mod 卡片的单行标题不会顶掉创意工坊卡片的两行标题", () => {
+  const mods = read("app/mods.css");
+  const workshop = read("app/workshop-browser.css");
+
+  const modTitle = mods.match(/(^|\n)([^\n{}]*\.card-title)\s*\{[^}]*\}/s)?.[0] || "";
+  assert.ok(modTitle, "没找到 mods.css 里的 .card-title 规则");
+  assert.match(
+    modTitle,
+    /\.file-card\s+\.card-title\s*\{/,
+    "Mod 卡片的标题规则要限定在 .file-card 内，否则会波及创意工坊卡片",
+  );
+
+  const workshopTitle = workshop.match(/\.card-title\s*\{[^}]*\}/s)?.[0] || "";
+  assert.ok(workshopTitle, "没找到 workshop-browser.css 里的 .card-title 规则");
+  assert.match(workshopTitle, /-webkit-line-clamp:\s*2/, "创意工坊卡片标题要保留两行截断");
+});

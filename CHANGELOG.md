@@ -1,5 +1,50 @@
 # Changelog
 
+## 2.7.1-community.26 — 2026-09-30
+
+**窄窗口下底部状态栏被压成「一列一个字」；主列表卡片徽标与创意工坊卡片标题写死宽度，
+窗口拉宽也不展开。**
+
+三处都是真机把窗口在「窄 1150×880 ↔ 宽 1920×1040」之间来回拉时抓到的：
+
+```
+底部状态栏   每项 17px 宽 × 139px 高（一字一行）   → 修复后 80×23，整条换行
+卡片徽标     max-width 写死 8.5rem / 14rem / 15rem → 修复后能用满可用宽度
+工坊卡片标题 被 Mod 列表的同名 .card-title 顶成一行 → 修复后恢复两行截断
+```
+
+根因：
+
+1. `.status-info` 是 flex 但没开 `flex-wrap`，条目也没设 `white-space`。中文可以在任意
+   两个字之间断行，flex 项的自动最小宽度（min-content）因此只有 1 个字宽 —— 统计项被压成竖排。
+2. `.card-badge`（含 subject / xdr / secondary-tag / mod-conflict 变体）写死了 `max-width`，
+   卡片变宽、窗口变宽，文字都不会跟着展开。
+3. `mods.css` 的 `.card-title` 没限定作用域，把创意工坊卡片自己的 `-webkit-line-clamp: 2`
+   顶掉了（同名规则：后加载的工坊规则 display 生效，white-space 仍被前者覆盖）。
+
+修复：
+
+- `.status-info` 加 `flex-wrap: wrap`，`.status-info span` 加 `white-space: nowrap`，
+  `.status-bar` 也允许整体换行 —— 放不下时整条换行，而不是把每一条压扁。
+- 卡片徽标统一改成 `max-width: 100%`（实际上限交给父级 `.card-badges` 的
+  `calc(100% - 52px)` 与自动换行决定），省略号与悬停全文保持不变。
+- `mods.css` 的标题规则限定为 `.file-card .card-title`，工坊卡片标题恢复两行截断。
+
+### 验证
+
+- 前端 `node --test` 437 项全绿（新增 3 项：状态栏不竖排、徽标不写死宽度、标题规则不越界）
+- `go test ./... -count=1` / `go vet ./...` 全绿；`npm run build` / `wails build` 通过
+- 真机（打包 EXE + 沙箱 APPDATA + 测试库自造 VPK，真实库零写入）：
+  - 宽窄全量表扫（MOD 管理 / 加载顺序 / 创意工坊 / 下载与解析 / 收藏服务器 / 工具箱 /
+    冲突检测 / 模型统计 / 关于 / 设置 4 个分面 / 策略组管理）：MOD 管理从
+    「窄 16 处截断、宽窗仍截断 15 处」变成「0 / 0」，全流程无未捕获 JS 错误
+  - 状态栏实测：1150 宽下 7 项各 23px 高、竖排 0 项（修复前 17px 宽 × 139px 高）
+  - 徽标实测：整页 107 个徽标，仍被截断 0 个
+  - 工坊标题实测：最长标题 43px 两行（修复前 21px 一行）
+  - 「策略组管理」成员批量端到端 9/9 PASS：全选成员 → 批量禁用（文件进 disabled）→
+    批量启用（回 root 且 addonlist 记 1）→ 批量游戏内关闭/开启（只改 addonlist）→
+    移出本组（只写 groups.json）
+
 ## 2.7.1-community.25 — 2026-09-30
 
 **融合外部 addonlist 时，新增条目被写成规范化（小写）的键，丢了磁盘上的真实拼写。**

@@ -3978,7 +3978,9 @@
   line-height: 1;
   border: 1px solid transparent;
   min-width: 0;
-  max-width: 8.5rem;
+  /* 原来写死 8.5rem：卡片/窗口变宽时徽标文字也不会跟着展开。
+     改成最多占满徽标区（父级 .card-badges 已按卡片宽度自适应）。 */
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4008,7 +4010,8 @@
 
 .card-badge.secondary-tag-badge.is-long {
   flex: 0 1 auto;
-  max-width: 8rem;
+  /* 同步放开：长副标签也不该被写死宽度卡住。 */
+  max-width: 100%;
   display: inline-block;
   height: 1.5rem;
   line-height: 1.38rem;
@@ -4034,7 +4037,10 @@
   border-radius: 0 0 var(--radius-lg) var(--radius-lg); /* 添加底部圆角 */
 }
 
-.card-title {
+/* 只作用于 Mod 列表卡片（.file-card）。
+   创意工坊卡片同名（workshop-browser.css 的 .card-title 本来是两行截断），
+   这里的 nowrap 会把它顶成一行 —— 实测宽窄窗口都只剩一行。 */
+.file-card .card-title {
   font-weight: 600;
   font-size: 0.875rem;
   line-height: 1.4;
@@ -4538,11 +4544,13 @@
 #detail-tags .tag.subject-tag,
 #detail-detail-tags .tag.subject-tag,
 .card-badge.subject-badge {
-  max-width: 14rem;
+  /* 原来是 14rem：主体摘要稍长就永远显示不全（窗口拉宽也没用）。 */
+  max-width: 100%;
 }
 
 .card-badge.xdr-badge {
-  max-width: min(32rem, 42vw);
+  /* 原来是 min(32rem, 42vw)，在宽窗口下会超过卡片宽度；改成跟着徽标区走。 */
+  max-width: 100%;
   background: rgba(139, 92, 246, 0.14);
   border-color: rgba(139, 92, 246, 0.35);
   color: #6d28d9;
@@ -4757,7 +4765,8 @@ html.dark-mode .update-btn {
   display: inline-flex;
   align-items: center;
   min-height: 1.6rem;
-  max-width: 15rem;
+  /* 原来是 15rem：冲突角标在宽卡片上也读不全，改成能用多少用多少。 */
+  max-width: 100%;
   gap: 0.3rem;
   padding: 0 var(--spacing-2);
   border: 1px solid var(--border-light);
@@ -5091,6 +5100,9 @@ button.mod-conflict-badge:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* 窄窗口先让「统计」与「操作」整体换行，而不是各自被压扁。 */
+  flex-wrap: wrap;
+  gap: var(--spacing-2) var(--spacing-4);
   padding: var(--spacing-3) var(--spacing-6);
   background: rgba(255, 255, 255, 0.9);
   -webkit-backdrop-filter: blur(20px);
@@ -5120,12 +5132,18 @@ button.mod-conflict-badge:hover {
 
 .status-info {
   display: flex;
-  gap: var(--spacing-6);
+  /* 一条放不下就整条换行：否则 flex 会把每个统计项压到 min-content 宽，
+     中文可以逐字断行，窄窗口下状态栏就变成"一列一个字"。 */
+  flex-wrap: wrap;
+  gap: var(--spacing-3) var(--spacing-6);
   z-index: 1;
+  min-width: 0;
 }
 
 .status-info span {
   font-variant-numeric: tabular-nums;
+  /* 条目内部不许换行：min-content 就是整条文字，flex 再也压不扁它。 */
+  white-space: nowrap;
 }
 
 .status-info .selection-hint {
