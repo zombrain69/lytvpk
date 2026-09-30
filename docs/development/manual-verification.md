@@ -447,6 +447,12 @@
      `(async () => { ... })()`，或者用
      `(async () => { try { return await eval("..."); } catch (error) { return "ERR: " + error; } })()`
      把整段脚本当字符串塞进 `eval`。仓库里的 `.tmp-cua/zz_eval.py` 就是这么封的。
+   - **桥起不来的第一大原因是"单例接管"**：单例监听端口是固定的
+     `127.0.0.1:19527`（见 `internal/app/singleton.go`），跟 `-Port` 无关。
+     只要本机已经有一个 LytVPK 在跑——**包括你自己平时开的正式版**——新进程会连上它、
+     转发参数、`os.Exit(0)`，桥永远不会起来。`launch-cua-sandbox.ps1` 现在会先探测
+     19527 并直接报错，失败时还会把子进程 stdout/stderr 的最后几行打出来
+     （日志落在 `%TEMP%\lytvpk-cua-sandbox-<port>.{out,err}.log`）。
 
    抓像素仍然用 `scripts/devtools/capture-window.ps1`（`PrintWindow`，窗口被遮挡/锁屏也能抓）。
 

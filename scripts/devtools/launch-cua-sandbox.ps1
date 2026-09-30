@@ -50,21 +50,52 @@ else {
     Write-Host "未找到真实配置（$realConfigPath），沙箱将使用默认配置。"
 }
 
-$psi = New-Object System.Diagnostics.ProcessStartInfo
-$psi.FileName = $exePath
-$psi.UseShellExecute = $false
-$psi.WorkingDirectory = Split-Path -Parent $exePath
-$psi.Environment['APPDATA'] = $SandboxRoot
-$psi.Environment['LOCALAPPDATA'] = $sandboxLocal
-$psi.Environment['LYTVPK_CUA_BRIDGE'] = '1'
-$psi.Environment['LYTVPK_CUA_PORT'] = [string]$Port
-$psi.RedirectStandardOutput = $true
-$psi.RedirectStandardError = $true
+# 单例监听端口是**固定**的（internal/app/singleton.go: SingletonPort = 19527），跟 -Port 无关：
+# 只要已经有任何一个实例在跑（哪怕是你自己开的正式版），新进程会连上它、转发参数、然后自己退出，
+# 桥永远不会起来。以前这里只会抛一句"可能原因"，白等 5 分钟；现在先说清、失败时把日志打出来。
+$singletonPort = 19527
+$singletonBusy = $false
+try {
+    $probe = New-Object System.Net.Sockets.TcpClient
+    $singletonBusy = $probe.ConnectAsync('127.0.0.1', $singletonPort).Wait(500)
+    $probe.Close()
+} catch {
+    $singletonBusy = $false
+}
+if ($singletonBusy) {
+    # 这种情况下新进程会 os.Exit(0)（internal/app/singleton.go: EnsureSingleton），
+    # 等下去只是白等 5 分钟，直接说清楚。
+    throw "127.0.0.1:$singletonPort 已经有 LytVPK 实例在跑：沙箱实例会被单例接管、立刻退出，桥永远起不来。先关掉那个实例（Get-Process *LytVPK* | Stop-Process）再跑本脚本。"
+}
 
-$process = [System.Diagnostics.Process]::Start($psi)
-$process.BeginOutputReadLine()
-$process.BeginErrorReadLine()
+$stdoutLog = Join-Path ([System.IO.Path]::GetTempPath()) "lytvpk-cua-sandbox-$Port.out.log"
+$stderrLog = Join-Path ([System.IO.Path]::GetTempPath()) "lytvpk-cua-sandbox-$Port.err.log"
+
+# 用 Start-Process 而不是 ProcessStartInfo：它能把子进程 stdout/stderr **边跑边写**进文件，
+# 失败时能看到它到底卡在哪一步（ProcessStartInfo + ReadToEndAsync 在进程不退出时读不到任何东西）。
+# 代价是环境变量只能改当前会话的，所以改完立刻在 finally 里还原。
+$savedEnv = @{
+    APPDATA           = $env:APPDATA
+    LOCALAPPDATA      = $env:LOCALAPPDATA
+    LYTVPK_CUA_BRIDGE = $env:LYTVPK_CUA_BRIDGE
+    LYTVPK_CUA_PORT   = $env:LYTVPK_CUA_PORT
+}
+try {
+    $env:APPDATA = $SandboxRoot
+    $env:LOCALAPPDATA = $sandboxLocal
+    $env:LYTVPK_CUA_BRIDGE = '1'
+    $env:LYTVPK_CUA_PORT = [string]$Port
+    $process = Start-Process -FilePath $exePath -PassThru -NoNewWindow `
+        -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+}
+finally {
+    $env:APPDATA = $savedEnv.APPDATA
+    $env:LOCALAPPDATA = $savedEnv.LOCALAPPDATA
+    $env:LYTVPK_CUA_BRIDGE = $savedEnv.LYTVPK_CUA_BRIDGE
+    $env:LYTVPK_CUA_PORT = $savedEnv.LYTVPK_CUA_PORT
+}
 Write-Host "started pid=$($process.Id) exe=$ExeName port=$Port sandbox=$SandboxRoot"
+Write-Host "日志：$stderrLog"
 
 $deadline = (Get-Date).AddSeconds(300)
 $ready = $false
@@ -86,5 +117,22 @@ while ((Get-Date) -lt $deadline) {
 }
 
 if (-not $ready) {
-    throw "桥未就绪（端口 $Port）。可能原因：EXE 不是 -tags cua 构建、端口被占、或单例接管。"
+    Write-Host "--- 子进程是否已退出 ---"
+    if ($process.HasExited) {
+        Write-Host "已退出，ExitCode=$($process.ExitCode)"
+    } else {
+        Write-Host "仍在运行 pid=$($process.Id)"
+    }
+    foreach ($log in @($stderrLog, $stdoutLog)) {
+        if (Test-Path -LiteralPath $log) {
+            Write-Host "--- $log（最后 15 行）---"
+            Get-Content -LiteralPath $log -Encoding UTF8 -Tail 15 | ForEach-Object { Write-Host "    $_" }
+        }
+    }
+    $hint = if ($singletonBusy) {
+        "127.0.0.1:$singletonPort 上有别的实例（单例接管）：先关掉它。"
+    } else {
+        "EXE 不是 -tags cua 构建（用 scripts/devtools/build-cua.ps1）、或端口 $Port 被占。"
+    }
+    throw "桥未就绪（端口 $Port）。$hint"
 }
