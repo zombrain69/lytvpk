@@ -27,6 +27,13 @@ test("Ctrl+K 打开面板，键盘交互齐全", () => {
   assert.match(ui, /event\.key === "Enter"/, "缺少 Enter 执行");
   assert.match(ui, /event\.key === "Escape"/, "缺少 Esc 关闭");
   assert.match(ui, /event\.target === modal/, "点面板外应关闭");
+  // 真机复现：焦点离开输入框（点过列表空白处）后 Esc 完全失效 —— 全局 Esc 会因为
+  // "有模态框打开"主动让位，所以必须有一条文档级兜底。
+  assert.match(
+    ui,
+    /document\.addEventListener\("keydown"[\s\S]{0,260}Escape[\s\S]{0,260}closeCommandPalette\(\)/,
+    "Esc 需要文档级兜底，否则焦点不在输入框时关不掉面板",
+  );
 });
 
 test("每条命令都注册了动作，且动作复用已有入口", () => {

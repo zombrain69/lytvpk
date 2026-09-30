@@ -213,5 +213,15 @@ export function setupCommandPalette({ runCommand, storage = null }) {
     if (event.target === modal) closeCommandPalette();
   });
 
+  // Esc 的文档级兜底：上面的处理器挂在输入框上，焦点一旦离开输入框
+  // （例如点过列表空白处，焦点落到 body）就再也收不到事件；而全局 Esc
+  // 又会因为"有模态框打开"主动让位，于是面板关不掉。
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (!isCommandPaletteOpen()) return;
+    event.preventDefault();
+    closeCommandPalette();
+  });
+
   return { open: openCommandPalette, close: closeCommandPalette };
 }
