@@ -346,7 +346,9 @@
 
 .conflict-search {
   flex: 1 1 auto;
-  min-width: 0;
+  /* 与 Mod 列表搜索框同一类形状：右边跟着 nowrap 的命中数文案。
+     min-width: 0 时文案一长就把输入框挤到只剩内边距，所以给个下限。 */
+  min-width: 8rem;
   min-height: 2rem;
   padding: 0 var(--spacing-3);
   border: 1px solid var(--border-light);
@@ -357,7 +359,11 @@
 }
 
 .conflict-search-count {
-  flex: 0 0 auto;
+  /* 挤不下时先让文案让步（省略号 / 换行），不要回头去压输入框。 */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-tertiary);
   font-size: var(--text-xs);
   white-space: nowrap;

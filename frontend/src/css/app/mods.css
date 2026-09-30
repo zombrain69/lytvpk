@@ -635,7 +635,9 @@
 
 .strategy-group-search {
   flex: 1 1 auto;
-  min-width: 0;
+  /* 与主搜索框同一类形状：右边跟着 nowrap 的「显示 N / M 个组」文案。
+     min-width: 0 时文案一长就把输入框挤到只剩内边距，所以给个下限。 */
+  min-width: 8rem;
   padding: 6px 10px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -645,7 +647,11 @@
 }
 
 .strategy-group-visible {
-  flex: 0 0 auto;
+  /* 挤不下时先让文案让步（省略号 / 换行），不要回头去压输入框。 */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-tertiary);
   font-size: 0.75rem;
   white-space: nowrap;
@@ -2569,6 +2575,9 @@
 
 .search-input {
   width: 100%;
+  /* 兜底下限：任何同行的兄弟节点（计数文案、按钮）都不该把输入框压到只剩内边距。
+     曾经就是这样被压到 58px（= 左 40 + 右 16 + 边框 2），看起来像个空的小方块。 */
+  min-width: 7rem;
   height: 2.5rem;
   min-height: 2.5rem;
   max-height: 2.5rem;

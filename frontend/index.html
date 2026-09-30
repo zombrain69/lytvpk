@@ -417,9 +417,13 @@
                 aria-controls="search-help-popover"
                 title="搜索语法与快捷键"
               >?</button>
-              <span id="search-hit-count" class="search-hit-count" aria-live="polite"></span>
               <div id="search-help-popover" class="search-help-popover hidden" role="dialog" aria-label="搜索语法与快捷键"></div>
             </div>
+            <!-- 命中计数放在 .search-box **外面**：这个框有 max-width: 21rem，
+                 把 nowrap 的长文案塞进去，flex 就只能从输入框身上扣宽度——
+                 0 命中时文案最长（「没有匹配「xxx」的 Mod（共 N 个）」），
+                 输入框会被压到只剩左右内边距 58px，看起来就是个只有放大镜的小方块。 -->
+            <span id="search-hit-count" class="search-hit-count" aria-live="polite"></span>
             <div class="filter-section" id="location-filter-section">
               <!-- 动态生成位置筛选 -->
             </div>

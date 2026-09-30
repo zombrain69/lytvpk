@@ -93,9 +93,16 @@ html.dark-mode[data-reading-comfort="contrast"] mark.search-hit {
   white-space: nowrap;
 }
 
-/* 搜索框旁边的命中计数。 */
+/* 搜索框旁边的命中计数。
+   它在 .search-box **外面**（那个框有 max-width: 21rem）：以前挤在框里时，
+   0 命中的长文案会把输入框压到只剩左右内边距（58px），看着像个只有放大镜的小方块。
+   现在它是筛选行里的普通 flex 项：挤不下就跟着换行，极端长文案自己省略号，
+   绝不回头去抢输入框的宽度。 */
 .search-hit-count {
-  margin-left: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-tertiary);
   font-size: 0.72rem;
   white-space: nowrap;
