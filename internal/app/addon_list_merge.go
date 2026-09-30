@@ -103,7 +103,12 @@ func (a *App) ApplyAddonListMerge(sourcePath string, sourceWinsKeys []string) er
 		}
 
 		var replaced bool
-		updatedContent, replaced, err = replaceAddonListValue(updatedContent, key, sourceItem.Value)
+		// 新增条目要沿用来源里的写法（大小写/Unicode 拼写）：addonlist 条目应当保留
+		// 磁盘上的真实文件名，规范化后的小写键只用于匹配（真机复现：来源写的是
+		// ZZTest_Unrecorded.VPK，融合后被写成 zztest_unrecorded.vpk）。
+		updatedContent, replaced, err = replaceAddonListValueWithName(
+			updatedContent, key, sourceItem.Name, sourceItem.Value,
+		)
 		if err != nil {
 			return err
 		}

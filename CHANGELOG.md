@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.7.1-community.25 — 2026-09-30
+
+**融合外部 addonlist 时，新增条目被写成规范化（小写）的键，丢了磁盘上的真实拼写。**
+
+真机复现（来源文件里写的是 `"ZZTest_Unrecorded.VPK" "1"`）：
+
+```
+融合前（来源）：  "ZZTest_Unrecorded.VPK"   "1"
+融合后（当前）：  "zztest_unrecorded.vpk"   "1"     ← 大小写被抹平
+```
+
+`ApplyAddonListMerge` 新增条目时调用的是 `replaceAddonListValue`（用规范化键当条目名），
+而项目自己的规则是 `addonListDisplayKeyForVPKPath` 那条：**addonlist 条目要保留磁盘上的真实
+文件名拼写**，规范化键只用于匹配。
+
+修复：改用 `replaceAddonListValueWithName(..., sourceItem.Name, ...)` ——
+新增条目沿用来源写法，冲突条目仍然是"就地改值、不动写法"。
+
+### 验证
+
+- 新增 `addon_list_merge_spelling_test.go`（2 项）：新增条目保留来源拼写、冲突项就地改值不改写法
+- 真机（沙箱夹具 + 外部来源 addonlist，真实库零写入）3/3 PASS：
+  预览「新增 1 条，冲突 1 条」→ 应用后写入的原文是 `ZZTest_Unrecorded.VPK`，
+  未勾选来源的冲突项 `zztest_hud_only.vpk` 仍保留当前值（开启）
+- `go test ./...` 全绿；`node --test` 434 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.24 — 2026-09-30
 
 **体检「清理重复条目」会把用户实际生效的开关悄悄改掉。**
