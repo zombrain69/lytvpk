@@ -84,6 +84,118 @@
 
 手工验证的重点因此是：**真实点击流程、跨页面状态、真实游戏/工坊数据**。
 
+## 0. 三条验证通道怎么选（先看这节，再往下做具体清单）
+
+同一件事有三条通道，**按"要测什么"选，不是二选一**。默认链路是
+**CLI → 应用内 JS 桥 → 原生 CUA**，只有上一层到不了时才下沉。
+
+| 要测什么 | 首选 | 为什么用它 | 实测例子 |
+| --- | --- | --- | --- |
+| 数据 / 规则 / 回归（标签、清单、diff） | **CLI 子命令** | 最快、可重复、能进 CI；不启动界面、不抢焦点 | `--check-tag-regression` 给出 `+1396 / −0`；`--validate-tag-rules` `checked=398 / ok=true` |
+| Wails/WebView2 的 UI 断言 + 目视 | **应用内 JS 桥**（`-tags cua`） | 锁屏 / 窗口被遮挡也能跑；能读真实 DOM、派发真实事件、统计 `window` 错误 | 搜索框被长文案压扁（输入框 58px → 304px）、策略组勾选范围、完整性校验耗时，都是靠它量几何 |
+| 原生控件、文件选择框、真实键鼠序列、多窗口拖拽 | **原生 CUA（UIA + 坐标）** | 只有它能触达 WebView 之外的 OS 层 | 本机 Win10 19045 上 `include_screenshot` / `element_index` 不可用，改用 UIA 读取 + 坐标输入 + `PrintWindow` |
+
+### 通道 1：CLI（`internal/app/cli.go`）
+
+`main.go` 里 `HandleCommandLine` 排在单例检查**之前**，所以应用正开着也能跑 CLI，不会被单例接管。
+
+```powershell
+$exe = 'build\bin\LytVPK-Community-Fork.exe'
+& $exe --help                                        # 完整清单以它为准（会随版本增加）
+& $exe --check-tag-regression <基线> [--allowlist tools\tag-regression-allowlist.json]  # 少标 → 退出 1
+& $exe --validate-tag-rules [--out rules.json]        # 0 通过 / 1 有错 / 2 无法校验（无本体索引）
+& $exe --stock-index-status
+& $exe --stock-index-query "materials/**" --limit 20
+& $exe --validate-group-suggestions <建议文件> [--out JSON]
+& $exe --export-grouping-catalog [输出路径]
+```
+
+要点：
+
+- **退出码是契约**，判据写退出码，不要匹配日志文本 —— 这样同一条判据能直接进 CI。
+- 除 `--build-stock-index` / `--generate-entity-table` 会更新数据文件外，其余命令都只读，
+  或只写你显式指定的输出路径（不传路径时写配置目录）。
+- CLI 与界面共用同一份 Go 逻辑：**CLI 通过而界面不对，问题基本在前端或事件接线**，不用再怀疑解析层。
+
+### 通道 2：应用内 JS 桥（本项目的 UI 通道）
+
+桥常驻仓库但**只在 `-tags cua` 构建里存在**（`internal/app/cua_bridge_cua.go` +
+`cua_bridge_stub.go` 的 `!cua` 空实现），默认 `wails build` 与 `build-release.ps1` 天然不含。
+
+```powershell
+# 1) 带桥的调试 EXE（脚本会自检产物里确有桥标记；版本号随便填，只用于区分产物）
+pwsh -File scripts/devtools/build-cua.ps1 -Version <当前版本>-uicheck
+
+# 2) 只读沙箱：沿用真实 Mod 目录（只读扫描）——只适合读 DOM / 量几何 / 抓像素
+pwsh -File scripts/devtools/launch-cua-sandbox.ps1 -ExeName LytVPK-Community-Fork-cua.exe -Port 38999
+
+# 3) 写盘沙箱：Mod 目录用 .tmp-cua 下的副本——点写盘按钮也只改副本
+pwsh -File scripts/devtools/launch-cua-copy-sandbox.ps1 -Port 38998
+```
+
+接口（`/ping`、`/eval` + `/result`、`/eval-sync`）与**四个必踩的坑**
+（回传必须用绝对地址 / 回环要回 `Access-Control-Allow-Private-Network` /
+`js` 必须是单个表达式 / 单例端口 19527 被占）见 §15 的现场记录。
+
+**两种沙箱别选错**（写盘类验证用错沙箱会改到真实数据）：
+
+| | `launch-cua-sandbox.ps1` | `launch-cua-copy-sandbox.ps1` |
+| --- | --- | --- |
+| Mod 目录 | 真实库（只读扫描） | `.tmp-cua\zz-copy-lib\...`（副本） |
+| 适合 | 读 DOM、量几何、抓像素 | 游戏内开关、批量搬文件、策略组联动、按分层应用 |
+| 写盘风险 | **会改真实 `addonlist.txt` / Mod** | 只改副本 |
+
+写盘类验证请按"三段式"留证据（本轮就是这样抓出一个工具的 bug）：
+
+```powershell
+$real = "<真实>\left4dead2\addonlist.txt"
+(Get-Item $real).LastWriteTime; (Get-Item $real).Length          # 跑之前
+(Get-ChildItem "$env:APPDATA\LytVPK\backups" -File).Count        # 备份条目数
+# …跑验证…
+# 跑完应满足：真实文件的时间与大小不变，且备份目录条目数不变
+```
+
+两个容易踩的细节：
+
+- **副本库的 `addonlist.txt` 在游戏目录**（`<lib>\left4dead2\addonlist.txt`），不在 `addons\` 里。
+  放错层级的表现是"写盘成功但副本条目全没了"，很像应用丢数据 —— 其实是应用把不存在的那份
+  当空文档新建了。`launch-cua-copy-sandbox.ps1` 已经按正确层级准备，并会**拒绝**指向真实库的路径。
+- 写盘类验证的副本库要带一份**真实规模的 `addonlist.txt`**（本项目现在 2500+ 条），
+  小样本测不出"整份文件被重写"这类问题。
+
+**CDP 9222 这条路在本项目当前构建里走不通（本轮实测）**：设
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` 启动后，
+`http://127.0.0.1:9222/json/version` 连接被拒。原因是 Wails 自己会在代码里设置
+`AdditionalBrowserArgs`（wails v2.10.2 `internal/frontend/desktop/windows/frontend.go` 的
+`setupChromium`），按 WebView2 的优先级规则，代码里的设置压过环境变量；
+要用 CDP 得改应用代码或换 loader，已经不属于"零侵入"。所以本项目的 UI 通道就是自带桥。
+
+### 通道 3：原生 CUA（UIA + 坐标）
+
+- 什么时候必须用：原生文件选择框（"选择 addons 目录"这类）、窗口级拖拽、
+  标题栏 / 系统级菜单、多窗口叠放、需要真实键鼠序列的流程。
+- 本机（Win10 19045）已知限制：`include_screenshot: true` 与 `element_index` 点击不可用
+  （`SetIsBorderRequired` → `0x80004002`）。可用的替代：
+  **UIA 读取**（拿文本、控件类型、可用状态）+ **坐标输入** +
+  `scripts/devtools/capture-window.ps1`（`PrintWindow`，窗口被遮挡 / 锁屏也能抓像素）+
+  `click-window-at.ps1` / `type-window-text.ps1` / `scroll-window-at.ps1` / `drag-window-at.ps1`。
+- 坐标不要估：先用通道 2 读 `getBoundingClientRect()` 拿到真实位置，再交给坐标点击脚本；
+  点击后回到通道 2 复核 DOM / 状态是否真的变了。
+
+### 发布产物卫生（每次发版前）
+
+- 桥只在 `-tags cua` 构建里：`build-cua.ps1` 出调试 EXE，`wails build` / `build-release.ps1` 不含。
+- `scripts/verify-release.ps1` 有自动门禁：扫归档内 EXE 的字节，命中 `LYTVPK_CUA_BRIDGE` /
+  `cua bridge listening` / `cua_bridge_cua.go` 即判失败。
+- 因此**"被测的二进制"和"交付的二进制"永远不是同一个**：UI 结论用带桥构建拿，
+  发版前对干净构建再跑一遍 `verify-release.ps1`（必要时按通道 2/3 对干净 EXE 做一次只读确认）。
+
+### 记录要求
+
+每条结论都要能落到"命令 + 输出"；只写"验过了"不算证据，失败与修复前后对比一并写下
+（§15 与 `docs/development/fireaxe-parity.md` 的历史记录就是范本）。
+临时探针放 `.tmp-cua/`（已 gitignore），稳定下来的工具再提升到 `scripts/devtools/`。
+
 ## 准备
 
 1. 构建：`wails build`，产物 `build/bin/LytVPK-Community-Fork.exe`。
