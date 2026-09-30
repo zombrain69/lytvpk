@@ -489,6 +489,7 @@ export async function batchToggleVisibility(hide) {
       let successCount = 0;
       let skippedCount = 0;
       let failCount = 0;
+      const failures = [];
 
       for (const filePath of selectedFiles) {
         try {
@@ -504,6 +505,7 @@ export async function batchToggleVisibility(hide) {
         } catch (err) {
           console.error(`处理文件 ${filePath} 失败:`, err);
           failCount++;
+          failures.push(String(err?.message || err));
         }
       }
 
@@ -512,7 +514,12 @@ export async function batchToggleVisibility(hide) {
 
       if (failCount > 0 || skippedCount > 0) {
         const skippedText = skippedCount > 0 ? `，${skippedCount} 个已处于目标状态未变更` : "";
-        showNotification(`操作完成: 成功 ${successCount} 个, 失败 ${failCount} 个${skippedText}`, "warning");
+        // 同批量启用/禁用：失败时把第一个原因一起说出来，否则用户只知道"有失败"。
+        const reason = failCount > 0 && failures[0] ? `：${failures[0]}` : "";
+        showNotification(
+          `操作完成: 成功 ${successCount} 个, 失败 ${failCount} 个${reason}${skippedText}`,
+          "warning",
+        );
       } else {
         showNotification(`成功${actionName} ${successCount} 个文件`, "success");
       }
