@@ -143,7 +143,11 @@ func (wc *TaskWriteCounter) Write(p []byte) (int, error) {
 
 		taskManager.mu.Unlock()
 
-		runtime.EventsEmit(wc.Ctx, "task_progress", wc.Task)
+		// 没有 Wails 上下文时（后台任务、CLI、测试）不能调 runtime.EventsEmit：
+		// Wails 对无效 ctx 是 log.Fatal，会把整个进程带走。这里只跳过事件，进度照常累计/落盘。
+		if wc.Ctx != nil {
+			runtime.EventsEmit(wc.Ctx, "task_progress", wc.Task)
+		}
 		if wc.App != nil {
 			// 进度写盘同样按 1s 节流（对齐 FireAxe DownloadService.SaveDownloadProgressIntervalMs）。
 			wc.App.persistDownloadTasksThrottled()

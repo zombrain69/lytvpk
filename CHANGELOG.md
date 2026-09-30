@@ -1,5 +1,36 @@
 # Changelog
 
+## 未发布 — 无 Wails 上下文时下载进度不再把进程带走（顺带把真实工坊下载链路跑通）（2026-10-01）
+
+**问题**：`TaskWriteCounter.Write`（`internal/app/workshop_tasks.go`）是全场**唯一**没判空就调
+`runtime.EventsEmit` 的地方。Wails 对无效 context 的处理是 `log.Fatal` —— 不是报错，而是
+**进程直接退出**。仓库里其它 emit（`emitTaskProgress` / `emitTaskUpdated` / 拖拽导入 /
+文件操作闸门 / 面板上传 / 工坊转移）都先判了 `a.ctx == nil`，`log_error_guard_test.go` 也是
+为这类问题写的。
+
+**触发场景**：无界面/后台上下文里跑下载（测试、将来可能的 CLI、"Wails 就绪前"的后台任务）。
+本轮就是拿它做真实下载验证时踩到的：下载开始后进程无声无息地消失。
+
+**修复**：`wc.Ctx != nil` 才发事件，进度累计与落盘照旧；新增
+`TestTaskWriteCounterWithoutWailsContextDoesNotAbort` 把这个契约钉住。
+
+**顺带把真实工坊下载链路端到端跑了一遍**（真实 Steam API + CDN，沙箱目录，不碰真实库与真实配置）：
+
+```
+① 小文件走单线程
+   2998315305（167 字节）→ completed，落盘 167 字节，应用解析出 1 条内部路径
+② 大文件走分块（≥5MB 才多线程，正是 c.49 修过 Content-Range 校验的那条）
+   [Download] Using 6-thread download for 2993548452.vpk (Size: 28.73 MB)
+   [ChunkedDownload] Starting dynamic 6-worker download (Blocks: 6, Resumed: 0)
+   [ChunkedDownload] Successfully downloaded 2993548452.vpk with dynamic workers
+   → completed，downloaded=30125974/30125974，速度 9.1 MB/s，
+     落盘字节与工坊声明完全一致，应用解析出 44 条内部路径
+```
+
+两条链路都在真实 CDN 上跑通；预览图（`.jpg` / `.gif`）按设计一起落盘。
+
+**验证**：`go test ./... -count=1` 全 ok；`go vet ./...` 退出码 0。
+
 ## 未发布 — 更正 §7「清空组权重后顺序会还原」的错误预期（2026-10-01）
 
 `docs/development/manual-verification.md` §7 有一条人工项写着：给策略组填权重 `-1` → 按分层应用后，
