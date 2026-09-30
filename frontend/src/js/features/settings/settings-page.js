@@ -61,6 +61,10 @@ let ctrlClickSelectionChangeToken = 0;
 // 工坊信息存储与更新检测是级联设置。共享令牌可以阻止一次尚未完成的
 // 级联保存被另一项设置的旧请求覆盖。
 let workshopSettingsChangeToken = 0;
+// 工坊合集那块的状态文字：保存 / 检查更新 / 删除都会整页重渲染，
+// 只写在 DOM 里的话消息会立刻被冲掉（保存成功看不到"已保存…"，
+// 检查更新也看不到"新增 X 个 / 本地缺少 Y 个"），所以在这里留一份。
+let workshopCollectionStatusText = "";
 // Settings data is assembled from several asynchronous Wails calls.  Opening
 // the page again (or refreshing an addonlist action) can start a newer render
 // while an older one is still waiting; only the newest render may replace DOM
@@ -565,7 +569,7 @@ export async function renderSettingsPage(deps) {
                 <button type="button" id="settings-collection-capture" class="trigger-check-btn addonlist-action-btn">保存合集</button>
                 <button type="button" id="settings-collection-check-all" class="trigger-check-btn addonlist-action-btn ${workshopCollections.length > 0 ? "" : "hidden"}">检查全部更新</button>
               </div>
-              <p id="settings-collection-status" class="setting-row-status">${escapeHtml(workshopCollectionsError)}</p>
+              <p id="settings-collection-status" class="setting-row-status">${escapeHtml(workshopCollectionStatusText || workshopCollectionsError)}</p>
               ${workshopCollections.length > 0 ? `
                 <div class="settings-profile-list">
                   ${workshopCollections.map((link) => `
@@ -1564,8 +1568,15 @@ function bindConflictAnalysisSettings(deps) {
   // 工坊合集实体化：保存 / 跟随节点检查 / 下载缺失成员 / 删除记录。
   const collectionStatus = document.getElementById("settings-collection-status");
   const setCollectionStatus = (message) => {
-    if (collectionStatus) collectionStatus.textContent = message || "";
+    workshopCollectionStatusText = message || "";
+    if (collectionStatus) collectionStatus.textContent = workshopCollectionStatusText;
   };
+  // 保存 / 删除 / 检查之后要把这块列表重新渲染一遍。
+  // 这里原来调用的那个刷新函数不存在于本作用域（它只定义在相邻两个绑定函数里），
+  // 真机上抛 "refresh is not defined"：保存明明成功，
+  // 状态却显示「保存合集失败: refresh is not defined」，记录列表也不刷新，
+  // 记录行里的「检查更新 / 下载缺失成员 / 删除记录」按钮一直不出现。
+  const refreshCollections = () => Promise.resolve(deps.refreshAddonListPanel?.());
   document.getElementById("settings-collection-capture")?.addEventListener("click", async (event) => {
     const input = document.getElementById("settings-collection-input");
     const raw = String(input?.value || "").trim();
@@ -1582,7 +1593,7 @@ function bindConflictAnalysisSettings(deps) {
       if (input) input.value = "";
       setCollectionStatus(`已保存合集「${link.title || link.collectionId}」：${formatCollectionSummary(link)}`);
       deps.showNotification("工坊合集已保存", "success");
-      refresh();
+      void refreshCollections();
     } catch (error) {
       setCollectionStatus("保存合集失败: " + String(error?.message || error));
     } finally {
@@ -1602,7 +1613,7 @@ function bindConflictAnalysisSettings(deps) {
           ? "所有合集都没有成员变化"
           : changed.map((result) => `${result.title || result.collectionId}：${formatCollectionRefreshSummary(result)}`).join("；"),
       );
-      refresh();
+      void refreshCollections();
     } catch (error) {
       setCollectionStatus("检查合集更新失败: " + String(error?.message || error));
     } finally {
@@ -1616,7 +1627,7 @@ function bindConflictAnalysisSettings(deps) {
       try {
         const result = await deps.RefreshWorkshopCollection(button.dataset.collectionId);
         setCollectionStatus(`${result.title || result.collectionId}：${formatCollectionRefreshSummary(result)}`);
-        refresh();
+        void refreshCollections();
       } catch (error) {
         setCollectionStatus("检查合集更新失败: " + String(error?.message || error));
         button.disabled = false;
@@ -1650,7 +1661,7 @@ function bindConflictAnalysisSettings(deps) {
       try {
         await deps.DeleteWorkshopCollection(button.dataset.collectionId);
         setCollectionStatus("已删除合集记录");
-        refresh();
+        void refreshCollections();
       } catch (error) {
         setCollectionStatus("删除合集记录失败: " + String(error?.message || error));
         button.disabled = false;

@@ -232,6 +232,15 @@ func (a *App) CaptureWorkshopCollection(collectionID string) (WorkshopCollection
 	if err != nil {
 		return WorkshopCollectionLink{}, err
 	}
+	// 单个 Mod 也能被解析成"只有自己"的组，但它的成员列表是空的
+	// （解析时会把合集自身从成员里排除）。以前这种 ID 会被静默存成一条
+	// 0 成员记录：真机上粘贴单个 Mod 链接，界面显示
+	// 「已保存合集「XXX」：没有可下载成员」，用户拿到的是一条没用的记录。
+	if len(members) == 0 {
+		return WorkshopCollectionLink{}, fmt.Errorf(
+			"这个 ID 不是工坊合集（或合集里还没有可下载的成员）：请粘贴工坊合集的链接或 ID",
+		)
+	}
 	now := time.Now().Format(time.RFC3339)
 	link := WorkshopCollectionLink{
 		ID:                        newLocalRecordID(),

@@ -231,3 +231,28 @@ func TestDeleteWorkshopCollectionKeepsFiles(t *testing.T) {
 		t.Fatalf("删除合集记录不应删除已下载的 VPK: %v", err)
 	}
 }
+
+// TestCaptureWorkshopCollectionRejectsSingleItem 覆盖真机发现的用例：
+// 粘贴单个 Mod（不是合集）的 ID 时，不能再静默存成一条 0 成员记录。
+func TestCaptureWorkshopCollectionRejectsSingleItem(t *testing.T) {
+	a, _ := newCollectionTestApp(t, map[string]WorkshopFileDetails{
+		"500": {
+			Result:          1,
+			PublishedFileId: "500",
+			Title:           "单个 Mod",
+			Filename:        "500.vpk",
+			FileUrl:         "https://example.invalid/500.vpk",
+		},
+	})
+
+	if _, err := a.CaptureWorkshopCollection("500"); err == nil {
+		t.Fatal("单个 Mod 不是合集，CaptureWorkshopCollection 应该报错")
+	}
+	links, err := a.ListWorkshopCollections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) != 0 {
+		t.Fatalf("保存失败不应留下记录: %#v", links)
+	}
+}
