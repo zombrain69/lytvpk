@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.7.1-community.19 — 2026-09-30
+
+**「复制到 addons」失败时显示 Windows 英文原文（复制路径漏了中文化）。**
+
+真机复现（用独占句柄锁住工坊源文件 `workshop\zztest_ws_dep.vpk`，再点批量转移）：
+
+```
+open E:\…\addons\workshop\zztest_ws_dep.vpk: The process cannot access the file
+because it is being used by another process.
+```
+
+community.13 给 `moveFile`（移动路径）加过 `formatFileMoveError`，但**复制路径**
+（`copyRegularFile` / `copyFileOverwrite`）还是把 os 的原始错误直接回传，
+于是「工坊 → addons」的转移结果面板上就是这条英文 + 完整路径。
+
+修复后同一场景：
+
+```
+读取 zztest_ws_dep.vpk 失败：文件正被其它程序占用（游戏、杀毒软件、资源管理器预览都可能占用它），
+关闭占用的程序后重试
+```
+
+- `copyRegularFile`（app_helper.go）与 `copyFileOverwrite`（file_move_conflicts.go）
+  统一走 `formatFileMoveError`：读取 / 写入两侧都给出中文可行动原因
+- 覆盖范围不止工坊转移：解包修复的伴随文件复制、压缩包解压、拖拽导入等用到这两个函数的地方同样受益
+
+### 验证
+
+- 新增 `workshop_transfer_error_windows_test.go`（Windows）：真独占锁 → 批量转移
+  → 失败原因是中文且不含 `The process cannot access`；失败后不留半成品；
+  解锁后同一调用成功
+- 真机（沙箱，真实库零写入）：修复前是 `open …: The process cannot access the file …`，
+  修复后是「读取 zztest_ws_dep.vpk 失败：文件正被其它程序占用…关闭占用的程序后重试」
+- `go test ./...` 全绿；`node --test` 434 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.18 — 2026-09-30
 
 **同一个坏 VPK：列表里说中文，模型统计窗口却显示解码库的英文原文。**

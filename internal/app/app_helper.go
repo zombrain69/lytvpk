@@ -12,25 +12,27 @@ import (
 func copyRegularFile(srcPath, destPath string) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
-		return err
+		// 真机复现过：源文件被别的进程占用时，转移结果里显示的是
+		// "open …: The process cannot access the file …" —— 与 moveFile 一样翻成中文。
+		return formatFileMoveError("读取", srcPath, err)
 	}
 	defer src.Close()
 	info, err := src.Stat()
 	if err != nil {
-		return err
+		return formatFileMoveError("读取", srcPath, err)
 	}
 	dest, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
 	if err != nil {
-		return err
+		return formatFileMoveError("写入", destPath, err)
 	}
 	if _, err := io.Copy(dest, src); err != nil {
 		dest.Close()
 		_ = os.Remove(destPath)
-		return err
+		return formatFileMoveError("写入", destPath, err)
 	}
 	if err := dest.Close(); err != nil {
 		_ = os.Remove(destPath)
-		return err
+		return formatFileMoveError("写入", destPath, err)
 	}
 	return nil
 }

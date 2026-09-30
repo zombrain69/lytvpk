@@ -136,26 +136,28 @@ func (a *App) CheckFileMoveConflicts(filePaths []string, destDir string) ([]File
 func copyFileOverwrite(srcPath, destPath string) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
-		return err
+		return formatFileMoveError("读取", srcPath, err)
 	}
 	defer src.Close()
 
 	info, err := src.Stat()
 	if err != nil {
-		return err
+		return formatFileMoveError("读取", srcPath, err)
 	}
 	dest, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
 	if err != nil {
-		return err
+		// 覆盖同名的目标文件时被别的程序占着（例如游戏正把它打开），
+		// 这里同样要给中文可行动提示。
+		return formatFileMoveError("写入", destPath, err)
 	}
 	if _, err := io.Copy(dest, src); err != nil {
 		_ = dest.Close()
 		_ = os.Remove(destPath)
-		return err
+		return formatFileMoveError("写入", destPath, err)
 	}
 	if err := dest.Close(); err != nil {
 		_ = os.Remove(destPath)
-		return err
+		return formatFileMoveError("写入", destPath, err)
 	}
 	return nil
 }
