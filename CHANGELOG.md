@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.7.1-community.35 — 2026-09-30
+
+**上传到一半关掉应用，上传任务直接消失：看不到"上次有个上传被中断"，也没法继续传。**
+
+下载任务早就有 `download_tasks.json` 快照（重启后标成"已中断"、可重试续传），
+上传这边一直只活在内存里。而上传本身是**支持按服务端已收分片续传**的
+（`UploadID` 非空时会先查服务端状态再补传），只差一份任务快照。
+
+修复：新增 `internal/app/panel_upload_store.go`，与下载任务同一套做法 ——
+
+- 写入 `upload_tasks.json`（`schemaVersion` / `savedAt` / `tasks`，最多 200 条），
+  创建、状态变更、清空走 `force` 直写，分片进度按 1 秒节流；
+- 重启恢复时把非终态任务标成 `interrupted`（提示「应用退出时该上传还没完成，
+  可点击重试继续（已上传的分片会跳过）」），**并把 `FilePath` 还原成原始源文件**：
+  VPK 任务跑到一半时 `FilePath` 会被换成临时 ZIP，那个临时文件退出时已经删了；
+- 「重试」接受 `interrupted`；`interrupted` 与失败 / 取消一样可被"清空已完成"清掉，
+  任务列表排序把它排在已完成之前；
+- 前端补上状态文案「已中断（可重试）」与重试按钮。
+
+顺带加固：`panel_upload.go` 里三处 `runtime.EventsEmit` 补上 `a.ctx != nil` 判断
+（下载任务那边一直有这个保护）——单元测试里没有 Wails 生命周期上下文，
+原写法会直接报 "invalid context" 并把调用方打挂。
+
+### 验证
+
+- 新增 `panel_upload_store_test.go`（2 项）：模拟"上传到一半退出"的快照（`FilePath`
+  已指向临时 ZIP）→ 恢复后状态是 `interrupted`、`FilePath`/`Filename` 回到原始 VPK、
+  `UploadID` 与已传分片保留、可清空、可重试；已完成的任务不受影响
+- `go test ./... -count=1` / `go vet ./...` 全绿；`node --test` 449 项全绿；
+  `npm run build` / `wails build` 通过
+- 真机（打包 EXE + 沙箱 APPDATA + 12MB 随机数据 VPK + 本地面板 mock，
+  真实库零写入）：上传到 58% 时直接杀进程 → 重启后
+
+```
+任务表里还有这条：status=interrupted 进度=100% 已传 3/3 块
+界面：upload-restart.vpk 已中断（可重试）ZZ-UploadRestart 12 MB / 12 MB
+点「重试」→ status=completed 进度=100% 分块 3/3
+```
+
+  mock 日志也印证了续传语义：重启后只发了 `/upload/status` + `/upload/merge`，
+  **没有重传任何一个分块**。
+
 ## 2.7.1-community.34 — 2026-09-30
 
 **Esc 关窗口彻底收口：9 个常用窗口里原本有 7 个按 Esc 完全没反应。**

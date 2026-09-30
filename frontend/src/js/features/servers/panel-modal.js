@@ -1158,7 +1158,8 @@ function createPanelUploadTaskElement(task) {
 
   const progress = Number(task.progress) || 0;
   const isActive = ["pending", "compressing", "uploading", "merging"].includes(status);
-  const canRetry = status === "failed" || status === "cancelled";
+  // 重启后留下的 interrupted 任务同样可以点重试续传。
+  const canRetry = status === "failed" || status === "cancelled" || status === "interrupted";
   const actionHtml = isActive
     ? `
       <button class="panel-upload-icon-btn panel-upload-cancel-btn" data-id="${escapeAttr(task.id)}" title="取消上传" type="button">
@@ -1399,6 +1400,8 @@ function getPanelUploadStatusText(status) {
     completed: "已完成",
     failed: "失败",
     cancelled: "已取消",
+    // 应用退出时还没跑完：任务记录会留在 upload_tasks.json，点重试即可续传。
+    interrupted: "已中断（可重试）",
   };
   return labels[status] || status || "未知";
 }

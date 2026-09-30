@@ -123,6 +123,10 @@ func (a *App) StartPanelMapUpload(serverID string, filePaths []string) ([]string
 }
 
 func (a *App) GetPanelMapUploadTasks() []*PanelMapUploadTask {
+	// 先把上次退出时留下的快照补进内存（重试 / 取消 / 清空接口对它们同样可用），
+	// 再返回内存结果。
+	a.restorePanelUploadSnapshotTasks()
+
 	panelUploads.mu.RLock()
 	defer panelUploads.mu.RUnlock()
 
@@ -136,9 +140,11 @@ func (a *App) GetPanelMapUploadTasks() []*PanelMapUploadTask {
 			"uploading": 0,
 			"merging":   1,
 			"pending":   2,
-			"failed":    3,
-			"cancelled": 4,
-			"completed": 5,
+			// 重启后中断的任务和失败的任务一样需要用户处理，排在已完成之前。
+			panelUploadStatusInterrupted: 3,
+			"failed":                     4,
+			"cancelled":                  5,
+			"completed":                  6,
 		}
 		left := statusOrder[tasks[i].Status]
 		right := statusOrder[tasks[j].Status]
@@ -172,6 +178,7 @@ func (a *App) CancelPanelMapUpload(taskID string) {
 
 	if task != nil {
 		a.emitPanelUploadTaskUpdated(taskID)
+		a.persistPanelUploadTasks(true)
 	}
 	if uploadID != "" {
 		go a.cancelRemotePanelMapUpload(taskID, uploadID)
@@ -181,7 +188,8 @@ func (a *App) CancelPanelMapUpload(taskID string) {
 func (a *App) RetryPanelMapUpload(taskID string) {
 	panelUploads.mu.Lock()
 	task, exists := panelUploads.tasks[taskID]
-	if !exists || (task.Status != "failed" && task.Status != "cancelled") {
+	if !exists ||
+		(task.Status != "failed" && task.Status != "cancelled" && task.Status != panelUploadStatusInterrupted) {
 		panelUploads.mu.Unlock()
 		return
 	}
@@ -229,7 +237,10 @@ func (a *App) ClearCompletedPanelMapUploads() {
 		}
 	}
 	panelUploads.mu.Unlock()
-	runtime.EventsEmit(a.ctx, "panel_upload_tasks_cleared", nil)
+	a.persistPanelUploadTasks(true)
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "panel_upload_tasks_cleared", nil)
+	}
 }
 
 func (a *App) HasActivePanelUploads() bool {
@@ -722,6 +733,7 @@ func (a *App) storePanelMapUploadTask(task *PanelMapUploadTask) {
 	panelUploads.mu.Lock()
 	panelUploads.tasks[task.ID] = task
 	panelUploads.mu.Unlock()
+	a.persistPanelUploadTasks(true)
 }
 
 func (a *App) getPanelMapUploadTaskSnapshot(taskID string) *PanelMapUploadTask {
@@ -767,6 +779,7 @@ func (a *App) setPanelUploadStatus(taskID string, status string, message string)
 		}
 	})
 	a.emitPanelUploadTaskUpdated(taskID)
+	a.persistPanelUploadTasks(true)
 }
 
 func (a *App) setPanelUploadStatusForAttempt(taskID string, attempt uint64, status string, message string) {
@@ -783,6 +796,7 @@ func (a *App) setPanelUploadStatusForAttempt(taskID string, attempt uint64, stat
 		return
 	}
 	a.emitPanelUploadTaskUpdated(taskID)
+	a.persistPanelUploadTasks(true)
 }
 
 func (a *App) applyPanelUploadedChunks(taskID string, attempt uint64, uploadedChunks []int) {
@@ -794,6 +808,7 @@ func (a *App) applyPanelUploadedChunks(taskID string, attempt uint64, uploadedCh
 		return
 	}
 	a.emitPanelUploadTaskUpdated(taskID)
+	a.persistPanelUploadTasksThrottled()
 }
 
 func (a *App) markPanelChunkUploaded(taskID string, attempt uint64, chunkIndex int, startTime time.Time, sessionUploaded int64) {
@@ -812,6 +827,7 @@ func (a *App) markPanelChunkUploaded(taskID string, attempt uint64, chunkIndex i
 		return
 	}
 	a.emitPanelUploadTaskProgress(taskID)
+	a.persistPanelUploadTasksThrottled()
 }
 
 func (a *App) handlePanelUploadProcessError(ctx context.Context, taskID string, attempt uint64, err error) {
@@ -832,7 +848,11 @@ func (a *App) emitPanelUploadTaskUpdated(taskID string) {
 	if task == nil {
 		return
 	}
-	runtime.EventsEmit(a.ctx, "panel_upload_task_updated", task)
+	// 与下载任务那边保持一致：ctx 还没就绪（生命周期钩子之前 / 单元测试）时不发事件，
+	// 否则 Wails 的 EventsEmit 会直接报 “invalid context” 并把调用方打挂。
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "panel_upload_task_updated", task)
+	}
 }
 
 func (a *App) emitPanelUploadTaskProgress(taskID string) {
@@ -840,7 +860,9 @@ func (a *App) emitPanelUploadTaskProgress(taskID string) {
 	if task == nil {
 		return
 	}
-	runtime.EventsEmit(a.ctx, "panel_upload_task_progress", task)
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "panel_upload_task_progress", task)
+	}
 }
 
 func normalizePanelUploadedChunks(chunks []int, totalChunks int) []int {
@@ -913,7 +935,8 @@ func isActivePanelUploadStatus(status string) bool {
 }
 
 func isClearablePanelUploadStatus(status string) bool {
-	return status == "completed" || status == "failed" || status == "cancelled"
+	return status == "completed" || status == "failed" || status == "cancelled" ||
+		status == panelUploadStatusInterrupted
 }
 
 func clonePanelMapUploadTask(task *PanelMapUploadTask) *PanelMapUploadTask {
