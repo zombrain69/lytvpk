@@ -260,6 +260,13 @@ func (a *App) CancelDownloadTask(taskID string) {
 			}
 			task.Status = "cancelled"
 			task.Error = downloadCancelledMessage
+			// 取消 = 丢弃这次下载：下面的 removeDownloadTempFiles 会把临时文件与检查点一起删掉，
+			// 所以任务上的进度也必须归零。真机上原来保留着"已取消 · 12% / 1.4 MB"，
+			// 但点重试其实是从 0 开始，前后对不上。
+			task.Progress = 0
+			task.DownloadedSize = 0
+			task.Speed = ""
+			task.FilePath = ""
 		}
 	}
 	taskManager.mu.Unlock()

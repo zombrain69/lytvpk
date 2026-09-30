@@ -369,8 +369,19 @@ func TestPauseAndResumeDownloadTaskStateMachine(t *testing.T) {
 	taskManager.mu.RLock()
 	cancelled := taskManager.tasks[task.ID]
 	cancelledStatus := cancelled.Status
+	cancelledProgress := cancelled.Progress
+	cancelledSize := cancelled.DownloadedSize
+	cancelledSpeed := cancelled.Speed
 	taskManager.mu.RUnlock()
 	if cancelledStatus != "cancelled" {
 		t.Fatalf("取消后状态 = %q", cancelledStatus)
+	}
+	// 真机观察：取消会把临时数据删掉，但界面还停在"已取消 · 12% / 1.4 MB"，
+	// 而点重试是从 0 开始 —— 取消时必须把进度一起归零。
+	if cancelledProgress != 0 || cancelledSize != 0 {
+		t.Fatalf("取消会丢弃临时数据，进度必须归零：progress=%d%% downloaded=%d", cancelledProgress, cancelledSize)
+	}
+	if cancelledSpeed != "" {
+		t.Fatalf("取消后速度应清空，实际 %q", cancelledSpeed)
 	}
 }

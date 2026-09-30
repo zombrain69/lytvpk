@@ -172,6 +172,11 @@ func (a *App) CancelPanelMapUpload(taskID string) {
 			task.Status = "cancelled"
 			task.Error = "用户已取消"
 			task.Speed = ""
+			// 与下载取消一致：取消会丢弃这次上传（服务端分片也会被清掉），
+			// 界面上的进度必须归零，否则会停在"已取消 · 42%"而重试其实从 0 开始。
+			task.Progress = 0
+			task.UploadedSize = 0
+			task.UploadedChunks = nil
 		}
 	}
 	panelUploads.mu.Unlock()

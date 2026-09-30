@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.7.1-community.40 — 2026-09-30
+
+**取消下载后界面还停在「已取消 · 12% / 1.4 MB」，但数据其实已经删了。**
+
+这轮把下载任务的异常分支整条真机跑了一遍（本地 mock：限速 / 不支持 Range / 分块 500 /
+一直 500），结论是**暂停续传、Range 降级、分块重试、自动重下、重启恢复都正常**，
+只抓到一处体验不一致：
+
+- `CancelDownloadTask` 会删掉临时文件与断点检查点（数据确实丢弃了），但任务上的
+  `Progress` / `DownloadedSize` / `Speed` 保留着 —— 列表里显示"已取消 · 12% · 1.4 MB"；
+- 而点「重试」时 `RetryDownloadTask` 又会把进度清零（因为数据没了），前后对不上，
+  容易让人以为重试会从 12% 接着下。
+
+修复：取消时一并清零 `Progress` / `DownloadedSize` / `Speed` / `FilePath`；
+面板上传的取消（`CancelPanelMapUpload`）做同样处理（它同样会丢弃服务端分片）。
+
+### 验证
+
+- 扩展 `TestPauseAndResumeDownloadTaskStateMachine`：取消后状态必须是 `cancelled`，
+  且 `progress` / `downloadedSize` / `speed` 都必须归零
+- `go test ./... -count=1` / `go vet ./...` 全绿；`node --test` 453 项全绿；`npm run build` 通过
+- 真机（打包 EXE + 沙箱库 + 本机下载 mock，真实库零写入）下载全链路：
+
+```
+PASS  A 暂停成功（进度 12%，已下载 1572864 字节）→ 继续下载完成（进度 100%）
+      · mock 日志显示续传只重下了没完成的两个分块，已完成的分块没有被再请求
+PASS  B 取消成功（进度归零=true，提示「已取消」）        ← 修复前是 false
+PASS  C 不支持 Range 时降级单线程完成（进度 100%）
+      · 日志：先 3 个 Range 请求拿到 200，改用整文件 GET 一次完成
+PASS  D 分块失败后自动重试完成（进度 100%）
+PASS  E 失败后自动重下一次（attempts=1）
+PASS  下到 83% 杀进程 → 重启后任务恢复为 interrupted（进度/已下载都保留、界面有重试按钮）
+      → 重试续传完成；日志显示只补了没下完的分块
+```
+
 ## 2.7.1-community.39 — 2026-09-30
 
 **合集被作者删掉后，「检查更新」会说"下架 N 个"，还会把本地记录的成员清空。**
