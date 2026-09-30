@@ -161,7 +161,12 @@ func (a *App) handleDroppedPath(current int, total int, targetPath string) DropI
 			return item
 		}
 		item.Success = true
-		item.Message = "VPK 安装完成"
+		// 同名不覆盖：另存为 name(1).vpk，并把这件事说清楚。
+		if filepath.Base(outputPath) != filepath.Base(targetPath) {
+			item.Message = fmt.Sprintf("VPK 安装完成（已存在同名 Mod，另存为 %s）", filepath.Base(outputPath))
+		} else {
+			item.Message = "VPK 安装完成"
+		}
 	case dropImportKindArchive:
 		err := a.extractVPKFromArchiveWithProgress(targetPath, rootDir, archiveProgress("extracting"))
 		if err != nil {
@@ -253,7 +258,9 @@ func (a *App) installVPKFile(srcPath string, progress dropImportProgressFunc) (s
 	if rootDir == "" {
 		return "", fmt.Errorf("请先设置游戏 addons 目录")
 	}
-	destPath := filepath.Join(rootDir, filepath.Base(srcPath))
+	// 真机复现：拖入与已有 Mod 同名的 VPK 会被静默覆盖（767 → 1848 字节，提示只有"安装完成"）。
+	// 导入外来文件不该动用户已有的 Mod：同名时另存为 name(1).vpk。
+	destPath := uniqueDropImportTarget(rootDir, filepath.Base(srcPath))
 	dst, err := os.CreateTemp(rootDir, "."+filepath.Base(srcPath)+".tmp-*")
 	if err != nil {
 		return "", err
@@ -402,14 +409,15 @@ func extractVPKFromRarWithProgress(rarPath string, destDir string, progress arch
 		if !ok {
 			continue
 		}
-		if err := extractReaderEntryWithProgress(r, entry.name, destDir, func(delta int64) {
+		writtenPath, err := extractReaderEntryWithProgress(r, entry.name, destDir, func(delta int64) {
 			completedBytes += delta
 			progress(archivePercent(completedBytes, totalBytes, completedEntries, len(selected)), fmt.Sprintf("正在解压: %s", filepath.Base(entry.name)), nil)
-		}); err != nil {
+		})
+		if err != nil {
 			return fmt.Errorf("解压 %s 失败: %v", entry.name, err)
 		}
 		completedEntries++
-		progress(archivePercent(completedBytes, totalBytes, completedEntries, len(selected)), fmt.Sprintf("已解压: %s", filepath.Base(entry.name)), nil)
+		progress(archivePercent(completedBytes, totalBytes, completedEntries, len(selected)), fmt.Sprintf("已解压: %s", filepath.Base(writtenPath)), nil)
 	}
 
 	if completedEntries == 0 {
@@ -499,7 +507,7 @@ func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, 
 			mu.Unlock()
 			emitProgress(percent, "正在并行解压 VPK", activeNames)
 		}
-		if err := extractZipEntryWithProgress(entry.file, entry.decodedName, destDir, func(delta int64) {
+		writtenPath, err := extractZipEntryWithProgress(entry.file, entry.decodedName, destDir, func(delta int64) {
 			mu.Lock()
 			completedBytes += delta
 			percent := archivePercent(completedBytes, totalBytes, completedEntries, len(entries))
@@ -507,7 +515,8 @@ func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, 
 			activeNames := activeArchiveNames(activeVPKs)
 			mu.Unlock()
 			emitProgress(percent, message, activeNames)
-		}); err != nil {
+		})
+		if err != nil {
 			mu.Lock()
 			delete(activeVPKs, activeName)
 			errs = append(errs, fmt.Sprintf("%s: %v", entry.decodedName, err))
@@ -518,7 +527,7 @@ func (a *App) extractZipEntriesParallel(entries []dropZipEntry, destDir string, 
 		delete(activeVPKs, activeName)
 		completedEntries++
 		percent := archivePercent(completedBytes, totalBytes, completedEntries, len(entries))
-		message := fmt.Sprintf("已解压: %s", filepath.Base(entry.decodedName))
+		message := fmt.Sprintf("已解压: %s", filepath.Base(writtenPath))
 		activeNames := activeArchiveNames(activeVPKs)
 		mu.Unlock()
 		emitProgress(percent, message, activeNames)
@@ -578,7 +587,7 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 			mu.Unlock()
 			emitProgress(percent, "正在并行解压 VPK", activeNames)
 		}
-		if err := extract7zEntryWithProgress(entry.file, entry.name, destDir, func(delta int64) {
+		writtenPath, err := extract7zEntryWithProgress(entry.file, entry.name, destDir, func(delta int64) {
 			mu.Lock()
 			completedBytes += delta
 			percent := archivePercent(completedBytes, totalBytes, completedEntries, len(entries))
@@ -586,7 +595,8 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 			activeNames := activeArchiveNames(activeVPKs)
 			mu.Unlock()
 			emitProgress(percent, message, activeNames)
-		}); err != nil {
+		})
+		if err != nil {
 			mu.Lock()
 			delete(activeVPKs, activeName)
 			errs = append(errs, fmt.Sprintf("%s: %v", entry.name, err))
@@ -597,7 +607,7 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 		delete(activeVPKs, activeName)
 		completedEntries++
 		percent := archivePercent(completedBytes, totalBytes, completedEntries, len(entries))
-		message := fmt.Sprintf("已解压: %s", filepath.Base(entry.name))
+		message := fmt.Sprintf("已解压: %s", filepath.Base(writtenPath))
 		activeNames := activeArchiveNames(activeVPKs)
 		mu.Unlock()
 		emitProgress(percent, message, activeNames)
@@ -659,37 +669,68 @@ func listRarEntries(rarPath string) ([]dropRarEntry, error) {
 	return entries, nil
 }
 
-func extractZipEntryWithProgress(file *zip.File, name string, destDir string, onDelta func(int64)) error {
+func extractZipEntryWithProgress(file *zip.File, name string, destDir string, onDelta func(int64)) (string, error) {
 	rc, err := file.Open()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer rc.Close()
 	return extractReaderEntryWithProgress(rc, name, destDir, onDelta)
 }
 
-func extract7zEntryWithProgress(file *sevenzip.File, name string, destDir string, onDelta func(int64)) error {
+func extract7zEntryWithProgress(file *sevenzip.File, name string, destDir string, onDelta func(int64)) (string, error) {
 	rc, err := file.Open()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer rc.Close()
 	return extractReaderEntryWithProgress(rc, name, destDir, onDelta)
 }
 
-func extractReaderEntryWithProgress(reader io.Reader, name string, destDir string, onDelta func(int64)) error {
-	targetPath := filepath.Join(destDir, filepath.Base(name))
+// extractReaderEntryWithProgress 写出一个条目，返回实际写入的路径。
+// 同名时另存为 name(1).ext —— 导入外来文件不该覆盖用户已有的 Mod。
+func extractReaderEntryWithProgress(reader io.Reader, name string, destDir string, onDelta func(int64)) (string, error) {
+	targetPath := uniqueDropImportTarget(destDir, filepath.Base(name))
 	outFile, err := os.Create(targetPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if err := copyStreamWithProgress(outFile, reader, onDelta); err != nil {
 		_ = outFile.Close()
 		_ = os.Remove(targetPath)
-		return err
+		return "", err
 	}
-	return outFile.Close()
+	if err := outFile.Close(); err != nil {
+		_ = os.Remove(targetPath)
+		return "", err
+	}
+	return targetPath, nil
+}
+
+// uniqueDropImportTarget 返回 destDir 下不冲突的目标路径：
+// 同名时按 "名字(1).ext / 名字(2).ext" 递增（与打包器同一套约定）。
+func uniqueDropImportTarget(destDir, baseName string) string {
+	baseName = strings.TrimSpace(baseName)
+	if baseName == "" {
+		baseName = "imported.vpk"
+	}
+	ext := filepath.Ext(baseName)
+	stem := strings.TrimSuffix(baseName, ext)
+	if stem == "" {
+		stem = "imported"
+	}
+	for index := 0; index < 10000; index++ {
+		name := baseName
+		if index > 0 {
+			name = fmt.Sprintf("%s(%d)%s", stem, index, ext)
+		}
+		candidate := filepath.Join(destDir, name)
+		if _, err := os.Stat(candidate); err != nil {
+			return candidate
+		}
+	}
+	return filepath.Join(destDir, baseName)
 }
 
 func decodeZipEntryName(file *zip.File) string {

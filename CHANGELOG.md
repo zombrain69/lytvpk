@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.7.1-community.22 — 2026-09-30
+
+**拖拽导入同名 VPK 会静默覆盖已有 Mod（真机实测：767 → 1848 字节，提示只有「VPK 安装完成」）。**
+
+真机复现（把与 addons 里同名的 VPK 拖进应用）：
+
+```
+导入前 zztest_hud_only.vpk = 767 字节
+导入后 zztest_hud_only.vpk = 1848 字节（原文件被替换）   提示：VPK 安装完成
+```
+
+两条导入路径都会覆盖同名文件：直接拖 VPK 走 `installVPKFile`（temp + replaceFile），
+拖压缩包走 `extractReaderEntryWithProgress`（`os.Create`）。
+
+修复：新增 `uniqueDropImportTarget` —— 目标同名时按 `名字(1).vpk / 名字(2).vpk` 递增
+（与打包器同一套约定），外来文件永远不会覆盖现有 Mod：
+
+```
+导入后：原文件 767 字节未变 + 新增 zztest_hud_only(1).vpk
+提示：VPK 安装完成（已存在同名 Mod，另存为 zztest_hud_only(1).vpk）
+```
+
+- 直接拖 VPK 与三种压缩包（zip / rar / 7z）解压统一走这套命名
+- 解压进度里显示的是**实际写入**的文件名，同名副本一眼可见
+- 新增 `drop_import_overwrite_test.go`（4 项）：`installVPKFile` 与解压写入都不覆盖同名文件、
+  原文件字节不变、第二次冲突继续递增；端到端跑一次「zip 里含同名 VPK」的拖拽导入
+
+### 真机验证（沙箱夹具，真实库零写入）
+
+- 新名字 VPK → 安装到 addons 且不写 addonlist（保持未记录语义）
+- 同名 VPK → 原文件不变 + 另存副本 + 提示说明
+- 文件夹 → 打包成 VPK；含 VPK 的 zip → 解压；`.dmp` → 交给分析器；`.txt` → 「仅支持 …」
+- addonlist 仍为 13 条（导入不擅自写开关）
+
+## 2.7.1-community.21 — 2026-09-30
 ## 2.7.1-community.21 — 2026-09-30
 
 **面板上传失败时把整页 HTML 错误页原样塞进了任务提示。**
