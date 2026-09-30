@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // 真机背景：上传到一半关掉应用，任务记录直接消失 —— 既看不到"上次有个上传被中断"，
@@ -109,6 +110,14 @@ func TestPanelUploadSnapshotRestoresInterruptedTasks(t *testing.T) {
 	panelUploads.mu.RUnlock()
 	if doneStatus != "completed" {
 		t.Fatalf("已完成的任务被重试改成了 %q", doneStatus)
+	}
+
+	// 上面那次重试会拉起后台上传协程（这里没有可用面板服务器，很快失败收尾）。
+	// 必须等它结束再退出测试：协程失败后还要写一次任务快照，
+	// 否则它会在 t.TempDir() 清理之后继续往 config 目录写文件 ——
+	// CI 上偶发的 "TempDir RemoveAll cleanup: ... directory is not empty" 就是这么来的。
+	if !waitPanelUploadWorkersIdle(15 * time.Second) {
+		t.Fatal("后台上传协程没有在 15s 内收尾，测试无法安全清理临时目录")
 	}
 }
 

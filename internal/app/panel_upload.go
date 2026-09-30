@@ -116,7 +116,7 @@ func (a *App) StartPanelMapUpload(serverID string, filePaths []string) ([]string
 		task.cancelFunc = cancel
 		a.storePanelMapUploadTask(task)
 		a.emitPanelUploadTaskUpdated(task.ID)
-		go a.processPanelMapUpload(ctx, task.ID, task.attempt)
+		a.startPanelMapUploadWorker(ctx, task.ID, task.attempt)
 	}
 
 	return taskIDs, nil
@@ -226,7 +226,7 @@ func (a *App) RetryPanelMapUpload(taskID string) {
 	panelUploads.mu.Unlock()
 
 	a.emitPanelUploadTaskUpdated(taskID)
-	go a.processPanelMapUpload(ctx, taskID, attempt)
+	a.startPanelMapUploadWorker(ctx, taskID, attempt)
 }
 
 func (a *App) ClearCompletedPanelMapUploads() {
@@ -348,6 +348,37 @@ func (a *App) compressVPKForUpload(ctx context.Context, vpkPath string) (string,
 	}
 
 	return zipPath, info.Size(), nil
+}
+
+// panelUploadWorkers 跟踪后台上传协程。
+//
+// 生产路径不依赖它；它是给测试用的：上传协程在失败/完成之后还会写一次任务快照，
+// 如果测试没等它收尾就结束，t.TempDir() 的清理会和这次写入撞车，
+// CI 上表现为 "TempDir RemoveAll cleanup: ... The directory is not empty"（偶发）。
+var panelUploadWorkers sync.WaitGroup
+
+// startPanelMapUploadWorker 启动一个上传协程，并登记到 panelUploadWorkers。
+func (a *App) startPanelMapUploadWorker(ctx context.Context, taskID string, attempt uint64) {
+	panelUploadWorkers.Add(1)
+	go func() {
+		defer panelUploadWorkers.Done()
+		a.processPanelMapUpload(ctx, taskID, attempt)
+	}()
+}
+
+// waitPanelUploadWorkersIdle 等待所有上传协程收尾；超时返回 false。
+func waitPanelUploadWorkersIdle(timeout time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		panelUploadWorkers.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
 }
 
 func (a *App) processPanelMapUpload(ctx context.Context, taskID string, attempt uint64) {

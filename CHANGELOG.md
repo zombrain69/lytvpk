@@ -24,6 +24,12 @@
    于是"已保存…"、"新增 X 个 / 本地缺少 Y 个"这类结果一闪就没。修复：状态存一份
    模块级 `workshopCollectionStatusText`，参与渲染（状态优先，其次才是读取错误）。
 
+顺带修掉一个 CI 偶发失败：`TestPanelUploadSnapshotRestoresInterruptedTasks` 里的
+"重试"会拉起后台上传协程，协程失败后还要写一次任务快照；测试不等它就结束的话，
+`t.TempDir()` 清理会和这次写入撞车（CI 上报
+`TempDir RemoveAll cleanup: ... The directory is not empty`）。现在上传协程统一登记到
+`panelUploadWorkers`，测试等它收尾再退出 —— `.37` 的第一次 CI/Release 就是被这个偶发卡住的。
+
 ### 验证
 
 - 新增 Go 用例 `TestCaptureWorkshopCollectionRejectsSingleItem`（单个 Mod 必须报错且不留记录）
