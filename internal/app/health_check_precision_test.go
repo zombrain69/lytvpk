@@ -235,3 +235,48 @@ func TestHealthCheckReportsDuplicateWorkshopCopies(t *testing.T) {
 		t.Fatal("体检不该动任何文件")
 	}
 }
+
+// 真实库证据（2026-10-01）：addons 根目录与 addons\disabled 各有一份的同名 Mod 有 9 组、
+// 合计约 461 MB，而旧的体检只查 root↔workshop，这种情况一条都不报。
+// 两处同名时根目录那份会被游戏加载、disabled 那份永远不加载，只白占空间；
+// 而且对着 disabled 那条按「批量启用」会直接撞上「目标已存在」而失败。
+func TestHealthCheckReportsDuplicateDisabledCopies(t *testing.T) {
+	root := t.TempDir()
+	writeHealthCheckFixture(t, root,
+		"两处都有.vpk",                        // 根目录 + disabled：应报
+		filepath.Join("disabled", "两处都有.vpk"),
+		filepath.Join("disabled", "只有禁用.vpk"), // 只有 disabled：不该报这条
+		"只有根目录.vpk",                       // 只有根目录：不该报
+	)
+	writeConflictTestAddonList(t, root, []conflictTestAddonListEntry{
+		{Name: "两处都有.vpk", Value: "1"},
+		{Name: "只有根目录.vpk", Value: "1"},
+	})
+	a := newProfileTestApp(t, root)
+
+	report, err := a.RunModHealthCheck(ModHealthCheckOptions{})
+	if err != nil {
+		t.Fatalf("health check: %v", err)
+	}
+
+	counts := healthIssueKinds(report)
+	if counts[modHealthKindDuplicateDisabledCopy] != 1 {
+		t.Fatalf("应当只报 1 条「根目录与 disabled 各一份」，实际：%#v", report.Issues)
+	}
+	for _, issue := range report.Issues {
+		if issue.Kind != modHealthKindDuplicateDisabledCopy {
+			continue
+		}
+		if issue.Name != "两处都有.vpk" || issue.Location != "root" {
+			t.Fatalf("这条应指向根目录那份（生效的那份）：%#v", issue)
+		}
+		if !strings.Contains(issue.Message, "disabled") || !strings.Contains(issue.Message, "MB") {
+			t.Fatalf("提示要说清楚是 disabled 那份冗余、并给出占用空间：%q", issue.Message)
+		}
+	}
+	// 体检只读：两份都还在。
+	if !fileExists(filepath.Join(root, "两处都有.vpk")) ||
+		!fileExists(filepath.Join(root, "disabled", "两处都有.vpk")) {
+		t.Fatal("体检不该动任何文件")
+	}
+}

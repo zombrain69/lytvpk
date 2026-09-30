@@ -16,6 +16,7 @@ const HEALTH_ISSUE_KIND_LABELS = {
   meta_id_mismatch: "工坊信息对不上作品",
   outside_root: "条目指向受管目录之外",
   duplicate_vpk_copy: "工坊作品有多份副本",
+  duplicate_disabled_copy: "根目录与 disabled 各一份",
 };
 
 export function formatHealthIssueKind(kind) {

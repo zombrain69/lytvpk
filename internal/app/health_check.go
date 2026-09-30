@@ -36,6 +36,12 @@ const (
 	// （"deleting redundant VPK files for workshop items"）：
 	// 同一个工坊作品在根目录与 workshop 目录各留了一份，只会白占空间、还容易开错那份。
 	modHealthKindDuplicateVPKCopy = "duplicate_vpk_copy"
+	// modHealthKindDuplicateDisabledCopy：同一个 Mod 在 addons 根目录与 addons\disabled 各一份。
+	// 与 duplicate_vpk_copy（工坊作品 root↔workshop）不同，这条对**任何** Mod 都成立：
+	// 根目录那份会被游戏加载，disabled 那份永远不参与加载，只白占空间，文件列表里还会出现
+	// 两个同名条目（真实库里就有 9 组、约 461 MB，而且对着 disabled 那条按「批量启用」会直接
+	// 撞上「目标已存在」而失败）。
+	modHealthKindDuplicateDisabledCopy = "duplicate_disabled_copy"
 )
 
 // ModHealthCheckOptions 控制体检范围。DeepScan 会逐个解析 VPK 目录，
@@ -188,6 +194,39 @@ func checkDuplicateWorkshopCopies(rootDir string, report *ModHealthReport) {
 		report.addIssue(modHealthKindDuplicateVPKCopy, "warning", entry.Name(), rootCopy, "root",
 			fmt.Sprintf("工坊作品 %s 在根目录与 workshop 目录各有一份：只会白占空间，而且在两处都可能被开关（addonlist 键不同）。建议只保留一份（工坊原件留着、把根目录那份移走或删掉）", entry.Name()))
 	}
+}
+
+// checkDuplicateDisabledCopies 找出"同一个 Mod 在 addons 根目录与 disabled 目录各一份"。
+//
+// 与工坊那条不同：这里不要求文件名是工坊 ID —— 任何 Mod 只要两处同名存在就是冗余
+// （根目录那份被游戏加载，disabled 那份永远不会）。同样只报告，不自动删。
+func checkDuplicateDisabledCopies(rootDir string, report *ModHealthReport) {
+	entries, err := os.ReadDir(rootDir)
+	if err != nil {
+		return
+	}
+	disabledDir := filepath.Join(rootDir, "disabled")
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
+			continue
+		}
+		disabledCopy := filepath.Join(disabledDir, entry.Name())
+		info, statErr := os.Stat(disabledCopy)
+		if statErr != nil || info.IsDir() {
+			continue
+		}
+		report.addIssue(modHealthKindDuplicateDisabledCopy, "warning", entry.Name(), filepath.Join(rootDir, entry.Name()), "root",
+			fmt.Sprintf("%s 在根目录与 disabled 目录各有一份：根目录那份会被游戏加载，disabled 那份永远不会，只白占空间（%s）。建议删掉或移走 disabled 那一份；否则对它按「批量启用」会直接撞上「目标已存在」而失败。",
+				entry.Name(), formatHealthSize(info.Size())))
+	}
+}
+
+// formatHealthSize 把字节数写成 MB，供体检文案说明冗余副本占多少空间。
+func formatHealthSize(size int64) string {
+	if size <= 0 {
+		return "未知大小"
+	}
+	return fmt.Sprintf("%.1f MB", float64(size)/(1024*1024))
 }
 
 // checkWorkshopMetaIDMatch 核对 .meta 里记的作品 ID 与文件名是不是同一个作品。
@@ -376,6 +415,8 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 	a.checkWorkshopMetaFiles(rootDir, &report)
 	// 4.1) 同一工坊作品在根目录与 workshop 各一份（对齐 FireAxe File Cleaner 的目标）。
 	checkDuplicateWorkshopCopies(rootDir, &report)
+	// 4.2) 同一 Mod 在根目录与 disabled 各一份：根目录那份生效，disabled 那份纯冗余。
+	checkDuplicateDisabledCopies(rootDir, &report)
 
 	// 5) 用户声明的依赖：依赖被关闭或依赖文件缺失。
 	a.checkModDependencies(rootDir, addonListStateMap(list), &report)

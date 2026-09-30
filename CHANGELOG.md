@@ -1,5 +1,40 @@
 # Changelog
 
+## 未发布 — 体检新增「根目录与 disabled 各一份」冗余副本（2026-10-01）
+
+**发现方式**：把真实库导出的分组目录（2872 个 Mod）与真实 `addons\`、`addons\disabled\` 对照，
+发现 **9 个 Mod 在两处各存一份、大小完全相同、合计约 461 MB**。而体检里的冗余副本检查
+（`duplicate_vpk_copy`，对齐 FireAxe File Cleaner）只覆盖「根目录 ↔ workshop」，
+这种情况一条都不报。
+
+为什么值得报：
+
+- 根目录那份会被游戏加载，`disabled` 那份永远不会 —— 纯白占空间（真实库里 461 MB）；
+- 文件列表里会出现两个同名条目，两边的开关状态看着还可能不一致；
+- 对着 `disabled` 那条按「批量启用」会直接撞上「目标已存在」而失败。
+  （启用/禁用走的是真正的 `os.Rename` 移动，应用自己**不会**留下这种成对副本，
+  所以这类副本是从外部带进来的；体检只提示、不自动删。）
+
+**改动**
+
+- `internal/app/health_check.go`：新增体检类型 `duplicate_disabled_copy` 与
+  `checkDuplicateDisabledCopies()`（只报告、不自动删，与工坊那条口径一致），
+  提示里给出被浪费的空间（例如「约 109.0 MB」）并说明「批量启用」会撞车的原因。
+- `frontend/src/js/features/settings/health-report-format.mjs`：中文标签「根目录与 disabled 各一份」。
+- `docs/toolbox/mod-health-check.md`：结果表补一行（体检类型要求 Go / 前端标签 / 用户文档三层一致，
+  由 `repo_consistency_test.go` 的 `TestHealthIssueKindsHaveLabelAndDocRow` 守着）。
+- `internal/app/health_check_precision_test.go`：新增
+  `TestHealthCheckReportsDuplicateDisabledCopies`（两处都有 → 报 1 条且指向根目录那份；
+  只有 `disabled` / 只有根目录 → 不报；体检只读，不动文件）。
+
+**验证**
+
+```
+go test ./... -count=1   全 ok（含体检类型三层一致性审计）
+go vet ./...             退出码 0
+node --test（frontend/）  481 项 / 0 失败
+```
+
 ## 未发布 — 拖入「其实是压缩包/工具包的 .vpk」不再当 VPK 处理（2026-10-01）
 
 **发现方式**：用 `--export-grouping-catalog` 导出真实库（2872 个 Mod）的清单后离线审计 ——
