@@ -344,7 +344,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 		err = os.Rename(vpkFile.Path, newPath)
 		if err != nil {
 			a.mu.Unlock()
-			return err
+			return formatFileMoveError("禁用", vpkFile.Path, err)
 		}
 		// 同步移动同名图片
 		a.handleSidecarFile(vpkFile.Path, newPath, "move")
@@ -360,7 +360,7 @@ func (a *App) ToggleVPKFile(filePath string) error {
 		err = os.Rename(vpkFile.Path, newPath)
 		if err != nil {
 			a.mu.Unlock()
-			return err
+			return formatFileMoveError("启用", vpkFile.Path, err)
 		}
 		// 同步移动同名图片
 		a.handleSidecarFile(vpkFile.Path, newPath, "move")
@@ -538,7 +538,7 @@ func (a *App) ToggleVPKVisibility(filePath string) (string, error) {
 
 	err := os.Rename(filePath, newPath)
 	if err != nil {
-		return "", err
+		return "", formatFileMoveError("重命名", filePath, err)
 	}
 	// 同步重命名同名图片
 	a.handleSidecarFile(filePath, newPath, "move")
@@ -619,7 +619,7 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	}
 
 	if err := os.Rename(filePath, newPath); err != nil {
-		return err
+		return formatFileMoveError("改名", filePath, err)
 	}
 	// 同步重命名同名图片
 	a.handleSidecarFile(filePath, newPath, "move")
@@ -777,7 +777,7 @@ func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error)
 
 	err := os.Rename(filePath, newPath)
 	if err != nil {
-		return "", err
+		return "", formatFileMoveError("重命名", filePath, err)
 	}
 	// 同步重命名同名图片
 	a.handleSidecarFile(filePath, newPath, "move")

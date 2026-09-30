@@ -277,7 +277,11 @@ func (a *App) setProblemScanItemEnabled(item ProblemModScanItem, enabled bool) (
 	}
 
 	if err := os.Rename(currentPath, newPath); err != nil {
-		return item, err
+		action := "禁用"
+		if enabled {
+			action = "启用"
+		}
+		return item, formatFileMoveError(action, currentPath, err)
 	}
 	a.handleSidecarFile(currentPath, newPath, "move")
 

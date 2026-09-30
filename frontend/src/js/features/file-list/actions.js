@@ -114,11 +114,15 @@ export async function enableSelected() {
   if (!(await confirmVPKOperationWarning(filesToToggle, "批量启用 Mod"))) return;
 
   try {
+    // 失败的第一个原因要跟着计数一起说出来：只说"N 个失败"用户没法排查
+    // （是不是被游戏占用、没权限、目标同名……）。
+    const failures = [];
     const promises = filesToToggle.map(async (filePath) => {
       try {
         await ToggleVPKFile(filePath);
         return filePath;
       } catch (error) {
+        failures.push(String(error?.message || error));
         console.error("启用文件失败:", filePath, error);
         return null;
       }
@@ -134,7 +138,8 @@ export async function enableSelected() {
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
-      showNotification(`${failedCount} 个文件启用失败`, "error");
+      const reason = failures[0] ? `：${failures[0]}` : "";
+      showNotification(`${failedCount} 个文件启用失败${reason}`, "error");
     }
   } catch (error) {
     console.error("批量启用失败:", error);
@@ -161,11 +166,13 @@ export async function disableSelected() {
   if (!(await confirmVPKOperationWarning(filesToToggle, "批量禁用 Mod"))) return;
 
   try {
+    const failures = [];
     const promises = filesToToggle.map(async (filePath) => {
       try {
         await ToggleVPKFile(filePath);
         return filePath;
       } catch (error) {
+        failures.push(String(error?.message || error));
         console.error("禁用文件失败:", filePath, error);
         return null;
       }
@@ -181,7 +188,8 @@ export async function disableSelected() {
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
-      showNotification(`${failedCount} 个文件禁用失败`, "error");
+      const reason = failures[0] ? `：${failures[0]}` : "";
+      showNotification(`${failedCount} 个文件禁用失败${reason}`, "error");
     }
   } catch (error) {
     console.error("批量禁用失败:", error);
@@ -213,6 +221,7 @@ export async function disableAllMods(primaryTag = "") {
 
       const successFiles = [];
       let failedCount = 0;
+      const failures = [];
 
       try {
         for (const filePath of filesToToggle) {
@@ -221,6 +230,7 @@ export async function disableAllMods(primaryTag = "") {
             successFiles.push(filePath);
           } catch (error) {
             failedCount++;
+            failures.push(String(error?.message || error));
             console.error("禁用文件失败:", filePath, error);
           }
         }
@@ -233,7 +243,8 @@ export async function disableAllMods(primaryTag = "") {
         }
 
         if (failedCount > 0) {
-          showNotification(`${failedCount} 个${scopeLabel}禁用失败`, "error");
+          const reason = failures[0] ? `：${failures[0]}` : "";
+          showNotification(`${failedCount} 个${scopeLabel}禁用失败${reason}`, "error");
         }
       } catch (error) {
         console.error(`批量禁用${scopeLabel}失败:`, error);

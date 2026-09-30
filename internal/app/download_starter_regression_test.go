@@ -36,7 +36,7 @@ func TestStartDownloadTaskStartsRealWorkerWithoutInjection(t *testing.T) {
 		taskManager.mu.RUnlock()
 
 		if status != "" && status != "pending" {
-			if status != "failed" || errText != "Root directory not set" {
+			if status != "failed" || errText != "还没有选择 addons 目录，无法保存下载文件" {
 				t.Fatalf("真实 worker 应在未设置根目录时快速失败，实际 status=%s error=%s", status, errText)
 			}
 			return

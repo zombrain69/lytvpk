@@ -166,7 +166,7 @@ func moveFile(src, dst string) error {
 		if strings.Contains(errMsg, "cross-device link") || strings.Contains(errMsg, "different disk drive") {
 			return copyAndDelete(src, dst)
 		}
-		return err
+		return formatFileMoveError("移动", src, err)
 	}
 	return nil
 }

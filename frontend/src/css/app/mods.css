@@ -1699,6 +1699,10 @@
   border-radius: 999px;
   font-size: 0.6875rem;
   white-space: nowrap;
+  /* 徽标是定长文案（文件不存在 / 文件在 disabled）：
+     列宽被文件名挤到时不能跟着缩，否则会变成"文件不存…"这种半截字。 */
+  min-width: max-content;
+  justify-self: end;
 }
 
 .load-order-preview-status.is-missing {

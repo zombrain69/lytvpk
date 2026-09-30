@@ -114,4 +114,18 @@ test("选择标签与结果文案", () => {
     "已禁用 2 个成员；4 个不适用于这个动作，已跳过；1 个失败",
   );
   assert.equal(formatMemberBatchResult({ label: "启用", succeeded: 1 }), "已启用 1 个成员");
+  // 只报"1 个失败"没法排查，第一个原因要跟着一起说。
+  assert.equal(
+    formatMemberBatchResult({
+      label: "禁用",
+      succeeded: 2,
+      failed: 1,
+      firstError: "文件正被其它程序占用，关闭占用的程序后重试",
+    }),
+    "已禁用 2 个成员；1 个失败（文件正被其它程序占用，关闭占用的程序后重试）",
+  );
+  assert.equal(
+    formatMemberBatchResult({ label: "禁用", succeeded: 2, failed: 1, firstError: "   " }),
+    "已禁用 2 个成员；1 个失败",
+  );
 });

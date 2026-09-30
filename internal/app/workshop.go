@@ -93,6 +93,18 @@ type DownloadTask struct {
 	cancelFunc         context.CancelFunc `json:"-"`
 }
 
+// downloadCancelledMessage 是「用户取消」写进任务里的提示。
+//
+// 判定取消不能只认这一句话：下载任务会落盘，旧版本写的是英文原文，
+// 升级后读回来时仍然要按「用户取消」处理（见 isUserCancelledDownloadError）。
+const downloadCancelledMessage = "已取消"
+
+// isUserCancelledDownloadError 同时认当前中文文案与历史英文文案。
+func isUserCancelledDownloadError(message string) bool {
+	return strings.HasPrefix(message, downloadCancelledMessage) ||
+		strings.HasPrefix(message, "Cancelled")
+}
+
 // shouldAutoRedownload 判定一个失败任务是否应该触发"自动重下一次"。
 // 纯函数，便于在不动网络的情况下覆盖全部边界。
 func shouldAutoRedownload(task *DownloadTask) bool {
@@ -108,7 +120,7 @@ func shouldAutoRedownload(task *DownloadTask) bool {
 	if task.Status != "failed" {
 		return false
 	}
-	if strings.HasPrefix(task.Error, "Cancelled") {
+	if isUserCancelledDownloadError(task.Error) {
 		// 用户主动取消不应被自动重下覆盖。
 		return false
 	}
@@ -247,7 +259,7 @@ func (a *App) CancelDownloadTask(taskID string) {
 				task.cancelFunc()
 			}
 			task.Status = "cancelled"
-			task.Error = "Cancelled by user"
+			task.Error = downloadCancelledMessage
 		}
 	}
 	taskManager.mu.Unlock()
@@ -278,7 +290,7 @@ func (a *App) markDownloadStoppedByContext(task *DownloadTask, updateStatus func
 	if task != nil && downloadTaskIsPaused(task.ID) {
 		return
 	}
-	updateStatus("cancelled", "Cancelled by user")
+	updateStatus("cancelled", downloadCancelledMessage)
 }
 
 // removeDownloadTempFiles 删除某个任务的临时下载文件与检查点。

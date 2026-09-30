@@ -34,7 +34,13 @@ func TestShouldAutoRedownloadDecision(t *testing.T) {
 		"未开启":    {Status: "failed", AutoRedownload: false},
 		"已重试过":   {Status: "failed", AutoRedownload: true, RedownloadAttempts: 1},
 		"非失败状态":  {Status: "downloading", AutoRedownload: true},
-		"用户主动取消": {Status: "failed", AutoRedownload: true, Error: "Cancelled by user"},
+		"用户主动取消": {
+			Status: "failed", AutoRedownload: true, Error: downloadCancelledMessage,
+		},
+		// 下载任务会落盘：升级前写下的英文取消文案读回来也要按取消处理。
+		"旧版本的取消文案": {
+			Status: "failed", AutoRedownload: true, Error: "Cancelled by user",
+		},
 		"空任务":    nil,
 	}
 	for name, task := range cases {

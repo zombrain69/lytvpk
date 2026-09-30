@@ -166,10 +166,23 @@ export function planMemberRemoval(memberKeys, groups) {
   return plan;
 }
 
-/** formatMemberBatchResult 生成批量动作完成后的一句话总结。 */
-export function formatMemberBatchResult({ label, succeeded, failed = 0, skipped = 0 }) {
+/**
+ * formatMemberBatchResult 生成批量动作完成后的一句话总结。
+ *
+ * firstError 是第一个失败原因：只报"1 个失败"用户没法排查
+ * （文件被游戏占用 / 没权限 / 目标同名……），所以要跟着一起说。
+ */
+export function formatMemberBatchResult({
+  label,
+  succeeded,
+  failed = 0,
+  skipped = 0,
+  firstError = "",
+}) {
   const parts = [`已${label} ${succeeded} 个成员`];
   if (skipped > 0) parts.push(`${skipped} 个不适用于这个动作，已跳过`);
   if (failed > 0) parts.push(`${failed} 个失败`);
-  return parts.join("；");
+  const summary = parts.join("；");
+  const reason = String(firstError || "").trim();
+  return reason ? `${summary}（${reason}）` : summary;
 }

@@ -735,12 +735,14 @@ async function runMemberBatchFileToggle(kind) {
   }
   // 与主列表的批量启用 / 禁用同一条风险提示（VPK 完整性问题不阻断，但要先说清）。
   if (!(await confirmVPKOperationWarning(paths, `批量${label}策略组成员`))) return;
+  const failures = [];
   const results = await Promise.all(
     paths.map(async (path) => {
       try {
         await ToggleVPKFile(path);
         return true;
       } catch (error) {
+        failures.push(String(error?.message || error));
         console.error(`批量${label}失败:`, path, error);
         return false;
       }
@@ -750,7 +752,12 @@ async function runMemberBatchFileToggle(kind) {
   await reload();
   await refreshAfterChange();
   showNotification(
-    formatMemberBatchResult({ label, succeeded, failed: paths.length - succeeded }),
+    formatMemberBatchResult({
+      label,
+      succeeded,
+      failed: paths.length - succeeded,
+      firstError: failures[0] || "",
+    }),
     succeeded > 0 ? "success" : "error",
   );
 }

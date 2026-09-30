@@ -448,26 +448,42 @@ func formatUpdateDownloadError(err error) string {
 	if err == nil {
 		return ""
 	}
-	lower := strings.ToLower(err.Error())
-	text := err.Error()
-	switch {
-	case strings.Contains(lower, "i/o timeout"),
-		strings.Contains(lower, "deadline exceeded"),
-		strings.Contains(lower, "connectex"),
-		strings.Contains(lower, "connection attempt failed"),
-		strings.Contains(lower, "did not properly respond"),
-		strings.Contains(lower, "failed to respond"),
-		strings.Contains(text, "连接尝试失败"),
-		strings.Contains(text, "连接超时"),
-		strings.Contains(text, "没有正确答复"):
+	// 关键词表与工坊下载共用（internal/app/network_failure.go）。
+	switch classifyNetworkFailure(err) {
+	case networkFailureTimeout:
 		return "更新包下载失败：连接超时（可在下方切换 GitHub 加速镜像后重试）"
-	case strings.Contains(lower, "connection refused"), strings.Contains(text, "拒绝"):
+	case networkFailureRefused:
 		return "更新包下载失败：连接被拒绝（可在下方切换镜像后重试）"
-	case strings.Contains(lower, "no such host"), strings.Contains(lower, "lookup"):
+	case networkFailureDNS:
 		return "更新包下载失败：无法解析下载地址（请检查网络或换镜像）"
-	default:
-		return "更新包下载失败：" + text
 	}
+	return "更新包下载失败：" + err.Error()
+}
+
+// formatWorkshopDownloadError 把工坊下载失败翻译成中文可行动提示。
+//
+// 已经是中文的提示（HTTP 状态码、内容类型不对等）原样返回，
+// 免得出现"下载失败：下载失败：……"这种叠字。
+func formatWorkshopDownloadError(err error) string {
+	if err == nil {
+		return ""
+	}
+	text := err.Error()
+	if strings.HasPrefix(text, "下载失败") {
+		return text
+	}
+	switch classifyNetworkFailure(err) {
+	case networkFailureTimeout:
+		return "下载失败：连接超时（可在设置里换优选线路，或稍后重试）"
+	case networkFailureRefused:
+		return "下载失败：连接被拒绝（服务器暂时不可达，稍后重试）"
+	case networkFailureDNS:
+		return "下载失败：无法解析下载地址（请检查网络或 DNS 设置）"
+	}
+	if reason := describeFileMoveFailure(err); reason != "" {
+		return "下载失败：" + reason
+	}
+	return "下载失败：" + text
 }
 
 // downloadWithProgress 下载文件并发送进度

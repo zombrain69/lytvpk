@@ -115,12 +115,12 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 
 	rootDir := a.rootDirectorySnapshot()
 	if rootDir == "" {
-		updateStatus("failed", "Root directory not set")
+		updateStatus("failed", "还没有选择 addons 目录，无法保存下载文件")
 		return
 	}
 
 	if downloadUrl == "" {
-		updateStatus("failed", "Download URL is empty")
+		updateStatus("failed", "下载地址为空，无法开始下载")
 		return
 	}
 
@@ -148,7 +148,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 	// Ensure temp directory exists
 	tempDir := filepath.Join(rootDir, "temp")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		updateStatus("failed", "Failed to create temp dir: "+err.Error())
+		updateStatus("failed", "创建临时下载目录失败："+err.Error())
 		return
 	}
 
@@ -189,10 +189,10 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 				if downloadTaskIsPaused(task.ID) {
 					return
 				}
-				updateStatus("cancelled", "Cancelled by user")
+				updateStatus("cancelled", downloadCancelledMessage)
 				return
 			} else {
-				updateStatus("failed", err.Error())
+				updateStatus("failed", formatWorkshopDownloadError(err))
 				return
 			}
 		} else {
@@ -212,7 +212,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 			}
 
 			if err := os.Rename(finalPath, targetPath); err != nil {
-				updateStatus("failed", "Rename failed: "+err.Error())
+				updateStatus("failed", formatFileMoveError("保存下载文件", targetPath, err).Error())
 				return
 			}
 
@@ -256,7 +256,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 
 	out, err := os.Create(tempPath)
 	if err != nil {
-		updateStatus("failed", err.Error())
+		updateStatus("failed", formatWorkshopDownloadError(err))
 		return
 	}
 
@@ -337,7 +337,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 		var req *http.Request
 		req, err = http.NewRequestWithContext(ctx, "GET", downloadUrl, nil)
 		if err != nil {
-			updateStatus("failed", err.Error())
+			updateStatus("failed", formatWorkshopDownloadError(err))
 			return
 		}
 		// Updated User-Agent
@@ -370,7 +370,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 	}
 
 	if reqErr != nil {
-		updateStatus("failed", reqErr.Error())
+		updateStatus("failed", formatWorkshopDownloadError(reqErr))
 		return
 	}
 	defer resp.Body.Close()
@@ -421,7 +421,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 	// Check Content-Type
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "" && (contentType == "text/html" || contentType == "application/json") {
-		updateStatus("failed", fmt.Sprintf("Invalid content type: %s", contentType))
+		updateStatus("failed", fmt.Sprintf("下载失败：服务器返回的不是 Mod 文件（Content-Type: %s）", contentType))
 		return
 	}
 
@@ -453,7 +453,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 			a.markDownloadStoppedByContext(task, updateStatus)
 			os.Remove(tempPath)
 		} else {
-			updateStatus("failed", err.Error())
+			updateStatus("failed", formatWorkshopDownloadError(err))
 		}
 		return
 	}
@@ -478,7 +478,7 @@ func (a *App) processDownloadTask(ctx context.Context, task *DownloadTask, downl
 
 	// Rename to final
 	if err := os.Rename(tempPath, targetPath); err != nil {
-		updateStatus("failed", "Rename failed: "+err.Error())
+		updateStatus("failed", formatFileMoveError("保存下载文件", targetPath, err).Error())
 		return
 	}
 
@@ -618,22 +618,22 @@ func (a *App) replaceExistingMod(newFilePath string, workshopID string) string {
 		}
 	}
 
-	// 移动新文件到目录目录
+	// 把新文件移动到目标目录
 	newFilename := filepath.Base(newFilePath)
 	targetPath := filepath.Join(targetDir, newFilename)
 
-	// 如果目录目录与旧mod目录目录目录，无需移动
+	// 新文件已经在目标目录里就不用移动
 	if filepath.Dir(newFilePath) == targetDir {
-		log.Printf("新文件圂目录目录: %s", targetPath)
+		log.Printf("新文件已在目标目录: %s", targetPath)
 		return targetPath
 	}
 
 	if err := os.Rename(newFilePath, targetPath); err != nil {
-		log.Printf("移动新文件到目彗目录失败: %s -> %s, %v", newFilePath, targetPath, err)
+		log.Printf("移动新文件到目标目录失败: %s -> %s, %v", newFilePath, targetPath, err)
 		return newFilePath
 	}
 
-	// 同旦移动新文件的关联文件（.meta, 预览图）
+	// 同时移动新文件的关联文件（.meta, 预览图）
 	newBase := strings.TrimSuffix(newFilePath, filepath.Ext(newFilePath))
 	targetBase := strings.TrimSuffix(targetPath, filepath.Ext(targetPath))
 	for _, ext := range []string{".meta", ".jpg", ".png", ".jpeg", ".gif"} {
@@ -641,11 +641,11 @@ func (a *App) replaceExistingMod(newFilePath string, workshopID string) string {
 		dstPath := targetBase + ext
 		if _, err := os.Stat(srcPath); err == nil {
 			if err := os.Rename(srcPath, dstPath); err != nil {
-				log.Printf("移动关聚文件失败: %s -> %s, %v", srcPath, dstPath, err)
+				log.Printf("移动关联文件失败: %s -> %s, %v", srcPath, dstPath, err)
 			}
 		}
 	}
 
-	log.Printf("已替捩旧Mod，新文件位罎: %s", targetPath)
+	log.Printf("已替换旧Mod，新文件位置: %s", targetPath)
 	return targetPath
 }

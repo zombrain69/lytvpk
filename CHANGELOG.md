@@ -1,5 +1,67 @@
 # Changelog
 
+## 2.7.1-community.13 — 2026-09-30
+
+**用外部进程独占锁住一个测试 VPK 做故障注入，跑通了「文件被占用」这条链路，
+并把同一类文件操作失败的提示统一成中文可行动文案。**
+
+### 一、文件被占用时不再甩原始英文 + 两条完整路径
+
+`ToggleVPKFile`（启用 / 禁用）、隐藏 / 显示、改名、重命名原来直接把 `os.Rename`
+的错误返回给界面，用户看到的是：
+
+```
+rename E:\...\addons\zztest_hud_only.vpk E:\...\addons\disabled\zztest_hud_only.vpk:
+The process cannot access the file because it is being used by another process.
+```
+
+新增 `describeFileMoveFailure` / `formatFileMoveError`（`internal/app/file_operation_errors.go`）：
+按 Windows 错误码翻译成「哪个文件、为什么、怎么办」，只留文件名；
+认不出的原因仍然保留原文，免得把真正的原因吞掉。
+
+- 被占用（32 / 33）→「文件正被其它程序占用（游戏、杀毒软件、资源管理器预览都可能占用它），关闭占用的程序后重试」
+- 拒绝访问（5）→「没有权限修改这个文件（可能被设为只读，或被安全软件拦截）」
+- 目标同名（183）→「目标目录里已经有同名文件，请先改名或删除它」
+- 路径超 260（206）→「路径超过 Windows 的 260 字符上限，请缩短名称或把 Mod 放到更浅的目录」
+- 磁盘满（112）、源文件已消失（ENOENT）各有对应文案
+
+落在：`ToggleVPKFile`（启用 / 禁用）、`ToggleVPKVisibility`、`SetVPKTags`、`RenameVPKFile`、
+「问题查找」的启用 / 禁用、`moveFile`（工坊复制到 addons）、下载完成后的落盘改名。
+
+### 二、批量失败不再只有一个数字
+
+主列表「批量启用 / 批量禁用 / 全部禁用」与策略组管理窗口的成员批量，
+原来失败只报「N 个文件禁用失败」。现在把第一个失败原因接在后面：
+「1 个文件禁用失败：禁用 zztest_hud_only.vpk 失败：文件正被其它程序占用…」。
+策略组管理的批量结果文案同样带出第一个原因（`formatMemberBatchResult` 新增 `firstError`）。
+
+### 三、下载任务里的英文提示与乱码日志
+
+- 「Root directory not set」「Download URL is empty」「Failed to create temp dir: 」
+  「Cancelled by user」→ 中文可行动文案
+- 工坊下载失败的原始网络错误（`connectex`、`wsarecv: 连接尝试失败`、
+  `connection refused`、`no such host`）与「Invalid content type: 」→ 中文可行动文案；
+  关键词表与更新包下载共用 `classifyNetworkFailure`，两边不再各写一份
+- 取消判定同时认历史英文：下载任务会落盘，升级后读回来的旧任务仍按「用户取消」处理，
+  不会被自动重下覆盖（`isUserCancelledDownloadError`）
+- 修掉 `replaceModFile` 一带上游遗留的乱码日志/注释（「目彗目录」「关聚文件」「位罎」…）
+
+### 四、加载顺序预览的「文件不存在」徽标被挤成半截
+
+容器查询切到窄布局时，`.load-order-preview-status` 会被文件名挤到 40px，
+「文件不存在」被裁成「文件不存…」。改为 `min-width: max-content` + `justify-self: end`。
+
+### 验证
+
+- 真机（沙箱夹具 + 自造 Mod，真实库零写入）：外部进程持有独占句柄时，
+  单文件禁用与批量禁用都只失败被锁的那一个，提示为中文可行动文案；解锁后重试成功
+- 新增 `file_operation_errors_test.go`（6 类错误码 + 未知原因保留原文）与
+  `vpk_move_error_windows_test.go`（真文件独占锁 → 中文提示 → 解锁后正常禁用）
+- 新增 `workshop_download_message_test.go`（5 类网络错误 + 不叠字 + 保留未知细节）
+- 窗口宽度扫描（窄 1180 → 宽 1880）：主界面 19 处、加载顺序 4 处截断全部随窗口展开；
+  策略组管理 / Mod 详情 / 问题查找 / 冲突检测在窄窗口下没有截断
+- `go test ./...` 全绿；`node --test` 431 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.12 — 2026-09-30
 
 **真机实测「立即更新」全链路后修两处问题：下载失败提示可读化 + 旧备份被占用时的替换回退。**
