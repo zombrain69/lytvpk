@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.7.1-community.20 — 2026-09-30
+
+**压缩包「移动到目录」失败时前缀重复了两次，读起来像机器拼接的。**
+
+真机复现（独占句柄锁住 `zz-archive.zip`，再走归档移动）：
+
+```
+移动 zz-archive.zip 失败: 移动 zz-archive.zip 失败：文件正被其它程序占用（…），关闭占用的程序后重试
+```
+
+原因：community.13 让 `moveFile` 返回完整的「移动 xxx 失败：…」提示之后，
+`MoveArchiveFiles` 里那句 `fmt.Sprintf("移动 %s 失败: %v", …)` 就成了第二层前缀。
+
+修复：新增 `describeArchiveMoveFailure` —— 底层已经是完整提示（以「移动 」开头）就直接用，
+只带原因（例如「目标文件已存在」）时才补上「移动哪个文件」。
+
+### 验证
+
+- 新增 `archive_move_message_test.go`（2 项）：不重复前缀；缺文件名时补前缀
+- 真机（沙箱，真实库零写入）：修复后同一场景只输出
+  「移动 zz-archive.zip 失败：文件正被其它程序占用（游戏、杀毒软件、资源管理器预览都可能占用它），
+  关闭占用的程序后重试」
+- `go test ./...` 全绿；`node --test` 434 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.19 — 2026-09-30
 
 **「复制到 addons」失败时显示 Windows 英文原文（复制路径漏了中文化）。**

@@ -966,7 +966,24 @@ func (a *App) MoveArchiveFiles(filePaths []string, destDir, action string) (Move
 			continue
 		}
 		result.FailCount++
-		result.Errors = append(result.Errors, fmt.Sprintf("移动 %s 失败: %v", filepath.Base(source), err))
+		result.Errors = append(result.Errors, describeArchiveMoveFailure(source, err))
 	}
 	return result, nil
+}
+
+// describeArchiveMoveFailure 给失败条目带上"哪个文件"，但不再重复底层已有的前缀。
+//
+// moveFile / copyFileOverwrite 现在都会返回完整的中文提示（「移动 xxx 失败：文件正被…」），
+// 早期这里又套了一层「移动 %s 失败: %v」，真机上读起来是
+// 「移动 zz-archive.zip 失败: 移动 zz-archive.zip 失败：文件正被其它程序占用…」。
+func describeArchiveMoveFailure(source string, err error) string {
+	base := filepath.Base(source)
+	if err == nil {
+		return fmt.Sprintf("移动 %s 失败: 未知错误", base)
+	}
+	text := strings.TrimSpace(err.Error())
+	if strings.HasPrefix(text, "移动 ") {
+		return text
+	}
+	return fmt.Sprintf("移动 %s 失败: %s", base, text)
 }
