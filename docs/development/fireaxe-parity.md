@@ -925,3 +925,24 @@ ktxiaok/FireAxe  main     = f8aa1cf1（v0.7.3，只有 main 一个分支，无 d
 `Ctrl+F` 搜索与 Esc、命令面板、行右键菜单（视口内）、多选批量栏、行内游戏开关（含风险确认框后
 写盘成功）、体检（夹具 ghost.vpk）、冲突检测、autoexec 编辑器、VPK 完整性检测（截断 VPK 报
 checksum mismatch）。细节见 `docs/development/manual-verification.md` 第二十轮。
+
+### 5.17 2026-10-01 第二十一轮：真实库离线交叉核对（无 GUI，全程只读）
+
+本轮 GUI 实例被并行会话占着单例端口，改做「只用真实数据 + 仓库代码」的核对。所有数字都来自
+真实 Mod 库（2872 个条目）与真实配置；一次性脚本 / 测试跑完即删，`addonlist.txt` 全程未变
+（前后 SHA256 一致）。
+
+| 核对项 | 方法 | 结果 |
+| --- | --- | --- |
+| VPK 目录结构 | 用独立 Python 解析器重读 2872 个 VPK 的目录树，与 `--export-grouping-catalog` 的 `structure` 比对 | **2872/2872 一致**（条目数 + 解压后总字节；含 1.49 GB / 305 条与 7900+ 条的工坊包），1.8s |
+| 路径与大小 | 目录的 `relativePath` / `size` 逐条 stat 磁盘 | 2872 条：0 缺失、0 大小不符 |
+| 游戏内开关 | 目录的 `gameEnabled` 与真实 `addonlist.txt`（GBK，2568 键）比对 | 2566 条已知状态：0 缺失、0 不一致 |
+| 策略组成员 | `groups.json`（208 组 / 961 成员）与目录 `management.groups` 双向比对 | 0 只在一侧、0 组名不一致、0 空组、0 组内重复 |
+| 标签证据（上游 `da4a71b` 那类） | 人物主标签且证据路径全落在 `materials/vgui`、`materials/sprites`、`resource`、`scripts`、`particles`、`sound/ui` | **0 例** —— 本项目的 `isCharacterAssetPath` 口径在真实数据上成立，无需移植该修复 |
+| 体检（真实库，只读） | `RunModHealthCheck` 无头跑一遍 | 139 条问题：`missing_file` 1、`duplicate_disabled_copy` 9（本轮新增）、`duplicate_vpk_copy` 127、`subfolder_vpks` 1（本轮新增） |
+| §9 白名单 | 真实 `pak01_dir.vpk` 生成批次 + 两次冲突检测 | 12 批次 / 22282 条路径，**66ms**；删 `models.txt` 后 11 批次 / 9715 条，冲突组 **1241 → 1366** |
+
+**由这些数据驱动的新增体检项**：`duplicate_disabled_copy`（同一个 Mod 在根目录与 `disabled`
+各一份，实测 9 组 / 461 MB）与 `subfolder_vpks`（`addons` 子目录里的 VPK 游戏不会加载，
+实测 59 个子目录 / 1363 个 VPK / 9.4 GB）。两者都只提示、不自动删，并由 Go 测试 +
+体检类型三层一致性审计（Go / 前端标签 / 用户文档）守着。
