@@ -15,9 +15,9 @@
 | --- | --- | --- | --- |
 | 1 | `go test ./... -count=1` | 全部 ok（含仓库一致性审计） | ok（`internal/app` 等 8 个包） |
 | 2 | `go vet ./...` | 无输出 | 无输出 |
-| 3 | `node --test`（在 `frontend/`） | 全通过 | **401 项 / 0 失败** |
-| 4 | `npm run build`（在 `frontend/`） | 产物正常（仅有既有的 chunk 体积警告） | 通过 |
-| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（18,546,688 字节，内含 2.7.1-community.4） |
+| 3 | `node --test`（在 `frontend/`） | 全通过 | **482 项 / 0 失败**（2026-10-01 复跑） |
+| 4 | `npm run build`（在 `frontend/`） | 产物正常（仅有既有的 chunk 体积警告） | 通过（2026-10-01 复跑，2.3s） |
+| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（2026-10-01：12.8s / 18,888,704 字节，且默认构建不含任何 CUA 桥标记） |
 | 6 | `npm run docs:build`（在 `docs/`） | VitePress 构建完成（含内部链接检查） | 通过 |
 
 另外两项"不靠命令"的复核点：

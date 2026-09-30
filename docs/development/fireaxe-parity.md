@@ -959,3 +959,13 @@ checksum mismatch）。细节见 `docs/development/manual-verification.md` 第�
 - **工坊合集**（对照工坊页面 HTML 的 `collectionItem` 数量）：`3684758906` 应用 **285** = 页面 **285**；
   `3804753386` 应用 **30** = 页面 **30**，成员全部带下载直链；缺失计数复核：
   30 个成员里放 2 个本地文件 → `missing=28`，删 1 个 → `missing=29`。
+- **冲突忽略清单**（真实库）：优先感知模式下真实库**全是已判定覆盖**（覆盖组 488 / 冲突组 0）；
+  全局忽略 `materials/` → 488 → **233**，剩余组里 0 条落在 `materials/**`；单 Mod 忽略
+  （键 `workshop\2951512228.vpk`）→ 它参与的组 **108 → 37**，并出现 **200 条**
+  「因 Mod 自身的忽略规则跳过」标注。注意接口要传 **addonlist 键**而不是文件路径。
+- **热路径耗时**（真实库 2872 个 Mod，冷配置）：`ScanVPKFiles` 冷 **4.45s** / 热 **1.09s**、
+  `GetVPKFiles` 3ms、`GetModPriorityPlan` 2ms、`CheckConflicts` **861ms**（再跑 418ms）、
+  `RunModHealthCheck` **559ms**。扫描本身已经是「协程池 = CPU 核数」（`ants.NewPool(cores)`），
+  没有可捡的便宜，也没有"用起来明显卡"的点。
+- **构建链路**：`npm run build` 2.3s、`wails build` 12.8s 均通过；产物 18,888,704 字节，
+  且**不含**任何 CUA 桥标记（`LYTVPK_CUA_BRIDGE` / `cua bridge listening` / `eval-sync`）。
