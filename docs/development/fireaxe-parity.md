@@ -946,3 +946,16 @@ checksum mismatch）。细节见 `docs/development/manual-verification.md` 第�
 各一份，实测 9 组 / 461 MB）与 `subfolder_vpks`（`addons` 子目录里的 VPK 游戏不会加载，
 实测 59 个子目录 / 1363 个 VPK / 9.4 GB）。两者都只提示、不自动删，并由 Go 测试 +
 体检类型三层一致性审计（Go / 前端标签 / 用户文档）守着。
+
+**同轮的真实网络侧复核**（真实 Steam API + CDN，沙箱目录，不碰真实库与真实配置）：
+
+- **工坊下载链路端到端**：小文件走单线程（`2998315305`，167 字节 → completed，落盘 167 字节，
+  应用解析出 1 条内部路径）；大文件走分块（`2993548452`，30,125,974 字节 →
+  `6-thread download` / `Blocks: 6, Resumed: 0` → completed，9.1 MB/s，
+  落盘字节与工坊声明**完全一致**，应用解析出 44 条内部路径）。预览图（`.jpg` / `.gif`）按设计一起落盘。
+- **顺带修掉的真缺陷**：`TaskWriteCounter.Write` 是全场唯一没判空就调 `runtime.EventsEmit`
+  的地方 —— 无头 / 后台上下文跑下载时 Wails 的 `log.Fatal` 会**直接把进程带走**（本轮就是踩到它）。
+  已加判空 + 契约测试 `TestTaskWriteCounterWithoutWailsContextDoesNotAbort`。
+- **工坊合集**（对照工坊页面 HTML 的 `collectionItem` 数量）：`3684758906` 应用 **285** = 页面 **285**；
+  `3804753386` 应用 **30** = 页面 **30**，成员全部带下载直链；缺失计数复核：
+  30 个成员里放 2 个本地文件 → `missing=28`，删 1 个 → `missing=29`。
