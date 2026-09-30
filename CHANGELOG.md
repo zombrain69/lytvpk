@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.7.1-community.42 — 2026-09-30
+
+**解包坏压缩包时，把解码库的英文原文直接摆给了用户。**
+
+真机用一组夹具（正常 zip / 完全不是 zip 的 broken.zip / 没有 VPK 的 zip）测了
+压缩包管理的完整流程，扫描、冲突、跳过、覆盖、同名解包都对，只有一处不一致：
+
+```
+扫描卡片：无法读取 ZIP：文件可能已损坏或不完整，也可能不是有效的 ZIP 压缩包。   ← 早已中文化（.17 修过）
+解包报错：无法打开ZIP文件: zip: not a valid zip file                          ← 英文原文
+```
+
+原因：扫描路径（`scanArchivePackage`）会用 `describeArchiveReadFailure()` 把底层错误
+翻译成中文；而**解包路径**（`ExtractVPKFromZip/Rar/7z`、拖拽导入的
+`extractVPKFromZipWithProgress` 等）直接 `fmt.Errorf("无法打开ZIP文件: %v", err)`，
+把库的英文原文拼进去。
+
+修复：新增 `describeArchiveOpenFailure(path, format, err)`，解包路径统一走它 ——
+用户只看到中文可行动说明（损坏 / 加密的提示与扫描路径一致），原始英文写进日志供排查。
+共替换 12 处（zip / rar / 7z × 工具箱解包与拖拽导入）。
+
+### 验证
+
+- 新增 `TestExtractVPKFromArchiveReportsChineseErrorForBrokenZip` /
+  `...ForBrokenRar`：解包坏包必须给「无法读取 ZIP / RAR」这类中文说明，
+  且不允许出现 `not a valid zip` 之类的英文原文
+- `go test ./... -count=1` / `go vet ./...` 全绿；`node --test` 454 项全绿；`npm run build` 通过
+- 真机（打包 EXE + 沙箱库，真实文件只在沙箱里操作）：
+
+```
+PASS  正常压缩包解析出 VPK：zz_arch_a.vpk
+PASS  坏包卡片上给的是中文说明（解码库英文只留在 errorDetail 供悬停排查）
+PASS  没有 VPK 的合法压缩包：正常解析、0 个 VPK
+PASS  冲突检测：1 处；「跳过」success=0/skipped=1 原文件保留；「覆盖」success=1
+PASS  解包同名 VPK 另存为 zz_arch_a(1).vpk，原有 zz_arch_a.vpk 未被覆盖（SHA256 未变）
+PASS  坏包解包报错：「无法读取 ZIP：文件可能已损坏或不完整，也可能不是有效的 ZIP 压缩包。」  ← 修复点
+```
+
 ## 2.7.1-community.41 — 2026-09-30
 
 **设置页三个开关点了完全没反应（勾选状态会变，但配置不写、也没有任何提示）。**

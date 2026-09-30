@@ -55,6 +55,48 @@ func TestDescribeArchiveReadFailureMentionsPassword(t *testing.T) {
 	}
 }
 
+// TestExtractVPKFromArchiveReportsChineseErrorForBrokenZip 覆盖真机复现：
+// 解包路径（工具箱 / 压缩包管理里的"解包"）原来把解码库的英文原文直接拼在
+// 「无法打开ZIP文件:」后面 —— 用户看到的是 `zip: not a valid zip file`。
+// 现在和扫描路径一样：只给中文可行动说明，原始英文写日志。
+func TestExtractVPKFromArchiveReportsChineseErrorForBrokenZip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "broken.zip")
+	if err := os.WriteFile(path, []byte("PK"+strings.Repeat("x", 400)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	a := &App{}
+	err := a.ExtractVPKFromArchive(path, dir)
+	if err == nil {
+		t.Fatal("损坏的 zip 解包应该报错")
+	}
+	if !strings.Contains(err.Error(), "无法读取 ZIP") {
+		t.Fatalf("解包报错应是中文可行动说明，实际 %q", err.Error())
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "not a valid zip") {
+		t.Fatalf("解包报错里不该出现解码库英文原文：%q", err.Error())
+	}
+}
+
+// TestExtractVPKFromArchiveReportsChineseErrorForBrokenRar：rar 分支同理。
+func TestExtractVPKFromArchiveReportsChineseErrorForBrokenRar(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "broken.rar")
+	if err := os.WriteFile(path, []byte("Rar!"+strings.Repeat("x", 64)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	a := &App{}
+	err := a.ExtractVPKFromArchive(path, dir)
+	if err == nil {
+		t.Fatal("损坏的 rar 解包应该报错")
+	}
+	if !strings.Contains(err.Error(), "无法读取 RAR") {
+		t.Fatalf("解包报错应是中文可行动说明，实际 %q", err.Error())
+	}
+}
+
 // errTestPasswordRequired 用库常见的英文写法，确认关键词识别不区分大小写。
 var errTestPasswordRequired = &testError{"archive is encrypted: password required"}
 

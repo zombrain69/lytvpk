@@ -311,7 +311,7 @@ func (a *App) extractVPKFromArchiveWithProgress(archivePath string, destDir stri
 func (a *App) extractVPKFromZipWithProgress(zipPath string, destDir string, progress archiveProgressFunc) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("无法打开ZIP文件: %v", err)
+		return describeArchiveOpenFailure(zipPath, "zip", err)
 	}
 	defer r.Close()
 
@@ -377,13 +377,13 @@ func extractVPKFromRarWithProgress(rarPath string, destDir string, progress arch
 
 	f, err := os.Open(rarPath)
 	if err != nil {
-		return fmt.Errorf("无法打开RAR文件: %v", err)
+		return describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 	defer f.Close()
 
 	r, err := rardecode.NewReader(f, "")
 	if err != nil {
-		return fmt.Errorf("无法创建RAR读取器: %v", err)
+		return describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 
 	totalBytes := totalRarEntryBytes(selected)
@@ -430,7 +430,7 @@ func extractVPKFromRarWithProgress(rarPath string, destDir string, progress arch
 func (a *App) extractVPKFrom7zWithProgress(sevenZPath string, destDir string, progress archiveProgressFunc) error {
 	r, err := sevenzip.OpenReader(sevenZPath)
 	if err != nil {
-		return fmt.Errorf("无法打开7z文件: %v", err)
+		return describeArchiveOpenFailure(sevenZPath, "7z", err)
 	}
 	defer r.Close()
 
@@ -639,13 +639,13 @@ func (a *App) extract7zEntriesParallel(entries []drop7zEntry, destDir string, pr
 func listRarEntries(rarPath string) ([]dropRarEntry, error) {
 	f, err := os.Open(rarPath)
 	if err != nil {
-		return nil, fmt.Errorf("无法打开RAR文件: %v", err)
+		return nil, describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 	defer f.Close()
 
 	r, err := rardecode.NewReader(f, "")
 	if err != nil {
-		return nil, fmt.Errorf("无法创建RAR读取器: %v", err)
+		return nil, describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 
 	var entries []dropRarEntry

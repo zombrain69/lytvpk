@@ -38,7 +38,7 @@ func extractZipFile(file *zip.File, decodedName string, destDir string) error {
 func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("无法打开ZIP文件: %v", err)
+		return describeArchiveOpenFailure(zipPath, "zip", err)
 	}
 	defer r.Close()
 
@@ -156,13 +156,13 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 	// 第一次遍历：收集所有文件名
 	f, err := os.Open(rarPath)
 	if err != nil {
-		return fmt.Errorf("无法打开RAR文件: %v", err)
+		return describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 
 	r, err := rardecode.NewReader(f, "")
 	if err != nil {
 		f.Close()
-		return fmt.Errorf("无法创建RAR读取器: %v", err)
+		return describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 
 	var allNames []string
@@ -216,13 +216,13 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 	// 第二次遍历：提取文件
 	f, err = os.Open(rarPath)
 	if err != nil {
-		return fmt.Errorf("无法打开RAR文件: %v", err)
+		return describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 	defer f.Close()
 
 	r, err = rardecode.NewReader(f, "")
 	if err != nil {
-		return fmt.Errorf("无法创建RAR读取器: %v", err)
+		return describeArchiveOpenFailure(rarPath, "rar", err)
 	}
 
 	extractedCount := 0
@@ -279,7 +279,7 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 func (a *App) ExtractVPKFrom7z(sevenZPath string, destDir string) error {
 	r, err := sevenzip.OpenReader(sevenZPath)
 	if err != nil {
-		return fmt.Errorf("无法打开7z文件: %v", err)
+		return describeArchiveOpenFailure(sevenZPath, "7z", err)
 	}
 	defer r.Close()
 

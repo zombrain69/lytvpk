@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -616,6 +617,20 @@ func describeArchiveReadFailure(format string, err error) string {
 		return "无法读取 TAR.GZ：文件可能已损坏，或不是有效的 gzip 包。"
 	}
 	return "无法读取压缩包：文件可能已损坏或格式不受支持。"
+}
+
+// describeArchiveOpenFailure 把"打不开这个压缩包"的底层错误换成中文可行动提示。
+//
+// 解包路径（ExtractVPKFromZip / Rar / 7z、拖拽导入）原来直接把解码库的英文原文
+// 拼在「无法打开 ZIP 文件:」后面丢给用户 —— 真机复现：损坏的 zip 会显示
+// 「无法打开ZIP文件: zip: not a valid zip file」。这里复用扫描路径的中文翻译，
+// 原始英文写进日志供排查，用户只看到可行动的说明。
+func describeArchiveOpenFailure(path string, format string, err error) error {
+	if err == nil {
+		return nil
+	}
+	log.Printf("[archive] 打开 %s 失败（%s）: %v", filepath.Base(path), format, err)
+	return errors.New(describeArchiveReadFailure(format, err))
 }
 
 func classifySevenZipError(err error) archiveErrorState {
