@@ -46,6 +46,7 @@ export function showPromptModal(title, message, options = {}) {
     if (!isCurrentSession()) return;
     setPending(false);
     modal.classList.add("hidden");
+    document.removeEventListener("keydown", onDocumentKeydown);
     okBtn.onclick = null;
     cancelBtn.onclick = null;
     closeBtn.onclick = null;
@@ -80,6 +81,15 @@ export function showPromptModal(title, message, options = {}) {
     }
   };
 
+  // 定义在 cleanup 之后、只在弹窗显示期间注册；cleanup 里对应移除。
+  const onDocumentKeydown = (event) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (!isCurrentSession()) return;
+    if (modal.classList.contains("hidden")) return;
+    event.preventDefault();
+    cleanup("cancel");
+  };
+
   titleEl.textContent = title || "输入";
   messageEl.textContent = message || "";
   inputEl.value = defaultValue;
@@ -99,6 +109,9 @@ export function showPromptModal(title, message, options = {}) {
   closeBtn.onclick = () => cleanup("close");
 
   modal.classList.remove("hidden");
+  // Esc 的文档级兜底：inputEl.onkeydown 只在焦点还在输入框里时才收得到事件，
+  // 而用户点一下弹窗里的说明文字就会把焦点挪到 body（真机复现：此时 Esc 完全没反应）。
+  document.addEventListener("keydown", onDocumentKeydown);
   // 让用户可以直接输入，无需再点一次输入框。
   requestAnimationFrame(() => {
     if (!isCurrentSession()) return;

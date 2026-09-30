@@ -32,3 +32,26 @@ test("策略组交互导入了应用内确认与输入弹窗", () => {
   assert.match(source, /from\s+"\.\.\/modals\/confirm\.js"/, "缺少 showConfirmModal 导入");
   assert.match(source, /from\s+"\.\.\/modals\/prompt\.js"/, "缺少 showPromptModal 导入");
 });
+
+// 真机复现：打开「重命名策略组」弹窗后，点一下弹窗里的说明文字把焦点挪到 body，
+// 再按 Esc 完全没反应（处理器只挂在输入框上）。分组选择器同样（处理器挂在弹窗上）。
+test("应用内弹窗的 Esc 要有文档级兜底", () => {
+  const pickerSource = readFileSync(path.join(here, "group-picker.js"), "utf8");
+  const promptSource = readFileSync(path.join(here, "../modals/prompt.js"), "utf8");
+
+  assert.match(
+    pickerSource,
+    /document\.addEventListener\("keydown"[\s\S]{0,220}Escape[\s\S]{0,220}closeGroupPicker\(\)/,
+    "分组选择器缺少文档级 Esc 兜底",
+  );
+  assert.match(
+    promptSource,
+    /document\.addEventListener\("keydown", onDocumentKeydown\)/,
+    "输入弹窗缺少文档级 Esc 兜底",
+  );
+  assert.match(
+    promptSource,
+    /document\.removeEventListener\("keydown", onDocumentKeydown\)/,
+    "关闭时要摘掉文档级监听，否则会越积越多",
+  );
+});

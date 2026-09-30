@@ -448,4 +448,15 @@ export function initGroupPicker() {
     const nextId = nextSelectableRowId(visibleRows, pickerView.activeId, delta);
     if (nextId) selectRowById(nextId);
   });
+
+  // Esc 的文档级兜底：上面的处理器挂在弹窗上，焦点一旦被挪到 body
+  // （点一下弹窗里的空白处就会这样）就收不到事件 —— 与命令面板同类问题。
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (!pickerState) return;
+    const modal = element("group-picker-modal");
+    if (!modal || modal.classList.contains("hidden")) return;
+    event.preventDefault();
+    closeGroupPicker();
+  });
 }
