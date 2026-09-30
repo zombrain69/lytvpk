@@ -197,9 +197,9 @@ func TestDependencyDisabledIssueCarriesFixTarget(t *testing.T) {
 func TestHealthCheckReportsDuplicateWorkshopCopies(t *testing.T) {
 	root := t.TempDir()
 	writeHealthCheckFixture(t, root,
-		"123.vpk",                        // 根目录副本
-		filepath.Join("workshop", "123.vpk"), // 工坊原件
-		filepath.Join("workshop", "456.vpk"), // 只有工坊一份：不该报
+		"123.vpk",                                     // 根目录副本
+		filepath.Join("workshop", "123.vpk"),          // 工坊原件
+		filepath.Join("workshop", "456.vpk"),          // 只有工坊一份：不该报
 		filepath.Join("workshop", "not-a-number.vpk"), // 文件名不是 ID：跳过
 		"not-a-number.vpk",
 	)
@@ -243,10 +243,10 @@ func TestHealthCheckReportsDuplicateWorkshopCopies(t *testing.T) {
 func TestHealthCheckReportsDuplicateDisabledCopies(t *testing.T) {
 	root := t.TempDir()
 	writeHealthCheckFixture(t, root,
-		"两处都有.vpk",                        // 根目录 + disabled：应报
+		"两处都有.vpk", // 根目录 + disabled：应报
 		filepath.Join("disabled", "两处都有.vpk"),
 		filepath.Join("disabled", "只有禁用.vpk"), // 只有 disabled：不该报这条
-		"只有根目录.vpk",                       // 只有根目录：不该报
+		"只有根目录.vpk",                           // 只有根目录：不该报
 	)
 	writeConflictTestAddonList(t, root, []conflictTestAddonListEntry{
 		{Name: "两处都有.vpk", Value: "1"},
@@ -278,5 +278,43 @@ func TestHealthCheckReportsDuplicateDisabledCopies(t *testing.T) {
 	if !fileExists(filepath.Join(root, "两处都有.vpk")) ||
 		!fileExists(filepath.Join(root, "disabled", "两处都有.vpk")) {
 		t.Fatal("体检不该动任何文件")
+	}
+}
+
+// 真实库证据（2026-10-01）：addons 下 59 个子目录里有 1363 个 VPK、约 9.2 GB，游戏一个都不加载
+// （游戏自己写的 addonlist.txt 里也没有任何子目录键）。这些文件在 Mod 管理页里看不到，
+// 用户很容易以为已经装上，所以体检要给一条汇总提示。
+func TestHealthCheckReportsSubfolderVPKs(t *testing.T) {
+	root := t.TempDir()
+	writeHealthCheckFixture(t, root,
+		"生效的.vpk",
+		filepath.Join("整理文件夹", "放在子目录.vpk"),
+		filepath.Join("整理文件夹", "嵌套", "更深一层.vpk"),
+		filepath.Join("workshop", "123.vpk"), // 受管目录：不算子目录冗余
+		filepath.Join("disabled", "关掉的.vpk"), // 受管目录：不算子目录冗余
+	)
+	writeConflictTestAddonList(t, root, []conflictTestAddonListEntry{
+		{Name: "生效的.vpk", Value: "1"},
+	})
+	a := newProfileTestApp(t, root)
+
+	report, err := a.RunModHealthCheck(ModHealthCheckOptions{})
+	if err != nil {
+		t.Fatalf("health check: %v", err)
+	}
+	counts := healthIssueKinds(report)
+	if counts[modHealthKindSubfolderVPKs] != 1 {
+		t.Fatalf("应当只报 1 条汇总（子目录 VPK），实际：%#v", report.Issues)
+	}
+	for _, issue := range report.Issues {
+		if issue.Kind != modHealthKindSubfolderVPKs {
+			continue
+		}
+		if !strings.Contains(issue.Message, "2 个 VPK") || !strings.Contains(issue.Message, "MB") {
+			t.Fatalf("汇总要说清数量与占用空间：%q", issue.Message)
+		}
+		if !strings.Contains(issue.Message, "workshop/disabled") {
+			t.Fatalf("要说明受管目录不在其中：%q", issue.Message)
+		}
 	}
 }

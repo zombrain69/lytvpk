@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -42,6 +43,12 @@ const (
 	// 两个同名条目（真实库里就有 9 组、约 461 MB，而且对着 disabled 那条按「批量启用」会直接
 	// 撞上「目标已存在」而失败）。
 	modHealthKindDuplicateDisabledCopy = "duplicate_disabled_copy"
+	// modHealthKindSubfolderVPKs：addons 子目录里的 VPK 不会被游戏加载。
+	// L4D2 只加载 addons 根目录与 workshop/disabled 下的 VPK（游戏自己写的 addonlist.txt 里
+	// 也没有任何子目录键）—— 把 Mod 包整包解压进 addons、或把整理用的文件夹放进 addons 的用户，
+	// 这些文件就是"看着装了、其实一次都没生效"的死重（真实库里 59 个子目录 / 1363 个 VPK / 约 9.2 GB）。
+	// 只汇总一条，不逐个列，避免把体检列表刷爆。
+	modHealthKindSubfolderVPKs = "subfolder_vpks"
 )
 
 // ModHealthCheckOptions 控制体检范围。DeepScan 会逐个解析 VPK 目录，
@@ -61,7 +68,7 @@ type ModHealthIssue struct {
 	// 对齐 FireAxe 把 Problem 和它的自动修复动作绑在一起的做法：
 	// 界面点「修复」时不需要自己猜目标。空表示这条问题只能人工判断。
 	Target  string `json:"target,omitempty"`
-	Message  string `json:"message"`
+	Message string `json:"message"`
 }
 
 // ModHealthReport 是一次体检的完整结果。
@@ -227,6 +234,56 @@ func formatHealthSize(size int64) string {
 		return "未知大小"
 	}
 	return fmt.Sprintf("%.1f MB", float64(size)/(1024*1024))
+}
+
+// isManagedAddonSubdir 判断 addons 下的子目录是不是受管目录（受管目录的 VPK 由别处逐条检查）。
+func isManagedAddonSubdir(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "workshop", "disabled":
+		return true
+	default:
+		return false
+	}
+}
+
+// checkSubfolderVPKs 汇总 addons 子目录里"游戏根本不会加载"的 VPK。
+//
+// 为什么值得报：这类文件在 Mod 管理页里根本不会出现（扫描器只看受管目录），用户很容易以为
+// 自己已经装上了。只报一条汇总（数量 + 占用空间），并在文案里说清"是收拾用文件夹的话可以忽略"。
+func checkSubfolderVPKs(rootDir string, report *ModHealthReport) {
+	entries, err := os.ReadDir(rootDir)
+	if err != nil {
+		return
+	}
+	count := 0
+	subdirs := 0
+	var total int64
+	for _, entry := range entries {
+		if !entry.IsDir() || isManagedAddonSubdir(entry.Name()) {
+			continue
+		}
+		found := false
+		_ = filepath.WalkDir(filepath.Join(rootDir, entry.Name()), func(path string, dirEntry fs.DirEntry, walkErr error) error {
+			if walkErr != nil || dirEntry.IsDir() || !strings.HasSuffix(strings.ToLower(dirEntry.Name()), ".vpk") {
+				return nil
+			}
+			if info, statErr := dirEntry.Info(); statErr == nil {
+				count++
+				total += info.Size()
+				found = true
+			}
+			return nil
+		})
+		if found {
+			subdirs++
+		}
+	}
+	if count == 0 {
+		return
+	}
+	report.addIssue(modHealthKindSubfolderVPKs, "info", fmt.Sprintf("%d 个子目录 / %d 个 VPK", subdirs, count), rootDir, "",
+		fmt.Sprintf("addons 的子目录里有 %d 个 VPK（%s）不会被游戏加载：L4D2 只加载 addons 根目录与 workshop/disabled 下的 VPK。如果这些本来是要生效的 Mod，请把它们移到 addons 根目录；如果只是你整理用的备份文件夹，可以忽略这条（体检不会动任何文件）。",
+			count, formatHealthSize(total)))
 }
 
 // checkWorkshopMetaIDMatch 核对 .meta 里记的作品 ID 与文件名是不是同一个作品。
@@ -417,6 +474,8 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 	checkDuplicateWorkshopCopies(rootDir, &report)
 	// 4.2) 同一 Mod 在根目录与 disabled 各一份：根目录那份生效，disabled 那份纯冗余。
 	checkDuplicateDisabledCopies(rootDir, &report)
+	// 4.3) addons 子目录里的 VPK：游戏不会加载（真实库里 1363 个 / 约 9.2 GB）。
+	checkSubfolderVPKs(rootDir, &report)
 
 	// 5) 用户声明的依赖：依赖被关闭或依赖文件缺失。
 	a.checkModDependencies(rootDir, addonListStateMap(list), &report)

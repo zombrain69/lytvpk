@@ -1,6 +1,6 @@
 # Changelog
 
-## 未发布 — 体检新增「根目录与 disabled 各一份」冗余副本（2026-10-01）
+## 未发布 — 体检补两类「看不见的死重」：根目录与 disabled 各一份、子目录里的 VPK（2026-10-01）
 
 **发现方式**：把真实库导出的分组目录（2872 个 Mod）与真实 `addons\`、`addons\disabled\` 对照，
 发现 **9 个 Mod 在两处各存一份、大小完全相同、合计约 461 MB**。而体检里的冗余副本检查
@@ -26,6 +26,22 @@
 - `internal/app/health_check_precision_test.go`：新增
   `TestHealthCheckReportsDuplicateDisabledCopies`（两处都有 → 报 1 条且指向根目录那份；
   只有 `disabled` / 只有根目录 → 不报；体检只读，不动文件）。
+
+### 同一批审计的第二项：`addons` 子目录里的 VPK 游戏根本不加载
+
+同一轮把目录清单的 `relativePath` / `size` 与磁盘逐条核对（2872 条，**0 缺失、0 大小不符**），
+反向扫描时发现 `addons` 的 **59 个子目录里有 1363 个 VPK、合计约 9.2 GB**
+（含 `新建文件夹` 2.8 GB、`无效` 304 MB，其余是整包解压出来的 Mod 文件夹）——
+而 L4D2 只加载 `addons` 根目录与 `workshop`/`disabled` 下的 VPK（旁证：游戏自己写的
+`addonlist.txt` 2568 条键里没有任何子目录键）。这些文件在 Mod 管理页里也不会出现，
+用户很容易以为已经装上。
+
+- `internal/app/health_check.go`：新增体检类型 `subfolder_vpks` 与 `checkSubfolderVPKs()`，
+  **只汇总一条**（子目录数 / VPK 数 / 占用空间），并说明"整理用的备份文件夹可以忽略"，
+  避免把体检列表刷爆；受管目录 `workshop` / `disabled` 不计入。
+- 前端标签「子目录里的 VPK 不会被加载」、`docs/toolbox/mod-health-check.md` 结果表同步补行。
+- `internal/app/health_check_precision_test.go`：新增 `TestHealthCheckReportsSubfolderVPKs`
+  （子目录里嵌套两层也算、只要 1 条汇总、受管目录不计入）。
 
 **验证**
 

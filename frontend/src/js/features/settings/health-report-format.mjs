@@ -17,6 +17,7 @@ const HEALTH_ISSUE_KIND_LABELS = {
   outside_root: "条目指向受管目录之外",
   duplicate_vpk_copy: "工坊作品有多份副本",
   duplicate_disabled_copy: "根目录与 disabled 各一份",
+  subfolder_vpks: "子目录里的 VPK 不会被加载",
 };
 
 export function formatHealthIssueKind(kind) {
