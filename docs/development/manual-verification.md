@@ -379,6 +379,8 @@ $real = "<真实>\left4dead2\addonlist.txt"
 - 没有上级分组时树展开结果与扁平列表逐项一致（顺序、深度）。
 - 嵌套、孤儿子树（上级被删）、环、超深的降级行为；自环 / 成环 / 超过 4 层的设置会被拒绝。
 - 上层 API 的持久化与"移动回顶层"。
+- 删除父组后**子组成员原样保留**（键、顺序、显示名都不变）：
+  `internal/app/mod_group_lifecycle_test.go` → `TestDeleteModStrategyGroupPreservesChildGroupMembers`（2026-10-01 补）。
 
 ### 待人工验证
 
@@ -388,6 +390,12 @@ $real = "<真实>\left4dead2\addonlist.txt"
   - 预期：操作被拒绝并给出提示，列表层级保持不变（不会出现环或界面卡死）。
 - [ ] 删除一个还有下级分组的上级。
   - 预期：下级分组自动回到顶层显示，成员与策略不受影响。
+  - 说明（2026-10-01）：该项曾用 CUA 探针判成 FAIL，实际是**探针用错了 API** ——
+    `CreateModStrategyGroupChild(parentId, name, strategy, memberPaths)` 收的是**受管目录内的绝对路径**，
+    传 addonlist 键（如 `zztest_rifle_b.vpk`）会被 `modStrategyGroupMemberFromPath` 判错并静默跳过
+    （子组允许没有成员），于是"建组后成员就已经是 0"。按键写成员请用
+    `SetModStrategyGroupMembers(id, keys)`（界面上的「加入策略组…」走的就是它）。
+    `DeleteModStrategyGroup` 本身只清子组的 `parentId`，没有任何一行碰 `Members`。
 
 ## 13. 文案层（Task 9）
 
