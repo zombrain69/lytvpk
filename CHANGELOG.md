@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.7.1-community.32 — 2026-09-30
+
+**设置页还剩 7 处阻塞式 `window.confirm`（含「应用启用方案」「恢复历史备份」这类会重写
+addonlist.txt 的动作），全部换成应用内确认弹窗。**
+
+仓库里早就有 `group-dialog-guard.test.mjs` 钉住过这条规则（"WebView2 对 window.prompt
+没有默认实现，window.confirm 又是阻塞式原生对话框，在自动化与锁屏环境下都会让流程卡住"），
+但设置页这些入口一直没跟上：
+
+| 入口 | 原来的写法 |
+| --- | --- |
+| 删除依赖声明 | `window.confirm(...)` |
+| 应用启用方案（会重写 addonlist.txt） | 同上 |
+| 删除方案 / 删除合集记录 | 同上 |
+| 恢复历史备份（会替换 addonlist.txt） | 同上 |
+| 删除历史备份 / 删除 addonlist.txt | 同上 |
+
+修复：`confirm.js` 新增 `confirmInApp(message, { title })` —— 把 `showConfirmModal`
+包成 Promise（内部用 settled 标记保证只结算一次，因为点"确定"时 `cleanup()` 也会回调
+`onCancel`），调用方统一写成 `if (!(await confirmInApp(...))) return;`。
+
+### 验证
+
+- 新增 `no-native-dialogs.test.mjs`（3 项）：全仓库扫描 `window.confirm(` / `window.prompt(`
+  调用（注释不算），并断言设置页确实改用 `confirmInApp`；`node --test` 444 项全绿
+- `go test ./... -count=1` / `go vet ./...` 全绿；`npm run build` / `wails build` 通过
+- 真机（打包 EXE + 沙箱 APPDATA + 测试库，真实库零写入）依赖声明全链路：
+
+```
+勾选主 Mod + 依赖 → 设置 → 游戏配置 →「把其它 1 个设为依赖」  → 记录写成 zztest_rifle_a → zztest_hud_only
+关掉依赖的游戏内开关 → 体检                                  → 「其中 2 项可以自动修复：清理缺失条目（1）、启用依赖（1）」
+点「启用缺失依赖」                                          → 依赖的游戏内开关恢复开启
+点「删除」依赖声明                                          → 弹出应用内确认框「删除依赖声明」（不再是原生对话框）
+                                                            → 取消后记录还在；确认后记录移除
+```
+
+（过程记录：第一次跑依赖体检没报出来，是因为我拿的主 Mod 自身处于"游戏内关闭"——
+体检按设计会跳过这类主 Mod；换成开启状态的主 Mod 后按预期报出，不是缺陷。）
+
 ## 2.7.1-community.31 — 2026-09-30
 
 **命令面板（Ctrl+K）打开后，只要焦点离开输入框，Esc 就关不掉面板。**

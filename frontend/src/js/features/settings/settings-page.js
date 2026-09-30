@@ -42,7 +42,7 @@ import { formatProfileApplySummary } from "./profile-format.mjs";
 import { copyTextToClipboard } from "../file-list/share.js";
 // 策略组管理窗口已经独立：设置页只留一个入口按钮，真正的生命周期操作在那个窗口里。
 import { openStrategyGroupManager } from "../mod-groups/strategy-group-manager.js";
-import { showConfirmModal } from "../modals/confirm.js";
+import { confirmInApp, showConfirmModal } from "../modals/confirm.js";
 import { showPromptModal } from "../modals/prompt.js";
 
 const SETTINGS_NAV_ICONS = {
@@ -1102,7 +1102,9 @@ function bindModDependencySettings(deps) {
     button.addEventListener("click", async () => {
       const key = button.dataset.dependencyKey;
       if (!key) return;
-      if (!window.confirm("删除这条依赖声明？不会改动 addonlist.txt。")) return;
+      if (!(await confirmInApp("删除这条依赖声明？不会改动 addonlist.txt。", { title: "删除依赖声明" }))) {
+        return;
+      }
       button.disabled = true;
       try {
         await deps.DeleteModDependencies(key);
@@ -1396,7 +1398,12 @@ function bindModEnableProfileSettings(deps) {
     button.addEventListener("click", async () => {
       const id = button.dataset.profileId;
       if (!id) return;
-      if (!window.confirm("应用这个启用方案？当前 addonlist.txt 会先自动备份，然后按方案的开关与顺序重写。")) {
+      if (
+        !(await confirmInApp(
+          "应用这个启用方案？当前 addonlist.txt 会先自动备份，然后按方案的开关与顺序重写。",
+          { title: "应用启用方案" },
+        ))
+      ) {
         return;
       }
       button.disabled = true;
@@ -1435,7 +1442,11 @@ function bindModEnableProfileSettings(deps) {
     button.addEventListener("click", async () => {
       const id = button.dataset.profileId;
       if (!id) return;
-      if (!window.confirm("删除这个方案？该操作不可撤销，但不会改动当前 addonlist.txt。")) {
+      if (
+        !(await confirmInApp("删除这个方案？该操作不可撤销，但不会改动当前 addonlist.txt。", {
+          title: "删除方案",
+        }))
+      ) {
         return;
       }
       button.disabled = true;
@@ -1628,7 +1639,13 @@ function bindConflictAnalysisSettings(deps) {
   });
   document.querySelectorAll("#settings-page-content .settings-collection-delete").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!window.confirm("删除这条合集记录？已下载的 Mod 文件不会被删除。")) return;
+      if (
+        !(await confirmInApp("删除这条合集记录？已下载的 Mod 文件不会被删除。", {
+          title: "删除合集记录",
+        }))
+      ) {
+        return;
+      }
       button.disabled = true;
       try {
         await deps.DeleteWorkshopCollection(button.dataset.collectionId);
@@ -2579,7 +2596,14 @@ function bindSettingsPage(deps) {
   document.querySelectorAll(".addonlist-backup-restore").forEach((button) => {
     button.addEventListener("click", async () => {
       const name = button.dataset.addonlistBackup;
-      if (!name || !window.confirm("恢复这份备份？当前 addonlist.txt 会先自动备份，然后被替换。")) return;
+      if (
+        !name ||
+        !(await confirmInApp("恢复这份备份？当前 addonlist.txt 会先自动备份，然后被替换。", {
+          title: "恢复历史备份",
+        }))
+      ) {
+        return;
+      }
       await runAddonListAction(button, async () => {
         await deps.RestoreAddonListBackup(name);
         await refreshAddonListFiles();
@@ -2590,13 +2614,22 @@ function bindSettingsPage(deps) {
   document.querySelectorAll(".addonlist-backup-delete").forEach((button) => {
     button.addEventListener("click", async () => {
       const name = button.dataset.addonlistBackup;
-      if (!name || !window.confirm("删除这份历史备份？该操作不可撤销。")) return;
+      if (!name || !(await confirmInApp("删除这份历史备份？该操作不可撤销。", { title: "删除历史备份" }))) {
+        return;
+      }
       await runAddonListAction(button, () => deps.DeleteAddonListBackup(name), "已删除历史备份", "删除备份失败");
     });
   });
 
   document.getElementById("settings-addonlist-delete")?.addEventListener("click", async (event) => {
-    if (!window.confirm("删除 addonlist.txt？程序会先创建历史备份；自动恢复监控会关闭，受保护版本也会移除。")) return;
+    if (
+      !(await confirmInApp(
+        "删除 addonlist.txt？程序会先创建历史备份；自动恢复监控会关闭，受保护版本也会移除。",
+        { title: "删除 addonlist.txt" },
+      ))
+    ) {
+      return;
+    }
     await runAddonListAction(event.currentTarget, async () => {
       await deps.DeleteAddonList();
       await refreshAddonListFiles();
