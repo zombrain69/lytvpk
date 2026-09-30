@@ -596,9 +596,44 @@ func (a *App) GetServerStorage() ServerStorage {
 		}
 		return ServerStorage{Servers: []SavedServer{}, RecentServers: []RecentServer{}}
 	}
+	// 老配置文件里可能没有 id 字段（结构体上是 `id,omitempty`，早期保存/上游迁移
+	// 过来的 servers.json 都可能缺）。面板控制是按 id 到这份文件里查服务器的，
+	// 而 cloneSavedServersForFrontend 只会临时补一个**不落盘**的随机 id ——
+	// 真机复现：这种服务器点「面板详情」会报
+	// 「获取面板状态失败: 未找到面板配置对应的服务器」，而且每次读到的 id 都不一样。
+	// 这里在读取时就补一个稳定 id 并写回磁盘。
+	if ensureSavedServerIDs(&storage) {
+		if err := writeJSONFile(a.configDir, a.serversPath, storage); err != nil {
+			log.Printf("回写服务器 id 失败（本次仍会返回新 id，重启后可能再生成一次）: %v", err)
+		}
+	}
 	storage.Servers = cloneSavedServersForFrontend(storage.Servers)
 	storage.RecentServers = cloneRecentServers(storage.RecentServers)
 	return storage
+}
+
+// ensureSavedServerIDs 给缺少 id 的服务器补上稳定 id，返回是否有改动。
+func ensureSavedServerIDs(storage *ServerStorage) bool {
+	changed := false
+	seen := make(map[string]bool, len(storage.Servers))
+	for _, server := range storage.Servers {
+		if id := strings.TrimSpace(server.ID); id != "" {
+			seen[id] = true
+		}
+	}
+	for i := range storage.Servers {
+		if strings.TrimSpace(storage.Servers[i].ID) != "" {
+			continue
+		}
+		id := newServerID()
+		for seen[id] {
+			id = newServerID()
+		}
+		seen[id] = true
+		storage.Servers[i].ID = id
+		changed = true
+	}
+	return changed
 }
 
 func (a *App) SaveServerStorage(storage ServerStorage) error {

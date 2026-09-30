@@ -1,5 +1,55 @@
 # Changelog
 
+## 2.7.1-community.38 — 2026-09-30
+
+**老配置里"没有 id"的服务器，面板控制整块用不了。**
+
+这轮真机把服务器面板整条链路拉通测了一遍（添加服务器 → 面板详情 → 换图 → 热重载 →
+RCON → 错误密码提示），窗口本身都正常；但在"从老配置读出来的服务器"上翻出一个真缺陷：
+
+- `servers.json` 的结构体是 `ID string \`json:"id,omitempty"\``，所以早期保存 / 从上游迁过来的
+  文件里可能根本没有 `id` 字段；
+- 而 `GetServerStorage()` 走 `cloneSavedServersForFrontend`，对缺 id 的条目**每次读取都临时生成
+  一个新的随机 id，且不落盘**；
+- 面板控制（详情 / 换图 / 难度 / RCON / 上传 / 热重载）都是按 id 回这份文件里查服务器，
+  于是直接报「获取面板状态失败: 未找到面板配置对应的服务器」。
+
+真机复现（同一台服务器，配置里手工去掉 `id`）：
+
+```
+第 1 次读到 id=srv_26231fafc2c4b10072009b706321d661
+面板详情：获取面板状态失败: 未找到面板配置对应的服务器
+第 2 次读到 id=srv_004da8b630ab3d8cf0225e8a7e78194e      ← 每次都不一样
+```
+
+修复（`internal/app/config.go`）：新增 `ensureSavedServerIDs()`，`GetServerStorage()` 在读取时
+给缺 id 的服务器补一个稳定 id，并**写回磁盘**（写失败只记日志，本次仍然可用）。
+
+### 验证
+
+- 新增 Go 用例 `TestGetServerStorageBackfillsMissingServerIDs`：老配置读取后必须有 id、
+  两次读取 id 一致、磁盘文件里也写上了 id
+- `go test ./... -count=1` / `go vet ./...` 全绿；`node --test` 452 项全绿；`npm run build` 通过
+- 真机（打包 EXE + 沙箱 APPDATA + 本机面板 mock，真实库零写入）修复后：
+
+```
+PHASE-2  ZZ-NoId 已存在：id=srv_4cc9dc86a613cac7b091204a36f17c77 pwdSet=true
+PASS  面板详情读到 mock 状态：服务器 ZZ-Mock-Panel 地图 死亡中心|旅馆 [1/4] 玩家 1 模式 coop 难度 Hard
+PHASE-2  读取后的 id=srv_4cc9dc86a613cac7b091204a36f17c77     ← 稳定
+磁盘上该条目 id=srv_4cc9dc86a613cac7b091204a36f17c77          ← 已写回
+```
+
+- 同轮面板窗口全链路（走界面表单添加服务器）：
+
+```
+PASS  面板详情状态：服务器 ZZ-Mock-Panel 地图 死亡中心|旅馆 [1/4] 玩家 1 模式 coop 难度 Hard
+PASS  玩家列表渲染出 mock 玩家
+PASS  切换地图 c1m1_hotel 成功（提示 + 关窗）
+PASS  热重载确认框「确认热重载地图？」→ hot reload ok
+PASS  空指令提示「请输入 RCON 指令」；RCON 往返成功
+PASS  密码错误的提示是中文可行动文案（面板认证失败，请检查密码或稍后重试）
+```
+
 ## 2.7.1-community.37 — 2026-09-30
 
 **「设置 → 工坊设置 → 工坊合集」整块在真机上是坏的：保存成功却报失败，记录行还出不来。**

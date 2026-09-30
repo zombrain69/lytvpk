@@ -851,3 +851,46 @@ func TestMainWindowGeometryDropsInvalidSizes(t *testing.T) {
 		t.Fatalf("超大尺寸必须被丢弃: %#v / %#v", config.MainWindowWidth, config.MainWindowHeight)
 	}
 }
+
+// TestGetServerStorageBackfillsMissingServerIDs 覆盖真机复现：
+// servers.json 里没有 id 的服务器（老配置 / 上游迁移过来的文件）会让面板控制报
+// 「未找到面板配置对应的服务器」—— 因为读出来的 id 是每次新生成的临时值，
+// 面板按 id 回文件里查根本查不到。
+func TestGetServerStorageBackfillsMissingServerIDs(t *testing.T) {
+	app := newConfigTestApp(t)
+	legacy := ServerStorage{
+		Servers: []SavedServer{
+			{
+				Name:                   "Legacy",
+				Address:                "127.0.0.1:27015",
+				PanelURL:               "http://127.0.0.1:8732",
+				PanelPasswordEncrypted: "encrypted-placeholder",
+			},
+		},
+	}
+	if err := writeJSONFile(app.configDir, app.serversPath, legacy); err != nil {
+		t.Fatalf("写入老配置: %v", err)
+	}
+
+	first := app.GetServerStorage()
+	if len(first.Servers) != 1 {
+		t.Fatalf("服务器数量 = %d", len(first.Servers))
+	}
+	id := first.Servers[0].ID
+	if strings.TrimSpace(id) == "" {
+		t.Fatal("读取老配置时应补上 id")
+	}
+
+	second := app.GetServerStorage()
+	if second.Servers[0].ID != id {
+		t.Fatalf("id 必须稳定：%q → %q", id, second.Servers[0].ID)
+	}
+
+	var stored ServerStorage
+	if err := readJSONFile(app.serversPath, &stored); err != nil {
+		t.Fatalf("重新读取磁盘配置: %v", err)
+	}
+	if stored.Servers[0].ID != id {
+		t.Fatalf("磁盘上的 id = %q，期望 %q（应写回）", stored.Servers[0].ID, id)
+	}
+}
