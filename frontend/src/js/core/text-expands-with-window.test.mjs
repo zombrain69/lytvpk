@@ -210,3 +210,18 @@ test("Mod 卡片的单行标题不会顶掉创意工坊卡片的两行标题", (
   assert.ok(workshopTitle, "没找到 workshop-browser.css 里的 .card-title 规则");
   assert.match(workshopTitle, /-webkit-line-clamp:\s*2/, "创意工坊卡片标题要保留两行截断");
 });
+
+// 第七类"缩着"：一排按钮 + 一句摘要挤在 nowrap 的 flex 行里。
+// 实测（1920×1040 真机）：分组建议窗口的工具栏里，摘要占掉 548px 之后，
+// 「重新推导」被压到 63px（文字需要 68px），overflow:hidden 直接把字裁掉。
+// 修法：整行允许换行，按钮不许被压扁。
+test("分组建议工具栏的按钮不会被压到裁掉文字", () => {
+  const mods = read("app/mods.css");
+  const toolbar = mods.match(/\.mod-group-suggest-toolbar\s*\{[^}]*\}/s)?.[0] || "";
+  assert.ok(toolbar, "没找到 .mod-group-suggest-toolbar 规则");
+  assert.match(toolbar, /flex-wrap:\s*wrap/, "工具栏要允许整行换行，否则按钮只能被压扁");
+  const buttons = mods.match(/\.mod-group-suggest-toolbar\s*>\s*\.btn\s*\{[^}]*\}/s)?.[0] || "";
+  assert.ok(buttons, "没找到 .mod-group-suggest-toolbar > .btn 规则");
+  assert.match(buttons, /flex:\s*0 0 auto/, "按钮要保持自己的文字宽度（flex: 0 0 auto）");
+  assert.match(buttons, /white-space:\s*nowrap/, "按钮文字不许折行");
+});

@@ -1242,14 +1242,24 @@
 
 .mod-group-suggest-toolbar {
   display: flex;
+  /* 一排 6 个按钮 + 一句摘要，窗口不够宽时之前是「一起被压扁」：
+     「重新推导」只剩 63px（需要 68px），文字直接被裁掉。
+     改成允许整行换行，按钮保持自己的文字宽度。 */
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--spacing-3);
+  gap: var(--spacing-2) var(--spacing-3);
   margin-bottom: var(--spacing-2);
+}
+
+.mod-group-suggest-toolbar > .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .mod-group-suggest-summary {
   color: var(--text-secondary);
   font-size: 0.82rem;
+  min-width: 0;
 }
 
 .mod-group-suggest-hint {
