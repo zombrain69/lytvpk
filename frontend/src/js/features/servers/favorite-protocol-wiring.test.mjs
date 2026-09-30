@@ -34,6 +34,11 @@ test("前端收到 protocol:favoriteServer 会刷新并提示", () => {
 });
 
 test("手动填写的服务器地址与协议走同一套规范化", () => {
-  assert.match(formModal, /import \{ normalizeServerAddress \} from "\.\/address\.js"/, "表单要复用地址规范化");
+  assert.match(
+    formModal,
+    /import \{[^}]*normalizeServerAddress[^}]*\} from "\.\/address\.js"/,
+    "表单要复用地址规范化",
+  );
   assert.match(formModal, /address = normalizeServerAddress\(rawAddress\)/, "保存前要规范化");
+  assert.match(formModal, /findDuplicateServer\(servers, address/, "保存前要按规范化地址查重");
 });

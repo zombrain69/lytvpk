@@ -136,3 +136,43 @@ function isValidIPv6Host(host) {
     return false;
   }
 }
+
+/**
+ * comparableAddress 归一化后再比较；历史数据里可能有非法地址，
+ * 这时退化成"去空白 + 小写"，仍然能拦下明显的重复。
+ */
+function comparableAddress(rawAddress) {
+  try {
+    return normalizeServerAddress(rawAddress);
+  } catch {
+    return String(rawAddress || "").trim().toLowerCase();
+  }
+}
+
+/**
+ * findDuplicateServer 找出与给定地址重复的收藏项。
+ *
+ * 真机联调里同一台测试服务器被存了 3 份（每次"添加服务器"都成功），
+ * 于是列表里重复显示、每次打开收藏服务器都要各查一遍。
+ * 表单保存前用它提醒用户，而不是默默再存一条。
+ *
+ * excludeId / excludeIndex 用于编辑现有条目时排除它自己。
+ */
+export function findDuplicateServer(servers, rawAddress, { excludeId = "", excludeIndex = -1 } = {}) {
+  const target = comparableAddress(rawAddress);
+  if (!target) return null;
+  const list = Array.isArray(servers) ? servers : [];
+  const exclude = String(excludeId || "").trim();
+
+  for (let index = 0; index < list.length; index++) {
+    const server = list[index];
+    if (!server) continue;
+    if (exclude) {
+      if (String(server.id || "").trim() === exclude) continue;
+    } else if (index === excludeIndex) {
+      continue;
+    }
+    if (comparableAddress(server.address) === target) return server;
+  }
+  return null;
+}

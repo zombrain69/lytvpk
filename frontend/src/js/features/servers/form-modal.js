@@ -1,5 +1,6 @@
 import { normalizePanelUrl } from "./panel-url.js";
-import { normalizeServerAddress } from "./address.js";
+import { findDuplicateServer, normalizeServerAddress } from "./address.js";
+import { showConfirmModal } from "../modals/confirm.js";
 
 let showError;
 let showNotification;
@@ -180,56 +181,77 @@ export async function saveServerForm() {
     return next;
   };
 
-  let savedServerID = editID;
-  if (editMode) {
-    const targetIndex = editID
-      ? servers.findIndex((server) => server.id === editID)
-      : editIndex;
-    if (targetIndex < 0 || targetIndex >= servers.length) {
-      showError("服务器列表已变化，请重新打开编辑窗口");
+  const commit = async () => {
+    let savedServerID = editID;
+    if (editMode) {
+      const targetIndex = editID
+        ? servers.findIndex((server) => server.id === editID)
+        : editIndex;
+      if (targetIndex < 0 || targetIndex >= servers.length) {
+        showError("服务器列表已变化，请重新打开编辑窗口");
+        return;
+      }
+      servers[targetIndex] = buildServerPayload(servers[targetIndex]);
+      savedServerID = String(servers[targetIndex].id || "").trim();
+    } else {
+      const newServer = buildServerPayload({ id: createServerID() });
+      servers.push(newServer);
+      savedServerID = newServer.id;
+    }
+
+    savingSessionId = sessionId;
+    setFormSaving(sessionId, true);
+    try {
+      await saveServers(servers);
+      // The backend normalizes legacy IDs and removes the plaintext panel password
+      // before returning storage to the UI. Reload that authoritative shape only
+      // after the ordered write succeeds.
+      await initServerStorage();
+    } catch (err) {
+      console.error("保存服务器失败:", err);
+      if (isCurrentFormSession(sessionId)) {
+        showError("保存服务器失败: " + String(err?.message || err || "未知错误"));
+      }
       return;
+    } finally {
+      if (savingSessionId === sessionId) {
+        savingSessionId = 0;
+      }
+      setFormSaving(sessionId, false);
     }
-    servers[targetIndex] = buildServerPayload(servers[targetIndex]);
-    savedServerID = String(servers[targetIndex].id || "").trim();
-  } else {
-    const newServer = buildServerPayload({ id: createServerID() });
-    servers.push(newServer);
-    savedServerID = newServer.id;
-  }
 
-  savingSessionId = sessionId;
-  setFormSaving(sessionId, true);
-  try {
-    await saveServers(servers);
-    // The backend normalizes legacy IDs and removes the plaintext panel password
-    // before returning storage to the UI. Reload that authoritative shape only
-    // after the ordered write succeeds.
-    await initServerStorage();
-  } catch (err) {
-    console.error("保存服务器失败:", err);
+    renderServers();
+    renderLaunchServerMenu();
+
+    const newServers = getServers();
+    const newIndex = newServers.findIndex((server) => server.id === savedServerID);
+    if (newIndex !== -1) {
+      fetchServerInfo(address, newIndex);
+    }
     if (isCurrentFormSession(sessionId)) {
-      showError("保存服务器失败: " + String(err?.message || err || "未知错误"));
+      showNotification(editMode ? "服务器修改成功" : "服务器添加成功", "success");
+      closeServerFormModal();
     }
+  };
+
+  // 同一个地址本来可以无限重复保存（真机联调里同一台测试机存了 3 份：
+  // 列表重复显示、每次打开收藏服务器都各查一遍）。这里先提醒一次，
+  // 由用户决定要不要真的再存一条。
+  const duplicate = findDuplicateServer(servers, address, {
+    excludeId: editMode ? editID : "",
+    excludeIndex: editMode ? editIndex : -1,
+  });
+  if (duplicate) {
+    const existingLabel = String(duplicate.name || "").trim() || String(duplicate.address || "");
+    showConfirmModal(
+      "这个地址已经收藏过了",
+      `「${address}」已经在收藏里：${existingLabel}。\n再存一条会得到两个同样的条目（列表里重复显示、各自查询一次）。\n要仍然保存吗？`,
+      () => void commit(),
+    );
     return;
-  } finally {
-    if (savingSessionId === sessionId) {
-      savingSessionId = 0;
-    }
-    setFormSaving(sessionId, false);
   }
 
-  renderServers();
-  renderLaunchServerMenu();
-
-  const newServers = getServers();
-  const newIndex = newServers.findIndex((server) => server.id === savedServerID);
-  if (newIndex !== -1) {
-    fetchServerInfo(address, newIndex);
-  }
-  if (isCurrentFormSession(sessionId)) {
-    showNotification(editMode ? "服务器修改成功" : "服务器添加成功", "success");
-    closeServerFormModal();
-  }
+  await commit();
 }
 
 function toggleServerAdvancedConfig() {

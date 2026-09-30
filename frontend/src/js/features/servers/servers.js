@@ -51,6 +51,10 @@ let RetryPanelMapUpload;
 let CancelPanelMapUpload;
 let ClearCompletedPanelMapUploads;
 
+// 「刷新全部」是否有一轮在途：页面每次打开都会触发一次，没有这个标记时
+// 连续切页面会叠出多轮并发查询（每台服务器还要各自重试）。
+let refreshInFlight = false;
+
 export function configureServers(deps) {
   ({
     showError,
@@ -706,6 +710,11 @@ function createServerListItem(server, index) {
 export function refreshAllServers() {
   const servers = getServers();
 
+  // 页面每次打开都会走这里；没有在途保护时，连续切几次页面就会叠出好几轮并发查询
+  // （每台服务器还要各自重试）。按钮本来就会在这轮结束前保持禁用，这里保持一致。
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+
   const btn = document.getElementById("refresh-all-servers-btn");
   if (btn) {
     const icon = btn.querySelector(".icon-svg");
@@ -718,6 +727,7 @@ export function refreshAllServers() {
   );
 
   Promise.allSettled(promises).finally(() => {
+    refreshInFlight = false;
     if (btn) {
       const icon = btn.querySelector(".icon-svg");
       if (icon) icon.classList.remove("spinning");
