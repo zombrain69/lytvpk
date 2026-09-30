@@ -602,6 +602,59 @@ func replaceAddonListValue(content, targetKey, value string) (string, bool, erro
 	return replaceAddonListValueWithName(content, targetKey, targetKey, value)
 }
 
+// replaceAddonListKey 把匹配 oldKey 的那一行条目名换成 entryName，
+// 值、所在行、缩进和后面的注释都保持不动。
+//
+// 改名 / 打标签 / 隐藏都会改文件名，也就改了 addonlist 的键：不跟着改，
+// 游戏侧那条记录就成了指向不存在文件的悬空条目，用户的「游戏内开关」凭空丢失
+// （真机实测：给 zztest_rifle_a.vpk 打标签后文件名变成 [标签]zztest_rifle_a.vpk，
+// 而 addonlist.txt 里还是旧键，界面却因为缓存显示"开启中"）。
+func replaceAddonListKey(content, oldKey, entryName string) (string, bool, error) {
+	entryName = strings.TrimSpace(entryName)
+	if entryName == "" {
+		return content, false, nil
+	}
+
+	lines := strings.SplitAfter(content, "\n")
+	inBlock := false
+	blockFound := false
+
+	for index, line := range lines {
+		lineWithoutEnding := strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+		trimmed := strings.TrimSpace(lineWithoutEnding)
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+		if inBlock {
+			matches := addonListValueLineRegex.FindStringSubmatchIndex(lineWithoutEnding)
+			if len(matches) == 10 {
+				if normalizeAddonListKey(lineWithoutEnding[matches[4]:matches[5]]) == oldKey {
+					// 组 2（matches[4]:matches[5]）就是引号里的条目名：只换这一段，
+					// 缩进、引号、值、行尾都原样保留。
+					lines[index] = lineWithoutEnding[:matches[4]] + entryName +
+						lineWithoutEnding[matches[5]:] + line[len(lineWithoutEnding):]
+					return strings.Join(lines, ""), true, nil
+				}
+				continue
+			}
+		}
+		if addonListHasStructuralBrace(lineWithoutEnding, '{') {
+			inBlock = true
+			blockFound = true
+			continue
+		}
+		if addonListHasStructuralBrace(lineWithoutEnding, '}') {
+			inBlock = false
+			continue
+		}
+	}
+
+	if !blockFound {
+		return "", false, fmt.Errorf("addonlist.txt 中未找到 AddonList 块")
+	}
+	return content, false, nil
+}
+
 // replaceAddonListValueWithName updates an existing entry in place or appends
 // a missing entry while using entryName only for the newly inserted line.
 // Existing lines keep their original spelling and formatting.

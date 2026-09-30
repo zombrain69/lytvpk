@@ -554,12 +554,43 @@ func (a *App) ToggleVPKVisibility(filePath string) (string, error) {
 	return newPath, nil
 }
 
+// SetVPKTags 写入标签。标签写在文件名里（[标签]名字.vpk），所以这一步会改 addonlist 键：
+// 文件名改完之后必须在**锁外**迁移 addonlist.txt 与本地记录 —— 迁移要走 addonlist 事务，
+// 而那条路径会取 a.mu，锁内调用会自己撞上自己（见 setVPKTagsLocked 的说明）。
 func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []string) error {
+	result, err := a.setVPKTagsLocked(filePath, primaryTag, secondaryTags)
+	if err != nil {
+		return err
+	}
+	if result.newKey != "" {
+		// 键迁移要在锁外：addonlist 事务会取 a.mu，锁内调用会自己撞上自己。
+		a.rebindModKeyOnRename(result.oldKey, result.newKey, result.displayName)
+	}
+	if result.rescanPath != "" {
+		// processVPKFileWithCache 自己会取 a.mu.RLock，只能在锁外跑。
+		// 原来缓存未命中时是在锁内调用的，会直接把整个应用卡死。
+		a.processVPKFileWithCache(result.rescanPath)
+	}
+	return nil
+}
+
+// vpkTagRename 是 setVPKTagsLocked 的结果：改名后的键，以及需要重新探测的路径。
+// rescanPath 非空表示缓存里没有这个文件（或清除了标签），调用方必须在**锁外**重新探测。
+type vpkTagRename struct {
+	oldKey      string
+	newKey      string
+	displayName string
+	rescanPath  string
+}
+
+// setVPKTagsLocked 是 SetVPKTags 的锁内部分：只改文件名与缓存，
+// 返回新旧 addonlist 键与待重扫路径，由调用方在锁外做键迁移与重新探测。
+func (a *App) setVPKTagsLocked(filePath string, primaryTag string, secondaryTags []string) (vpkTagRename, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if _, err := os.Stat(filePath); err != nil {
-		return err
+		return vpkTagRename{}, formatFileMoveError("设置标签", filePath, err)
 	}
 
 	filename := filepath.Base(filePath)
@@ -595,7 +626,8 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	// Steam Workshop 目录中的文件名通常就是发布 ID。给它添加 [标签] 前缀会使
 	// Steam 与游戏失去对该文件的识别，因此标签只写进同名 .meta 伴随文件。
 	if a.isWorkshopVPKPath(filePath) {
-		return a.setWorkshopVPKTagsLocked(filePath, primaryTag, secondaryTags, allTags)
+		// 工坊 VPK 不改文件名（标签只写 .meta），键不会变，无需迁移。
+		return vpkTagRename{}, a.setWorkshopVPKTagsLocked(filePath, primaryTag, secondaryTags, allTags)
 	}
 
 	var newFilename string
@@ -611,15 +643,15 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	newPath := filepath.Join(dir, newFilename)
 
 	if newPath == filePath {
-		return nil
+		return vpkTagRename{}, nil
 	}
 
 	if _, err := os.Stat(newPath); err == nil {
-		return fmt.Errorf("目标文件已存在: %s", newFilename)
+		return vpkTagRename{}, fmt.Errorf("目标文件已存在: %s", newFilename)
 	}
 
 	if err := os.Rename(filePath, newPath); err != nil {
-		return formatFileMoveError("改名", filePath, err)
+		return vpkTagRename{}, formatFileMoveError("改名", filePath, err)
 	}
 	// 同步重命名同名图片
 	a.handleSidecarFile(filePath, newPath, "move")
@@ -627,6 +659,8 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	// Update cache
 	// 如果是清除标签操作（len(allTags) == 0），则不复用旧缓存，而是强制重新解析
 	// 这样可以恢复文件本身的自动检测标签（如地图、人物等）
+	// rescanPath 非空时由调用方在锁外重新探测（见上面的说明）。
+	rescanPath := ""
 	cachedVal, loaded := a.vpkCache.Load(filePath)
 	if loaded {
 		a.vpkCache.Delete(filePath)
@@ -642,26 +676,26 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 
 		a.vpkCache.Store(newPath, cache)
 	} else {
-		// 缓存未命中，或者清除了标签需要重新探测内容
-		a.processVPKFileWithCache(newPath)
+		// 缓存未命中，或者清除了标签需要重新探测内容。
+		// processVPKFileWithCache 要取 a.mu，这里（持写锁）不能调用，交给调用方在锁外处理。
+		rescanPath = newPath
 	}
 
 	a.updateCompletedDownloadTaskPath(filePath, newPath)
 	// 标签写在文件名里（[标签]名字.vpk），所以"打标签"同样会改变 addonlist 键。
-	// 和重命名一样，必须把策略组 / 分层 / 依赖 / 冲突忽略清单里的旧键迁移到新键，
-	// 否则给组内 Mod 打标签会让它从组里"消失"。
-	// 注意：这里仍然持有 a.mu，不能调用 addonListKeyForPath（它会再取读锁 → 死锁），
+	// 键的迁移（addonlist.txt + 策略组 / 分层 / 依赖 / 忽略清单）交给调用方在锁外做：
+	// 这里仍然持有 a.mu，而 addonlist 事务会再取 a.mu，锁内调用会死锁。
 	// 直接用当前已知的根目录换算键。
 	oldKey, _ := addonListKeyForManagedVPKPathFromRoot(a.rootDir, filePath)
 	newKey, _ := addonListKeyForManagedVPKPathFromRoot(a.rootDir, newPath)
-	a.rebindModKeyOnRename(
-		oldKey,
-		newKey,
-		filepath.Base(newPath),
-	)
 	// 键变了，冲突复检结果同样失效。
 	a.InvalidateConflictRecheck("Mod 标签已更新")
-	return nil
+	return vpkTagRename{
+		oldKey:      oldKey,
+		newKey:      newKey,
+		displayName: filepath.Base(newPath),
+		rescanPath:  rescanPath,
+	}, nil
 }
 
 func (a *App) isWorkshopVPKPath(filePath string) bool {

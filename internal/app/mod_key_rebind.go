@@ -23,10 +23,48 @@ func (a *App) rebindModKeyOnRename(oldKey, newKey, displayName string) {
 		return
 	}
 
+	// addonlist.txt 自己是游戏读取的那份清单，必须一起改键（真机实测的缺口）。
+	a.rebindAddonListEntry(oldKey, newKey, displayName)
 	a.rebindStrategyGroupMembers(oldKey, newKey, displayName)
 	a.rebindPriorityEntries(oldKey, newKey, displayName)
 	a.rebindDependencyRecords(oldKey, newKey, displayName)
 	a.rebindIgnoreRecords(oldKey, newKey, displayName)
+}
+
+// rebindAddonListEntry 把 addonlist.txt 里的旧键改成新键，保留开关值、所在行与文件格式。
+//
+// 注意：写 addonlist 会走完整事务（含受保护快照同步），那条路径要取 a.mu，
+// 所以**调用方不能已经持有 a.mu**（SetVPKTags 为此把键迁移挪到了锁外）。
+func (a *App) rebindAddonListEntry(oldKey, newKey, displayName string) {
+	entryName := strings.TrimSpace(displayName)
+	if entryName == "" {
+		entryName = strings.TrimSpace(newKey)
+	}
+	if entryName == "" {
+		return
+	}
+
+	a.addonListGuardMu.Lock()
+	defer a.addonListGuardMu.Unlock()
+
+	doc, err := a.readAddonListDocument()
+	if err != nil {
+		// 没有 addonlist.txt 就没有条目需要迁移，不是错误。
+		return
+	}
+	if !addonListDocumentHasAddonListBlock(doc.content) {
+		return
+	}
+	updated, changed, err := replaceAddonListKey(doc.content, oldKey, entryName)
+	if err != nil || !changed {
+		if err != nil {
+			log.Printf("改名后同步 addonlist.txt 失败: %v", err)
+		}
+		return
+	}
+	if err := a.commitAddonListDocumentLocked(doc, updated, nil); err != nil {
+		log.Printf("改名后同步 addonlist.txt 失败: %v", err)
+	}
 }
 
 func (a *App) rebindStrategyGroupMembers(oldKey, newKey, displayName string) {
