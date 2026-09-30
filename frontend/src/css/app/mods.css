@@ -1895,6 +1895,17 @@
 }
 
 /* 以弹窗正文的实际可用宽度响应；不会受 Windows 高 DPI 或应用缩放的窗口宽度误判影响。 */
+/* 宽窗口下把多余宽度给右侧预览列表。
+   真机实测（1920×1040）：弹窗正文 1230px，左右各 579px → 预览面板里
+   真正放文件名的列只剩 333px，而最长名字需要 419px，一屏 38 条被省略号截断。
+   控制卡片窄一点没关系（预设按钮 205px 一列、规则输入 260px 一列仍然放得下），
+   文件名才是这里的主角。 */
+@container load-order-content (min-width: 1000px) {
+  .load-order-workspace {
+    grid-template-columns: minmax(360px, 1fr) minmax(0, 1.45fr);
+  }
+}
+
 @container load-order-content (max-width: 920px) {
   .load-order-presets {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr));

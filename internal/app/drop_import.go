@@ -690,8 +690,8 @@ func extract7zEntryWithProgress(file *sevenzip.File, name string, destDir string
 // extractReaderEntryWithProgress 写出一个条目，返回实际写入的路径。
 // 同名时另存为 name(1).ext —— 导入外来文件不该覆盖用户已有的 Mod。
 func extractReaderEntryWithProgress(reader io.Reader, name string, destDir string, onDelta func(int64)) (string, error) {
-	targetPath := uniqueImportTarget(destDir, filepath.Base(name))
-	outFile, err := os.Create(targetPath)
+	// O_EXCL 占名：并发解压同名条目时不会互相覆盖（见 createUniqueFile 注释）。
+	outFile, targetPath, err := createUniqueFile(destDir, filepath.Base(name))
 	if err != nil {
 		return "", err
 	}
@@ -731,6 +731,47 @@ func uniqueImportTarget(destDir, baseName string) string {
 		}
 	}
 	return filepath.Join(destDir, baseName)
+}
+
+// createUniqueFile 原子地占住 destDir 下一个不冲突的文件名，并返回已打开的文件。
+//
+// 为什么不能"先 uniqueImportTarget 再 os.Create"：解压是并发跑的（协程池），
+// 压缩包里 dir1/x.vpk 与 dir2/x.vpk 这类**同名不同目录**的条目会同时通过
+// "目标不存在"的检查，然后其中一个 os.Create 把另一个刚写好的文件截断 ——
+// 用户看到"解压完成"，实际只留下一个 Mod（甚至两个写入者交错写同一个文件）。
+// 这里用 O_CREATE|O_EXCL 逐个试名字：拿到就用，拿不到（已被别的 goroutine 抢先）
+// 就递增到 x(1).vpk，天然没有竞态，命名规则与 uniqueImportTarget 保持一致。
+func createUniqueFile(destDir, baseName string) (*os.File, string, error) {
+	baseName = strings.TrimSpace(filepath.Base(baseName))
+	if baseName == "" || baseName == "." || baseName == string(filepath.Separator) {
+		baseName = "imported.vpk"
+	}
+	ext := filepath.Ext(baseName)
+	stem := strings.TrimSuffix(baseName, ext)
+	if stem == "" {
+		stem = "imported"
+	}
+	for index := 0; index < 10000; index++ {
+		name := baseName
+		if index > 0 {
+			name = fmt.Sprintf("%s(%d)%s", stem, index, ext)
+		}
+		candidate := filepath.Join(destDir, name)
+		file, err := os.OpenFile(candidate, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if err == nil {
+			return file, candidate, nil
+		}
+		if os.IsExist(err) {
+			continue
+		}
+		// Windows 上"目标是个目录 / 权限不足"未必回报 IsExist：
+		// 只要这个路径确实已经被占用，就当冲突继续试下一个名字。
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			continue
+		}
+		return nil, "", err
+	}
+	return nil, "", fmt.Errorf("无法在 %s 下生成不冲突的文件名：%s", destDir, baseName)
 }
 
 func decodeZipEntryName(file *zip.File) string {

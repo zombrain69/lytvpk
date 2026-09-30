@@ -385,3 +385,85 @@ func TestPauseAndResumeDownloadTaskStateMachine(t *testing.T) {
 		t.Fatalf("取消后速度应清空，实际 %q", cancelledSpeed)
 	}
 }
+
+// TestParseContentRangeStartEnd 覆盖 Content-Range 解析的各种写法。
+func TestParseContentRangeStartEnd(t *testing.T) {
+	cases := []struct {
+		value     string
+		start     int64
+		end       int64
+		wantValid bool
+	}{
+		{"bytes 0-99/1000", 0, 99, true},
+		{"BYTES 100-199/*", 100, 199, true},
+		{"bytes=0-99/1000", 0, 0, false},
+		{"items 0-9/10", 0, 0, false},
+		{"bytes 200-100/1000", 0, 0, false},
+		{"", 0, 0, false},
+	}
+	for _, item := range cases {
+		start, end, ok := parseContentRangeStartEnd(item.value)
+		if ok != item.wantValid {
+			t.Fatalf("%q 解析 ok=%v，期望 %v", item.value, ok, item.wantValid)
+		}
+		if ok && (start != item.start || end != item.end) {
+			t.Fatalf("%q 解析成 %d-%d，期望 %d-%d", item.value, start, end, item.start, item.end)
+		}
+	}
+}
+
+// TestDownloadBlockRejectsWrongContentRange 覆盖真机风险：
+// 镜像忽略 Range、永远从 0 开始回 206（长度和请求一致，只有区间不对）。
+// 旧实现只校验字节数 → 会把前半段数据写到后半段的偏移上，文件静默损坏；
+// 现在必须直接报错。
+func TestDownloadBlockRejectsWrongContentRange(t *testing.T) {
+	const totalSize = 128
+	const blockSize = 64
+	payload := make([]byte, totalSize)
+	for index := range payload {
+		payload[index] = byte(index)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 不管请求什么区间，都只回前 64 字节，并谎称这是 0-63。
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", blockSize-1, totalSize))
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write(payload[:blockSize])
+	}))
+	defer server.Close()
+
+	file, err := os.CreateTemp(t.TempDir(), "wrong-range-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	if err := file.Truncate(totalSize); err != nil {
+		t.Fatal(err)
+	}
+
+	bm := newBlockManagerWithResume(totalSize, 1, blockSize, nil)
+	block := bm.blocks[1] // 请求 64-127，服务器却回 0-63
+	if block.StartByte != blockSize {
+		t.Fatalf("测试前提不对：block.StartByte=%d", block.StartByte)
+	}
+
+	a := &App{}
+	err = a.downloadBlock(context.Background(), block, file, server.Client(), server.URL, bm)
+	if err == nil {
+		t.Fatal("Content-Range 与请求不一致时必须报错，否则会把数据写到错误的偏移")
+	}
+	if !strings.Contains(err.Error(), "下载分块校验失败") {
+		t.Fatalf("错误提示不符合预期：%v", err)
+	}
+
+	// 确认没有把错位数据写进文件（后半段应仍是 0）。
+	raw, err := os.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for offset := blockSize; offset < totalSize; offset++ {
+		if raw[offset] != 0 {
+			t.Fatalf("偏移 %d 被写入了错位数据：%d", offset, raw[offset])
+		}
+	}
+}

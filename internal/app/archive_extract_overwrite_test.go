@@ -2,8 +2,10 @@ package app
 
 import (
 	"archive/zip"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -106,5 +108,104 @@ func TestExtractZipFileKeepsExistingTarget(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "a(1).vpk")); err != nil {
 		t.Fatalf("应另存为 a(1).vpk：%v", err)
+	}
+}
+
+// TestCreateUniqueFileAvoidsConcurrentCollision 覆盖"并行解压同名条目"的竞态：
+// 原来的写法是"先 os.Stat 判断不存在 → 再 os.Create"，两个 goroutine 会同时通过检查，
+// 后一个把前一个刚写好的文件截断。createUniqueFile 用 O_CREATE|O_EXCL 占名。
+func TestCreateUniqueFileAvoidsConcurrentCollision(t *testing.T) {
+	dir := t.TempDir()
+	const workers = 16
+
+	var wg sync.WaitGroup
+	paths := make(chan string, workers)
+	for index := 0; index < workers; index++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			file, path, err := createUniqueFile(dir, "same.vpk")
+			if err != nil {
+				t.Errorf("第 %d 个写入者没拿到文件名: %v", i, err)
+				return
+			}
+			if _, err := file.Write([]byte(fmt.Sprintf("payload-%d", i))); err != nil {
+				t.Errorf("第 %d 个写入者写失败: %v", i, err)
+			}
+			_ = file.Close()
+			paths <- path
+		}(index)
+	}
+	wg.Wait()
+	close(paths)
+
+	seen := make(map[string]bool, workers)
+	for path := range paths {
+		if seen[path] {
+			t.Fatalf("两个写入者拿到了同一个目标文件：%s", path)
+		}
+		seen[path] = true
+	}
+	if len(seen) != workers {
+		t.Fatalf("只写出了 %d 个文件，期望 %d", len(seen), workers)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != workers {
+		t.Fatalf("目录里有 %d 个文件，期望 %d（有内容被覆盖了）", len(entries), workers)
+	}
+}
+
+// TestExtractVPKFromZipHandlesDuplicateBasenames 是上面那个竞态的用户可见版本：
+// 压缩包里 dir1/x.vpk 与 dir2/x.vpk 必须都解出来（x.vpk 与 x(1).vpk），不能只剩一个。
+func TestExtractVPKFromZipHandlesDuplicateBasenames(t *testing.T) {
+	base := t.TempDir()
+	destDir := filepath.Join(base, "addons")
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	zipPath := filepath.Join(base, "dupes.zip")
+	file, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer := zip.NewWriter(file)
+	for _, item := range []struct{ name, payload string }{
+		{"modA/same.vpk", "payload-a"},
+		{"modB/same.vpk", "payload-b"},
+	} {
+		entry, err := writer.Create(item.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write([]byte(item.payload)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{}
+	if err := app.ExtractVPKFromZip(zipPath, destDir); err != nil {
+		t.Fatalf("解压失败: %v", err)
+	}
+
+	payloads := map[string]bool{}
+	for _, name := range []string{"same.vpk", "same(1).vpk"} {
+		raw, err := os.ReadFile(filepath.Join(destDir, name))
+		if err != nil {
+			t.Fatalf("缺少 %s（同名条目被覆盖了）：%v", name, err)
+		}
+		payloads[string(raw)] = true
+	}
+	if !payloads["payload-a"] || !payloads["payload-b"] {
+		t.Fatalf("两个同名条目的内容没有都保留下来：%#v", payloads)
 	}
 }

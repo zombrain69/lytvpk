@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -344,6 +346,29 @@ func (a *App) downloadWorker(
 	}
 }
 
+// parseContentRangeStartEnd 解析 `bytes start-end/total` 形式的 Content-Range，
+// 只关心区间两端（total 可能是 `*`，不校验）。解析不出来时返回 ok=false。
+func parseContentRangeStartEnd(value string) (int64, int64, bool) {
+	value = strings.TrimSpace(value)
+	if len(value) < len("bytes") || !strings.EqualFold(value[:len("bytes")], "bytes") {
+		return 0, 0, false
+	}
+	value = strings.TrimSpace(value[len("bytes"):])
+	if slash := strings.IndexByte(value, '/'); slash >= 0 {
+		value = value[:slash]
+	}
+	startText, endText, found := strings.Cut(value, "-")
+	if !found {
+		return 0, 0, false
+	}
+	start, startErr := strconv.ParseInt(strings.TrimSpace(startText), 10, 64)
+	end, endErr := strconv.ParseInt(strings.TrimSpace(endText), 10, 64)
+	if startErr != nil || endErr != nil || start < 0 || end < start {
+		return 0, 0, false
+	}
+	return start, end, true
+}
+
 // downloadBlock downloads a single block and writes it directly to the file at the correct offset
 func (a *App) downloadBlock(
 	ctx context.Context,
@@ -374,6 +399,21 @@ func (a *App) downloadBlock(
 	}
 	if resp.StatusCode != http.StatusPartialContent {
 		return fmt.Errorf("下载失败：服务器返回 HTTP %d（稍后重试，或换镜像/优选线路）", resp.StatusCode)
+	}
+
+	// 有的镜像/代理会忽略 Range：照样回 206，但内容是从 0 开始的那一段。
+	// 长度校验（下面 expected/actual）只能看字节数，挡不住这种情况 ——
+	// 结果是"下载成功"但文件中间整段错位（后半段其实是前半段的数据）。
+	// 服务端给了 Content-Range 就核对区间；没给（少见）只能靠长度校验兜底。
+	if contentRange := strings.TrimSpace(resp.Header.Get("Content-Range")); contentRange != "" {
+		if start, end, ok := parseContentRangeStartEnd(contentRange); ok {
+			if start != block.StartByte || end < block.EndByte {
+				return fmt.Errorf(
+					"下载分块校验失败：第 %d 块请求 %d-%d，服务器返回 %d-%d（镜像/代理可能忽略了 Range，请换线路重试）",
+					block.Index, block.StartByte, block.EndByte, start, end,
+				)
+			}
+		}
 	}
 
 	offset := block.StartByte

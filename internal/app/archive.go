@@ -22,9 +22,8 @@ func extractZipFile(file *zip.File, decodedName string, destDir string) error {
 	defer rc.Close()
 
 	// 同名不覆盖：目标目录里已有同名文件时另存为 name(1).vpk（与拖拽导入同一约定）。
-	targetPath := uniqueImportTarget(destDir, filepath.Base(decodedName))
-
-	outFile, err := os.Create(targetPath)
+	// createUniqueFile 用 O_EXCL 占名，防止并行解压时两个同名条目互相覆盖。
+	outFile, _, err := createUniqueFile(destDir, filepath.Base(decodedName))
 	if err != nil {
 		return err
 	}
@@ -247,12 +246,10 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 			continue
 		}
 
-		// 同名不覆盖（与拖拽导入同一约定）。
-		targetPath := uniqueImportTarget(destDir, filepath.Base(name))
-
-		outFile, err := os.Create(targetPath)
+		// 同名不覆盖（与拖拽导入同一约定）；O_EXCL 占名，避免并行解压互相覆盖。
+		outFile, targetPath, err := createUniqueFile(destDir, filepath.Base(name))
 		if err != nil {
-			log.Printf("无法创建目标文件 %s: %v", targetPath, err)
+			log.Printf("无法创建目标文件: %v", err)
 			continue
 		}
 
@@ -399,10 +396,8 @@ func extract7zFile(file *sevenzip.File, name string, destDir string) error {
 	}
 	defer rc.Close()
 
-	// 同名不覆盖（与拖拽导入同一约定）。
-	targetPath := uniqueImportTarget(destDir, filepath.Base(name))
-
-	outFile, err := os.Create(targetPath)
+	// 同名不覆盖（与拖拽导入同一约定）；O_EXCL 占名，避免并行解压互相覆盖。
+	outFile, _, err := createUniqueFile(destDir, filepath.Base(name))
 	if err != nil {
 		return err
 	}

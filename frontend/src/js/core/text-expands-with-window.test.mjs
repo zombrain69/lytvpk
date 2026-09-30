@@ -225,3 +225,18 @@ test("分组建议工具栏的按钮不会被压到裁掉文字", () => {
   assert.match(buttons, /flex:\s*0 0 auto/, "按钮要保持自己的文字宽度（flex: 0 0 auto）");
   assert.match(buttons, /white-space:\s*nowrap/, "按钮文字不许折行");
 });
+
+// 第八类"缩着"：宽窗口下左右两列平分宽度，真正放长文件名的预览列拿不到多余空间。
+// 真机实测（1920×1040）：弹窗正文 1230px，左右各 579px → 预览面板里放文件名的列只剩
+// 333px，而最长名字需要 419px（一屏 38 条被省略号截断）。修法：容器够宽时改成 1 : 1.45。
+test("加载顺序弹窗在宽窗口下把多余宽度给预览列表", () => {
+  const mods = read("app/mods.css");
+  const rule =
+    mods.match(/@container load-order-content \(min-width: 1000px\)\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  assert.ok(rule, "没找到宽容器下的加载顺序布局规则");
+  assert.match(
+    rule,
+    /\.load-order-workspace\s*\{[^}]*grid-template-columns:[^;]*minmax\(0,\s*1\.45fr\)/s,
+    "预览列要比控制列宽（1 : 1.45），否则长文件名只能被截断",
+  );
+});
