@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.7.1-community.39 — 2026-09-30
+
+**合集被作者删掉后，「检查更新」会说"下架 N 个"，还会把本地记录的成员清空。**
+
+真机复现（把一条合集的 collectionId 改成已删除的 `999999999999`，工坊对不存在的 ID 会回
+`result=9` 的空壳）：
+
+```
+坏记录 检查更新：状态=「LD2 ATTEMPT…：本地缺少 66 个」   ← 其实是复用了上一条的文案
+检查全部更新：状态=「Left 4 Dead 2 Mod：下架 13 个（Lima Infection…）」
+写回后该记录的成员 = 0                                    ← 本地成员列表被清空
+```
+
+根因：`fetchWorkshopDetails` 不校验 `result`，`resolveWorkshopCollectionMembers()`
+把空壳当成"合集还在、只是没有成员"，于是
+`diffWorkshopCollectionMembers(old=13, new=0)` 得出"成员全部下架"并写回，
+把本地记录清空（之后再也无法跟随节点恢复）。
+另外 `CheckWorkshopCollectionUpdates()` 遇到第一条失败就直接返回错误，
+一条坏记录会让「检查全部更新」整轮失败，其余合集的结果也一起丢掉。
+
+修复（`internal/app/workshop_collections.go`）：
+
+- `resolveWorkshopCollectionMembers()` 校验 `result`：非 1（且非 0=后端未提供）时直接报
+  「这个合集在工坊里已经不存在了（工坊返回 result=N）：可能被作者删除或设为私密」；
+- `RefreshWorkshopCollection()` 加双保险：**解析出 0 个成员而本地原本有成员时，报错并保留原记录**，
+  不再写回空成员；
+- `CheckWorkshopCollectionUpdates()` 改成逐条检查：单条失败不再中断整轮，
+  失败原因放进 `WorkshopCollectionRefreshResult.Error`；
+- 前端新增 `formatCollectionCheckAllSummary()`，汇总成
+  「N 个合集没有成员变化；M 个检查失败：<标题>（<原因>）」。
+
+### 验证
+
+- 新增 Go 用例：`TestResolveWorkshopCollectionMembersRejectsMissingCollection`、
+  `TestRefreshWorkshopCollectionKeepsMembersWhenCollectionDisappears`、
+  `TestCheckWorkshopCollectionUpdatesReportsPerCollectionFailures`
+- 新增前端用例：`formatCollectionCheckAllSummary 汇总变化与失败原因`（成功 / 部分失败 / 全失败三种）
+- `go test ./... -count=1` / `go vet ./...` 全绿；`node --test` 453 项全绿；`npm run build` 通过
+- 真机（同一条坏记录，先把本地成员恢复成 2 个假成员）：
+
+```
+坏记录 检查更新：状态=「检查合集更新失败: 这个合集在工坊里已经不存在了（工坊返回 result=9）：可能被作者删除或设为私密」
+PASS  坏记录的本地成员没有被清空（仍是 2 个）
+检查全部更新：状态=「1 个合集没有成员变化；1 个检查失败：Left 4 Dead 2 Mod（…result=9…）」
+API 返回 2 条：3810578070=成功(66), 999999999999=失败
+```
+
 ## 2.7.1-community.38 — 2026-09-30
 
 **老配置里"没有 id"的服务器，面板控制整块用不了。**

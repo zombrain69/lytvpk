@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   countMissingCollectionMembers,
+  formatCollectionCheckAllSummary,
   formatCollectionQueueSummary,
   formatCollectionRefreshSummary,
   formatCollectionSummary,
@@ -41,4 +42,29 @@ test("formatCollectionQueueSummary reports queued members", () => {
   assert.equal(formatCollectionQueueSummary(["1", "2"]), "已加入下载队列 2 个成员");
   assert.equal(formatCollectionQueueSummary([]), "没有需要下载的成员");
   assert.equal(formatCollectionQueueSummary(null), "没有需要下载的成员");
+});
+
+test("formatCollectionCheckAllSummary 汇总变化与失败原因", () => {
+  assert.equal(formatCollectionCheckAllSummary([]), "还没有保存过工坊合集");
+  assert.equal(
+    formatCollectionCheckAllSummary([
+      { collectionId: "1", addedCount: 0, removedCount: 0, missingCount: 0 },
+      { collectionId: "2", addedCount: 0, removedCount: 0, missingCount: 3 },
+    ]),
+    "所有合集都没有成员变化",
+  );
+  assert.equal(
+    formatCollectionCheckAllSummary([
+      { collectionId: "1", title: "好合集", addedCount: 0, removedCount: 2, removedTitles: ["旧物"] },
+      { collectionId: "9", title: "坏合集", error: "这个合集在工坊里已经不存在了（工坊返回 result=9）" },
+    ]),
+    "好合集：下架 2 个（旧物…）；1 个检查失败：坏合集（这个合集在工坊里已经不存在了（工坊返回 result=9））",
+  );
+  assert.equal(
+    formatCollectionCheckAllSummary([
+      { collectionId: "9", title: "坏合集", error: "工坊接口返回 HTTP 500" },
+      { collectionId: "8", title: "也坏", error: "网络不可用" },
+    ]),
+    "全部 2 个合集都检查失败；2 个检查失败：坏合集（工坊接口返回 HTTP 500）",
+  );
 });

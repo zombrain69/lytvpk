@@ -256,3 +256,92 @@ func TestCaptureWorkshopCollectionRejectsSingleItem(t *testing.T) {
 		t.Fatalf("保存失败不应留下记录: %#v", links)
 	}
 }
+
+// TestResolveWorkshopCollectionMembersRejectsMissingCollection 覆盖真机复现：
+// 检查一个已被删除的合集时，工坊只回一个空壳（result != 1）。以前这里不校验 result，
+// 空壳被当成"0 个成员"，界面显示「下架 N 个」，还把本地记录的成员清空了。
+func TestResolveWorkshopCollectionMembersRejectsMissingCollection(t *testing.T) {
+	a, _ := newCollectionTestApp(t, map[string]WorkshopFileDetails{
+		"999999999999": {Result: 9, PublishedFileId: "999999999999"},
+	})
+	if _, _, err := resolveWorkshopCollectionMembers(a.workshopDetailsFetcherOrDefault(), "999999999999"); err == nil {
+		t.Fatal("已删除的合集必须报错，不能当成 0 成员")
+	}
+}
+
+// TestRefreshWorkshopCollectionKeepsMembersWhenCollectionDisappears：
+// 合集消失时刷新要报错，且不能把本地记录的成员清空（否则之后再也无法跟随节点）。
+func TestRefreshWorkshopCollectionKeepsMembersWhenCollectionDisappears(t *testing.T) {
+	a, _ := newCollectionTestApp(t, map[string]WorkshopFileDetails{
+		"100": workshopDetailWithChildren("100", "1", "2"),
+		"1":   {Result: 1, PublishedFileId: "1", Title: "物品一", Filename: "1.vpk", FileUrl: "https://example.invalid/1.vpk"},
+		"2":   {Result: 1, PublishedFileId: "2", Title: "物品二", Filename: "2.vpk", FileUrl: "https://example.invalid/2.vpk"},
+	})
+	link, err := a.CaptureWorkshopCollection("100")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(link.Members) != 2 {
+		t.Fatalf("初始成员 = %#v", link.Members)
+	}
+
+	// 合集被作者删除：工坊只回一个 result=9 的空壳。
+	a.workshopDetailsFetcher = func(payload string) ([]WorkshopFileDetails, error) {
+		return []WorkshopFileDetails{{Result: 9, PublishedFileId: "100"}}, nil
+	}
+	if _, err := a.RefreshWorkshopCollection(link.ID); err == nil {
+		t.Fatal("合集消失时刷新必须报错，而不是把成员清空")
+	}
+	links, err := a.ListWorkshopCollections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) != 1 || len(links[0].Members) != 2 {
+		t.Fatalf("本地成员记录被清空了: %#v", links)
+	}
+}
+
+// TestCheckWorkshopCollectionUpdatesReportsPerCollectionFailures：
+// 一条坏记录不再让「检查全部更新」整个失败，结果里要带上坏记录的原因。
+func TestCheckWorkshopCollectionUpdatesReportsPerCollectionFailures(t *testing.T) {
+	a, _ := newCollectionTestApp(t, map[string]WorkshopFileDetails{
+		"100":          workshopDetailWithChildren("100", "1"),
+		"1":            {Result: 1, PublishedFileId: "1", Title: "物品一", Filename: "1.vpk", FileUrl: "https://example.invalid/1.vpk"},
+		"999999999999": {Result: 9, PublishedFileId: "999999999999"},
+	})
+	if _, err := a.CaptureWorkshopCollection("100"); err != nil {
+		t.Fatal(err)
+	}
+	store, err := a.readWorkshopCollectionStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.Links = append(store.Links, WorkshopCollectionLink{
+		ID:           newLocalRecordID(),
+		CollectionID: "999999999999",
+		Title:        "坏合集",
+		Members:      []WorkshopCollectionMember{{WorkshopID: "9", Title: "旧成员"}},
+	})
+	if err := a.writeWorkshopCollectionStore(store); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := a.CheckWorkshopCollectionUpdates()
+	if err != nil {
+		t.Fatalf("单条失败不应让整轮检查失败: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("结果条数 = %d，期望 2", len(results))
+	}
+	failed, ok := 0, 0
+	for _, result := range results {
+		if result.Error != "" {
+			failed++
+		} else {
+			ok++
+		}
+	}
+	if failed != 1 || ok != 1 {
+		t.Fatalf("成功 %d / 失败 %d，期望各 1：%#v", ok, failed, results)
+	}
+}

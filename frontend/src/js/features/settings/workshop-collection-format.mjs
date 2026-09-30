@@ -39,3 +39,39 @@ export function formatCollectionQueueSummary(queuedIds) {
   if (ids.length === 0) return "没有需要下载的成员";
   return `已加入下载队列 ${ids.length} 个成员`;
 }
+
+/**
+ * 「检查全部更新」的汇总文案。
+ *
+ * 以前 Go 侧遇到第一条解析失败就直接返回错误，界面只显示「检查合集更新失败: …」，
+ * 其余合集的结果一起丢掉。现在后端逐条检查、把失败原因装进 result.error，
+ * 这里负责汇总成「变化 + N 个检查失败（原因）」。
+ */
+export function formatCollectionCheckAllSummary(results) {
+  const list = Array.isArray(results) ? results : [];
+  if (list.length === 0) return "还没有保存过工坊合集";
+
+  const failed = list.filter((item) => String(item?.error || "").trim());
+  const ok = list.filter((item) => !String(item?.error || "").trim());
+  const changed = ok.filter(
+    (item) => Number(item.addedCount || 0) + Number(item.removedCount || 0) > 0,
+  );
+
+  const parts = [];
+  if (ok.length === 0) {
+    parts.push(`全部 ${list.length} 个合集都检查失败`);
+  } else if (changed.length === 0) {
+    parts.push(ok.length === list.length ? "所有合集都没有成员变化" : `${ok.length} 个合集没有成员变化`);
+  } else {
+    parts.push(
+      changed.map((item) => `${item.title || item.collectionId}：${formatCollectionRefreshSummary(item)}`).join("；"),
+    );
+  }
+  if (failed.length > 0) {
+    const first = failed[0];
+    parts.push(
+      `${failed.length} 个检查失败：${first.title || first.collectionId}（${String(first.error).slice(0, 60)}）`,
+    );
+  }
+  return parts.join("；");
+}

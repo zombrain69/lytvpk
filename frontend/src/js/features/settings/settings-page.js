@@ -16,6 +16,7 @@ import {
   parseConflictIgnoreList,
 } from "../conflicts/conflict-ignore-options.mjs";
 import {
+  formatCollectionCheckAllSummary,
   formatCollectionQueueSummary,
   formatCollectionRefreshSummary,
   formatCollectionSummary,
@@ -1607,12 +1608,9 @@ function bindConflictAnalysisSettings(deps) {
     setCollectionStatus("正在检查全部合集…");
     try {
       const results = (await deps.CheckWorkshopCollectionUpdates()) || [];
-      const changed = results.filter((result) => Number(result.addedCount || 0) + Number(result.removedCount || 0) > 0);
-      setCollectionStatus(
-        changed.length === 0
-          ? "所有合集都没有成员变化"
-          : changed.map((result) => `${result.title || result.collectionId}：${formatCollectionRefreshSummary(result)}`).join("；"),
-      );
+      // 后端现在逐条检查：坏记录不再让整轮失败，失败原因在 result.error 里，
+      // 汇总文案由 formatCollectionCheckAllSummary 负责（含"N 个检查失败：原因"）。
+      setCollectionStatus(formatCollectionCheckAllSummary(results));
       void refreshCollections();
     } catch (error) {
       setCollectionStatus("检查合集更新失败: " + String(error?.message || error));

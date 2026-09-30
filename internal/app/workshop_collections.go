@@ -53,6 +53,9 @@ type WorkshopCollectionRefreshResult struct {
 	MissingCount  int      `json:"missingCount"`
 	AddedTitles   []string `json:"addedTitles"`
 	RemovedTitles []string `json:"removedTitles"`
+	// Error 只用于"检查全部更新"：单条合集解析失败时不再让整轮检查失败，
+	// 而是把原因带回来，界面汇总成「N 个正常 / M 个失败：<原因>」。
+	Error string `json:"error,omitempty"`
 }
 
 // WorkshopCollectionDiff 是合成员集合的变化。
@@ -123,6 +126,15 @@ func resolveWorkshopCollectionMembers(fetcher workshopDetailFetcher, collectionI
 		return WorkshopDetailsGroup{}, nil, fmt.Errorf("未找到工坊合集: %s", collectionID)
 	}
 	main := details[0]
+	// 工坊对"已删除 / 私密 / 不存在"的 ID 会回一个空壳（result != 1，没有标题也没有成员）。
+	// 以前这里不校验 result，空壳会被当成"合集内容变了：成员全部下架"，
+	// 真机上表现为：检查更新显示「下架 13 个」，同时把本地记录的 13 个成员直接清空。
+	// （0 表示后端没给这个字段，不能据此判定失败；只有明确的非 1 才拒绝。）
+	if main.Result != 0 && main.Result != 1 {
+		return WorkshopDetailsGroup{}, nil, fmt.Errorf(
+			"这个合集在工坊里已经不存在了（工坊返回 result=%d）：可能被作者删除或设为私密", main.Result,
+		)
+	}
 	items, truncated, err := collectWorkshopGroupItems(collectionID, main, fetcher, workshopCollectionExpandLimit)
 	if err != nil {
 		return WorkshopDetailsGroup{}, nil, fmt.Errorf("展开合集失败: %w", err)
@@ -327,6 +339,14 @@ func (a *App) RefreshWorkshopCollection(id string) (WorkshopCollectionRefreshRes
 	if err != nil {
 		return WorkshopCollectionRefreshResult{}, err
 	}
+	// 双保险：即使后端漏了 result 字段（0），也不能把"解析不到任何成员"当成
+	// "成员全部下架"写回去 —— 那会把本地记录清空，之后再也没法跟随节点。
+	if len(members) == 0 && len(link.Members) > 0 {
+		return WorkshopCollectionRefreshResult{}, fmt.Errorf(
+			"这次没有解析到任何成员（合集可能已被删除或暂时不可用），已保留原来的 %d 个成员；请稍后重试",
+			len(link.Members),
+		)
+	}
 	diff := diffWorkshopCollectionMembers(link.Members, members)
 	members = a.markWorkshopCollectionMembersPresent(members)
 
@@ -379,10 +399,15 @@ func (a *App) RefreshWorkshopCollection(id string) (WorkshopCollectionRefreshRes
 func (a *App) CheckWorkshopCollectionUpdates() ([]WorkshopCollectionRefreshResult, error) {
 	a.collectionsMu.Lock()
 	store, err := a.readWorkshopCollectionStore()
-	ids := make([]string, 0, len(store.Links))
+	type pendingCollection struct {
+		id           string
+		collectionID string
+		title        string
+	}
+	pending := make([]pendingCollection, 0, len(store.Links))
 	if err == nil {
 		for _, link := range store.Links {
-			ids = append(ids, link.ID)
+			pending = append(pending, pendingCollection{id: link.ID, collectionID: link.CollectionID, title: link.Title})
 		}
 	}
 	a.collectionsMu.Unlock()
@@ -390,11 +415,19 @@ func (a *App) CheckWorkshopCollectionUpdates() ([]WorkshopCollectionRefreshResul
 		return nil, err
 	}
 
-	results := make([]WorkshopCollectionRefreshResult, 0, len(ids))
-	for _, id := range ids {
-		result, refreshErr := a.RefreshWorkshopCollection(id)
+	results := make([]WorkshopCollectionRefreshResult, 0, len(pending))
+	for _, item := range pending {
+		result, refreshErr := a.RefreshWorkshopCollection(item.id)
 		if refreshErr != nil {
-			return results, refreshErr
+			// 单条失败不再中断整轮检查：以前一条坏记录会让「检查全部更新」整个报错，
+			// 其余合集的结果也一起丢掉。现在把原因装进结果里，交给界面汇总。
+			results = append(results, WorkshopCollectionRefreshResult{
+				LinkID:       item.id,
+				CollectionID: item.collectionID,
+				Title:        item.title,
+				Error:        refreshErr.Error(),
+			})
+			continue
 		}
 		results = append(results, result)
 	}

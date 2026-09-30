@@ -3117,6 +3117,7 @@ export namespace app {
 	    missingCount: number;
 	    addedTitles: string[];
 	    removedTitles: string[];
+	    error?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new WorkshopCollectionRefreshResult(source);
@@ -3133,6 +3134,7 @@ export namespace app {
 	        this.missingCount = source["missingCount"];
 	        this.addedTitles = source["addedTitles"];
 	        this.removedTitles = source["removedTitles"];
+	        this.error = source["error"];
 	    }
 	}
 	export class  {
