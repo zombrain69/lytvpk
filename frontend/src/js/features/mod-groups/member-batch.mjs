@@ -62,10 +62,67 @@ export function collectMemberBatchTargets(memberKeys, fileIndex) {
   return targets;
 }
 
-/** formatMemberBatchSelectionLabel 批量工具条上的"已选 N 个成员"。 */
-export function formatMemberBatchSelectionLabel(count) {
+/**
+ * memberKeysOfGroup 取一个组的成员键（去空、去重）。
+ *
+ * 键一律按字符串处理：groups.json 里成员既可能是字符串，也可能是 { key, name }。
+ */
+export function memberKeysOfGroup(group) {
+  const keys = (Array.isArray(group?.members) ? group.members : [])
+    .map((member) => String(typeof member === "string" ? member : member?.key || "").trim())
+    .filter(Boolean);
+  return [...new Set(keys)];
+}
+
+/** collectAllMemberKeys 所有策略组的成员键（同一个 Mod 属于多个组时只算一次）。 */
+export function collectAllMemberKeys(groups = []) {
+  const all = new Set();
+  (Array.isArray(groups) ? groups : []).forEach((group) => {
+    memberKeysOfGroup(group).forEach((key) => all.add(key));
+  });
+  return [...all];
+}
+
+/**
+ * countMemberKeysOutsideScope 数出"勾选了、但不在给定范围里"的成员个数。
+ *
+ * 用途：成员勾选是跨组共用一个集合的（可以一次处理多个组的成员），
+ * 但折叠起来的组在界面上看不见 —— 不把这个数报出来，就变成了"看不见的勾选"，
+ * 批量按钮会动到用户以为没选的东西。
+ */
+export function countMemberKeysOutsideScope(selection, scopeKeys) {
+  const scope = new Set(scopeKeys || []);
+  return [...(selection || [])].filter((key) => !scope.has(key)).length;
+}
+
+/**
+ * applyMemberScopeToggle 按范围整体勾选 / 取消，返回新的选择集合。
+ *
+ * 只动 scopeKeys 里的键，范围外的勾选**原样保留**（跨组批量是刻意保留的能力）；
+ * 怕它变成"看不见的勾选"，靠 formatMemberBatchSelectionLabel 的第二个参数把数量说出来。
+ */
+export function applyMemberScopeToggle(selection, scopeKeys, checked) {
+  const next = new Set(selection || []);
+  (scopeKeys || []).forEach((key) => {
+    if (checked) next.add(key);
+    else next.delete(key);
+  });
+  return next;
+}
+
+/**
+ * formatMemberBatchSelectionLabel 批量工具条上的"已选 N 个成员"。
+ *
+ * hiddenCount：其中有多少个在未展开的组里（看不见但生效）。有的话必须说出来，
+ * 否则用户点完「全选成员」会看到计数比眼前的行数多，却不知道多在哪。
+ */
+export function formatMemberBatchSelectionLabel(count, hiddenCount = 0) {
   const total = Number(count) || 0;
-  return total > 0 ? `已选 ${total} 个成员` : "先在成员行左侧勾选 Mod";
+  if (total <= 0) return "先在成员行左侧勾选 Mod";
+  const hidden = Number(hiddenCount) || 0;
+  return hidden > 0
+    ? `已选 ${total} 个成员（其中 ${hidden} 个在未展开的组里）`
+    : `已选 ${total} 个成员`;
 }
 
 // 成员批量条上的按钮顺序（与 index.html 一致）。

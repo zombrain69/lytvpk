@@ -756,6 +756,35 @@
   display: none;
 }
 
+/* 每个展开组的成员列表头：「本组全选」+ 成员数。
+   有了它，"全选成员"（范围 = 所有展开的组）就不会被误当成"只选这一组"；
+   想只处理某一组时点这一个控件，范围写在按钮上，不用猜。 */
+.strategy-group-members-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  margin-bottom: 0.15rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px dashed color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.strategy-group-members-pick-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.strategy-group-members-count {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
 #strategy-group-modal .mod-member-row {
   /* 勾选框 + 成员信息 + 行内按钮：中间那列必须能自己撑开（minmax(0,1fr)），
      否则窗口拉宽后标题仍然被挤在左边一小条里。 */

@@ -88,6 +88,15 @@ test("formatStrategyGroupSelectionLabel 说明已选组与成员数", () => {
     formatStrategyGroupSelectionLabel({ count: 1, memberCount: 2, missingCount: 0 }),
     "已选 1 个组（2 个成员）",
   );
+  // 被搜索筛掉、列表里看不见的组也必须报出来：批量删除会作用到它们。
+  assert.equal(
+    formatStrategyGroupSelectionLabel({ count: 3, memberCount: 9, missingCount: 0 }, 2),
+    "已选 3 个组（9 个成员），其中 2 个不在当前筛选里",
+  );
+  assert.equal(
+    formatStrategyGroupSelectionLabel({ count: 3, memberCount: 9, missingCount: 0 }, 0),
+    "已选 3 个组（9 个成员）",
+  );
 });
 
 test("formatStrategyGroupBatchConfirm 覆盖删除与其它批量动作", () => {

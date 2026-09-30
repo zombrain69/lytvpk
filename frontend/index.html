@@ -2527,18 +2527,36 @@
           <button type="button" id="strategy-group-batch-tier-clear" class="settings-strategy-batch-btn" disabled>清除权重</button>
           </span>
           <button type="button" id="strategy-group-batch-filter" class="settings-strategy-batch-btn" title="只显示属于这些组的 Mod（等同于主界面「按分组筛选」勾上同样几个组）" disabled>用选中的组筛选</button>
-          <button type="button" id="strategy-group-batch-filter-clear" class="settings-strategy-batch-btn" title="恢复显示全部 Mod（清除「按分组筛选」）" disabled>清除筛选</button>
-          <span id="strategy-group-filter-state" class="strategy-group-filter-state" aria-live="polite"></span>
-          <span id="strategy-group-batch-hint" class="strategy-group-batch-hint" aria-live="polite"></span>
-        </div>
+            <button type="button" id="strategy-group-batch-filter-clear" class="settings-strategy-batch-btn" title="恢复显示全部 Mod（清除「按分组筛选」）" disabled>清除筛选</button>
+            <span id="strategy-group-filter-state" class="strategy-group-filter-state" aria-live="polite"></span>
+            <button type="button" id="strategy-group-clear-all" class="settings-strategy-batch-btn" title="取消全部勾选（包括被搜索筛掉、列表里看不见的组）">取消全部勾选</button>
+            <span id="strategy-group-batch-hint" class="strategy-group-batch-hint" aria-live="polite"></span>
+          </div>
         <!-- 成员级批量：展开成员后勾选多行，一次处理多个 Mod（与每行右侧的单行按钮同义）。
              放在滚动区**外面**（窗口底部固定），否则滚下去看成员时它会跟着滚出视野 —— 之前就是这样，
              用户只能看到组头的「全关」，看不到这里才是真正的批量入口。 -->
         <div class="settings-strategy-batch settings-strategy-member-batch strategy-group-dock-bar hidden" id="strategy-group-member-batch">
-          <label class="settings-strategy-batch-pick-all" title="全选 / 取消全选当前展开的组成员">
+          <label class="settings-strategy-batch-pick-all" title="全选 / 取消全选「当前展开的组」里的成员；不会动别的组已经勾上的">
             <input type="checkbox" id="strategy-group-member-select-all">
-            <span>全选成员</span>
+            <span>全选展开的成员</span>
           </label>
+          <button
+            type="button"
+            id="strategy-group-member-select-all-groups"
+            class="settings-strategy-batch-btn"
+            aria-pressed="false"
+            title="勾选当前所有策略组的全部成员"
+          >
+            全选所有组
+          </button>
+          <button
+            type="button"
+            id="strategy-group-member-clear-all"
+            class="settings-strategy-batch-btn"
+            title="取消全部勾选（包括折叠起来的组里的）"
+          >
+            取消全部勾选
+          </button>
           <span id="strategy-group-member-selection" class="settings-strategy-selection" aria-live="polite"></span>
           <button type="button" id="strategy-group-member-batch-game-on" class="settings-strategy-batch-btn" disabled>游戏内开启</button>
           <button type="button" id="strategy-group-member-batch-game-off" class="settings-strategy-batch-btn" disabled>游戏内关闭</button>

@@ -307,3 +307,29 @@ test("父组行汇总子组缺失（AddonChildrenProblem）", () => {
   assert.match(managerSource, /settings-strategy-missing is-subtree/, "父组行要有独立的子树提示样式");
   assert.match(managerSource, /展开子组即可看到/, "提示要说明下一步怎么做");
 });
+
+// 勾选相关的三个动作 + "范围"必须写清楚。
+// 真机复现过的缺陷：在 A 组选过成员后，展开 B 组点「全选成员」，
+// 集合变成 A∪B（15 = 6 + 9）；把 A 折叠起来，那 6 个仍然生效、界面上却看不见，
+// 批量按钮的 title 已经写着「把 15 个根目录成员搬进 disabled」。
+test("勾选有三档：取消全部 / 全选所有组 / 每组范围内的全选", () => {
+  // ① 三个控件都在
+  assert.match(indexHtml, /id="strategy-group-member-select-all"/, "缺少「全选展开的成员」");
+  assert.match(indexHtml, /id="strategy-group-member-select-all-groups"/, "缺少「全选所有组」");
+  assert.match(indexHtml, /id="strategy-group-member-clear-all"/, "缺少「取消全部勾选」");
+  assert.match(indexHtml, /id="strategy-group-clear-all"/, "组级批量条也要能一次取消全部勾选");
+  // ② 组内范围：每个展开的组头带一个「本组全选」
+  assert.match(managerSource, /data-group-member-pick-all/, "每个展开组要带自己的「本组全选」");
+  assert.match(cssSource, /\.strategy-group-members-header\s*\{/, "成员列表头要有样式");
+  assert.match(managerSource, /只勾选\/取消「/, "「本组全选」要说清只作用这一组");
+  // ③ 接线：三个动作分别接去 scope 助手 / 全量集合 / 清空
+  assert.match(managerSource, /element\("strategy-group-member-select-all-groups"\)\?\.addEventListener/, "「全选所有组」要接线");
+  assert.match(managerSource, /element\("strategy-group-member-clear-all"\)\?\.addEventListener/, "「取消全部勾选」要接线");
+  assert.match(managerSource, /memberSelection = new Set\(\);/, "清空要真的清空集合");
+  assert.match(managerSource, /applyMemberScopeToggle\(/, "按范围勾选要走被单测覆盖的纯函数");
+  assert.match(managerSource, /collectAllMemberKeys\(/, "「全选所有组」要覆盖所有组");
+  // ④ 看不见的勾选必须报出来（成员级 + 组级），否则"全选"看起来只选了眼前的
+  assert.match(managerSource, /countMemberKeysOutsideScope\(/, "成员计数要说清有多少在未展开的组里");
+  assert.match(managerSource, /hiddenFromFilter/, "组计数要说清有多少不在当前筛选里");
+  assert.match(indexHtml, /全选展开的成员/, "按钮文案要写清作用范围（不是含糊的「全选成员」）");
+});

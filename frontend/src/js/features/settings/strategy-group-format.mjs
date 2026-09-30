@@ -112,13 +112,20 @@ export function formatStrategyGroupBatchResult(action, result) {
   }
 }
 
-/** formatStrategyGroupSelectionLabel 生成批量工具条上的"已选 N 个组（M 个成员）"。 */
-export function formatStrategyGroupSelectionLabel(summary) {
+/**
+ * formatStrategyGroupSelectionLabel 生成批量工具条上的"已选 N 个组（M 个成员）"。
+ *
+ * hiddenCount：其中有多少个组被当前搜索筛掉了（列表里看不见但仍是批量目标）。
+ * 组勾选和成员勾选是同一类问题：看不见的勾选必须报出来，否则"全选"看起来只选了眼前的。
+ */
+export function formatStrategyGroupSelectionLabel(summary, hiddenCount = 0) {
   const count = Number(summary?.count || 0);
   if (count <= 0) return "未选择组";
   const members = Number(summary?.memberCount || 0);
   const missing = Number(summary?.missingCount || 0);
-  return `已选 ${count} 个组（${members} 个成员${missing > 0 ? `，含 ${missing} 个缺失` : ""}）`;
+  const hidden = Number(hiddenCount) || 0;
+  const base = `已选 ${count} 个组（${members} 个成员${missing > 0 ? `，含 ${missing} 个缺失` : ""}）`;
+  return hidden > 0 ? `${base}，其中 ${hidden} 个不在当前筛选里` : base;
 }
 
 /**

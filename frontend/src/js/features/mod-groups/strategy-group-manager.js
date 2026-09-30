@@ -68,10 +68,14 @@ import {
 } from "./group-view.mjs";
 import { buildModMemberRow } from "./member-row.js";
 import {
+  applyMemberScopeToggle,
+  collectAllMemberKeys,
   collectMemberBatchTargets,
+  countMemberKeysOutsideScope,
   describeMemberBatchActions,
   formatMemberBatchResult,
   formatMemberBatchSelectionLabel,
+  memberKeysOfGroup,
   planMemberRemoval,
 } from "./member-batch.mjs";
 import { onModGroupMembershipChanged } from "./group-state.mjs";
@@ -243,9 +247,7 @@ function visibleGroupIds() {
 let memberSelection = new Set();
 
 function groupMemberKeys(group) {
-  return (Array.isArray(group?.members) ? group.members : [])
-    .map((member) => String(typeof member === "string" ? member : member?.key || "").trim())
-    .filter(Boolean);
+  return memberKeysOfGroup(group);
 }
 
 /** expandedMemberKeys 当前展开的所有组成员键（"全选成员"的作用范围）。 */
@@ -257,6 +259,11 @@ function expandedMemberKeys() {
     groupMemberKeys(group).forEach((key) => keys.push(normalizeGroupKey(key)));
   });
   return [...new Set(keys)];
+}
+
+/** allMemberKeys 所有策略组的成员键（"全选所有组"的作用范围）。 */
+function allMemberKeys() {
+  return collectAllMemberKeys(managerState?.groups || []).map((key) => normalizeGroupKey(key));
 }
 
 function pruneMemberSelection() {
@@ -293,9 +300,15 @@ function updateMemberBatchBar() {
   pruneMemberSelection();
   bar.classList.toggle("hidden", expandedSet().size === 0);
 
+  const expandedKeys = expandedMemberKeys();
   const selectionLabel = element("strategy-group-member-selection");
   if (selectionLabel) {
-    selectionLabel.textContent = formatMemberBatchSelectionLabel(memberSelection.size);
+    // 跨组勾选是刻意保留的能力，但折叠组里的勾选在界面上看不见——
+    // 不把数量说出来，用户点完「全选展开的成员」会看到计数比眼前多，却不知道多在哪。
+    selectionLabel.textContent = formatMemberBatchSelectionLabel(
+      memberSelection.size,
+      countMemberKeysOutsideScope(memberSelection, expandedKeys),
+    );
   }
   const hint = element("strategy-group-member-batch-hint");
   if (hint) {
@@ -315,12 +328,46 @@ function updateMemberBatchBar() {
 
   const selectAll = element("strategy-group-member-select-all");
   if (selectAll) {
-    const keys = expandedMemberKeys();
-    const selected = keys.filter((key) => memberSelection.has(key)).length;
-    selectAll.checked = keys.length > 0 && selected >= keys.length;
-    selectAll.indeterminate = selected > 0 && selected < keys.length;
-    selectAll.disabled = keys.length === 0;
-    selectAll.title = "全选 / 取消全选当前展开的组成员";
+    const selected = expandedKeys.filter((key) => memberSelection.has(key)).length;
+    selectAll.checked = expandedKeys.length > 0 && selected >= expandedKeys.length;
+    selectAll.indeterminate = selected > 0 && selected < expandedKeys.length;
+    selectAll.disabled = expandedKeys.length === 0;
+    selectAll.title =
+      expandedKeys.length > 0
+        ? `全选 / 取消全选当前展开的 ${expandedSet().size} 个组（共 ${expandedKeys.length} 个成员）；不会动别的组已经勾上的`
+        : "先展开至少一个组（点组名左边的展开箭头），这里才能全选成员";
+  }
+
+  // 每个组自己的「本组全选」：三态按本组勾选情况同步。
+  const allKeys = allMemberKeys();
+  document
+    .querySelectorAll("#strategy-group-list input[data-group-member-pick-all]")
+    .forEach((input) => {
+      const group = groupById(input.dataset.groupMemberPickAll);
+      if (!group) return;
+      const keys = groupMemberKeys(group).map((key) => normalizeGroupKey(key));
+      const selected = keys.filter((key) => memberSelection.has(key)).length;
+      input.checked = keys.length > 0 && selected >= keys.length;
+      input.indeterminate = selected > 0 && selected < keys.length;
+      input.disabled = keys.length === 0;
+    });
+
+  const selectAllGroups = element("strategy-group-member-select-all-groups");
+  if (selectAllGroups) {
+    const selected = allKeys.filter((key) => memberSelection.has(key)).length;
+    const allSelected = allKeys.length > 0 && selected >= allKeys.length;
+    selectAllGroups.disabled = allKeys.length === 0;
+    selectAllGroups.classList.toggle("is-on", allSelected);
+    selectAllGroups.setAttribute("aria-pressed", String(allSelected));
+    selectAllGroups.title = `勾选当前 ${(managerState?.groups || []).length} 个策略组的全部成员（共 ${allKeys.length} 个，多个组共用的 Mod 只算一次）`;
+  }
+  const clearAll = element("strategy-group-member-clear-all");
+  if (clearAll) {
+    clearAll.disabled = memberSelection.size === 0;
+    clearAll.title =
+      memberSelection.size > 0
+        ? `取消全部勾选（包括折叠起来的组里的 ${countMemberKeysOutsideScope(memberSelection, expandedKeys)} 个）`
+        : "当前没有勾选任何成员";
   }
 }
 
@@ -393,7 +440,16 @@ function renderManager() {
   if (batch) {
     batch.classList.toggle("hidden", allRows.length === 0);
     const selectionLabel = element("strategy-group-selection");
-    if (selectionLabel) selectionLabel.textContent = formatStrategyGroupSelectionLabel(currentSummary());
+    if (selectionLabel) {
+      // 和成员批量条同一类问题：搜索筛掉的那些组如果还勾着，界面上看不见，
+      // 但批量删除 / 开关自动联动照样会作用到它们，所以把数量写在计数里。
+      const visible = new Set(visibleGroupIds());
+      const hiddenFromFilter = [...selectionSet()].filter((id) => !visible.has(String(id))).length;
+      selectionLabel.textContent = formatStrategyGroupSelectionLabel(
+        currentSummary(),
+        hiddenFromFilter,
+      );
+    }
     const hasSelection = currentSummary().count > 0;
     // 「禁用」不是坏了：这里把原因显式说出来，按钮 tooltip 也补上说明。
     const hint = element("strategy-group-batch-hint");
@@ -421,6 +477,13 @@ function renderManager() {
         ? button.dataset.defaultTitle
         : "先勾选要批量操作的策略组（每行最左边的方框，或直接点组名）";
     });
+    const clearAll = element("strategy-group-clear-all");
+    if (clearAll) {
+      clearAll.disabled = !hasSelection;
+      clearAll.title = hasSelection
+        ? `取消全部勾选（当前共选中 ${currentSummary().count} 个组）`
+        : "当前没有勾选任何策略组";
+    }
   }
   if (!list) return;
   if (allRows.length === 0) {
@@ -554,6 +617,33 @@ function renderExpandedMembers() {
       host.appendChild(empty);
       return;
     }
+
+    // 「本组全选」：把"范围"做成每组一个控件。
+    // 有了它，「全选成员」（作用范围 = 所有展开的组）就不会再被误当成"只选这一组"，
+    // 用户想只处理某一组时直接点它，范围写在按钮上。
+    const header = document.createElement("div");
+    header.className = "strategy-group-members-header";
+    const pickAllLabel = document.createElement("label");
+    pickAllLabel.className = "strategy-group-members-pick-all";
+    pickAllLabel.title = `只勾选/取消「${String(group.name || "")}」这一组的 ${members.length} 个成员，不影响别的组`;
+    const pickAllInput = document.createElement("input");
+    pickAllInput.type = "checkbox";
+    pickAllInput.dataset.groupMemberPickAll = String(group.id);
+    pickAllInput.addEventListener("change", (event) => {
+      const keys = groupMemberKeys(group).map((key) => normalizeGroupKey(key));
+      memberSelection = applyMemberScopeToggle(memberSelection, keys, Boolean(event.target.checked));
+      syncMemberCheckboxes();
+      updateMemberBatchBar();
+    });
+    const pickAllText = document.createElement("span");
+    pickAllText.textContent = "本组全选";
+    pickAllLabel.append(pickAllInput, pickAllText);
+    const countText = document.createElement("span");
+    countText.className = "strategy-group-members-count";
+    countText.textContent = `本组 ${members.length} 个成员`;
+    header.append(pickAllLabel, countText);
+    host.appendChild(header);
+
     members.forEach((member) => {
       const key = String(member?.key ?? member ?? "").trim();
       if (!key) return;
@@ -1309,11 +1399,27 @@ export function initStrategyGroupManager() {
   // 成员批量条：元素是静态的（index.html），这里绑定一次；
   // 计数与可用性由 updateMemberBatchBar() 在每次重画/勾选后刷新。
   element("strategy-group-member-select-all")?.addEventListener("change", (event) => {
-    const checked = Boolean(event.target?.checked);
-    expandedMemberKeys().forEach((key) => {
-      if (checked) memberSelection.add(key);
-      else memberSelection.delete(key);
-    });
+    // 作用范围 = 当前展开的所有组。范围外的勾选原样保留（可以跨组批量），
+    // 但条上的计数会把"未展开组里还有多少个"说出来，不再是看不见的勾选。
+    memberSelection = applyMemberScopeToggle(
+      memberSelection,
+      expandedMemberKeys(),
+      Boolean(event.target?.checked),
+    );
+    syncMemberCheckboxes();
+    updateMemberBatchBar();
+  });
+  // 「全选所有组」= 一次勾上全部策略组的成员（切换式按钮：再点一次取消）。
+  element("strategy-group-member-select-all-groups")?.addEventListener("click", () => {
+    const keys = allMemberKeys();
+    const allSelected = keys.length > 0 && keys.every((key) => memberSelection.has(key));
+    memberSelection = applyMemberScopeToggle(memberSelection, keys, !allSelected);
+    syncMemberCheckboxes();
+    updateMemberBatchBar();
+  });
+  // 「取消全部勾选」= 一次清空，包括折叠组里那些看不见的。
+  element("strategy-group-member-clear-all")?.addEventListener("click", () => {
+    memberSelection = new Set();
     syncMemberCheckboxes();
     updateMemberBatchBar();
   });
@@ -1386,6 +1492,11 @@ export function initStrategyGroupManager() {
     const ids = visibleGroupIds();
     if (event.target.checked) ids.forEach((id) => selection.add(id));
     else ids.forEach((id) => selection.delete(id));
+    renderManager();
+  });
+  // 「取消全部勾选」：组勾选也补一个一次清空，包括被搜索筛掉、界面上看不见的那些。
+  element("strategy-group-clear-all")?.addEventListener("click", () => {
+    selectionSet().clear();
     renderManager();
   });
   // 搜索框：边打边筛（组数量是几十级，不需要防抖）。

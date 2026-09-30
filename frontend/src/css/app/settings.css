@@ -1223,6 +1223,14 @@ html.dark-mode .autoexec-analysis.is-warning {
   cursor: not-allowed;
 }
 
+/* 切换式按钮（「全选所有组」）的"已全选"状态。 */
+.settings-strategy-batch-btn.is-on {
+  border-color: var(--primary);
+  background: var(--primary-50);
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .settings-strategy-batch-btn.is-danger {
   border-color: color-mix(in srgb, var(--danger, #f85149) 45%, var(--border-default));
   color: var(--danger, #f85149);
