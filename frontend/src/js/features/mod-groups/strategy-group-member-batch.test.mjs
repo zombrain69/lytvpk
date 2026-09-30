@@ -27,6 +27,24 @@ test("窗口里有成员批量条与全选入口", () => {
   }
 });
 
+test("组级 / 成员级批量条都固定在滚动区之外（否则滚下去就看不见）", () => {
+  // 真实缺陷：两条批量条原本在 .strategy-group-body（可滚动）内部、位于列表之前，
+  // 用户滚到列表下半部分时它们已经滚出视野，只看到组头的「全关」，以为没有批量入口。
+  const divDepth = (fragment) =>
+    (fragment.match(/<div\b/g) || []).length - (fragment.match(/<\/div>/g) || []).length;
+
+  const bodyOpen = html.indexOf('class="strategy-group-body"');
+  const footerIndex = html.indexOf('<div class="modal-footer">', bodyOpen);
+  assert.ok(bodyOpen > 0, "index.html 里应能找到 .strategy-group-body");
+
+  for (const id of ["strategy-group-batch", "strategy-group-member-batch"]) {
+    const barIndex = html.indexOf(`id="${id}"`);
+    assert.ok(barIndex > bodyOpen && footerIndex > barIndex, `${id} 应位于滚动区与 modal-footer 之间`);
+    assert.equal(divDepth(html.slice(bodyOpen, barIndex)), 0,
+      `${id} 必须已经在滚动区之外（滚动区已闭合），不能放在 .strategy-group-body 里面`);
+  }
+});
+
 test("成员行渲染勾选框，勾选状态进入选择集合", () => {
   assert.match(memberRow, /options\.pick|pick = null/, "成员行实现要支持勾选框");
   assert.match(manager, /pick:\s*\{/, "展开成员时要传 pick");

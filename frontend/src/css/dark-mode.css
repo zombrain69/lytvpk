@@ -715,3 +715,15 @@ html.dark-mode .file-list .file-item.mod-row-state-unknown:nth-child(even):hover
   background: linear-gradient(90deg, rgba(100, 116, 139, 0.25), rgba(100, 116, 139, 0.09)) !important;
   box-shadow: inset 4px 0 0 rgba(148, 163, 184, 0.9), var(--mod-list-row-hover-shadow);
 }
+
+/* 「内容预设」按钮：深色主题下必须换成更亮的强调色。
+   原来的 #6d28d9（violet-700）压在深底上几乎读不出来，是「按钮看不见」的根因之一。
+   #c7d2fe（indigo-200）压在这个深紫底上约 6:1，比 #818cf8 的约 3:1 好读得多。 */
+html.dark-mode .preset-filter-trigger {
+  --preset-trigger-ink: #c7d2fe;
+}
+
+html.dark-mode .preset-filter-trigger:hover,
+html.dark-mode .preset-filter-trigger:focus-visible {
+  border-color: var(--primary-light);
+}

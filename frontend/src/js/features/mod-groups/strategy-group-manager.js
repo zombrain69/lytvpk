@@ -302,7 +302,7 @@ function updateMemberBatchBar() {
     hint.textContent =
       memberSelection.size > 0
         ? "批量按钮一次作用于勾选的成员；每一行右侧的按钮仍然只作用那一行"
-        : "勾选成员行最左边的方框后，这些按钮会一次作用于全部选中（和右侧单行按钮同义）";
+        : "勾选成员行最左边的方框后，这一排按钮会一次作用于全部选中（和每行右侧的单行按钮同义）";
     hint.classList.toggle("is-ready", memberSelection.size > 0);
   }
 
@@ -484,7 +484,7 @@ function renderManager() {
             <button type="button" class="settings-strategy-filter${isFiltered ? " is-active" : ""}" data-group-id="${escapeAttr(group.id)}" title="只让主界面显示属于这个组的 Mod（等同于「按分组筛选」勾上这个组；再点一次取消）">${isFiltered ? "取消筛选" : "筛选这组"}</button>
             <button type="button" class="settings-strategy-apply" data-group-id="${escapeAttr(group.id)}">按策略应用</button>
             <button type="button" class="settings-strategy-random" data-group-id="${escapeAttr(group.id)}">随机单选</button>
-            <button type="button" class="settings-strategy-off" data-group-id="${escapeAttr(group.id)}">全关</button>
+            <button type="button" class="settings-strategy-off" data-group-id="${escapeAttr(group.id)}" title="把这一组全部成员在 addonlist.txt 里设为关闭（组级动作，不删文件）。只想处理勾选的成员，请用窗口底部的成员批量条。">全关</button>
             <button type="button" class="settings-strategy-rename" data-group-id="${escapeAttr(group.id)}" title="修改组名与描述（成员、权重、层级都不受影响）">重命名</button>
             <button type="button" class="settings-strategy-delete" data-group-id="${escapeAttr(group.id)}" title="删除这个策略组（只删 groups.json 里的记录）">删除</button>
             <span class="settings-strategy-parent" title="上级分组只影响这里的展示层级，不会改变优先级（优先级由组权重与 Mod 分层决定）">
@@ -569,7 +569,7 @@ function renderExpandedMembers() {
           // 与「分组建议」共用同一行实现，视觉与语义保持一致。
           pick: {
             checked: memberSelection.has(normalizedKey),
-            title: "勾选这个 Mod，用上方的成员批量按钮一次处理多个（游戏开关 / 启用·禁用 / 复制到 addons / 移出本组）",
+          title: "勾选这个 Mod，用窗口底部的成员批量按钮一次处理多个（游戏开关 / 启用·禁用 / 复制到 addons / 移出本组）",
             onChange: (checked) => {
               if (checked) memberSelection.add(normalizedKey);
               else memberSelection.delete(normalizedKey);

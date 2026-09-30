@@ -612,3 +612,102 @@ html.dark-mode .launch-server-empty {
   gap: 0.25rem;
   padding: 0;
 }
+
+/* ── 动作行停靠：别让"往下滚"把主操作带走 ─────────────────────────────────
+   缺陷：动作行原本跟着内容一起滚。列表一长，用户滚到下半部分，
+   「重新推导 / 导入导出 / 保存分层 / 按分层应用 / 刷新 / 下载 / 应用优化」
+   就跑到视野之外——和「策略组批量条」是同一类问题（那里改成了窗口底部固定条）。
+
+   这里按形状分三种手法，都在各自滚动容器内生效：
+     1. 单行工具行 → 吸在滚动区顶部；
+     2. 「工具行 + 筛选栏」这种多行组合 → 用一个 dock 整块吸顶。
+        不能让两行各自 top: 0，否则下行会把上行盖住（比滚走更难用）；
+     3. 段落末尾的收尾动作（保存 / 应用 / 导出）→ 吸在滚动区底部，
+        只要这一段还在视野里，按钮就一定在。
+
+   除 dock 各包了一层容器外，不改结构、不改事件绑定。
+   放在 layout.css 是因为它的 @import 顺序在各自功能样式之后，同权重下能覆盖。 */
+
+/* 1) 单行工具行吸顶 */
+.server-toolbar,
+.load-order-priority-panel,
+.panel-action-bar,
+.panel-map-toolbar,
+.panel-upload-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--bg-app);
+  box-shadow: 0 10px 14px -12px rgba(15, 23, 42, 0.65);
+}
+
+/* 2) 多行组合：整块吸顶。
+   左右负外边距 + 等量内边距，是为了盖住滚动区两侧的内边距缝隙
+   （否则建议列表会从停靠区左右两边透出来）。 */
+.mod-group-suggest-dock {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--bg-surface);
+  margin-inline: calc(-1 * var(--spacing-5));
+  padding-inline: var(--spacing-5);
+  box-shadow: 0 10px 14px -12px rgba(15, 23, 42, 0.65);
+}
+
+/* 3) 段落末尾的收尾动作吸底 */
+.load-order-policy-actions,
+.detail-ignore-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: var(--bg-app);
+  padding-bottom: var(--spacing-2);
+}
+
+/* 「选择性优化」这一块自己有底色，吸底条要跟着用同一底色，并撑满卡片内边距。 */
+.load-order-policy-actions {
+  background: var(--bg-surface);
+  margin-inline: calc(-1 * var(--spacing-5));
+  padding-inline: var(--spacing-5);
+}
+
+.server-data-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: var(--bg-surface);
+  margin-inline: calc(-1 * var(--spacing-4));
+  padding-inline: var(--spacing-4);
+  padding-bottom: var(--spacing-2);
+}
+
+/* 4) 下载与解析页：两条输入行常驻窗口，只有「解析结果 + 下载任务队列」滚动。
+   否则任务一多，解析 / 工坊 / 下载 / 复制 全被滚走（这一步由 index.html 的
+   .workshop-input-dock / .workshop-scroll-area 两层容器配合完成）。 */
+.workshop-modal-content > .modal-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workshop-input-dock {
+  flex: 0 0 auto;
+}
+
+.workshop-scroll-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 「下载任务队列」这一行的「清理已完成」跟着任务列表一起滚，同样要吸住。
+   左右负边距是为了盖住 .task-list-container 的 16px 内边距。 */
+.task-list-header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  background: var(--bg-surface);
+}

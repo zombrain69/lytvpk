@@ -934,28 +934,9 @@ html.dark-mode .multi-select-search-input:focus {
   gap: 0.45rem;
 }
 
-.mod-management-page .filter-row-filters.filter-layout-classic .secondary-preset-dropdown,
-.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger {
-  height: 2.1rem;
-}
-
-.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger {
-  min-width: 6.25rem;
-  padding: 0 0.78rem;
-  border-color: rgba(124, 58, 237, 0.36);
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.14), rgba(79, 70, 229, 0.08));
-  color: #6d28d9;
-  font-size: 0.78rem;
-  font-weight: 800;
-  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.12);
-}
-
-.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger:hover,
-.mod-management-page .filter-row-filters.filter-layout-classic .preset-filter-trigger.has-selection {
-  border-color: #7c3aed;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.23), rgba(79, 70, 229, 0.13));
-  color: #5b21b6;
-}
+/* 「内容预设」的配色只由 .preset-filter-trigger（mods.css）一处决定：
+   这里原来还有一份写死 #6d28d9 深紫的覆盖，深色主题下深紫字压在深底上几乎看不清，
+   而且它把按钮压到 2.1rem、还盖掉了图标按钮的强调底色。已删除，不要再加回来。 */
 
 .preset-filter-group {
   --preset-accent: #4f46e5;

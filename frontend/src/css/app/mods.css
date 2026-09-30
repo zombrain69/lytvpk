@@ -595,6 +595,21 @@
   padding: var(--spacing-4) var(--spacing-5);
 }
 
+/* 策略组管理的批量条（组级 / 成员级）：固定在窗口底部、不随列表滚动。
+   它们原先放在滚动区顶部，滚下去看组/成员时会被滚出视野
+   （用户只看到组头的「全关」，看不到真正的批量入口）。 */
+#strategy-group-modal .strategy-group-dock-bar {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: var(--spacing-3) var(--spacing-5);
+  border: 0;
+  border-top: 1px dashed var(--border-default);
+  border-radius: 0;
+  background: var(--bg-app);
+  max-height: 26vh;
+  overflow-y: auto;
+}
+
 .strategy-group-hint {
   margin: 0 0 var(--spacing-3);
   color: var(--text-secondary);
@@ -1014,7 +1029,9 @@
   overflow-y: auto;
 }
 
-/* 筛选栏：搜索 + 置信度 / 来源 / 排序 + 展开折叠，永远在滚动区之外。 */
+/* 筛选栏：搜索 + 置信度 / 来源 / 排序 + 展开折叠。
+   吸顶交给外层的 .mod-group-suggest-dock（见 layout.css）：
+   它把「工具行 + 这一行」整块吸在滚动区顶部，两行不会互相盖住。 */
 .mod-group-suggest-filters {
   display: flex;
   flex-wrap: wrap;
@@ -1023,10 +1040,6 @@
   margin-bottom: var(--spacing-3);
   padding-bottom: var(--spacing-3);
   border-bottom: 1px solid var(--border-default);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--bg-surface);
 }
 
 .mod-group-suggest-search {
@@ -3226,32 +3239,64 @@
 }
 
 .preset-filter-trigger {
-  height: 2.5rem;
-  min-width: 3.5rem;
-  padding: 0 var(--spacing-2);
-  border: 1px solid var(--border-light);
+  /* 「内容预设」是筛选区最常用的入口之一。这一排其它按钮都是灰底，所以它做成
+     「强调色实底 + 图标 + 加宽加高」，让人一眼就能找到（用户原话：辨识度要高）。
+     颜色全部走主题变量：浅色 / 深色两套主题都够对比度。
+     底色先写纯色再写 color-mix，万一 WebView 不支持 color-mix 也还有底色。 */
+  /* 字色单独提一个变量：浅色用深一档的强调色（浅底上够对比），
+     深色主题在 dark-mode.css 里换成浅色字（深底上才读得出来）。 */
+  --preset-trigger-ink: var(--primary-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2.35rem;
+  min-width: 6.75rem;
+  justify-content: center;
+  padding: 0 var(--spacing-3);
+  border: 1px solid var(--primary);
   border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  color: var(--text-secondary);
+  background: var(--primary-100);
+  background: color-mix(in srgb, var(--primary) 18%, var(--bg-card));
+  color: var(--preset-trigger-ink);
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: 0 0 0 3px var(--primary-50);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
   cursor: pointer;
   transition:
     background var(--duration-150) var(--ease-out),
     border-color var(--duration-150) var(--ease-out),
-    color var(--duration-150) var(--ease-out);
+    color var(--duration-150) var(--ease-out),
+    box-shadow var(--duration-150) var(--ease-out);
 }
 
-.preset-filter-trigger:hover {
-  border-color: var(--primary-light);
-  background: var(--primary-50);
-  color: var(--primary);
+.preset-filter-trigger .icon-svg {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.preset-filter-trigger:hover,
+.preset-filter-trigger:focus-visible {
+  border-color: var(--primary-dark);
+  background: var(--primary-200);
+  background: color-mix(in srgb, var(--primary) 28%, var(--bg-card));
+  box-shadow: 0 0 0 4px var(--primary-100);
 }
 
 .preset-filter-trigger.has-selection,
 .multi-select-trigger.has-selection {
-  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-light));
+  border-color: var(--primary);
+}
+
+.preset-filter-trigger.has-selection {
+  background: var(--primary-200);
+  background: color-mix(in srgb, var(--primary) 30%, var(--bg-card));
+}
+
+.multi-select-trigger.has-selection {
   background: var(--primary-50) !important;
   color: var(--primary);
 }
@@ -3595,16 +3640,14 @@
   white-space: nowrap;
 }
 
+/* 经典布局只保留「胶囊形」这一处差异：尺寸与配色跟基础样式一致。
+   曾经这里把它压到 1.8rem / 3.25rem，结果比旁边的灰按钮还不起眼。 */
 .classic-secondary-action-slot .secondary-preset-dropdown {
-  height: 1.8rem;
+  height: 2.35rem;
 }
 
 .classic-secondary-action-slot .preset-filter-trigger {
-  min-width: 3.25rem;
-  height: 1.8rem;
-  padding: 0 var(--spacing-2);
   border-radius: var(--radius-full);
-  font-size: var(--text-xs);
 }
 
 .sort-container {

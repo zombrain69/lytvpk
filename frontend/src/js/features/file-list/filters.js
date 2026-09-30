@@ -314,7 +314,15 @@ function syncSecondaryTagFilterUI() {
   });
   document.querySelectorAll(".secondary-preset-dropdown .preset-filter-trigger").forEach((trigger) => {
     const prefix = trigger.closest(".filter-layout-classic") ? "内容预设" : "预设";
-    trigger.textContent = selected.size > 0 ? `${prefix} · 已选 ${selected.size}` : prefix;
+    const text = selected.size > 0 ? `${prefix} · 已选 ${selected.size}` : prefix;
+    // 只改文字节点：直接写 trigger.textContent 会把按钮里的图标一起抹掉
+    // （「内容预设」按钮的图标就是这么消失的）。
+    const label = trigger.querySelector(".preset-filter-trigger-label");
+    if (label) {
+      label.textContent = text;
+    } else {
+      trigger.textContent = text;
+    }
     trigger.classList.toggle("has-selection", selected.size > 0);
     trigger.setAttribute("aria-label", selected.size > 0 ? `内容预设，已选 ${selected.size} 项` : "内容预设，未选择");
   });
@@ -688,7 +696,10 @@ function renderSecondaryTagPresets(container) {
   dropdown.className = "multi-select-dropdown secondary-preset-dropdown";
   const triggerLabel = appState.filterLayoutMode === "classic" ? "内容预设" : "预设";
   dropdown.innerHTML = `
-    <button type="button" class="preset-filter-trigger" title="打开角色、感染者、枪械、近战、物品、界面与场景的快捷预设">${triggerLabel}</button>
+    <button type="button" class="preset-filter-trigger" title="打开角色、感染者、枪械、近战、物品、界面与场景的快捷预设">
+      <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9"/><path d="M17 6h3"/><circle cx="15" cy="6" r="2"/><path d="M4 12h3"/><path d="M11 12h9"/><circle cx="9" cy="12" r="2"/><path d="M4 18h9"/><path d="M17 18h3"/><circle cx="15" cy="18" r="2"/></svg>
+      <span class="preset-filter-trigger-label">${triggerLabel}</span>
+    </button>
     <div class="select-menu multi-select-menu filter-flyout-menu preset-filter-menu hidden" role="dialog" aria-label="内容预设筛选"></div>
   `;
 

@@ -1,5 +1,66 @@
 # Changelog
 
+## 2.7.1-community.44 — 2026-10-01
+
+**往下滚之后，本该一直在的操作按钮被滚出了视野；「内容预设」按钮混在一排灰按钮里认不出来。**
+
+用户报了两件事，真机（打包 EXE + 沙箱库 + 真实 Mod 库 2861 个）量了一遍，都成立：
+
+```text
+收藏服务器页   滚到顶时「复制配置 / 导出文件 / 粘贴导入 / 文件导入」top=1785 —— 窗口只有 900 高，早就滚没了
+下载与解析页   26 条任务下滚到底时，「解析 / 工坊 / 下载 / 复制」被滚走
+分组建议窗口   工具行与筛选栏都写了 position:sticky; top:0 —— 两条都吸顶 = 下面那条把上面那条盖住
+内容预设       深色主题下是 #6d28d9 深紫字压在深底上，且按钮里根本没有图标（100×34）
+```
+
+根因是四类，不是一个：
+
+- **动作行长在滚动容器里面**：`.server-toolbar`、`.url-input-container`、
+  `.load-order-priority-panel`、各服务器面板工具行都挂在 `overflow:auto` 的
+  `.modal-body` 里，跟着内容一起滚。
+- **两条吸顶互相盖住**：`.mod-group-suggest-toolbar` 与 `.mod-group-suggest-filters`
+  都吸在 `top:0`，后一条直接把前一条压住——比原来的「滚走」更难用。
+- **策略组管理的批量条也在滚动区内部**（2.7.1 新增的功能），滚到成员行就看不见了，
+  用户截图上只剩组头那个「全关」。
+- **「内容预设」的图标被运行时删掉**：`syncSecondaryTagFilterUI()` 用
+  `trigger.textContent = …` 更新文字，`textContent` 会把按钮里的 `<svg>` 一起清空；
+  另外 `mod-management.css` 里还压着一份写死 `#6d28d9` 的覆盖，把按钮缩回 2.1rem
+  并盖掉强调底色。
+
+修法按形状分三类，都在原本的滚动容器里生效（结构见 `layout.css` 的「动作行停靠」区块）：
+
+| 形状 | 手法 | 落点 |
+| --- | --- | --- |
+| 单行工具行 | 吸顶 `position: sticky; top: 0` | 收藏服务器、加载顺序分层、各服务器面板 |
+| 多行组合（工具行 + 筛选栏 / 两条输入行） | 整块包进一个 dock 一起吸顶 | `.mod-group-suggest-dock`、`.workshop-input-dock` |
+| 段落收尾动作（保存 / 应用 / 导出） | 吸底 `position: sticky; bottom: 0` | `.load-order-policy-actions`、`.server-data-actions`、`.detail-ignore-actions` |
+
+下载与解析页另外拆了结构：两条输入行固定在窗口上，只有「解析结果 + 下载任务队列」滚动，
+「下载任务队列 / 清理已完成」这一行在滚动区里吸顶。
+
+「内容预设」按钮改成：图标 + 加宽加高（6.75rem × 2.35rem）+ 强调色实底 + 光环，
+字色拆成 `--preset-trigger-ink`（浅色用 `--primary-dark`、深色用 `#c7d2fe`），
+并删掉 `mod-management.css` 里那份写死的覆盖——配色只由 `.preset-filter-trigger` 一处决定。
+
+### 验证
+
+- `node --test` 469 项全绿（新增 `docked-toolbars-css.test.mjs`、
+  `preset-filter-trigger-prominence.test.mjs` 两条结构守卫）；`npm run build` 通过
+- `go test ./...` / `go vet ./...` 全绿；`build-release.ps1` + `verify-release.ps1` 通过；
+  正式 EXE 的 ASCII 扫描里没有 `LYTVPK_CUA_BRIDGE`（调试桥仍在构建标签后面）
+- 真机（1400×900，走仓库自建的 CUA 调试桥，只读 + 只往 DOM 塞占位行）：
+
+```text
+PASS  下载与解析页：滚到底后输入行仍贴在上沿（输入行 bottom=282 = 滚动区 top），
+      「下载任务队列 / 清理已完成」吸顶 top=282（滚之前是 312）
+PASS  收藏服务器页：滚到顶时「导出/导入」在 top=1785（视野外）→ 滚到底后 top=801、
+      贴住滚动区下沿；「添加服务器 / IP 直连 / 刷新」始终在可视区
+PASS  分组建议窗口：工具行与筛选栏合进一个停靠区，滚到底后仍整块贴在 top=162
+PASS  加载顺序窗口：「预览优化结果 / 应用优化并写入」滚到底仍在可视区内
+PASS  其余（各服务器面板工具行、Mod 详情「保存忽略清单」）computed position 均为 sticky
+PASS  页面 JS 错误 0
+```
+
 ## 2.7.1-community.43 — 2026-10-01
 
 **Mod 标签识别 v2：把"猜关键词"换成"用游戏本体的证据判断"，并用护栏保证「只加不减」。**
