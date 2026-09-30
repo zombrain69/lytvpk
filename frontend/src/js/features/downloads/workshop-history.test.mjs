@@ -45,6 +45,28 @@ test("buildHistoryEntries 从解析结果生成条目（带子项的按合集记
   assert.deepEqual(buildHistoryEntries(undefined), []);
 });
 
+// 真机回归（2026-10-01）：后端返回的 items 第一条就是主物品本身
+// （buildWorkshopDetailsGroup: items = [main, ...children]），
+// 直接按 items.length > 0 判断会把单件 Mod 也记成合集。
+test("buildHistoryEntries 按真实数据形状区分单件与合集", () => {
+  const entries = buildHistoryEntries([
+    { root_id: "400", main: { publishedfileid: "400", title: "真·单件" }, items: [{ publishedfileid: "400" }] },
+    {
+      root_id: "500",
+      main: { publishedfileid: "500", title: "真·合集" },
+      items: [{ publishedfileid: "500" }, { publishedfileid: "501" }],
+    },
+  ]);
+
+  assert.deepEqual(
+    entries.map((entry) => [entry.rootId, entry.fileType]),
+    [
+      ["400", 0],
+      ["500", 2],
+    ],
+  );
+});
+
 test("formatHistoryLabel 优先标题、退化到工坊 ID", () => {
   assert.equal(formatHistoryLabel({ rootId: "1", title: "我的 Mod" }), "我的 Mod");
   assert.equal(formatHistoryLabel({ rootId: "1", title: "   " }), "工坊 #1");

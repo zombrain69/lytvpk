@@ -19,7 +19,12 @@ export function normalizeHistoryItems(items) {
 /**
  * buildHistoryEntries 把一次解析的结果（groups 数组）转成要写入历史的条目。
  * 我们的 `WorkshopFileDetails` 没有 `file_type` 字段，所以这里用"有没有子项"推断：
- * 带 items 的按合集（2）记录，否则按单件（0）。
+ * 带子项的按合集（2）记录，否则按单件（0）。
+ *
+ * 注意后端的真实形状：`buildWorkshopDetailsGroup` 返回的 `items` 里**第一条就是主物品本身**
+ * （`items = [main, ...children]`）。真机复现：直接按 `items.length > 0` 判断，
+ * 单件 Mod 也会被记成合集（fileType=2），整个历史全是"合集"。
+ * 所以要先按主物品 ID 把主物品本身排除掉。
  */
 export function buildHistoryEntries(groups) {
   if (!Array.isArray(groups)) return [];
@@ -27,10 +32,16 @@ export function buildHistoryEntries(groups) {
     .map((group) => {
       const rootId = String(group?.root_id || group?.main?.publishedfileid || "").trim();
       const items = Array.isArray(group?.items) ? group.items : [];
+      const mainId = String(group?.main?.publishedfileid || rootId).trim();
+      // 没带 id 的条目按子项算（宁可选成合集，也不要漏判）——老快照里可能没有 id。
+      const hasChildren = items.some((child) => {
+        const childId = String(child?.publishedfileid || "").trim();
+        return childId === "" || childId !== mainId;
+      });
       return {
         rootId,
         title: typeof group?.main?.title === "string" ? group.main.title : "",
-        fileType: items.length > 0 ? 2 : 0,
+        fileType: hasChildren ? 2 : 0,
         parsedAt: 0,
         group,
       };
