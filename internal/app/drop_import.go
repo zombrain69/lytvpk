@@ -2,6 +2,7 @@ package app
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -167,6 +168,12 @@ func (a *App) handleDroppedPath(current int, total int, targetPath string) DropI
 		} else {
 			item.Message = "VPK 安装完成"
 		}
+		// 仍然照旧复制（不减少已有能力），但"扩展名是 .vpk、内容却不是 VPK"时不能说"安装完成"：
+		// 游戏读不了这种文件，用户会以为装好了。压缩包装的情况已经在上面按内容分流去解包了，
+		// 走到这里说明文件头既不是 VPK 也不是 zip/rar/7z。
+		if container, readable := sniffDropImportContainer(targetPath); readable && container != dropContainerVPK {
+			item.Message = "已复制到 addons，但这个文件的文件头不是 VPK 魔数（也不是 zip/rar/7z 压缩包）：游戏不会加载它。可能下载不完整或被改过名，请重新下载；如果它其实是压缩包，改名为 .zip 再拖进来即可解包。"
+		}
 	case dropImportKindArchive:
 		err := a.extractVPKFromArchiveWithProgress(targetPath, rootDir, archiveProgress("extracting"))
 		if err != nil {
@@ -176,6 +183,13 @@ func (a *App) handleDroppedPath(current int, total int, targetPath string) DropI
 		}
 		item.Success = true
 		item.Message = "压缩包导入完成"
+		// 扩展名和实际容器不一致时说清楚（例如工坊条目 <id>.vpk 其实是 zip），
+		// 否则用户会以为"我拖的是 VPK，怎么走了压缩包流程"。
+		if container, readable := sniffDropImportContainer(targetPath); readable && container != dropContainerUnknown {
+			if extension := strings.TrimPrefix(strings.ToLower(filepath.Ext(targetPath)), "."); extension != container {
+				item.Message = fmt.Sprintf("压缩包导入完成（文件扩展名是 .%s，实际是 %s 压缩包）", extension, container)
+			}
+		}
 	case dropImportKindFolder:
 		packResult, err := a.packVPKDirectoryWithProgress(targetPath, rootDir, true, progress("packing"))
 		item.OutputPath = packResult.OutputPath
@@ -204,15 +218,80 @@ func classifyDropImportPath(targetPath string) (string, error) {
 		return dropImportKindFolder, nil
 	}
 
-	switch strings.ToLower(filepath.Ext(targetPath)) {
-	case ".vpk":
-		return dropImportKindVPK, nil
-	case ".zip", ".rar", ".7z":
-		return dropImportKindArchive, nil
+	extension := strings.ToLower(filepath.Ext(targetPath))
+	switch extension {
 	case ".mdmp", ".dmp":
 		return dropImportKindDump, nil
+	}
+
+	// 扩展名会撒谎：真实库里 workshop\3558049615.vpk 就是一个 ZIP（作者上传的是压缩包，
+	// Steam 按工坊约定存成 <id>.vpk）。这里按文件头纠正 .vpk ↔ 压缩包 的错配，
+	// 其它扩展名保持原判定，不扩大入口面。
+	container, _ := sniffDropImportContainer(targetPath)
+	switch extension {
+	case ".vpk":
+		if container != dropContainerVPK && dropImportKindForContainer(container) == dropImportKindArchive {
+			return dropImportKindArchive, nil
+		}
+		return dropImportKindVPK, nil
+	case ".zip", ".rar", ".7z":
+		if container == dropContainerVPK {
+			return dropImportKindVPK, nil
+		}
+		return dropImportKindArchive, nil
 	default:
 		return dropImportKindUnsupported, nil
+	}
+}
+
+// 容器格式（按文件头判定，与扩展名无关）。
+const (
+	dropContainerUnknown = ""
+	dropContainerVPK     = "vpk"
+	dropContainerZIP     = "zip"
+	dropContainerRAR     = "rar"
+	dropContainer7z      = "7z"
+)
+
+// sniffDropImportContainer 只读前 8 字节判断容器格式。
+// readable=false 表示文件头读不到（被独占占用、权限不足等）——调用方不要据此拒绝文件。
+func sniffDropImportContainer(path string) (container string, readable bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return dropContainerUnknown, false
+	}
+	defer file.Close()
+
+	header := make([]byte, 8)
+	count, _ := io.ReadFull(file, header)
+	if count <= 0 {
+		return dropContainerUnknown, true
+	}
+	head := header[:count]
+	switch {
+	case bytes.HasPrefix(head, []byte{'P', 'K', 0x03, 0x04}),
+		bytes.HasPrefix(head, []byte{'P', 'K', 0x05, 0x06}),
+		bytes.HasPrefix(head, []byte{'P', 'K', 0x07, 0x08}):
+		return dropContainerZIP, true
+	case bytes.HasPrefix(head, []byte("Rar!\x1a\x07")):
+		return dropContainerRAR, true
+	case bytes.HasPrefix(head, []byte{'7', 'z', 0xBC, 0xAF, 0x27, 0x1C}):
+		return dropContainer7z, true
+	case bytes.HasPrefix(head, []byte{0x34, 0x12, 0xAA, 0x55}):
+		return dropContainerVPK, true
+	default:
+		return dropContainerUnknown, true
+	}
+}
+
+func dropImportKindForContainer(container string) string {
+	switch container {
+	case dropContainerVPK:
+		return dropImportKindVPK
+	case dropContainerZIP, dropContainerRAR, dropContainer7z:
+		return dropImportKindArchive
+	default:
+		return ""
 	}
 }
 
@@ -296,12 +375,26 @@ func (a *App) installVPKFile(srcPath string, progress dropImportProgressFunc) (s
 }
 
 func (a *App) extractVPKFromArchiveWithProgress(archivePath string, destDir string, progress archiveProgressFunc) error {
-	switch strings.ToLower(filepath.Ext(archivePath)) {
-	case ".zip":
+	// 先按文件头选解压器：.vpk 里其实是压缩包的条目按扩展名分发会直接报
+	// "不支持的压缩格式: .vpk"，用户拿不到解包结果。
+	format, readable := sniffDropImportContainer(archivePath)
+	if !readable || format == dropContainerUnknown || format == dropContainerVPK {
+		format = ""
+		switch strings.ToLower(filepath.Ext(archivePath)) {
+		case ".zip":
+			format = dropContainerZIP
+		case ".rar":
+			format = dropContainerRAR
+		case ".7z":
+			format = dropContainer7z
+		}
+	}
+	switch format {
+	case dropContainerZIP:
 		return a.extractVPKFromZipWithProgress(archivePath, destDir, progress)
-	case ".rar":
+	case dropContainerRAR:
 		return extractVPKFromRarWithProgress(archivePath, destDir, progress)
-	case ".7z":
+	case dropContainer7z:
 		return a.extractVPKFrom7zWithProgress(archivePath, destDir, progress)
 	default:
 		return fmt.Errorf("不支持的压缩格式: %s", filepath.Ext(archivePath))

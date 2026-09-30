@@ -1,5 +1,47 @@
 # Changelog
 
+## 未发布 — 拖入「其实是压缩包/工具包的 .vpk」不再当 VPK 处理（2026-10-01）
+
+**发现方式**：用 `--export-grouping-catalog` 导出真实库（2872 个 Mod）的清单后离线审计 ——
+`unreadableMods` 只有一条：`workshop\3558049615.vpk`，文件头是 `50 4B 03 04`（ZIP），
+里面 89 个条目全是 Left4Neko 工具包（`bin/left4neko.dll`、`bin/neko/*.exe|*.bat`、`other_tools.7z`），
+根本不是 Mod。工坊里确实存在「作者上传的是压缩包、Steam 按约定落盘成 `<id>.vpk`」的条目。
+
+同一轮审计也复核了上游 `da4a71b` 修的那类缺陷（界面/HUD 资源被当成人物证据）：真实库里
+「人物主标签**且**证据路径全部落在 `materials/vgui`、`materials/sprites`、`resource`、`scripts`、
+`particles`、`sound/ui`」的 **0 例** —— 我们的 `isCharacterAssetPath` 口径在真实数据上成立。
+
+### 改动
+
+1. **拖拽分类按文件头纠正 .vpk ↔ 压缩包错配**（`classifyDropImportPath`）：`.vpk` 里其实是
+   zip/rar/7z → 走解包；`.zip/.rar/.7z` 里其实是 VPK → 按 VPK 安装；其它扩展名不受影响。
+2. **解包分发按文件头选解压器**（`extractVPKFromArchiveWithProgress`）：原来按扩展名分发，
+   `.vpk` 里是 zip 会直接报「不支持的压缩格式: .vpk」，用户拿不到解包结果。
+3. **不再谎报「VPK 安装完成」**：扩展名是 `.vpk`、文件头既不是 VPK 也不是压缩包时**照旧复制**
+   （不减少已有能力），但提示改成「已复制到 addons，但文件头不是 VPK 魔数…游戏不会加载它」。
+4. **压缩包导入成功时说明错配**：「压缩包导入完成（文件扩展名是 .vpk，实际是 zip 压缩包）」。
+5. **扫描失败文案更贴近真相**：ZIP 那条不再只说「请重新下载」，改为「如果里面是 Mod，解压后把
+   .vpk 放回 addons；如果它其实是工具/素材包，建议直接从 addons 里删掉」。
+
+### 测试
+
+- `internal/app/drop_import_classify_test.go`（新增）：zip/rar/7z 四种文件头藏在 `.vpk` 后面 →
+  按压缩包处理；真 VPK 仍是 VPK；`.zip` 里是 VPK → 按 VPK 处理；`.mdmp`/未知扩展名/空文件不回归；
+  `.vpk` 里是 zip 时解包能真的解出 `inner.vpk`。
+- `internal/app/drop_import_test.go`：假 VPK 的拖入仍然复制成功，但断言提示里必须出现
+  「文件头不是 VPK 魔数」。
+
+### 验证
+
+```
+go test ./... -count=1   全 ok
+go vet ./...             退出码 0
+```
+
+真实文件证据（只读）：`addons\workshop\3558049615.vpk` 头 8 字节 = `50 4B 03 04 14 00 00 00`，
+ZIP 内 89 个条目且没有 `.vpk`（所以解包会以「ZIP文件中未找到VPK文件」结束，
+不会把 exe/dll 倒进 addons）。
+
 ## 未发布 — 策略组：建子组不再虚报成员数 + 补上「删父组不动子组成员」回归测试（2026-10-01）
 
 **背景**：`docs/development/manual-verification.md` §12 最后一项「删除一个还有下级分组的上级 →

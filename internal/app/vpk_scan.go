@@ -334,7 +334,10 @@ func describeVPKParseError(filePath string, parseErr error) string {
 	var header [4]byte
 	n, readErr := io.ReadFull(file, header[:])
 	if n >= 4 && bytes.Equal(header[:2], []byte{'P', 'K'}) {
-		return fmt.Sprintf("文件扩展名为 .vpk，但实际是 ZIP 压缩包（文件头 PK\\x03\\x04）；请重新下载、解压或改正文件后再扫描（原始错误：%v）", parseErr)
+		// 真实库证据：workshop\3558049615.vpk 是 ZIP，里面装的是 Left4Neko 工具包
+		// （bin/*.dll、*.exe、*.bat），根本不是 Mod —— 这种条目重下多少次都一样，
+		// 所以不能只说"请重新下载"。
+		return fmt.Sprintf("文件扩展名为 .vpk，但实际是 ZIP 压缩包（文件头 PK\\x03\\x04）：工坊里有些条目上传的就是压缩包或工具包，游戏不会加载它。如果里面是 Mod，解压后把 .vpk 放回 addons；如果它其实是工具/素材包，建议直接从 addons 里删掉（原始错误：%v）", parseErr)
 	}
 	if n >= 4 && !bytes.Equal(header[:], []byte{0x34, 0x12, 0xAA, 0x55}) {
 		return fmt.Sprintf("不是有效的 VPK 文件（文件头 % X）；请确认文件未被错误重命名或下载不完整（原始错误：%v）", header, parseErr)

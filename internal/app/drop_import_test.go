@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/panjf2000/ants/v2"
@@ -169,6 +170,11 @@ func TestHandleFileDropMixedPaths(t *testing.T) {
 		t.Fatalf("expected dump success, got %+v", result.Items[2])
 	}
 	assertFileContent(t, filepath.Join(outputDir, "sample.vpk"), "vpk-content")
+	// 假 VPK 仍然照旧被复制（不减少能力），但提示必须是实话：文件头不是 VPK 魔数，
+	// 游戏不会加载它 —— 原来这里写的是"VPK 安装完成"，用户会以为装好了。
+	if !strings.Contains(result.Items[0].Message, "文件头不是 VPK 魔数") {
+		t.Fatalf("非 VPK 内容的 .vpk 不能报「安装完成」：%q", result.Items[0].Message)
+	}
 }
 
 func TestHandleFileDropDumpDoesNotRequireRootDir(t *testing.T) {
