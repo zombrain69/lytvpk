@@ -37,10 +37,15 @@ export function describeResultCursor(paths, currentPath, hint = "Enter 打开详
   return `第 ${index + 1} / ${list.length} 个结果（${hint}）`;
 }
 
-/** collectResultPaths 从渲染出的行里收集路径（按显示顺序）。 */
+/**
+ * collectResultPaths 从渲染出的行里收集路径（按显示顺序）。
+ *
+ * 列表模式的行是 .file-item，卡片模式的卡片是 .file-card —— 两种显示模式都要认，
+ * 否则卡片模式下 ↑↓ / Enter 会静默失效（界面提示并没有说只支持列表模式）。
+ */
 export function collectResultPaths(container) {
   if (!container?.querySelectorAll) return [];
-  return [...container.querySelectorAll(".file-item[data-path]")]
+  return [...container.querySelectorAll(".file-item[data-path], .file-card[data-path]")]
     .map((row) => String(row.dataset.path || ""))
     .filter(Boolean);
 }

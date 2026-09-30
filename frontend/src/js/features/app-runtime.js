@@ -1231,7 +1231,11 @@ function setupEventListeners() {
       const container = document.getElementById("file-list");
       const path = String(appState.searchCursorPath || "");
       if (!path) return;
-      const row = container?.querySelector(`.file-item[data-path="${CSS.escape(path)}"]`);
+      // 列表模式是 .file-item、卡片模式是 .file-card：两种都要能找到，
+      // 否则卡片模式下 Enter 静默无反应。
+      const row = container?.querySelector(
+        `.file-item[data-path="${CSS.escape(path)}"], .file-card[data-path="${CSS.escape(path)}"]`,
+      );
       const detailButton = row?.querySelector(".detail-btn");
       if (!detailButton) return;
       event.preventDefault();

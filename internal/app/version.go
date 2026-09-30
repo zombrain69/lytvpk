@@ -15,7 +15,7 @@ var (
 	// AppVersion is set by main at startup so existing -ldflags targeting
 	// main.AppVersion continue to work. Keep this fallback in sync with main
 	// for tests and non-Wails callers.
-	AppVersion = "2.7.1-community.28"
+	AppVersion = "2.7.1-community.29"
 
 	// UpdateRepo is this Community Fork's GitHub release repository in
 	// "owner/repo" form. It is deliberately separate from the upstream

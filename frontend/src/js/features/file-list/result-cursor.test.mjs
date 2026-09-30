@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { collectCursorKeys, describeResultCursor, nextResultPath, syncCursorHighlight } from "./result-cursor.mjs";
+import {
+  collectCursorKeys,
+  collectResultPaths,
+  describeResultCursor,
+  nextResultPath,
+  syncCursorHighlight,
+} from "./result-cursor.mjs";
 
 const paths = ["a.vpk", "b.vpk", "c.vpk"];
 
@@ -88,4 +94,25 @@ test("渲染层与快捷键都接上了键盘光标", () => {
   assert.match(runtimeSource, /appState\.searchCursorPath = ""/, "Esc 清空时要一起清光标");
 
   assert.match(cssSource, /\.file-item\.is-result-cursor/, "缺少光标行样式");
+});
+
+// 真机复现：卡片模式下按 ↓ 光标行数 0、Enter 也打不开详情 ——
+// 收集函数只认列表模式的行 .file-item，提示条里也从不说明"只支持列表模式"。
+test("卡片模式（.file-card）也要能收集结果并画光标", () => {
+  const renderSource = readFileSync(new URL("./render.js", import.meta.url), "utf8");
+  const runtimeSource = readFileSync(new URL("../app-runtime.js", import.meta.url), "utf8");
+  const cssSource = readFileSync(new URL("../../../css/app/reading-comfort.css", import.meta.url), "utf8");
+
+  const makeRow = (key) => ({ dataset: { path: key } });
+  const container = { querySelectorAll: () => [makeRow("a.vpk"), makeRow("b.vpk")] };
+  assert.deepEqual(
+    collectResultPaths(container),
+    ["a.vpk", "b.vpk"],
+    "收集函数要同时认 .file-item 和 .file-card",
+  );
+
+  assert.match(renderSource, /\.file-card\[data-path=/ , "画光标时要能找到卡片");
+  assert.match(renderSource, /\.file-card\.is-result-cursor/, "重画时要清掉卡片上的旧光标");
+  assert.match(runtimeSource, /\.file-card\[data-path=/, "Enter 要能从卡片上取到详情按钮");
+  assert.match(cssSource, /\.file-card\.is-result-cursor/, "缺少卡片光标样式");
 });

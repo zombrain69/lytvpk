@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.7.1-community.29 — 2026-09-30
+
+**卡片模式下搜索框的 ↑↓ / Enter 完全没反应：光标行不出现，也打不开详情。**
+
+真机复现（提示条本身在最开始就写着「↑↓ 选择结果，Enter 打开详情」，从未说过只支持列表模式）：
+
+```
+列表模式：按 ↓ → 光标行 1 个，「匹配 10 / 14 个 Mod · 第 1 / 10 个结果（Enter 打开详情）」→ Enter 打开详情 ✓
+卡片模式：按 ↓ → 光标行 0 个，提示条不变 → Enter 什么也没发生                      ✗
+```
+
+根因：搜索结果键盘光标这套逻辑只认列表模式的行节点。
+
+- `collectResultPaths`（`result-cursor.mjs`）只收集 `.file-item[data-path]`，卡片模式的
+  `.file-card[data-path]` 一个都收不到 → 路径列表为空 → 上下键直接 `return`。
+- `applySearchResultCursor`（`render.js`）清旧光标 / 画新光标都写死 `.file-item…`。
+- `Enter` 处理（`app-runtime.js`）同样只查 `.file-item[data-path=…]` 再找里面的详情按钮。
+- 样式侧也缺 `.file-card.is-result-cursor`。
+
+修复：三处选择器都改成同时认 `.file-item` 与 `.file-card`，并给卡片补一条光标描边样式
+（卡片是圆角块，只描边、不覆盖卡片自己的底色）。
+
+### 验证
+
+- 扩展 `result-cursor.test.mjs`（新增 1 项：卡片模式照样能收集结果、渲染层/快捷键/样式都认卡片）
+  —— 修正前该项失败；`node --test` 440 项全绿
+- `go test ./... -count=1` / `go vet ./...` 全绿；`npm run build` / `wails build` 通过
+- 真机（打包 EXE + 沙箱 APPDATA + 测试库，真实库零写入）两种显示模式各跑一遍：
+
+```
+列表模式：按 ↓ 光标行 1 个，Enter 打开详情（标题 zztest_hud_only.vpk）      ✓
+卡片模式：按 ↓ 光标行 1 个（第 2 / 10 个结果），Enter 打开详情（zztest_rifle_a.vpk） ✓
+```
+
 ## 2.7.1-community.28 — 2026-09-30
 
 **选了 Mod 之后再改筛选，批量启用/禁用只处理「筛选后仍然可见」的那几个 ——

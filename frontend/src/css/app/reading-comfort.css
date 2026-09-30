@@ -310,3 +310,10 @@ body.is-file-operation-busy .archive-move-btn {
   outline-offset: -2px;
   background: color-mix(in srgb, var(--primary) 8%, transparent);
 }
+
+/* 卡片模式同样支持 ↑↓ / Enter：卡片是圆角块，用主色描边就够醒目，
+   不覆盖卡片自己的底色。 */
+.file-card.is-result-cursor {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}

@@ -512,9 +512,11 @@ export function renderFileList() {
 export function applySearchResultCursor() {
   const container = document.getElementById("file-list");
   const cursorPath = String(appState.searchCursorPath || "");
-  container?.querySelectorAll(".file-item.is-result-cursor").forEach((row) => {
-    row.classList.remove("is-result-cursor");
-  });
+  container
+    ?.querySelectorAll(".file-item.is-result-cursor, .file-card.is-result-cursor")
+    .forEach((row) => {
+      row.classList.remove("is-result-cursor");
+    });
 
   const label = document.getElementById("search-hit-count");
   const baseLabel = label?.dataset.baseLabel || label?.textContent || "";
@@ -534,7 +536,10 @@ export function applySearchResultCursor() {
     return;
   }
 
-  const target = container.querySelector(`.file-item[data-path="${CSS.escape(cursorPath)}"]`);
+  // 光标行可能是列表模式的行，也可能是卡片模式的卡片。
+  const target = container.querySelector(
+    `.file-item[data-path="${CSS.escape(cursorPath)}"], .file-card[data-path="${CSS.escape(cursorPath)}"]`,
+  );
   target?.classList.add("is-result-cursor");
   target?.scrollIntoView({ block: "nearest" });
   if (label) label.textContent = `${label.dataset.baseLabel || ""} · ${position}`.trim();
