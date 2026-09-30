@@ -19,7 +19,7 @@ func TestUniqueDropImportTargetAvoidsOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	first := uniqueDropImportTarget(dir, "map.vpk")
+	first := uniqueImportTarget(dir, "map.vpk")
 	if first != filepath.Join(dir, "map(1).vpk") {
 		t.Fatalf("同名应让位到 map(1).vpk，实际 %s", first)
 	}
@@ -27,7 +27,7 @@ func TestUniqueDropImportTargetAvoidsOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	second := uniqueDropImportTarget(dir, "map.vpk")
+	second := uniqueImportTarget(dir, "map.vpk")
 	if second != filepath.Join(dir, "map(2).vpk") {
 		t.Fatalf("再冲突应继续递增，实际 %s", second)
 	}

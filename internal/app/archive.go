@@ -21,7 +21,8 @@ func extractZipFile(file *zip.File, decodedName string, destDir string) error {
 	}
 	defer rc.Close()
 
-	targetPath := filepath.Join(destDir, filepath.Base(decodedName))
+	// 同名不覆盖：目标目录里已有同名文件时另存为 name(1).vpk（与拖拽导入同一约定）。
+	targetPath := uniqueImportTarget(destDir, filepath.Base(decodedName))
 
 	outFile, err := os.Create(targetPath)
 	if err != nil {
@@ -85,7 +86,7 @@ func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
 		extraFiles[base] = append(extraFiles[base], e.file)
 	}
 
-	log.Printf("开始并行解压 ZIP: %s, 包含 %d 个VPK文件, 并发协程池容量: %d", filepath.Base(zipPath), len(vpkEntries), a.goroutinePool.Cap())
+	log.Printf("开始并行解压 ZIP: %s, 包含 %d 个VPK文件, 并发协程池容量: %d", filepath.Base(zipPath), len(vpkEntries), a.poolCapacity())
 
 	var wg sync.WaitGroup
 	var extractErr error
@@ -97,7 +98,8 @@ func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
 		wg.Add(1)
 		entry := e // 闭包变量捕获
 
-		err := a.goroutinePool.Submit(func() {
+		// 走 submitPoolTask：池不可用/已释放时回退同步执行，不再 panic 或静默跳过。
+		a.submitPoolTask(func() {
 			log.Printf(">>> 开始解压: %s", entry.decodedName)
 			defer wg.Done()
 
@@ -134,11 +136,6 @@ func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
 			countMu.Unlock()
 			log.Printf("<<< 完成解压: %s", entry.decodedName)
 		})
-
-		if err != nil {
-			wg.Done() // 提交失败需要手动 Done
-			log.Printf("提交解压任务失败: %v", err)
-		}
 	}
 
 	wg.Wait()
@@ -250,7 +247,8 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 			continue
 		}
 
-		targetPath := filepath.Join(destDir, filepath.Base(name))
+		// 同名不覆盖（与拖拽导入同一约定）。
+		targetPath := uniqueImportTarget(destDir, filepath.Base(name))
 
 		outFile, err := os.Create(targetPath)
 		if err != nil {
@@ -329,7 +327,7 @@ func (a *App) ExtractVPKFrom7z(sevenZPath string, destDir string) error {
 		extraFiles[base] = append(extraFiles[base], e.file)
 	}
 
-	log.Printf("开始并行解压 7z: %s, 包含 %d 个VPK文件, 并发协程池容量: %d", filepath.Base(sevenZPath), len(vpkEntries), a.goroutinePool.Cap())
+	log.Printf("开始并行解压 7z: %s, 包含 %d 个VPK文件, 并发协程池容量: %d", filepath.Base(sevenZPath), len(vpkEntries), a.poolCapacity())
 
 	var wg sync.WaitGroup
 	var extractErr error
@@ -341,7 +339,8 @@ func (a *App) ExtractVPKFrom7z(sevenZPath string, destDir string) error {
 		wg.Add(1)
 		entry := e // 闭包变量捕获
 
-		err := a.goroutinePool.Submit(func() {
+		// 走 submitPoolTask：池不可用/已释放时回退同步执行，不再 panic 或静默跳过。
+		a.submitPoolTask(func() {
 			log.Printf(">>> 开始解压: %s", entry.name)
 			defer wg.Done()
 
@@ -378,11 +377,6 @@ func (a *App) ExtractVPKFrom7z(sevenZPath string, destDir string) error {
 			countMu.Unlock()
 			log.Printf("<<< 完成解压: %s", entry.name)
 		})
-
-		if err != nil {
-			wg.Done() // 提交失败需要手动 Done
-			log.Printf("提交解压任务失败: %v", err)
-		}
 	}
 
 	wg.Wait()
@@ -405,7 +399,8 @@ func extract7zFile(file *sevenzip.File, name string, destDir string) error {
 	}
 	defer rc.Close()
 
-	targetPath := filepath.Join(destDir, filepath.Base(name))
+	// 同名不覆盖（与拖拽导入同一约定）。
+	targetPath := uniqueImportTarget(destDir, filepath.Base(name))
 
 	outFile, err := os.Create(targetPath)
 	if err != nil {

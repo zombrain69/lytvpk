@@ -105,6 +105,16 @@ func (a *App) submitPoolTask(task func()) {
 	}
 }
 
+// poolCapacity 返回协程池容量；池不可用时返回 1。
+// 日志与并发度判断都要走它：直接 a.goroutinePool.Cap() 在池创建失败（ants.NewPool
+// 返回 nil）或已释放时会 panic —— 真机复现过「提取压缩包里的 VPK」直接崩掉应用。
+func (a *App) poolCapacity() int {
+	if a.goroutinePool == nil {
+		return 1
+	}
+	return a.goroutinePool.Cap()
+}
+
 // App struct
 type App struct {
 	ctx                     context.Context

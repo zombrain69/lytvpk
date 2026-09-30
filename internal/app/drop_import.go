@@ -260,7 +260,7 @@ func (a *App) installVPKFile(srcPath string, progress dropImportProgressFunc) (s
 	}
 	// 真机复现：拖入与已有 Mod 同名的 VPK 会被静默覆盖（767 → 1848 字节，提示只有"安装完成"）。
 	// 导入外来文件不该动用户已有的 Mod：同名时另存为 name(1).vpk。
-	destPath := uniqueDropImportTarget(rootDir, filepath.Base(srcPath))
+	destPath := uniqueImportTarget(rootDir, filepath.Base(srcPath))
 	dst, err := os.CreateTemp(rootDir, "."+filepath.Base(srcPath)+".tmp-*")
 	if err != nil {
 		return "", err
@@ -690,7 +690,7 @@ func extract7zEntryWithProgress(file *sevenzip.File, name string, destDir string
 // extractReaderEntryWithProgress 写出一个条目，返回实际写入的路径。
 // 同名时另存为 name(1).ext —— 导入外来文件不该覆盖用户已有的 Mod。
 func extractReaderEntryWithProgress(reader io.Reader, name string, destDir string, onDelta func(int64)) (string, error) {
-	targetPath := uniqueDropImportTarget(destDir, filepath.Base(name))
+	targetPath := uniqueImportTarget(destDir, filepath.Base(name))
 	outFile, err := os.Create(targetPath)
 	if err != nil {
 		return "", err
@@ -708,9 +708,9 @@ func extractReaderEntryWithProgress(reader io.Reader, name string, destDir strin
 	return targetPath, nil
 }
 
-// uniqueDropImportTarget 返回 destDir 下不冲突的目标路径：
+// uniqueImportTarget 返回 destDir 下不冲突的目标路径：
 // 同名时按 "名字(1).ext / 名字(2).ext" 递增（与打包器同一套约定）。
-func uniqueDropImportTarget(destDir, baseName string) string {
+func uniqueImportTarget(destDir, baseName string) string {
 	baseName = strings.TrimSpace(baseName)
 	if baseName == "" {
 		baseName = "imported.vpk"

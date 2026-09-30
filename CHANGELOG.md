@@ -1,5 +1,35 @@
 # Changelog
 
+## 2.7.1-community.23 — 2026-09-30
+
+**工具箱「从压缩包提取 VPK」同样会静默覆盖同名文件；顺带修掉一条会让应用直接崩溃的路径。**
+
+### 一、提取 VPK 到目录时不再覆盖同名 Mod
+
+community.22 修了拖拽导入，这一版把工具箱的提取路径拉齐：`archive.go` 里三处写入
+（zip / rar / 7z）都是 `os.Create(destDir/名字)`，目标目录用 addons 时会直接替换已有 Mod。
+
+修复：三处统一走 `uniqueImportTarget`（与拖拽导入同一约定，同名另存为 `名字(1).vpk`）。
+
+### 二、协程池不可用时不再 panic
+
+`ExtractVPKFromZip` / `ExtractVPKFrom7z` 直接调用 `a.goroutinePool.Cap()` 与 `.Submit()`：
+`ants.NewPool` 的返回错误被忽略（可能拿到 nil 池），池释放后 Submit 也会失败 ——
+前者是 nil 解引用 panic（整个应用崩掉），后者会让任务静默少解压几个文件。
+新增单测在修之前就是 `panic: invalid memory address or nil pointer dereference`。
+
+修复：日志改用 `poolCapacity()`（池不可用返回 1），提交统一走既有的
+`submitPoolTask`（池不可用时同步回退 + 统一 panic 上报）。
+
+### 验证
+
+- 新增 `archive_extract_overwrite_test.go`（2 项）：`ExtractVPKFromZip` 与原文件保护、
+  `extractZipFile` 同名另存；其中第一项同时也覆盖了「nil 池仍能正常解压」
+- 真机（沙箱夹具，真实库零写入）：zip 里放一个与 addons 同名的 VPK（内容不同）+ 一个新名字 VPK，
+  调 `ExtractVPKFromArchive` 后 —— 原文件 1838 字节未变、副本 `zztest_rifle_a(1).vpk`=1848、
+  新文件 `zz_toolbox_extract.vpk`=2718
+- `go test ./...` 全绿；`node --test` 434 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.22 — 2026-09-30
 
 **拖拽导入同名 VPK 会静默覆盖已有 Mod（真机实测：767 → 1848 字节，提示只有「VPK 安装完成」）。**
