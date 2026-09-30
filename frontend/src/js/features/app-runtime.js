@@ -103,6 +103,7 @@ import { buildSearchHelpHtml, buildSearchHelpTitle } from "./file-list/search-he
 import { buildShortcutsHtml, buildShortcutsTitle, isTextEntryElement } from "../core/shortcuts.mjs";
 import { startFileOperationWatcher } from "../core/file-operation-watch.js";
 import { openCommandPalette, setupCommandPalette } from "../core/command-palette-ui.js";
+import { ESC_CLOSE_SELECTORS, pickEscClosableModalId } from "../core/modal-escape.mjs";
 import { resetAllWindowGeometry } from "../core/floating-modal.js";
 import {
   handleSearch,
@@ -1328,9 +1329,24 @@ function setupEventListeners() {
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
 
-    // 如果有模态框打开，不处理（让模态框的 ESC 处理优先）
+    // 有模态框打开：Esc 关掉最上层那个。
+    // 做法是点它自己的"关闭 / 取消"按钮 —— 与用户手点完全等价，各窗口原有的收尾逻辑
+    // （取消回调、恢复状态、锁定态）都不会被绕过；找不到可用按钮就保持原行为。
     const visibleModal = document.querySelector(".modal:not(.hidden)");
-    if (visibleModal) return;
+    if (visibleModal) {
+      if (!e.defaultPrevented) {
+        const targetId = pickEscClosableModalId(
+          [...document.querySelectorAll(".modal:not(.hidden)")].map((node) => node.id),
+        );
+        const modal = targetId ? document.getElementById(targetId) : null;
+        const closer = modal?.querySelector(ESC_CLOSE_SELECTORS.join(", "));
+        if (closer && !closer.disabled) {
+          e.preventDefault();
+          closer.click();
+        }
+      }
+      return;
+    }
 
     // 如果图片预览弹窗打开，不处理
     const imagePreview = document.getElementById("image-preview-modal");
