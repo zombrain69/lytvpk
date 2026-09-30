@@ -1,5 +1,55 @@
 # Changelog
 
+## 2.7.1-community.50 — 2026-10-01
+
+本版是这一轮「真实库 + 真实网络」联调攒下的 **四处修复** 与 **两类新体检项**。
+所有改动都有自动化测试守着，并在真实数据上复核过；详细记录见下面四个小节。
+
+### 1) 建子组提示不再虚报成员数
+
+「＋ 子组」建组后报的是 Mod 管理页的**勾选数**而不是后端实际收下的成员数：选择里混进失效路径时，
+后端会静默丢掉成员、提示照样报满（真机上就是「提示含 3 个 Mod，点开只有 1 个」）。现在报
+`created.members.length`，差值用「另有 N 个无法加入」说明。同轮补上
+`TestDeleteModStrategyGroupPreservesChildGroupMembers`（删父组后子组成员的键/顺序/显示名逐项不变）。
+
+### 2) 拖入「其实是压缩包/工具包的 .vpk」不再当 VPK 处理
+
+真实库里 `addons\workshop\3558049615.vpk` 其实是一个 ZIP（作者上传的是工具包），旧代码只按扩展名
+分类：拖进来会被当 VPK 复制进 addons 并提示「VPK 安装完成」，游戏却读不了。现在按**文件头**纠正
+`.vpk` ↔ 压缩包错配（解包分发也按内容走），文件头既不是 VPK 也不是压缩包时仍照旧复制、但不再谎报成功。
+
+### 3) 体检补两类「看不见的死重」
+
+- `duplicate_disabled_copy`：同一个 Mod 在根目录与 `disabled` 各一份（实测 9 组 / 461 MB）。
+  根目录那份会被游戏加载、`disabled` 那份永远不会；对着它按「批量启用」还会撞上「目标已存在」。
+- `subfolder_vpks`：`addons` 子目录里的 VPK 游戏不会加载（实测 59 个子目录 / 1363 个 VPK / 9.4 GB），
+  只汇总一条提示，避免刷屏。
+
+### 4) 无 Wails 上下文时下载进度不再把进程带走
+
+`TaskWriteCounter.Write` 是全场唯一没判空就调 `runtime.EventsEmit` 的地方；Wails 对无效 context 是
+`log.Fatal`（进程直接退出）。已加判空 + 契约测试。顺带用真实 Steam API + CDN 把下载链路端到端跑通：
+小文件单线程 167 字节、大文件 6 线程分块 30,125,974 字节（9.1 MB/s，落盘字节与工坊声明一致）。
+
+### 验证
+
+```
+go test ./... -count=1   全 ok（含体检类型三层一致性审计）
+go vet ./...             退出码 0
+node --test（frontend/）  482 项 / 0 失败
+npm run build            通过（仅既有 chunk 体积警告）
+wails build              通过；产物不含任何 CUA 桥标记
+```
+
+真实数据复核（只读）：全库 2872 个 VPK 的目录结构用**独立解析器**重算一致、开关状态与
+`addonlist.txt` 零差异、策略组成员与 `groups.json` 零差异、真实工坊合集成员数与页面一致、
+工坊下载/自动重下/更新检测三条链路端到端通过。细节见
+`docs/development/fireaxe-parity.md` §5.17 与 `docs/development/manual-verification.md` 对应小节。
+
+> **验证边界**：GUI 侧的人工项（弹窗交互、角标、窄窗观感等）本轮受"并行实例长期占用单例端口
+> 19527"所限未能实机复验，已在 `manual-verification.md` 中保留为待办。下面四个「未发布」小节是
+> 上述改动的详细记录，已随本版发布，保留原始记录。
+
 ## 未发布 — 无 Wails 上下文时下载进度不再把进程带走（顺带把真实工坊下载链路跑通）（2026-10-01）
 
 **问题**：`TaskWriteCounter.Write`（`internal/app/workshop_tasks.go`）是全场**唯一**没判空就调
