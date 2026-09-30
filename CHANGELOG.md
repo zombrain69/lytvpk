@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.7.1-community.18 — 2026-09-30
+
+**同一个坏 VPK：列表里说中文，模型统计窗口却显示解码库的英文原文。**
+
+真机复现（沙箱里放一个纯垃圾的 `zz-garbage.vpk`）：
+
+```
+列表扫描：不是有效的 VPK 文件（文件头 3E 17 BA 96）；请确认文件未被错误重命名或下载不完整（原始错误：vpk: invalid magic: 96ba173e）
+模型统计：vpk: invalid magic: 96ba173e        ← 只有英文
+```
+
+原因：模型统计是**直接遍历目录**取目标的（不走缓存），出错时用的是 `err.Error()`，
+而列表扫描早就走 `describeVPKParseError`（中文说明 + 括号里保留原始错误）。
+
+修复：`scanModelStatsTarget` 改用同一个 `describeVPKParseError`，
+于是「不是有效的 VPK 文件（文件头 …）」/「其实是 ZIP 压缩包」这两条更具体的说明在模型统计窗口同样生效，
+原始错误仍留在括号里便于排查。
+
+### 验证
+
+- 新增 `model_stats_error_message_test.go`（2 项）：垃圾 VPK 的中文说明 + 原始错误保留；
+  `.vpk` 其实是 ZIP 时给出更具体的说明
+- 真机（沙箱，真实库零写入）：修复前 `zz-garbage.vpk` 的 message 是
+  `vpk: invalid magic: 96ba173e`；修复后变成中文说明，且与列表扫描完全一致
+- `go test ./...` 全绿；`node --test` 434 项全绿；`npm run build` 通过
+
 ## 2.7.1-community.17 — 2026-09-30
 
 **压缩包管理里损坏 / 缺失的包不再把库的英文原文摆给用户。**

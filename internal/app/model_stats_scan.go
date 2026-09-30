@@ -227,7 +227,9 @@ func (a *App) scanModelStatsTarget(target modelStatsScanTarget) ModelStatsModRes
 
 	stats, err := parser.AnalyzeVPKModelStats(target.Path)
 	if err != nil {
-		item.Message = err.Error()
+		// 与列表扫描同源：坏 VPK 要说清「不是有效的 VPK / 其实是 ZIP」，
+		// 而不是把解码库的 "vpk: invalid magic: …" 原样摆给用户（真机复现过）。
+		item.Message = describeVPKParseError(target.Path, err)
 		return item
 	}
 	item.ModelCount = stats.ModelCount
