@@ -25,7 +25,11 @@
 - **仓库级一致性**：`internal/app/repo_consistency_test.go` 会检查"对照表引用的文件都存在""体检类型
   在 Go / 前端标签 / 用户文档三层一致""文档里的验证命令与工程脚本一致"，这两份审计都做过变异验证
   （故意制造回归会失败）。
-- **交付产物卫生**：`build/bin/LytVPK-Community-Fork.exe` 里不应出现 `cua-bridge`（临时调试桥残留）。
+- **交付产物卫生（已自动化）**：CUA 调试桥改由**构建标签** `cua` 控制
+  （`internal/app/cua_bridge_cua.go`），默认构建与发布构建命中的是 `cua_bridge_stub.go` 的空实现；
+  `scripts/verify-release.ps1` 会在发布归档里扫 `LYTVPK_CUA_BRIDGE` / `cua bridge listening`
+  / `cua_bridge_cua.go`，命中即失败。也就是说：**桥可以长期留在仓库里随时可用，但永远不会进发布产物**，
+  不再需要"每轮用完就删"。
 - **隐私守卫**：`go test ./...` 会跑 `internal/app/privacy_guard_test.go` —— 跟踪文件里再出现
   本机用户目录 / Steam 库路径 / Steam 安装目录，或 GitHub token、私钥等凭据形状，测试直接失败。
 
@@ -408,10 +412,43 @@
    `WM_MOUSEMOVE / WM_LBUTTONDOWN / WM_LBUTTONUP`（窗口内坐标，DPI=1 时与 CSS 像素一致），
    应用侧等同于真实点击（脚本：`scripts/devtools/click-window-at.ps1`）。点击坐标都先用 DOM 的
    `getBoundingClientRect()` 实测，而不是估计。
-3. **临时 JS 调试桥**（仅调试构建，验证后删除）：`internal/app/cua_bridge_debug.go` +
-   `LYTVPK_CUA_BRIDGE=1` 时在 `127.0.0.1:9223` 暴露 `POST /eval-sync`，
-   内部用 `runtime.WindowExecJS` 在页面里求值并把结果回传，用来读取真实 DOM、监听
-   `error` / `unhandledrejection` / `console.error`。
+3. **CUA 调试桥**（`-tags cua` 构建才有，默认/发布构建不含）：
+
+   ```powershell
+   # 构建带桥的调试 EXE（自检产物里确实有桥标记）
+   pwsh -File scripts/devtools/build-cua.ps1 -Version 2.7.1-community.42-uicheck
+
+   # 沙箱 APPDATA（真实配置只读副本）+ 真实 Mod 目录（只读扫描）启动，等桥就绪
+   pwsh -File scripts/devtools/launch-cua-sandbox.ps1 -ExeName LytVPK-Community-Fork-cua.exe -Port 38999
+   ```
+
+   接口（只监听 `127.0.0.1`；端口优先 `LYTVPK_CUA_PORT`，否则随机并写入
+   `%TEMP%\lytvpk-cua-bridge.log` 的 `listening 127.0.0.1:<port>`）：
+
+   ```text
+   GET  /ping                                   健康检查
+   POST /eval        {"id":"x","js":"..."}      异步求值，结果走 /result
+   GET  /result?id=x&timeout_ms=30000           取结果（超时 504）
+   POST /eval-sync   {"js":"...","timeoutMs":N} 一次性求值并返回结果
+   ```
+
+   内部用 `runtime.WindowExecJS` 在页面里求值，结果由页面 `fetch` 回传；用来读真实 DOM、
+   派发真实事件、监听 `error` / `unhandledrejection` / `console.error`。
+
+   **三个必踩的坑（前两个已修，第三个是调用方的写法问题）**：
+
+   - 页面侧回传必须用**绝对地址** `http://127.0.0.1:<port>/result?...`；用相对路径会打到页面自身，
+     表现为"求值超时"。
+   - 自定义 scheme 页面访问回环地址会触发 **Private Network Access 预检**，桥必须回
+     `Access-Control-Allow-Private-Network: true`。
+   - **`js` 必须是单个表达式**：桥把入参包成 `await ( <js> )`，所以
+     `a(); b();` 这种多语句会变成语法错误，页面根本不会执行，表现同样是"求值超时"
+     （而且很容易误判成"应用卡死"）。要多语句就自己包一层：
+     `(async () => { ... })()`，或者用
+     `(async () => { try { return await eval("..."); } catch (error) { return "ERR: " + error; } })()`
+     把整段脚本当字符串塞进 `eval`。仓库里的 `.tmp-cua/zz_eval.py` 就是这么封的。
+
+   抓像素仍然用 `scripts/devtools/capture-window.ps1`（`PrintWindow`，窗口被遮挡/锁屏也能抓）。
 
 ### 已经自动化覆盖的部分
 

@@ -52,6 +52,29 @@ try {
     if ($executables.Count -ne 1 -or $executables[0] -cne $expectedExecutable) {
         throw "Release archive must contain exactly one executable named $expectedExecutable"
     }
+
+    # CUA 调试桥（internal/app/cua_bridge_cua.go，只在 `-tags cua` 构建里存在）绝不能进发布产物：
+    # 它是一个"能在应用里执行任意 JS"的本地 HTTP 端点，属于不该分发的攻击面。
+    # 这里做最后一道保险：直接扫归档内 EXE 的字节。
+    $cuaMarkers = @('LYTVPK_CUA_BRIDGE', 'cua bridge listening', 'cua_bridge_cua.go')
+    $entryStream = $archive.GetEntry($expectedExecutable).Open()
+    try {
+        $reader = New-Object System.IO.StreamReader($entryStream, [System.Text.Encoding]::ASCII, $false)
+        try {
+            $executableText = $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Dispose()
+        }
+    }
+    finally {
+        $entryStream.Dispose()
+    }
+    foreach ($marker in $cuaMarkers) {
+        if ($executableText.Contains($marker)) {
+            throw "发布产物里含 CUA 调试桥标记 '$marker'：请用不带 -tags cua 的构建重新打包。"
+        }
+    }
 }
 finally {
     $archive.Dispose()

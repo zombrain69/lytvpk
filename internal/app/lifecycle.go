@@ -90,6 +90,10 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) Startup(ctx context.Context) {
+	// CUA 调试桥要**尽早**启动：默认构建是空实现，只有 `-tags cua` 构建（配合 LYTVPK_CUA_BRIDGE=1）
+	// 才会启动本地求值桥。放在 a.startup(ctx) 之前，首轮扫描（几千个 VPK，可能几十秒）期间
+	// 桥就已可用，外部脚本不必盲等。见 docs/development/manual-verification.md 与 cua_bridge_stub.go。
+	maybeStartCuaBridge(ctx)
 	a.startup(ctx)
 }
 
