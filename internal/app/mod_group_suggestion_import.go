@@ -63,7 +63,7 @@ const (
 	// groupingCatalogVersion 是"导出给推导方"的清单格式版本。
 	// 与建议文件格式版本解耦：清单只增字段，但一旦字段含义变化就 bump 这里。
 	groupingCatalogVersion   = 2
-	groupingCatalogSchemaRev = "2026-09-22.2"
+	groupingCatalogSchemaRev = "2026-09-30.1"
 
 	// modGroupSignalExternal 标记建议来自外部文件（模型 / 人工），前端会单独展示。
 	modGroupSignalExternal = "外部建议"
@@ -886,6 +886,7 @@ func (a *App) ExportGroupingCatalog(path string) (string, error) {
 			Author:            mod.Author,
 			PrimaryTag:        mod.PrimaryTag,
 			SecondaryTags:     mod.SecondaryTags,
+			TagEvidence:       catalogTagEvidenceFor(file),
 			SubjectSummary:    mod.Subject,
 			SubjectConfidence: mod.SubjectConfidence,
 			ContentSubjects:   file.ContentSubjects,
@@ -924,7 +925,7 @@ func (a *App) ExportGroupingCatalog(path string) (string, error) {
 			"entryId", "structure", "structure.targets", "workshopMeta", "addonInfo",
 			"management", "coverage", "scope", "clusterHints.full", "ungroupedKeys",
 			"duplicateGroups", "xdrSlots", "unreadableMods", "themeHints", "preloadHints",
-			"structure.resourceRoots",
+			"structure.resourceRoots", "tagEvidence",
 		},
 		GeneratedAt:     time.Now().Format(time.RFC3339),
 		Generator:       "LytVPK " + AppVersion,
@@ -942,6 +943,8 @@ func (a *App) ExportGroupingCatalog(path string) (string, error) {
 			"体积与位置/游戏开关/优先级，以及预计算好的重复副本分组。智能体无需自行打开 VPK。" +
 			"建议先读 clusterHints 与 duplicateGroups（都很小），再用脚本/关键词去 mods 里查这些键的明细，" +
 			"不要一次性把整个 mods 数组读进上下文。" +
+			"tagEvidence 解释每个标签的来源（rule/level/source，清单里每条只带 1 条代表路径；" +
+			"level: exact=本体精确路径/脚本、pattern=本体特征/目录规则、inferred=关键词或标题），可用于判断可信度；" +
 			"coverage 字段说明各类信息的可用数量：工坊资料（workshop.*）只对本地存在 .meta 的 Mod 有值，" +
 			"缺失时可以在 LytVPK 的工坊设置里开启工坊信息存储后重新下载/刷新对应 Mod。",
 	}
@@ -1649,6 +1652,37 @@ func (a *App) cachedVPKFileByPath(path string) parser.VPKFile {
 	return parser.VPKFile{}
 }
 
+// catalogTagEvidenceFor 输出"标签证据"（W6）：只保留最终确实存在的标签。
+//
+// 体积取舍：解析器内部最多留 3 条来源（供 UI 展示），但**对外清单只带 1 条代表路径**——
+// 清单要被大模型读进上下文，3 条路径会把体积抬高 60% 以上，而判断可信度 1 条就够。
+func catalogTagEvidenceFor(file parser.VPKFile) []parser.TagEvidence {
+	if len(file.TagEvidence) == 0 {
+		return nil
+	}
+	keep := make(map[string]struct{}, len(file.SecondaryTags)+1)
+	for _, tag := range file.SecondaryTags {
+		keep[strings.ToLower(strings.TrimSpace(tag))] = struct{}{}
+	}
+	if primary := strings.ToLower(strings.TrimSpace(file.PrimaryTag)); primary != "" {
+		keep[primary] = struct{}{}
+	}
+	out := make([]parser.TagEvidence, 0, len(file.TagEvidence))
+	for _, item := range file.TagEvidence {
+		if _, ok := keep[strings.ToLower(strings.TrimSpace(item.Tag))]; !ok {
+			continue
+		}
+		if len(item.Source) > 1 {
+			item.Source = item.Source[:1]
+		}
+		out = append(out, item)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // catalogStructureFor 把 VPK 结构摘要转成清单里的结构对象。
 func catalogStructureFor(file parser.VPKFile) *groupingCatalogStructure {
 	if file.StructureFileCount == 0 && len(file.StructureTopDirs) == 0 {
@@ -1746,23 +1780,26 @@ type groupingCatalogEntry struct {
 	// EntryID 是稳定且唯一的寻址标识（`<location>/<key>`，例如 `root/123.vpk`、
 	// `disabled/123.vpk`）：addonlist 键在同一文件同时存在于根目录与 disabled 时会重复，
 	// 只有 EntryID 能唯一指向其中一条记录。
-	EntryID           string   `json:"entryId"`
-	Name              string   `json:"name"`
-	Title             string   `json:"title"`
-	Author            string   `json:"author,omitempty"`
-	PrimaryTag        string   `json:"primaryTag,omitempty"`
-	SecondaryTags     []string `json:"secondaryTags,omitempty"`
-	SubjectSummary    string   `json:"subjectSummary,omitempty"`
-	SubjectConfidence string   `json:"subjectConfidence,omitempty"`
-	ContentSubjects   []string `json:"contentSubjects,omitempty"`
-	VoiceCharacters   []string `json:"voiceCharacters,omitempty"`
-	XDRSummary        string   `json:"xdrSummary,omitempty"`
-	ModelCount        int      `json:"modelCount,omitempty"`
-	ModelTriangles    int      `json:"modelTriangles,omitempty"`
-	Campaign          string   `json:"campaign,omitempty"`
-	WorkshopID        string   `json:"workshopId,omitempty"`
-	Folder            string   `json:"folder,omitempty"`
-	Location          string   `json:"location,omitempty"`
+	EntryID       string   `json:"entryId"`
+	Name          string   `json:"name"`
+	Title         string   `json:"title"`
+	Author        string   `json:"author,omitempty"`
+	PrimaryTag    string   `json:"primaryTag,omitempty"`
+	SecondaryTags []string `json:"secondaryTags,omitempty"`
+	// TagEvidence 解释"每个标签是怎么来的"（W6）：规则 id + 证据强度 + ≤3 条真实路径。
+	// 只对最终确实存在的标签输出，保持清单紧凑。
+	TagEvidence       []parser.TagEvidence `json:"tagEvidence,omitempty"`
+	SubjectSummary    string               `json:"subjectSummary,omitempty"`
+	SubjectConfidence string               `json:"subjectConfidence,omitempty"`
+	ContentSubjects   []string             `json:"contentSubjects,omitempty"`
+	VoiceCharacters   []string             `json:"voiceCharacters,omitempty"`
+	XDRSummary        string               `json:"xdrSummary,omitempty"`
+	ModelCount        int                  `json:"modelCount,omitempty"`
+	ModelTriangles    int                  `json:"modelTriangles,omitempty"`
+	Campaign          string               `json:"campaign,omitempty"`
+	WorkshopID        string               `json:"workshopId,omitempty"`
+	Folder            string               `json:"folder,omitempty"`
+	Location          string               `json:"location,omitempty"`
 	// RelativePath 是相对 addons 根目录的物理路径（保留 disabled / workshop 前缀）。
 	RelativePath   string `json:"relativePath,omitempty"`
 	GameEnabled    bool   `json:"gameEnabled"`
@@ -1804,11 +1841,11 @@ type groupingCatalogAddonInfo struct {
 }
 
 type groupingCatalogWorkshop struct {
-	ID            string   `json:"id,omitempty"`
-	Title         string   `json:"title,omitempty"`
-	Author        string   `json:"author,omitempty"`
-	Desc          string   `json:"desc,omitempty"`
-	Tags          []string `json:"tags,omitempty"`
+	ID     string   `json:"id,omitempty"`
+	Title  string   `json:"title,omitempty"`
+	Author string   `json:"author,omitempty"`
+	Desc   string   `json:"desc,omitempty"`
+	Tags   []string `json:"tags,omitempty"`
 	// SteamTags 是工坊官方标签（Steam 官方接口），比自动推断的标签更权威；
 	// 由「设置 → 工坊数据 → 抓取官方标签与统计」补齐，抓过之后才会出现。
 	SteamTags     []string `json:"steamTags,omitempty"`

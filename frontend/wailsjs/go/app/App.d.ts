@@ -4,6 +4,7 @@ import {app} from '../models';
 import {network} from '../models';
 import {parser} from '../models';
 import {minidump} from '../models';
+import {rules} from '../models';
 
 export function AddModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
 
@@ -26,6 +27,8 @@ export function ApplyTagToModKeys(arg1:string,arg2:Array<string>):Promise<app.Mo
 export function AutoDiscoverAddons():Promise<string>;
 
 export function BatchUpdateModStrategyGroups(arg1:Array<string>,arg2:string,arg3:any):Promise<app.ModStrategyGroupBatchResult>;
+
+export function BuildStockIndex(arg1:string):Promise<app.StockIndexStatus>;
 
 export function CancelDownloadTask(arg1:string):Promise<void>;
 
@@ -58,6 +61,8 @@ export function CheckFileMoveConflicts(arg1:Array<string>,arg2:string):Promise<A
 export function CheckModStrategyGroupApply(arg1:string,arg2:app.ModStrategyGroupApplyOptions):Promise<app.ModStrategyGroupApplyCheck>;
 
 export function CheckModUpdates():Promise<app.UpdateCheckResult>;
+
+export function CheckTagRegression(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function CheckUpdate():Promise<app.UpdateInfo>;
 
@@ -133,6 +138,8 @@ export function ExportServersToFile(arg1:string):Promise<string>;
 
 export function ExportSprayFiles(arg1:app.SprayExportRequest):Promise<app.SprayExportResult>;
 
+export function ExportTagBaseline(arg1:string):Promise<string>;
+
 export function ExportVPKFilesToZip(arg1:Array<string>,arg2:boolean,arg3:boolean):Promise<string>;
 
 export function ExtractVPKFrom7z(arg1:string,arg2:string):Promise<void>;
@@ -162,6 +169,8 @@ export function FetchWorkshopDetail(arg1:string):Promise<app.WorkshopItemDetail>
 export function FetchWorkshopList(arg1:app.WorkshopQueryOptions):Promise<app.WorkshopListResult>;
 
 export function ForceExit():Promise<void>;
+
+export function GenerateEntityTable(arg1:string,arg2:string):Promise<string>;
 
 export function GenerateStockWhitelistBatchesFromGame():Promise<app.StockWhitelistStatus>;
 
@@ -194,6 +203,8 @@ export function GetCurrentBestIP():Promise<string>;
 export function GetCurrentBestIPOption():Promise<network.IPOption>;
 
 export function GetDownloadTasks():Promise<Array<app.DownloadTask>>;
+
+export function GetEntityTableStatus():Promise<app.EntityTableStatus>;
 
 export function GetExternalGroupSuggestions():Promise<Array<app.ModGroupSuggestion>>;
 
@@ -240,6 +251,8 @@ export function GetRootDirectory():Promise<string>;
 export function GetSecondaryTags(arg1:string):Promise<Array<string>>;
 
 export function GetServerStorage():Promise<app.ServerStorage>;
+
+export function GetStockIndexStatus():Promise<app.StockIndexStatus>;
 
 export function GetStockWhitelistStatus():Promise<app.StockWhitelistStatus>;
 
@@ -382,6 +395,8 @@ export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
 export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
 
 export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
+
+export function QueryStockIndex(arg1:string,arg2:number):Promise<app.StockIndexQueryResult>;
 
 export function ReadCrashReport(arg1:string):Promise<app.CrashReport>;
 
@@ -558,3 +573,5 @@ export function UnpackVPKFile(arg1:string,arg2:string):Promise<app.VPKUnpackResu
 export function ValidateDirectory(arg1:string):Promise<void>;
 
 export function ValidateGroupSuggestionsFile(arg1:string):Promise<app.GroupSuggestionValidation>;
+
+export function ValidateTagRules():Promise<rules.Report>;

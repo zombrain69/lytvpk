@@ -3,6 +3,8 @@ package parser
 import (
 	"regexp"
 	"strings"
+
+	"vpk-manager/internal/ruletable"
 )
 
 // ProcessWeaponVPK 处理武器类型VPK
@@ -28,6 +30,7 @@ func collectWeaponPathTags(index archivePathIndex, secondaryTags map[string]bool
 	for _, entry := range index.weaponFiles {
 		if tag := weaponPathTag(entry.name); tag != "" {
 			addWeaponTag(tag, secondaryTags)
+			index.evidence.record(tag, "weapon:"+tag, EvidenceLevelInferred, entry.name)
 			foundConcreteWeapon = true
 		}
 	}
@@ -42,195 +45,26 @@ type weaponMatchRule struct {
 	tag     string
 }
 
-var weaponPathRules = []weaponMatchRule{
-	// 具体资源名优先。这些兼容规则来自本项目早期实现和 L4D2 的原版
-	// pak01 目录；按切片顺序匹配，避免 Go map 遍历导致的误判。
-	// 手枪：具体文件名必须先于宽泛的 pistol 规则。
-	{"w_desert_eagle", "马格南"},
-	{"pistol_magnum", "马格南"},
-	{"desert_eagle", "马格南"},
-	{"deserteagle", "马格南"},
-	{"magnum", "马格南"},
-	{"w_pistol_glock", "小手枪"},
-	{"pistol_glock", "小手枪"},
-	{"w_pistol_b", "小手枪"},
-	{"glock", "小手枪"},
-	{"p220", "小手枪"},
-	{"pistol", "小手枪"},
+var weaponPathRules = buildWeaponMatchRules(ruletable.MustLoad().WeaponPathRules)
 
-	// 步枪。
-	{"rifle_desert", "三连发"},
-	{"desert_rifle", "三连发"},
-	{"combat_rifle", "三连发"},
-	{"scar", "三连发"},
-	{"rifle_ak47", "AK47"},
-	{"ak47", "AK47"},
-	{"rifle_m16a2", "M16"},
-	{"rifle_m16", "M16"},
-	{"m16a2", "M16"},
-	{"m16", "M16"},
-	{"m4a1", "M16"},
-	{"rifle_sg552", "sg552"},
-	{"sg552", "sg552"},
-	{"rifle_m60", "M60"},
-	{"m60", "M60"},
+// weaponMetadataRules 是标题/描述侧的武器关键词表（切片顺序即优先级）。
+// 提到包级是为了让 W4 的跨类型标题通道复用同一份数据，而不是在函数里私藏一份。
+var weaponMetadataRules = buildWeaponMatchRules(ruletable.MustLoad().WeaponMetadataRules)
 
-	// 狙击枪。
-	{"sniper_awp", "大狙"},
-	{"w_sniper_mini14", "猎枪"},
-	{"hunting_rifle", "猎枪"},
-	{"sniper_military", "军狙"},
-	{"msg90", "军狙"},
-	{"g3sg1", "军狙"},
-	{"sniper_a", "军狙"},
-	{"sniper_scout", "鸟狙"},
-	{"scout", "鸟狙"},
-	{"awp", "大狙"},
-
-	// 霰弹枪。
-	{"shotgun_chrome", "铁喷"},
-	{"w_shotgun_m1014", "一代连喷"},
-	{"w_autoshot_m4super", "一代连喷"},
-	{"autoshotgun", "一代连喷"},
-	{"autoshot", "一代连喷"},
-	{"m1014", "一代连喷"},
-	{"shotgun_spas", "二代连喷"},
-	{"spas", "二代连喷"},
-	{"chrome", "铁喷"},
-	{"shotgun_pump", "木喷"},
-	{"pumpshotgun", "木喷"},
-	{"w_shotgun", "木喷"},
-	{"shotgun", "木喷"},
-
-	// 冲锋枪。
-	{"smg_silenced", "消音"},
-	{"mac10", "消音"},
-	{"mac_10", "消音"},
-	{"w_smg_mp5", "MP5"},
-	{"smg_mp5", "MP5"},
-	{"smg_uzi", "乌兹"},
-	{"w_smg_uzi", "乌兹"},
-	{"smg_a", "消音"},
-	{"mp5", "MP5"},
-	{"uzi", "乌兹"},
-	{"smg", "乌兹"},
-
-	// 发射器。
-	{"grenade_launcher", "榴弹发射器"},
-	{"50cal", "固定机关枪"},
-	{"minigun", "固定机关枪"},
-
-	// 近战武器。
-	{"baseball_bat", "棒球棍"},
-	{"cricket_bat", "板球拍"},
-	{"electric_guitar", "吉他"},
-	{"frying_pan", "平底锅"},
-	{"golf_club", "高尔夫球杆"},
-	{"fireaxe", "消防斧"},
-	{"machete", "砍刀"},
-	{"katana", "武士刀"},
-	{"chainsaw", "电锯"},
-	{"crowbar", "撬棍"},
-	{"pitchfork", "草叉"},
-	{"shovel", "铁铲"},
-	{"tonfa", "警棍"},
-	{"nightstick", "警棍"},
-	{"riot_shield", "防爆盾"},
-	{"riotshield", "防爆盾"},
-	{"melee_knife", "匕首"},
-	{"w_knife_t", "匕首"},
-	{"knife", "匕首"},
-	{"w_chainsaw", "电锯"},
-	{"w_crowbar", "撬棍"},
-	{"w_fireaxe", "消防斧"},
-	{"w_frying_pan", "平底锅"},
-	{"w_guitar", "吉他"},
-	{"w_bat", "棒球棍"},
+// buildWeaponMatchRules 把规则表（JSON）转成解析器内部使用的形态。
+func buildWeaponMatchRules(rules []ruletable.MatchRule) []weaponMatchRule {
+	out := make([]weaponMatchRule, 0, len(rules))
+	for _, rule := range rules {
+		out = append(out, weaponMatchRule{keyword: rule.Keyword, tag: rule.Tag})
+	}
+	return out
 }
 
 // DetectWeaponTypeFromMetadata 根据addoninfo的文本检测武器类型
 func DetectWeaponTypeFromMetadata(text string, secondaryTags map[string]bool) {
 	lowerText := strings.ToLower(text)
 
-	// 使用切片来保证匹配顺序
-	type matchRule struct {
-		keyword string
-		tag     string
-	}
-
-	rules := []matchRule{
-		// 步枪
-		{"ak47", "AK47"},
-		{"ak-47", "AK47"},
-		{"m4a1", "M16"},
-		{"m16", "M16"},
-		{"sg552", "sg552"},
-		{"scar", "三连发"},
-		{"combat rifle", "三连发"},
-		{"combat-rifle", "三连发"},
-		{"desert rifle", "三连发"},
-		{"desert-rifle", "三连发"},
-		{"m60", "M60"},
-
-		// 冲锋枪
-		{"uzi", "乌兹"},
-		{"silenced smg", "消音"},
-		{"silenced-smg", "消音"},
-		{"mac 10", "消音"},
-		{"mac-10", "消音"},
-		{"mac10", "消音"},
-		{"mp5", "MP5"},
-
-		// 狙击枪
-		{"hunting rifle", "猎枪"},
-		{"hunting-rifle", "猎枪"},
-		{"mini14", "猎枪"},
-		{"military sniper", "军狙"},
-		{"military-sniper", "军狙"},
-		{"scout", "鸟狙"},
-		{"awp", "大狙"},
-
-		// 霰弹枪
-		{"m1014", "一代连喷"},
-		{"chrome", "铁喷"},
-		{"pump shotgun", "木喷"},
-		{"pump-shotgun", "木喷"},
-		{"auto shotgun", "一代连喷"},
-		{"auto-shotgun", "一代连喷"},
-		{"autoshotgun", "一代连喷"},
-		{"spas", "二代连喷"},
-
-		// 手枪
-		{"magnum", "马格南"},
-		{"desert eagle", "马格南"},
-		{"desert-eagle", "马格南"},
-		{"glock", "小手枪"},
-		{"p220", "小手枪"},
-		{"pistol", "小手枪"},
-
-		// 发射器
-		{"grenade launcher", "榴弹发射器"},
-		{"grenade-launcher", "榴弹发射器"},
-
-		// 近战武器
-		{"machete", "砍刀"},
-		{"katana", "武士刀"},
-		{"baseball bat", "棒球棍"},
-		{"knife", "匕首"},
-		{"chainsaw", "电锯"},
-		{"crowbar", "撬棍"},
-		{"fireaxe", "消防斧"},
-		{"frying pan", "平底锅"},
-		{"guitar", "吉他"},
-		{"cricket bat", "板球拍"},
-		{"tonfa", "警棍"},
-		{"nightstick", "警棍"},
-		{"golf club", "高尔夫球杆"},
-		{"shovel", "铁铲"},
-		{"pitchfork", "草叉"},
-	}
-
-	for _, rule := range rules {
+	for _, rule := range weaponMetadataRules {
 		isMatch := false
 		if rule.keyword == "scar" {
 			// 特殊处理 scar，防止匹配到 oscar 等词
@@ -240,8 +74,8 @@ func DetectWeaponTypeFromMetadata(text string, secondaryTags map[string]bool) {
 		}
 
 		if isMatch {
+			// D7：不再「命中即 return」——标题里写了多个型号时，每个型号都要出标签。
 			addWeaponTag(rule.tag, secondaryTags)
-			return
 		}
 	}
 }
@@ -250,6 +84,16 @@ func DetectWeaponTypeFromMetadata(text string, secondaryTags map[string]bool) {
 func DetectWeaponType(filename string, secondaryTags map[string]bool) {
 	if tag := weaponPathTag(filename); tag != "" {
 		addWeaponTag(tag, secondaryTags)
+		return
+	}
+	// 关键词表没有覆盖时，用本体脚本声明的精确锚点兜底：
+	// 例如 models/weapons/melee/w_golfclub.mdl、models/w_models/weapons/w_pumpshotgun_A.mdl
+	// 这些路径按"命名直觉"猜不出来，但脚本里写得清清楚楚。
+	for _, hit := range stockEntities.Lookup(filename) {
+		if hit.Character != "" || hit.IsItem || hit.Tag == "" {
+			continue
+		}
+		addWeaponTag(hit.Tag, secondaryTags)
 	}
 }
 
@@ -328,7 +172,24 @@ func weaponCategoryTag(tag string) string {
 
 func weaponPathTag(filename string) string {
 	lowerFilename := strings.ToLower(filename)
+	// 本体反例（D1）：models/w_models/weapons/w_pumpshotgun_A.mdl 是 Chrome 连喷的世界模型
+	// （见 scripts/weapon_shotgun_chrome.txt 的 playermodel）。名字里的 "pumpshotgun"/"shotgun"
+	// 是历史命名巧合，任何把它判成「木喷」的关键词都要跳过；木喷自己的路径 w_shotgun.mdl 不受影响。
+	chromeWorldModel := strings.Contains(lowerFilename, "w_pumpshotgun_a")
+	// 本体共享路径：sound/weapons/shotgun/** 与 materials/**/weapons/shotgun/** 是泵动 /
+	// Chrome / 连喷等多把霰弹枪共用的音效与素材目录，出现泛词 "shotgun" 不足以断定是木喷
+	// （真机残留：2 个 Chrome 包靠 shotgun_pump_1.wav / .../shotgun/qx.vmt 被误标木喷）。
+	sharedShotgunPath := strings.Contains(lowerFilename, "sound/weapons/shotgun/") ||
+		strings.Contains(lowerFilename, "materials/models/v_models/weapons/shotgun/")
 	for _, rule := range weaponPathRules {
+		if chromeWorldModel && rule.tag == "木喷" {
+			continue
+		}
+		// 共享目录对**整个木喷标签**生效：引擎把 sound/weapons/shotgun/** 等目录
+		// 用于多把霰弹枪（泵动/Chrome/连喷），任何把它判成木喷的关键词都只是猜测。
+		if sharedShotgunPath && rule.tag == "木喷" {
+			continue
+		}
 		if weaponRuleMatches(lowerFilename, rule.keyword) {
 			return rule.tag
 		}

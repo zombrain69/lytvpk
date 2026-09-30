@@ -201,7 +201,8 @@ func TestOfficialWeaponAggregateTags(t *testing.T) {
 		want []string
 	}{
 		{name: "rifle", path: "models/w_models/weapons/w_rifle_ak47.mdl", want: []string{"AK47", "步枪", "所有枪械"}},
-		{name: "melee", path: "models/w_models/weapons/w_katana.mdl", want: []string{"武士刀", "近战", "官方近战", "所有官方近战"}},
+		// 近战武器的本体路径在 models/weapons/melee/ 下（过去测试用的是不存在的 w_models 路径，D11）。
+		{name: "melee", path: "models/weapons/melee/w_katana.mdl", want: []string{"武士刀", "近战", "官方近战", "所有官方近战"}},
 	}
 
 	for _, test := range tests {
@@ -249,7 +250,8 @@ func TestAggregateTagFamiliesCoverExpectedChildren(t *testing.T) {
 					pathByTag := map[string]string{"医疗包": "models/w_models/weapons/eq_medkit.mdl", "电击器": "models/w_models/weapons/eq_defibrillator.mdl", "止痛药": "models/w_models/weapons/eq_painpills.mdl", "肾上腺": "models/v_models/v_adrenaline.mdl"}
 					collectContentTags(pathByTag[child], tags)
 				} else if aggregate == "所有官方近战" {
-					pathByTag := map[string]string{"棒球棍": "models/w_models/weapons/w_bat.mdl", "板球拍": "models/w_models/weapons/w_cricket_bat.mdl", "吉他": "models/w_models/weapons/w_guitar.mdl", "平底锅": "models/w_models/weapons/w_frying_pan.mdl", "高尔夫球杆": "models/w_models/weapons/w_golf_club.mdl", "消防斧": "models/w_models/weapons/w_fireaxe.mdl", "砍刀": "models/w_models/weapons/w_machete.mdl", "武士刀": "models/w_models/weapons/w_katana.mdl", "电锯": "models/w_models/weapons/w_chainsaw.mdl", "撬棍": "models/w_models/weapons/w_crowbar.mdl", "草叉": "models/w_models/weapons/w_pitchfork.mdl", "铁铲": "models/w_models/weapons/w_shovel.mdl", "警棍": "models/w_models/weapons/w_tonfa.mdl"}
+					// 全部使用本体真实路径（models/weapons/melee/…），与游戏脚本一致（D11）。
+					pathByTag := map[string]string{"棒球棍": "models/weapons/melee/w_bat.mdl", "板球拍": "models/weapons/melee/w_cricket_bat.mdl", "吉他": "models/weapons/melee/w_electric_guitar.mdl", "平底锅": "models/weapons/melee/w_frying_pan.mdl", "高尔夫球杆": "models/weapons/melee/w_golfclub.mdl", "消防斧": "models/weapons/melee/w_fireaxe.mdl", "砍刀": "models/weapons/melee/w_machete.mdl", "武士刀": "models/weapons/melee/w_katana.mdl", "电锯": "models/weapons/melee/w_chainsaw.mdl", "撬棍": "models/weapons/melee/w_crowbar.mdl", "草叉": "models/weapons/melee/w_pitchfork.mdl", "铁铲": "models/weapons/melee/w_shovel.mdl", "警棍": "models/weapons/melee/w_tonfa.mdl"}
 					DetectWeaponType(pathByTag[child], tags)
 				} else {
 					pathByTag := map[string]string{"小手枪": "models/w_models/weapons/w_pistol.mdl", "马格南": "models/w_models/weapons/w_desert_eagle.mdl", "AK47": "models/w_models/weapons/w_rifle_ak47.mdl", "M16": "models/w_models/weapons/w_rifle_m16.mdl", "三连发": "models/w_models/weapons/rifle_desert.mdl", "sg552": "models/w_models/weapons/w_rifle_sg552.mdl", "M60": "models/w_models/weapons/w_rifle_m60.mdl", "大狙": "models/w_models/weapons/sniper_awp.mdl", "猎枪": "models/w_models/weapons/w_sniper_mini14.mdl", "军狙": "models/w_models/weapons/sniper_military.mdl", "鸟狙": "models/w_models/weapons/sniper_scout.mdl", "木喷": "models/w_models/weapons/w_shotgun.mdl", "一代连喷": "models/w_models/weapons/w_shotgun_m1014.mdl", "铁喷": "models/w_models/weapons/shotgun_chrome.mdl", "二代连喷": "models/w_models/weapons/shotgun_spas.mdl", "乌兹": "models/w_models/weapons/smg_uzi.mdl", "消音": "models/w_models/weapons/smg_silenced.mdl", "MP5": "models/w_models/weapons/w_smg_mp5.mdl", "榴弹发射器": "models/w_models/weapons/grenade_launcher.mdl", "固定机关枪": "models/w_models/weapons/minigun.mdl"}

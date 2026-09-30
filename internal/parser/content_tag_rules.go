@@ -1,6 +1,11 @@
 package parser
 
-import "strings"
+import (
+	"strings"
+
+	"vpk-manager/internal/gamedata/entities"
+	"vpk-manager/internal/ruletable"
+)
 
 // contentTagRule maps Source resource-path evidence to a Chinese secondary tag.
 // Directory and file names inside a VPK are normally English; the tag is the
@@ -14,123 +19,178 @@ type contentTagRule struct {
 	isItem   bool
 }
 
-var contentTagRules = []contentTagRule{
-	// Medical, throwables and supplies. These are checked before broad weapon
-	// directory evidence, because Valve stores several equipment world/view
-	// models below models/*_models/weapons/.
-	{"医疗包", []string{"models/", "materials/models/", "scripts/"}, []string{"eq_medkit", "medkit", "firstaid", "first_aid"}, true},
-	{"电击器", []string{"models/", "materials/models/", "scripts/"}, []string{"defibrillator", "defib"}, true},
-	{"止痛药", []string{"models/", "materials/models/", "scripts/"}, []string{"painpills", "pain_pills", "painpill"}, true},
-	{"肾上腺", []string{"models/", "materials/models/", "scripts/"}, []string{"adrenaline", "adrenal_shot"}, true},
-	{"土制炸弹", []string{"models/", "materials/models/", "scripts/"}, []string{"pipebomb", "pipe_bomb"}, true},
-	{"燃烧瓶", []string{"models/", "materials/models/", "scripts/"}, []string{"molotov"}, true},
-	{"胆汁", []string{"models/", "materials/models/", "scripts/"}, []string{"vomitjar", "bile_bomb", "boomer_bile", "bile_flask"}, true},
-	{"汽油桶", []string{"models/", "materials/models/", "scripts/"}, []string{"gascan", "gas_can"}, true},
-	{"煤气罐", []string{"models/", "materials/models/", "scripts/"}, []string{"propane"}, true},
-	{"氧气罐", []string{"models/", "materials/models/", "scripts/"}, []string{"oxygen"}, true},
-	{"烟花盒", []string{"models/", "materials/models/", "scripts/"}, []string{"firework"}, true},
-	{"一代子弹堆", []string{"models/", "materials/models/", "scripts/"}, []string{"ammo_can", "ammocan", "ammo_can_03", "small_cabinet_ammo"}, true},
-	{"二代子弹堆", []string{"models/", "materials/models/", "scripts/"}, []string{"ammo_pile", "ammopile", "ammo_stack", "ammostack", "coffeeammo", "ammo_crate", "ammopack", "eq_ammopack"}, true},
-	{"燃烧弹盒", []string{"models/", "materials/models/", "scripts/"}, []string{"incendiary_ammo", "incendiary_ammopack", "eq_incendiary_ammopack", "weapon_upgradepack_incendiary"}, true},
-	{"高爆弹盒", []string{"models/", "materials/models/", "scripts/"}, []string{"explosive_ammo", "explosive_ammopack", "eq_explosive_ammopack", "exploding_ammo", "weapon_upgradepack_explosive"}, true},
-	{"激光瞄准盒", []string{"models/", "materials/models/", "scripts/"}, []string{"laser_sight", "lasersight", "laser_sights", "eq_laser_sights"}, true},
+var contentTagRules = buildContentTagRules(ruletable.MustLoad().ContentRules)
 
-	// UI and player-facing presentation.
-	{"主菜单", []string{"materials/vgui/", "resource/ui/"}, []string{"mainmenu", "main_menu", "menu_background"}, false},
-	{"HUD", []string{"materials/vgui/hud/", "resource/ui/"}, []string{"hud"}, false},
-	{"准星", []string{"materials/vgui/", "resource/ui/"}, []string{"crosshair"}, false},
-	{"血条", []string{"materials/vgui/", "resource/ui/"}, []string{"healthbar", "health_bar"}, false},
-	{"伤害指示器", []string{"materials/vgui/", "resource/ui/"}, []string{"damage_indicator", "damageindicator", "indicator"}, false},
-	{"人物语音表", []string{"resource/ui/", "scripts/", "scenes/"}, []string{"vocalizer", "radial"}, false},
-	{"语音包", []string{"sound/player/"}, nil, false},
-	{"语音包", []string{"sound/", "scenes/"}, []string{"voice", "voicepack", "voice_pack"}, false},
-	{"手电筒", []string{"models/", "materials/", "sound/", "scripts/"}, []string{"flashlight"}, false},
-	{"梯子", []string{"models/", "materials/models/"}, []string{"ladder"}, false},
-	{"天空", []string{"materials/skybox/", "models/props_skybox/"}, nil, false},
-	{"过场画面", []string{"materials/vgui/", "resource/"}, []string{"transition"}, false},
-	{"载入画面", []string{"materials/vgui/loadingscreen/"}, nil, false},
-	{"尸潮", []string{"sound/", "scripts/"}, []string{"horde"}, false},
-	{"动态箭头", []string{"materials/vgui/", "resource/overviews/"}, []string{"arrow"}, false},
-	{"警报", []string{"sound/", "models/", "scripts/"}, []string{"alarm"}, false},
-	{"唱片机", []string{"sound/", "models/", "materials/models/"}, []string{"jukebox"}, false},
-
-	// World props and set dressing.
-	{"侏儒", []string{"models/", "materials/models/"}, []string{"gnome"}, false},
-	{"直升机", []string{"models/", "materials/models/"}, []string{"helicopter"}, false},
-	{"海报", []string{"models/", "materials/", "resource/"}, []string{"poster"}, false},
-	{"船", []string{"models/", "materials/models/"}, []string{"ship", "boat"}, false},
-	{"售货机", []string{"models/", "materials/models/"}, []string{"vending"}, false},
-	{"电视", []string{"models/", "materials/models/"}, []string{"television", "tv_", "/tv"}, false},
-	{"屏幕", []string{"models/", "materials/models/"}, []string{"screen"}, false},
-	{"货车", []string{"models/", "materials/models/"}, []string{"truck"}, false},
-	{"面包车", []string{"models/", "materials/models/"}, []string{"van_", "/van"}, false},
-	{"雕像", []string{"models/", "materials/models/"}, []string{"statue"}, false},
+// buildContentTagRules 把规则表（JSON）转成解析器内部使用的形态。
+// 规则表是唯一事实源：改规则改 JSON，不再有 Go 里私藏的一份。
+func buildContentTagRules(rules []ruletable.ContentRule) []contentTagRule {
+	out := make([]contentTagRule, 0, len(rules))
+	for _, rule := range rules {
+		out = append(out, contentTagRule{
+			tag:      rule.Tag,
+			prefixes: rule.Prefixes,
+			keywords: rule.Keywords,
+			isItem:   rule.Item,
+		})
+	}
+	return out
 }
 
 // collectContentTags returns whether the path is a known non-weapon item.
 // This lets the type detector avoid classifying eq_medkit and similar assets as
 // "武器" merely because Source keeps their models under a weapons directory.
 func collectContentTags(name string, tags map[string]bool) bool {
-	collectWorkshopContentCategories(name, tags)
+	return collectContentTagsWithEvidence(name, tags, nil)
+}
 
-	isItem := false
+// collectContentTagsWithEvidence 是带证据登记的版本（W6）：多通道命中时记录
+// "这个标签由哪条规则、哪条真实路径得出"，供 Mod 详情与外部清单展示。
+func collectContentTagsWithEvidence(name string, tags map[string]bool, evidence *tagEvidenceRecorder) bool {
+	collectWorkshopContentCategories(name, tags)
+	recordContentCategoryEvidence(name, tags, evidence)
+
+	// 本体实体锚点：mod 里出现与本体完全相同的路径 → 明确替换了该实体。
+	// 纯新增通道（命中就加标签），不参与任何"排除"判断。
+	isItem := applyStockEntityAnchors(name, tags, evidence)
+	// 本体基名 token：作者命名空间里的"参数包/特效包"（materials/models/<作者>/ak47/…）。
+	if applyStockTokenEvidence(name, tags, evidence) {
+		isItem = true
+	}
 	for _, rule := range contentTagRules {
 		if !rule.matches(name) {
 			continue
 		}
 		tags[rule.tag] = true
+		evidence.record(rule.tag, "content:"+rule.tag, EvidenceLevelPattern, name)
 		if rule.isItem {
-			tags["物品"] = true
-			if isThrowableItemTag(rule.tag) {
-				tags["投掷物"] = true
-				tags["所有投掷物品"] = true
-			}
-			if isMedicalItemTag(rule.tag) {
-				tags["医疗物品"] = true
-				tags["所有医疗物品"] = true
-			}
-			if isAmmoItemTag(rule.tag) {
-				tags["弹药堆"] = true
-				tags["盒子"] = true
-			}
-			if rule.tag == "燃烧弹盒" {
-				tags["燃烧弹"] = true
-				tags["盒子"] = true
-			}
-			if rule.tag == "高爆弹盒" {
-				tags["高爆弹"] = true
-				tags["盒子"] = true
-			}
-			if rule.tag == "激光瞄准盒" {
-				tags["镭射"] = true
-				tags["盒子"] = true
-			}
+			applyItemAggregateTags(rule.tag, tags)
 		}
 		isItem = isItem || rule.isItem
 	}
 	return isItem
 }
 
+// recordContentCategoryEvidence 记录文件类别标签的来源（UI / 声音 / 粒子特效 …）。
+func recordContentCategoryEvidence(name string, tags map[string]bool, evidence *tagEvidenceRecorder) {
+	for _, kind := range fileKindRules {
+		if kind.Tag != "" && tags[kind.Tag] {
+			evidence.record(kind.Tag, "category:"+kind.Tag, EvidenceLevelPattern, name)
+		}
+	}
+}
+
+// fileKindRules 是「文件类别」规则（UI / 声音 / 脚本 / VScript / 模型 / 贴图 / 粒子特效），
+// 与其它规则一样来自唯一事实源 rules.json。
+var fileKindRules = ruletable.MustLoad().FileKinds
+
 // collectWorkshopContentCategories maps the broad content groups exposed by
 // the Left 4 Dead 2 Workshop to localized filter tags.  A VPK may legitimately
 // carry several groups, so these tags are additive evidence rather than a
 // replacement for the primary type.
 func collectWorkshopContentCategories(name string, tags map[string]bool) {
-	if strings.HasPrefix(name, "resource/ui/") || strings.HasPrefix(name, "materials/vgui/") {
-		tags["UI"] = true
+	for _, kind := range fileKindRules {
+		if kind.Tag == "" {
+			continue
+		}
+		for _, prefix := range kind.Prefixes {
+			if prefix != "" && strings.HasPrefix(name, prefix) {
+				tags[kind.Tag] = true
+				break
+			}
+		}
 	}
-	if strings.HasPrefix(name, "sound/") || strings.HasPrefix(name, "scenes/") {
-		tags["声音"] = true
+}
+
+// applyItemAggregateTags 由具体物品标签推导聚合标签（物品 / 投掷物 / 医疗物品 / 弹药堆 / 盒子 …）。
+// 抽出来是为了让「内容规则」与「本体实体锚点」两条通道共用同一套聚合语义。
+func applyItemAggregateTags(tag string, tags map[string]bool) {
+	tag = CanonicalTag(tag)
+	if tag == "" {
+		return
 	}
-	if strings.HasPrefix(name, "scripts/") {
-		tags["脚本"] = true
+	tags["物品"] = true
+	if isThrowableItemTag(tag) {
+		tags["投掷物"] = true
+		tags["所有投掷物品"] = true
 	}
-	if strings.HasPrefix(name, "models/") {
-		tags["模型"] = true
+	if isMedicalItemTag(tag) {
+		tags["医疗物品"] = true
+		tags["所有医疗物品"] = true
 	}
-	if strings.HasPrefix(name, "materials/") {
-		tags["贴图"] = true
+	if isAmmoItemTag(tag) {
+		tags["弹药堆"] = true
+		tags["盒子"] = true
 	}
+	switch tag {
+	case "燃烧弹盒":
+		tags["燃烧弹"] = true
+		tags["盒子"] = true
+	case "高爆弹盒":
+		tags["高爆弹"] = true
+		tags["盒子"] = true
+	case "激光瞄准盒":
+		tags["镭射"] = true
+		tags["盒子"] = true
+	}
+}
+
+// stockEntities 是内置的「本体实体表」，由游戏自带脚本生成
+// （生成器见 internal/gamedata/entitygen，命令：--generate-entity-table）。
+var stockEntities = entities.MustLoad()
+
+// applyStockEntityAnchors 用「精确本体路径」判定实体，返回是否命中物品实体。
+//
+// 这是精确证据通道：models/w_models/weapons/w_pumpshotgun_A.mdl 是 Chrome 连喷的世界模型
+// （不是木喷），models/weapons/melee/w_golfclub.mdl 才是高尔夫球杆——都由游戏脚本声明，
+// 不靠命名猜测。命中只加标签，不参与排除。
+func applyStockEntityAnchors(name string, tags map[string]bool, evidence *tagEvidenceRecorder) bool {
+	if stockEntities == nil {
+		return false
+	}
+	hits := stockEntities.Lookup(name)
+	if len(hits) == 0 {
+		return false
+	}
+	isItem := false
+	for _, hit := range hits {
+		switch {
+		case hit.Character != "":
+			applyStockCharacterAnchors(hit.Character, tags)
+			evidence.record(hit.Character, "entity:"+hit.EntityID, EvidenceLevelExact, name)
+		case hit.IsItem:
+			isItem = true
+			tags[hit.Tag] = true
+			applyItemAggregateTags(hit.Tag, tags)
+			evidence.record(hit.Tag, "entity:"+hit.EntityID, EvidenceLevelExact, name)
+		default:
+			addWeaponTag(hit.Tag, tags)
+			evidence.record(hit.Tag, "entity:"+hit.EntityID, EvidenceLevelExact, name)
+		}
+	}
+	return isItem
+}
+
+// applyStockCharacterAnchors 给角色资产（特感爪子 / 幸存者手臂）补角色标签，
+// 口径与 collectCharacterTags 一致：特感用小写名 + 特殊感染者，幸存者用姓名 + 幸存者。
+func applyStockCharacterAnchors(character string, tags map[string]bool) {
+	character = strings.TrimSpace(character)
+	if character == "" {
+		return
+	}
+	switch {
+	case character == "Common Infected":
+		tags["common"] = true
+		tags["普通感染者"] = true
+	case isInfectedVoiceCharacter(character):
+		tags[strings.ToLower(character)] = true
+		tags["特殊感染者"] = true
+	default:
+		tags[character] = true
+		tags["幸存者"] = true
+	}
+	// 角色资产同属"人物内容"（与 collectSupplementaryTypeTags 语义一致）；
+	// 若主分类本来就是人物，最后会被 delete(secondaryTags, PrimaryTag) 去掉。
+	tags["人物"] = true
 }
 
 func isThrowableItemTag(tag string) bool {

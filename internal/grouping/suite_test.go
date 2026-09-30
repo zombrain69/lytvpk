@@ -169,6 +169,38 @@ func TestSuiteNamespaceRejectsGenericAndNumericSuiteNames(t *testing.T) {
 	}
 }
 
+// W6：套件候选要能带上"这套模块共同带的标签"作为补充信号，
+// 且只影响展示（Signals），不影响 Keys / Strategy —— 分组结果不变。
+func TestSuiteNamespaceCarriesCommonTagSignals(t *testing.T) {
+	mods := []Mod{
+		{Key: "codm/ice-a.vpk", Name: "ice-a.vpk", ResourceRoots: []string{"codm/ice"}, SecondaryTags: []string{"AK47", "贴图"}},
+		{Key: "codm/ice-b.vpk", Name: "ice-b.vpk", ResourceRoots: []string{"codm/ice"}, SecondaryTags: []string{"AK47", "贴图"}},
+		{Key: "codm/ice-c.vpk", Name: "ice-c.vpk", ResourceRoots: []string{"codm/ice"}, SecondaryTags: []string{"AK47", "模型"}},
+	}
+	suggestions, _ := Suggest(mods, Options{})
+
+	var suite *Suggestion
+	for i := range suggestions {
+		if strings.Contains(suggestions[i].Reason, "同一套件目录") {
+			suite = &suggestions[i]
+			break
+		}
+	}
+	if suite == nil {
+		t.Fatalf("应产出 suite-namespace 候选：%#v", suggestions)
+	}
+	if !hasSignal(suite.Signals, "共同标签：AK47") {
+		t.Fatalf("套件候选应带共同标签信号，实际 %v", suite.Signals)
+	}
+	// 只在 2/3 成员出现的标签仍然达到 60% 阈值；"模型"只出现 1/3，不应出现。
+	if hasSignal(suite.Signals, "共同标签：模型") {
+		t.Fatalf("不足 60%% 的标签不应成为共同标签信号：%v", suite.Signals)
+	}
+	if suite.Strategy != "all" || len(suite.MemberKeys) != 3 {
+		t.Fatalf("信号补充不应改变分组语义：%+v", suite)
+	}
+}
+
 func TestSuiteNamespaceIgnoresNumericOnlyNamePrefix(t *testing.T) {
 	// 工坊 ID 文件名共享的"数字前缀"不能拿来当组名，应回退到套件段。
 	mods := []Mod{

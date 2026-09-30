@@ -1,0 +1,724 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-30T21:35:49+08:00",
+  "source": "scripts/weapon_*.txt + scripts/melee/*.txt（游戏本体脚本）",
+  "entities": [
+    {
+      "id": "arms.bill",
+      "tag": "",
+      "official": true,
+      "character": "Bill",
+      "anchors": [
+        "models/weapons/arms/v_arms_bill.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "arms.coach",
+      "tag": "",
+      "official": true,
+      "character": "Coach",
+      "anchors": [
+        "models/weapons/arms/v_arms_coach_new.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "arms.ellis",
+      "tag": "",
+      "official": true,
+      "character": "Ellis",
+      "anchors": [
+        "models/weapons/arms/v_arms_mechanic_new.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "arms.francis",
+      "tag": "",
+      "official": true,
+      "character": "Francis",
+      "anchors": [
+        "models/weapons/arms/v_arms_francis.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "arms.louis",
+      "tag": "",
+      "official": true,
+      "character": "Louis",
+      "anchors": [
+        "models/weapons/arms/v_arms_louis.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "arms.nick",
+      "tag": "",
+      "official": true,
+      "character": "Nick",
+      "anchors": [
+        "models/weapons/arms/v_arms_gambler_new.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "arms.rochelle",
+      "tag": "",
+      "official": true,
+      "character": "Rochelle",
+      "anchors": [
+        "models/weapons/arms/v_arms_producer_new.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "arms.zoey",
+      "tag": "",
+      "official": true,
+      "character": "Zoey",
+      "anchors": [
+        "models/weapons/arms/v_arms_zoey.mdl"
+      ],
+      "note": "幸存者第一人称手臂（来自武器脚本的 CharacterViewmodelAddon）"
+    },
+    {
+      "id": "melee.baseball_bat",
+      "tag": "棒球棍",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/baseball_bat.txt",
+      "anchors": [
+        "models/weapons/melee/v_bat.mdl",
+        "models/weapons/melee/w_bat.mdl"
+      ]
+    },
+    {
+      "id": "melee.cricket_bat",
+      "tag": "板球拍",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/cricket_bat.txt",
+      "anchors": [
+        "models/weapons/melee/v_cricket_bat.mdl",
+        "models/weapons/melee/w_cricket_bat.mdl"
+      ]
+    },
+    {
+      "id": "melee.crowbar",
+      "tag": "撬棍",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/crowbar.txt",
+      "anchors": [
+        "models/weapons/melee/v_crowbar.mdl",
+        "models/weapons/melee/w_crowbar.mdl"
+      ]
+    },
+    {
+      "id": "melee.electric_guitar",
+      "tag": "吉他",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/electric_guitar.txt",
+      "anchors": [
+        "models/weapons/melee/v_electric_guitar.mdl",
+        "models/weapons/melee/w_electric_guitar.mdl"
+      ]
+    },
+    {
+      "id": "melee.fireaxe",
+      "tag": "消防斧",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/fireaxe.txt",
+      "anchors": [
+        "models/weapons/melee/v_fireaxe.mdl",
+        "models/weapons/melee/w_fireaxe.mdl"
+      ]
+    },
+    {
+      "id": "melee.frying_pan",
+      "tag": "平底锅",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/frying_pan.txt",
+      "anchors": [
+        "models/weapons/melee/v_frying_pan.mdl",
+        "models/weapons/melee/w_frying_pan.mdl"
+      ]
+    },
+    {
+      "id": "melee.golfclub",
+      "tag": "高尔夫球杆",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/golfclub.txt",
+      "anchors": [
+        "models/weapons/melee/v_golfclub.mdl",
+        "models/weapons/melee/w_golfclub.mdl"
+      ]
+    },
+    {
+      "id": "melee.katana",
+      "tag": "武士刀",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/katana.txt",
+      "anchors": [
+        "models/weapons/melee/v_katana.mdl",
+        "models/weapons/melee/w_katana.mdl"
+      ]
+    },
+    {
+      "id": "melee.knife",
+      "tag": "匕首",
+      "category": "近战",
+      "group": "近战",
+      "script": "scripts/melee/knife.txt",
+      "anchors": [
+        "models/v_models/v_knife_t.mdl",
+        "models/w_models/weapons/w_knife_t.mdl"
+      ]
+    },
+    {
+      "id": "melee.machete",
+      "tag": "砍刀",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/machete.txt",
+      "anchors": [
+        "models/weapons/melee/v_machete.mdl",
+        "models/weapons/melee/w_machete.mdl"
+      ]
+    },
+    {
+      "id": "melee.pitchfork",
+      "tag": "草叉",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/pitchfork.txt",
+      "anchors": [
+        "models/weapons/melee/v_pitchfork.mdl",
+        "models/weapons/melee/w_pitchfork.mdl"
+      ]
+    },
+    {
+      "id": "melee.shovel",
+      "tag": "铁铲",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/shovel.txt",
+      "anchors": [
+        "models/weapons/melee/v_shovel.mdl",
+        "models/weapons/melee/w_shovel.mdl"
+      ]
+    },
+    {
+      "id": "melee.tonfa",
+      "tag": "警棍",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/melee/tonfa.txt",
+      "anchors": [
+        "models/weapons/melee/v_tonfa.mdl",
+        "models/weapons/melee/w_tonfa.mdl"
+      ]
+    },
+    {
+      "id": "weapon_adrenaline",
+      "tag": "肾上腺",
+      "category": "物品",
+      "group": "医疗物品",
+      "item": true,
+      "script": "scripts/weapon_adrenaline.txt",
+      "anchors": [
+        "models/v_models/v_adrenaline.mdl",
+        "models/w_models/weapons/w_eq_adrenaline.mdl"
+      ]
+    },
+    {
+      "id": "weapon_ammo_pack",
+      "tag": "高爆弹盒",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_ammo_pack.txt",
+      "anchors": [
+        "models/v_models/v_explosive_ammopack.mdl",
+        "models/w_models/weapons/w_eq_explosive_ammopack.mdl"
+      ]
+    },
+    {
+      "id": "weapon_autoshotgun",
+      "tag": "一代连喷",
+      "category": "霰弹枪",
+      "group": "霰弹枪",
+      "official": true,
+      "script": "scripts/weapon_autoshotgun.txt",
+      "anchors": [
+        "models/v_models/v_autoshotgun.mdl",
+        "models/w_models/weapons/w_autoshot_m4super.mdl"
+      ]
+    },
+    {
+      "id": "weapon_boomer_claw",
+      "tag": "",
+      "character": "Boomer",
+      "script": "scripts/weapon_boomer_claw.txt",
+      "anchors": [
+        "models/v_models/weapons/v_claw_boomer.mdl"
+      ]
+    },
+    {
+      "id": "weapon_chainsaw",
+      "tag": "电锯",
+      "category": "近战",
+      "group": "近战",
+      "official": true,
+      "script": "scripts/weapon_chainsaw.txt",
+      "anchors": [
+        "models/weapons/melee/v_chainsaw.mdl",
+        "models/weapons/melee/w_chainsaw.mdl"
+      ]
+    },
+    {
+      "id": "weapon_charger_claw",
+      "tag": "",
+      "character": "Charger",
+      "script": "scripts/weapon_charger_claw.txt",
+      "anchors": [
+        "models/weapons/arms/v_charger_arms.mdl"
+      ]
+    },
+    {
+      "id": "weapon_cola_bottles",
+      "tag": "可乐",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_cola_bottles.txt",
+      "anchors": [
+        "models/v_models/v_cola.mdl",
+        "models/w_models/weapons/w_cola.mdl"
+      ]
+    },
+    {
+      "id": "weapon_defibrillator",
+      "tag": "电击器",
+      "category": "物品",
+      "group": "医疗物品",
+      "item": true,
+      "script": "scripts/weapon_defibrillator.txt",
+      "anchors": [
+        "models/v_models/v_defibrillator.mdl",
+        "models/w_models/weapons/w_eq_defibrillator.mdl"
+      ]
+    },
+    {
+      "id": "weapon_fireworkcrate",
+      "tag": "烟花盒",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_fireworkcrate.txt",
+      "anchors": [
+        "models/props_junk/explosive_box001.mdl"
+      ]
+    },
+    {
+      "id": "weapon_first_aid_kit",
+      "tag": "医疗包",
+      "category": "物品",
+      "group": "医疗物品",
+      "item": true,
+      "script": "scripts/weapon_first_aid_kit.txt",
+      "anchors": [
+        "models/v_models/v_medkit.mdl",
+        "models/w_models/weapons/w_eq_medkit.mdl"
+      ]
+    },
+    {
+      "id": "weapon_gascan",
+      "tag": "汽油桶",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_gascan.txt",
+      "anchors": [
+        "models/props_junk/gascan001a.mdl"
+      ]
+    },
+    {
+      "id": "weapon_gnome",
+      "tag": "侏儒",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_gnome.txt",
+      "anchors": [
+        "models/props_junk/gnome.mdl",
+        "models/weapons/melee/v_gnome.mdl"
+      ]
+    },
+    {
+      "id": "weapon_grenade_launcher",
+      "tag": "榴弹发射器",
+      "category": "榴弹发射器",
+      "group": "榴弹发射器",
+      "official": true,
+      "script": "scripts/weapon_grenade_launcher.txt",
+      "anchors": [
+        "models/v_models/v_grenade_launcher.mdl",
+        "models/w_models/weapons/w_grenade_launcher.mdl"
+      ]
+    },
+    {
+      "id": "weapon_hunter_claw",
+      "tag": "",
+      "character": "Hunter",
+      "script": "scripts/weapon_hunter_claw.txt",
+      "anchors": [
+        "models/v_models/weapons/v_claw_hunter.mdl"
+      ]
+    },
+    {
+      "id": "weapon_hunting_rifle",
+      "tag": "猎枪",
+      "category": "狙击枪",
+      "group": "狙击枪",
+      "official": true,
+      "script": "scripts/weapon_hunting_rifle.txt",
+      "anchors": [
+        "models/v_models/v_huntingrifle.mdl",
+        "models/w_models/weapons/w_sniper_mini14.mdl"
+      ]
+    },
+    {
+      "id": "weapon_jockey_claw",
+      "tag": "",
+      "character": "Jockey",
+      "script": "scripts/weapon_jockey_claw.txt",
+      "anchors": [
+        "models/weapons/arms/v_jockey_arms.mdl"
+      ]
+    },
+    {
+      "id": "weapon_molotov",
+      "tag": "燃烧瓶",
+      "category": "物品",
+      "group": "投掷物",
+      "item": true,
+      "script": "scripts/weapon_molotov.txt",
+      "anchors": [
+        "models/v_models/v_molotov.mdl",
+        "models/w_models/weapons/w_eq_molotov.mdl"
+      ]
+    },
+    {
+      "id": "weapon_oxygentank",
+      "tag": "氧气罐",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_oxygentank.txt",
+      "anchors": [
+        "models/props_equipment/oxygentank01.mdl"
+      ]
+    },
+    {
+      "id": "weapon_pain_pills",
+      "tag": "止痛药",
+      "category": "物品",
+      "group": "医疗物品",
+      "item": true,
+      "script": "scripts/weapon_pain_pills.txt",
+      "anchors": [
+        "models/v_models/v_painpills.mdl",
+        "models/w_models/weapons/w_eq_painpills.mdl"
+      ]
+    },
+    {
+      "id": "weapon_pipe_bomb",
+      "tag": "土制炸弹",
+      "category": "物品",
+      "group": "投掷物",
+      "item": true,
+      "script": "scripts/weapon_pipe_bomb.txt",
+      "anchors": [
+        "models/v_models/v_pipebomb.mdl",
+        "models/w_models/weapons/w_eq_pipebomb.mdl"
+      ]
+    },
+    {
+      "id": "weapon_pistol",
+      "tag": "小手枪",
+      "category": "手枪",
+      "group": "手枪",
+      "official": true,
+      "script": "scripts/weapon_pistol.txt",
+      "anchors": [
+        "models/v_models/v_pistola.mdl",
+        "models/w_models/weapons/w_pistol_a.mdl"
+      ]
+    },
+    {
+      "id": "weapon_pistol_magnum",
+      "tag": "马格南",
+      "category": "手枪",
+      "group": "手枪",
+      "official": true,
+      "script": "scripts/weapon_pistol_magnum.txt",
+      "anchors": [
+        "models/v_models/v_desert_eagle.mdl",
+        "models/w_models/weapons/w_desert_eagle.mdl"
+      ]
+    },
+    {
+      "id": "weapon_propanetank",
+      "tag": "煤气罐",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_propanetank.txt",
+      "anchors": [
+        "models/props_junk/propanecanister001a.mdl"
+      ]
+    },
+    {
+      "id": "weapon_pumpshotgun",
+      "tag": "木喷",
+      "category": "霰弹枪",
+      "group": "霰弹枪",
+      "official": true,
+      "script": "scripts/weapon_pumpshotgun.txt",
+      "anchors": [
+        "models/v_models/v_pumpshotgun.mdl",
+        "models/w_models/weapons/w_shotgun.mdl"
+      ]
+    },
+    {
+      "id": "weapon_rifle",
+      "tag": "M16",
+      "category": "步枪",
+      "group": "步枪",
+      "official": true,
+      "script": "scripts/weapon_rifle.txt",
+      "anchors": [
+        "models/v_models/v_rifle.mdl",
+        "models/w_models/weapons/w_rifle_m16a2.mdl"
+      ]
+    },
+    {
+      "id": "weapon_rifle_ak47",
+      "tag": "AK47",
+      "category": "步枪",
+      "group": "步枪",
+      "official": true,
+      "script": "scripts/weapon_rifle_ak47.txt",
+      "anchors": [
+        "models/v_models/v_rifle_ak47.mdl",
+        "models/w_models/weapons/w_rifle_ak47.mdl"
+      ]
+    },
+    {
+      "id": "weapon_rifle_desert",
+      "tag": "三连发",
+      "category": "步枪",
+      "group": "步枪",
+      "official": true,
+      "script": "scripts/weapon_rifle_desert.txt",
+      "anchors": [
+        "models/v_models/v_desert_rifle.mdl",
+        "models/w_models/weapons/w_desert_rifle.mdl"
+      ]
+    },
+    {
+      "id": "weapon_rifle_m60",
+      "tag": "M60",
+      "category": "M60",
+      "group": "M60",
+      "official": true,
+      "script": "scripts/weapon_rifle_m60.txt",
+      "anchors": [
+        "models/v_models/v_m60.mdl",
+        "models/w_models/weapons/w_m60.mdl"
+      ]
+    },
+    {
+      "id": "weapon_rifle_sg552",
+      "tag": "sg552",
+      "category": "步枪",
+      "group": "步枪",
+      "official": true,
+      "script": "scripts/weapon_rifle_sg552.txt",
+      "anchors": [
+        "models/v_models/v_rif_sg552.mdl",
+        "models/w_models/weapons/w_rifle_sg552.mdl"
+      ]
+    },
+    {
+      "id": "weapon_shotgun_chrome",
+      "tag": "铁喷",
+      "category": "霰弹枪",
+      "group": "霰弹枪",
+      "official": true,
+      "script": "scripts/weapon_shotgun_chrome.txt",
+      "anchors": [
+        "models/v_models/v_shotgun_chrome.mdl",
+        "models/w_models/weapons/w_pumpshotgun_a.mdl"
+      ]
+    },
+    {
+      "id": "weapon_shotgun_spas",
+      "tag": "二代连喷",
+      "category": "霰弹枪",
+      "group": "霰弹枪",
+      "official": true,
+      "script": "scripts/weapon_shotgun_spas.txt",
+      "anchors": [
+        "models/v_models/v_shotgun_spas.mdl",
+        "models/w_models/weapons/w_shotgun_spas.mdl"
+      ]
+    },
+    {
+      "id": "weapon_smg",
+      "tag": "乌兹",
+      "category": "冲锋枪",
+      "group": "冲锋枪",
+      "official": true,
+      "script": "scripts/weapon_smg.txt",
+      "anchors": [
+        "models/v_models/v_smg.mdl",
+        "models/w_models/weapons/w_smg_uzi.mdl"
+      ]
+    },
+    {
+      "id": "weapon_smg_mp5",
+      "tag": "MP5",
+      "category": "冲锋枪",
+      "group": "冲锋枪",
+      "official": true,
+      "script": "scripts/weapon_smg_mp5.txt",
+      "anchors": [
+        "models/v_models/v_smg_mp5.mdl",
+        "models/w_models/weapons/w_smg_mp5.mdl"
+      ]
+    },
+    {
+      "id": "weapon_smg_silenced",
+      "tag": "消音",
+      "category": "冲锋枪",
+      "group": "冲锋枪",
+      "official": true,
+      "script": "scripts/weapon_smg_silenced.txt",
+      "anchors": [
+        "models/v_models/v_silenced_smg.mdl",
+        "models/w_models/weapons/w_smg_a.mdl"
+      ]
+    },
+    {
+      "id": "weapon_smoker_claw",
+      "tag": "",
+      "character": "Smoker",
+      "script": "scripts/weapon_smoker_claw.txt",
+      "anchors": [
+        "models/v_models/weapons/v_claw_smoker.mdl"
+      ]
+    },
+    {
+      "id": "weapon_sniper_awp",
+      "tag": "大狙",
+      "category": "狙击枪",
+      "group": "狙击枪",
+      "official": true,
+      "script": "scripts/weapon_sniper_awp.txt",
+      "anchors": [
+        "models/v_models/v_snip_awp.mdl",
+        "models/w_models/weapons/w_sniper_awp.mdl"
+      ]
+    },
+    {
+      "id": "weapon_sniper_military",
+      "tag": "军狙",
+      "category": "狙击枪",
+      "group": "狙击枪",
+      "official": true,
+      "script": "scripts/weapon_sniper_military.txt",
+      "anchors": [
+        "models/v_models/v_sniper_military.mdl",
+        "models/w_models/weapons/w_sniper_military.mdl"
+      ]
+    },
+    {
+      "id": "weapon_sniper_scout",
+      "tag": "鸟狙",
+      "category": "狙击枪",
+      "group": "狙击枪",
+      "official": true,
+      "script": "scripts/weapon_sniper_scout.txt",
+      "anchors": [
+        "models/v_models/v_snip_scout.mdl",
+        "models/w_models/weapons/w_sniper_scout.mdl"
+      ]
+    },
+    {
+      "id": "weapon_spitter_claw",
+      "tag": "",
+      "character": "Spitter",
+      "script": "scripts/weapon_spitter_claw.txt",
+      "anchors": [
+        "models/weapons/arms/v_spitter_arms.mdl"
+      ]
+    },
+    {
+      "id": "weapon_tank_claw",
+      "tag": "",
+      "character": "Tank",
+      "script": "scripts/weapon_tank_claw.txt",
+      "anchors": [
+        "models/v_models/weapons/v_claw_hulk.mdl"
+      ]
+    },
+    {
+      "id": "weapon_upgradepack_explosive",
+      "tag": "高爆弹盒",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_upgradepack_explosive.txt",
+      "anchors": [
+        "models/v_models/v_explosive_ammopack.mdl",
+        "models/w_models/weapons/w_eq_explosive_ammopack.mdl"
+      ]
+    },
+    {
+      "id": "weapon_upgradepack_incendiary",
+      "tag": "燃烧弹盒",
+      "category": "物品",
+      "item": true,
+      "script": "scripts/weapon_upgradepack_incendiary.txt",
+      "anchors": [
+        "models/v_models/v_incendiary_ammopack.mdl",
+        "models/w_models/weapons/w_eq_incendiary_ammopack.mdl"
+      ]
+    },
+    {
+      "id": "weapon_vomitjar",
+      "tag": "胆汁",
+      "category": "物品",
+      "group": "投掷物",
+      "item": true,
+      "script": "scripts/weapon_vomitjar.txt",
+      "anchors": [
+        "models/v_models/v_bile_flask.mdl",
+        "models/w_models/weapons/w_eq_bile_flask.mdl"
+      ]
+    }
+  ]
+}

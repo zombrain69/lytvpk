@@ -996,6 +996,28 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class EntityTableStatus {
+	    entities: number;
+	    anchors: number;
+	    characters: number;
+	    items: number;
+	    file?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EntityTableStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entities = source["entities"];
+	        this.anchors = source["anchors"];
+	        this.characters = source["characters"];
+	        this.items = source["items"];
+	        this.file = source["file"];
+	        this.error = source["error"];
+	    }
+	}
 	export class FileMoveConflict {
 	    sourcePath: string;
 	    targetPath: string;
@@ -2760,6 +2782,66 @@ export namespace app {
 	        this.vtfBase64 = source["vtfBase64"];
 	    }
 	}
+	export class StockIndexQueryResult {
+	    pattern: string;
+	    count: number;
+	    matches?: string[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StockIndexQueryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pattern = source["pattern"];
+	        this.count = source["count"];
+	        this.matches = source["matches"];
+	        this.error = source["error"];
+	    }
+	}
+	export class StockIndexStatus {
+	    cachePath: string;
+	    gameRoot: string;
+	    pathCount: number;
+	    mounts: gamedata.MountStat[];
+	    degraded: boolean;
+	    error?: string;
+	    notes?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StockIndexStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.cachePath = source["cachePath"];
+	        this.gameRoot = source["gameRoot"];
+	        this.pathCount = source["pathCount"];
+	        this.mounts = this.convertValues(source["mounts"], gamedata.MountStat);
+	        this.degraded = source["degraded"];
+	        this.error = source["error"];
+	        this.notes = source["notes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class StockWhitelistStatus {
 	    directory: string;
 	    builtinBatches: stockfiles.Batch[];
@@ -3684,6 +3766,181 @@ export namespace app {
 		    return a;
 		}
 	}
+	
+	export class tagRegressionChange {
+	    entryId: string;
+	    name?: string;
+	    added?: string[];
+	    removed?: string[];
+	    allowlisted?: string[];
+	    unexcused?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new tagRegressionChange(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entryId = source["entryId"];
+	        this.name = source["name"];
+	        this.added = source["added"];
+	        this.removed = source["removed"];
+	        this.allowlisted = source["allowlisted"];
+	        this.unexcused = source["unexcused"];
+	    }
+	}
+	export class tagRegressionReport {
+	    version: number;
+	    generatedAt: string;
+	    baselineGeneratedAt?: string;
+	    baselineMods: number;
+	    currentMods: number;
+	    addedTags: number;
+	    removedTags: number;
+	    allowlistedRemovals: number;
+	    missingMods?: string[];
+	    newMods?: string[];
+	    changes?: tagRegressionChange[];
+	    ok: boolean;
+	    notes?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new tagRegressionReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.generatedAt = source["generatedAt"];
+	        this.baselineGeneratedAt = source["baselineGeneratedAt"];
+	        this.baselineMods = source["baselineMods"];
+	        this.currentMods = source["currentMods"];
+	        this.addedTags = source["addedTags"];
+	        this.removedTags = source["removedTags"];
+	        this.allowlistedRemovals = source["allowlistedRemovals"];
+	        this.missingMods = source["missingMods"];
+	        this.newMods = source["newMods"];
+	        this.changes = this.convertValues(source["changes"], tagRegressionChange);
+	        this.ok = source["ok"];
+	        this.notes = source["notes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace entities {
+	
+	export class Entity {
+	    id: string;
+	    tag: string;
+	    category?: string;
+	    group?: string;
+	    official?: boolean;
+	    item?: boolean;
+	    character?: string;
+	    script?: string;
+	    anchors: string[];
+	    note?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entity(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.tag = source["tag"];
+	        this.category = source["category"];
+	        this.group = source["group"];
+	        this.official = source["official"];
+	        this.item = source["item"];
+	        this.character = source["character"];
+	        this.script = source["script"];
+	        this.anchors = source["anchors"];
+	        this.note = source["note"];
+	    }
+	}
+	export class Table {
+	    schemaVersion: number;
+	    generatedAt?: string;
+	    source?: string;
+	    entities: Entity[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Table(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schemaVersion = source["schemaVersion"];
+	        this.generatedAt = source["generatedAt"];
+	        this.source = source["source"];
+	        this.entities = this.convertValues(source["entities"], Entity);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace gamedata {
+	
+	export class MountStat {
+	    name: string;
+	    vpkPath?: string;
+	    vpkEntries: number;
+	    looseFiles: number;
+	    skipped?: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MountStat(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.vpkPath = source["vpkPath"];
+	        this.vpkEntries = source["vpkEntries"];
+	        this.looseFiles = source["looseFiles"];
+	        this.skipped = source["skipped"];
+	        this.error = source["error"];
+	    }
+	}
 
 }
 
@@ -4507,6 +4764,24 @@ export namespace parser {
 	        this.modes = source["modes"];
 	    }
 	}
+	export class TagEvidence {
+	    tag: string;
+	    rule: string;
+	    level: string;
+	    source?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new TagEvidence(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tag = source["tag"];
+	        this.rule = source["rule"];
+	        this.level = source["level"];
+	        this.source = source["source"];
+	    }
+	}
 	export class VPKAddonInfoRepairSummary {
 	    preservedFields: string[];
 	    derivedFields: string[];
@@ -4555,6 +4830,7 @@ export namespace parser {
 	    size: number;
 	    primaryTag: string;
 	    secondaryTags: string[];
+	    tagEvidence: TagEvidence[];
 	    voiceCharacters: string[];
 	    contentSubjects: string[];
 	    subjectSummary: string;
@@ -4600,6 +4876,7 @@ export namespace parser {
 	        this.size = source["size"];
 	        this.primaryTag = source["primaryTag"];
 	        this.secondaryTags = source["secondaryTags"];
+	        this.tagEvidence = this.convertValues(source["tagEvidence"], TagEvidence);
 	        this.voiceCharacters = source["voiceCharacters"];
 	        this.contentSubjects = source["contentSubjects"];
 	        this.subjectSummary = source["subjectSummary"];
@@ -4719,6 +4996,108 @@ export namespace parser {
 		    return a;
 		}
 	}
+
+}
+
+export namespace rules {
+	
+	export class VoiceDirCheck {
+	    scope: string;
+	    dir: string;
+	    character: string;
+	    assumedPattern: string;
+	    assumedHits: number;
+	    fallbackPattern?: string;
+	    fallbackHits?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new VoiceDirCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.scope = source["scope"];
+	        this.dir = source["dir"];
+	        this.character = source["character"];
+	        this.assumedPattern = source["assumedPattern"];
+	        this.assumedHits = source["assumedHits"];
+	        this.fallbackPattern = source["fallbackPattern"];
+	        this.fallbackHits = source["fallbackHits"];
+	    }
+	}
+	export class Resolution {
+	    scope: string;
+	    tag: string;
+	    pattern: string;
+	    kind: string;
+	    resolved: number;
+	    dead?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Resolution(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.scope = source["scope"];
+	        this.tag = source["tag"];
+	        this.pattern = source["pattern"];
+	        this.kind = source["kind"];
+	        this.resolved = source["resolved"];
+	        this.dead = source["dead"];
+	    }
+	}
+	export class Report {
+	    generatedAt: string;
+	    indexPaths: number;
+	    checked: number;
+	    deadTotal: number;
+	    deadPrefixes?: Resolution[];
+	    deadKeywords?: Resolution[];
+	    acceptedDead?: Resolution[];
+	    weaponScoped: boolean;
+	    characterVoiceChecks?: VoiceDirCheck[];
+	    ok: boolean;
+	    notes?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.generatedAt = source["generatedAt"];
+	        this.indexPaths = source["indexPaths"];
+	        this.checked = source["checked"];
+	        this.deadTotal = source["deadTotal"];
+	        this.deadPrefixes = this.convertValues(source["deadPrefixes"], Resolution);
+	        this.deadKeywords = this.convertValues(source["deadKeywords"], Resolution);
+	        this.acceptedDead = this.convertValues(source["acceptedDead"], Resolution);
+	        this.weaponScoped = source["weaponScoped"];
+	        this.characterVoiceChecks = this.convertValues(source["characterVoiceChecks"], VoiceDirCheck);
+	        this.ok = source["ok"];
+	        this.notes = source["notes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 
 }
 

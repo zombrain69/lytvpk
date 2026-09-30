@@ -1,0 +1,1448 @@
+{
+  "schemaVersion": 1,
+  "notes": "本文件由 internal/parser 的规则表机械导出（见 zz_dump_rules_test.go）。迁移期与 Go 侧规则表逐条一致（rules_parity_test.go 强制）；校验器用游戏本体索引检查每条前缀/关键词是否真的能命中本体文件。",
+  "fileKinds": [
+    {
+      "tag": "UI",
+      "prefixes": [
+        "resource/",
+        "materials/vgui/"
+      ]
+    },
+    {
+      "tag": "声音",
+      "prefixes": [
+        "sound/",
+        "scenes/"
+      ]
+    },
+    {
+      "tag": "脚本",
+      "prefixes": [
+        "scripts/"
+      ]
+    },
+    {
+      "tag": "VScript",
+      "prefixes": [
+        "scripts/vscripts/"
+      ]
+    },
+    {
+      "tag": "模型",
+      "prefixes": [
+        "models/"
+      ]
+    },
+    {
+      "tag": "贴图",
+      "prefixes": [
+        "materials/"
+      ]
+    },
+    {
+      "tag": "粒子特效",
+      "prefixes": [
+        "particles/"
+      ]
+    }
+  ],
+  "contentRules": [
+    {
+      "tag": "医疗包",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "eq_medkit",
+        "medkit",
+        "firstaid",
+        "first_aid"
+      ],
+      "item": true
+    },
+    {
+      "tag": "电击器",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "defibrillator",
+        "defib"
+      ],
+      "item": true
+    },
+    {
+      "tag": "止痛药",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "painpills",
+        "pain_pills",
+        "painpill"
+      ],
+      "item": true
+    },
+    {
+      "tag": "肾上腺",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "adrenaline",
+        "adrenal_shot"
+      ],
+      "item": true
+    },
+    {
+      "tag": "土制炸弹",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "pipebomb",
+        "pipe_bomb"
+      ],
+      "item": true
+    },
+    {
+      "tag": "燃烧瓶",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "molotov"
+      ],
+      "item": true
+    },
+    {
+      "tag": "胆汁",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "vomitjar",
+        "bile_bomb",
+        "boomer_bile",
+        "bile_flask"
+      ],
+      "item": true
+    },
+    {
+      "tag": "汽油桶",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "gascan",
+        "gas_can"
+      ],
+      "item": true
+    },
+    {
+      "tag": "煤气罐",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "propane"
+      ],
+      "item": true
+    },
+    {
+      "tag": "氧气罐",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "oxygen"
+      ],
+      "item": true
+    },
+    {
+      "tag": "烟花盒",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "firework"
+      ],
+      "item": true
+    },
+    {
+      "tag": "一代子弹堆",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "ammo_can",
+        "ammocan",
+        "ammo_can_03",
+        "small_cabinet_ammo"
+      ],
+      "item": true
+    },
+    {
+      "tag": "二代子弹堆",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "ammo_pile",
+        "ammopile",
+        "ammo_stack",
+        "ammostack",
+        "coffeeammo",
+        "ammo_crate",
+        "ammopack",
+        "eq_ammopack"
+      ],
+      "item": true
+    },
+    {
+      "tag": "燃烧弹盒",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "incendiary_ammo",
+        "incendiary_ammopack",
+        "eq_incendiary_ammopack",
+        "weapon_upgradepack_incendiary"
+      ],
+      "item": true
+    },
+    {
+      "tag": "高爆弹盒",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "explosive_ammo",
+        "explosive_ammopack",
+        "eq_explosive_ammopack",
+        "exploding_ammo",
+        "weapon_upgradepack_explosive"
+      ],
+      "item": true
+    },
+    {
+      "tag": "激光瞄准盒",
+      "prefixes": [
+        "models/",
+        "materials/models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "laser_sight",
+        "lasersight",
+        "laser_sights",
+        "eq_laser_sights"
+      ],
+      "item": true
+    },
+    {
+      "tag": "主菜单",
+      "prefixes": [
+        "materials/vgui/",
+        "resource/ui/"
+      ],
+      "keywords": [
+        "mainmenu",
+        "main_menu",
+        "menu_background"
+      ]
+    },
+    {
+      "tag": "HUD",
+      "prefixes": [
+        "materials/vgui/hud/",
+        "resource/ui/"
+      ],
+      "keywords": [
+        "hud"
+      ]
+    },
+    {
+      "tag": "准星",
+      "prefixes": [
+        "materials/vgui/",
+        "resource/ui/"
+      ],
+      "keywords": [
+        "crosshair"
+      ]
+    },
+    {
+      "tag": "血条",
+      "prefixes": [
+        "materials/vgui/",
+        "resource/ui/"
+      ],
+      "keywords": [
+        "healthbar",
+        "health_bar"
+      ]
+    },
+    {
+      "tag": "伤害指示器",
+      "prefixes": [
+        "materials/vgui/",
+        "resource/ui/"
+      ],
+      "keywords": [
+        "damage_indicator",
+        "damageindicator",
+        "indicator"
+      ]
+    },
+    {
+      "tag": "人物语音表",
+      "prefixes": [
+        "resource/ui/",
+        "scripts/",
+        "scenes/"
+      ],
+      "keywords": [
+        "vocalizer",
+        "radial"
+      ]
+    },
+    {
+      "tag": "语音包",
+      "prefixes": [
+        "sound/player/"
+      ]
+    },
+    {
+      "tag": "语音包",
+      "prefixes": [
+        "sound/",
+        "scenes/"
+      ],
+      "keywords": [
+        "voice",
+        "voicepack",
+        "voice_pack"
+      ]
+    },
+    {
+      "tag": "手电筒",
+      "prefixes": [
+        "models/",
+        "materials/",
+        "sound/",
+        "scripts/"
+      ],
+      "keywords": [
+        "flashlight"
+      ]
+    },
+    {
+      "tag": "梯子",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "ladder"
+      ]
+    },
+    {
+      "tag": "天空",
+      "prefixes": [
+        "materials/skybox/",
+        "models/props_skybox/"
+      ]
+    },
+    {
+      "tag": "过场画面",
+      "prefixes": [
+        "materials/vgui/",
+        "resource/"
+      ],
+      "keywords": [
+        "transition"
+      ]
+    },
+    {
+      "tag": "载入画面",
+      "prefixes": [
+        "materials/vgui/loadingscreen/"
+      ]
+    },
+    {
+      "tag": "载入画面",
+      "prefixes": [
+        "materials/vgui/"
+      ],
+      "keywords": [
+        "loadingscreen"
+      ]
+    },
+    {
+      "tag": "尸潮",
+      "prefixes": [
+        "sound/",
+        "scripts/"
+      ],
+      "keywords": [
+        "horde"
+      ]
+    },
+    {
+      "tag": "动态箭头",
+      "prefixes": [
+        "materials/vgui/",
+        "resource/overviews/"
+      ],
+      "keywords": [
+        "arrow"
+      ]
+    },
+    {
+      "tag": "警报",
+      "prefixes": [
+        "sound/",
+        "models/",
+        "scripts/"
+      ],
+      "keywords": [
+        "alarm"
+      ]
+    },
+    {
+      "tag": "唱片机",
+      "prefixes": [
+        "sound/",
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "jukebox"
+      ]
+    },
+    {
+      "tag": "侏儒",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "gnome"
+      ]
+    },
+    {
+      "tag": "直升机",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "helicopter"
+      ]
+    },
+    {
+      "tag": "海报",
+      "prefixes": [
+        "models/",
+        "materials/",
+        "resource/"
+      ],
+      "keywords": [
+        "poster"
+      ]
+    },
+    {
+      "tag": "船",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "ship",
+        "boat"
+      ]
+    },
+    {
+      "tag": "售货机",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "vending"
+      ]
+    },
+    {
+      "tag": "电视",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "television",
+        "tv_",
+        "/tv"
+      ]
+    },
+    {
+      "tag": "屏幕",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "screen"
+      ]
+    },
+    {
+      "tag": "货车",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "truck"
+      ]
+    },
+    {
+      "tag": "面包车",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "van_",
+        "/van"
+      ]
+    },
+    {
+      "tag": "雕像",
+      "prefixes": [
+        "models/",
+        "materials/models/"
+      ],
+      "keywords": [
+        "statue"
+      ]
+    }
+  ],
+  "weaponPathRules": [
+    {
+      "keyword": "w_desert_eagle",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "pistol_magnum",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "desert_eagle",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "deserteagle",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "magnum",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "w_pistol_glock",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "pistol_glock",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "w_pistol_b",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "glock",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "p220",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "pistol",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "rifle_desert",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "desert_rifle",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "combat_rifle",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "scar",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "rifle_ak47",
+      "tag": "AK47"
+    },
+    {
+      "keyword": "ak47",
+      "tag": "AK47"
+    },
+    {
+      "keyword": "rifle_m16a2",
+      "tag": "M16"
+    },
+    {
+      "keyword": "rifle_m16",
+      "tag": "M16"
+    },
+    {
+      "keyword": "m16a2",
+      "tag": "M16"
+    },
+    {
+      "keyword": "m16",
+      "tag": "M16"
+    },
+    {
+      "keyword": "m4a1",
+      "tag": "M16"
+    },
+    {
+      "keyword": "rifle_sg552",
+      "tag": "sg552"
+    },
+    {
+      "keyword": "sg552",
+      "tag": "sg552"
+    },
+    {
+      "keyword": "rifle_m60",
+      "tag": "M60"
+    },
+    {
+      "keyword": "m60",
+      "tag": "M60"
+    },
+    {
+      "keyword": "sniper_awp",
+      "tag": "大狙"
+    },
+    {
+      "keyword": "w_sniper_mini14",
+      "tag": "猎枪"
+    },
+    {
+      "keyword": "hunting_rifle",
+      "tag": "猎枪"
+    },
+    {
+      "keyword": "sniper_military",
+      "tag": "军狙"
+    },
+    {
+      "keyword": "msg90",
+      "tag": "军狙"
+    },
+    {
+      "keyword": "g3sg1",
+      "tag": "军狙"
+    },
+    {
+      "keyword": "sniper_a",
+      "tag": "军狙"
+    },
+    {
+      "keyword": "sniper_scout",
+      "tag": "鸟狙"
+    },
+    {
+      "keyword": "scout",
+      "tag": "鸟狙"
+    },
+    {
+      "keyword": "awp",
+      "tag": "大狙"
+    },
+    {
+      "keyword": "shotgun_chrome",
+      "tag": "铁喷"
+    },
+    {
+      "keyword": "w_shotgun_m1014",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "w_autoshot_m4super",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "autoshotgun",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "autoshot",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "m1014",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "shotgun_spas",
+      "tag": "二代连喷"
+    },
+    {
+      "keyword": "spas",
+      "tag": "二代连喷"
+    },
+    {
+      "keyword": "chrome",
+      "tag": "铁喷"
+    },
+    {
+      "keyword": "shotgun_pump",
+      "tag": "木喷"
+    },
+    {
+      "keyword": "pumpshotgun",
+      "tag": "木喷"
+    },
+    {
+      "keyword": "w_shotgun",
+      "tag": "木喷"
+    },
+    {
+      "keyword": "shotgun",
+      "tag": "木喷"
+    },
+    {
+      "keyword": "smg_silenced",
+      "tag": "消音"
+    },
+    {
+      "keyword": "mac10",
+      "tag": "消音"
+    },
+    {
+      "keyword": "mac_10",
+      "tag": "消音"
+    },
+    {
+      "keyword": "w_smg_mp5",
+      "tag": "MP5"
+    },
+    {
+      "keyword": "smg_mp5",
+      "tag": "MP5"
+    },
+    {
+      "keyword": "smg_uzi",
+      "tag": "乌兹"
+    },
+    {
+      "keyword": "w_smg_uzi",
+      "tag": "乌兹"
+    },
+    {
+      "keyword": "smg_a",
+      "tag": "消音"
+    },
+    {
+      "keyword": "mp5",
+      "tag": "MP5"
+    },
+    {
+      "keyword": "uzi",
+      "tag": "乌兹"
+    },
+    {
+      "keyword": "smg",
+      "tag": "乌兹"
+    },
+    {
+      "keyword": "grenade_launcher",
+      "tag": "榴弹发射器"
+    },
+    {
+      "keyword": "50cal",
+      "tag": "固定机关枪"
+    },
+    {
+      "keyword": "minigun",
+      "tag": "固定机关枪"
+    },
+    {
+      "keyword": "baseball_bat",
+      "tag": "棒球棍"
+    },
+    {
+      "keyword": "cricket_bat",
+      "tag": "板球拍"
+    },
+    {
+      "keyword": "electric_guitar",
+      "tag": "吉他"
+    },
+    {
+      "keyword": "frying_pan",
+      "tag": "平底锅"
+    },
+    {
+      "keyword": "golf_club",
+      "tag": "高尔夫球杆"
+    },
+    {
+      "keyword": "fireaxe",
+      "tag": "消防斧"
+    },
+    {
+      "keyword": "machete",
+      "tag": "砍刀"
+    },
+    {
+      "keyword": "katana",
+      "tag": "武士刀"
+    },
+    {
+      "keyword": "chainsaw",
+      "tag": "电锯"
+    },
+    {
+      "keyword": "crowbar",
+      "tag": "撬棍"
+    },
+    {
+      "keyword": "pitchfork",
+      "tag": "草叉"
+    },
+    {
+      "keyword": "shovel",
+      "tag": "铁铲"
+    },
+    {
+      "keyword": "tonfa",
+      "tag": "警棍"
+    },
+    {
+      "keyword": "nightstick",
+      "tag": "警棍"
+    },
+    {
+      "keyword": "riot_shield",
+      "tag": "防爆盾"
+    },
+    {
+      "keyword": "riotshield",
+      "tag": "防爆盾"
+    },
+    {
+      "keyword": "melee_knife",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "w_knife_t",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "knife",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "w_chainsaw",
+      "tag": "电锯"
+    },
+    {
+      "keyword": "w_crowbar",
+      "tag": "撬棍"
+    },
+    {
+      "keyword": "w_fireaxe",
+      "tag": "消防斧"
+    },
+    {
+      "keyword": "w_frying_pan",
+      "tag": "平底锅"
+    },
+    {
+      "keyword": "w_guitar",
+      "tag": "吉他"
+    },
+    {
+      "keyword": "w_bat",
+      "tag": "棒球棍"
+    }
+  ],
+  "weaponMetadataRules": [
+    {
+      "keyword": "ak47",
+      "tag": "AK47"
+    },
+    {
+      "keyword": "ak-47",
+      "tag": "AK47"
+    },
+    {
+      "keyword": "m4a1",
+      "tag": "M16"
+    },
+    {
+      "keyword": "m16",
+      "tag": "M16"
+    },
+    {
+      "keyword": "sg552",
+      "tag": "sg552"
+    },
+    {
+      "keyword": "scar",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "combat rifle",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "combat-rifle",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "desert rifle",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "desert-rifle",
+      "tag": "三连发"
+    },
+    {
+      "keyword": "m60",
+      "tag": "M60"
+    },
+    {
+      "keyword": "uzi",
+      "tag": "乌兹"
+    },
+    {
+      "keyword": "silenced smg",
+      "tag": "消音"
+    },
+    {
+      "keyword": "silenced-smg",
+      "tag": "消音"
+    },
+    {
+      "keyword": "mac 10",
+      "tag": "消音"
+    },
+    {
+      "keyword": "mac-10",
+      "tag": "消音"
+    },
+    {
+      "keyword": "mac10",
+      "tag": "消音"
+    },
+    {
+      "keyword": "mp5",
+      "tag": "MP5"
+    },
+    {
+      "keyword": "hunting rifle",
+      "tag": "猎枪"
+    },
+    {
+      "keyword": "hunting-rifle",
+      "tag": "猎枪"
+    },
+    {
+      "keyword": "mini14",
+      "tag": "猎枪"
+    },
+    {
+      "keyword": "military sniper",
+      "tag": "军狙"
+    },
+    {
+      "keyword": "military-sniper",
+      "tag": "军狙"
+    },
+    {
+      "keyword": "scout",
+      "tag": "鸟狙"
+    },
+    {
+      "keyword": "awp",
+      "tag": "大狙"
+    },
+    {
+      "keyword": "m1014",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "chrome",
+      "tag": "铁喷"
+    },
+    {
+      "keyword": "pump shotgun",
+      "tag": "木喷"
+    },
+    {
+      "keyword": "pump-shotgun",
+      "tag": "木喷"
+    },
+    {
+      "keyword": "auto shotgun",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "auto-shotgun",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "autoshotgun",
+      "tag": "一代连喷"
+    },
+    {
+      "keyword": "spas",
+      "tag": "二代连喷"
+    },
+    {
+      "keyword": "magnum",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "desert eagle",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "desert-eagle",
+      "tag": "马格南"
+    },
+    {
+      "keyword": "glock",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "p220",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "pistol",
+      "tag": "小手枪"
+    },
+    {
+      "keyword": "grenade launcher",
+      "tag": "榴弹发射器"
+    },
+    {
+      "keyword": "grenade-launcher",
+      "tag": "榴弹发射器"
+    },
+    {
+      "keyword": "machete",
+      "tag": "砍刀"
+    },
+    {
+      "keyword": "katana",
+      "tag": "武士刀"
+    },
+    {
+      "keyword": "baseball bat",
+      "tag": "棒球棍"
+    },
+    {
+      "keyword": "knife",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "chainsaw",
+      "tag": "电锯"
+    },
+    {
+      "keyword": "crowbar",
+      "tag": "撬棍"
+    },
+    {
+      "keyword": "fireaxe",
+      "tag": "消防斧"
+    },
+    {
+      "keyword": "frying pan",
+      "tag": "平底锅"
+    },
+    {
+      "keyword": "guitar",
+      "tag": "吉他"
+    },
+    {
+      "keyword": "cricket bat",
+      "tag": "板球拍"
+    },
+    {
+      "keyword": "tonfa",
+      "tag": "警棍"
+    },
+    {
+      "keyword": "nightstick",
+      "tag": "警棍"
+    },
+    {
+      "keyword": "golf club",
+      "tag": "高尔夫球杆"
+    },
+    {
+      "keyword": "shovel",
+      "tag": "铁铲"
+    },
+    {
+      "keyword": "pitchfork",
+      "tag": "草叉"
+    }
+  ],
+  "characterRules": {
+    "voiceDirSurvivor": [
+      {
+        "dir": "biker",
+        "character": "Francis"
+      },
+      {
+        "dir": "bill",
+        "character": "Bill"
+      },
+      {
+        "dir": "coach",
+        "character": "Coach"
+      },
+      {
+        "dir": "ellis",
+        "character": "Ellis"
+      },
+      {
+        "dir": "francis",
+        "character": "Francis"
+      },
+      {
+        "dir": "gambler",
+        "character": "Nick"
+      },
+      {
+        "dir": "louis",
+        "character": "Louis"
+      },
+      {
+        "dir": "manager",
+        "character": "Louis"
+      },
+      {
+        "dir": "mechanic",
+        "character": "Ellis"
+      },
+      {
+        "dir": "namvet",
+        "character": "Bill"
+      },
+      {
+        "dir": "nick",
+        "character": "Nick"
+      },
+      {
+        "dir": "producer",
+        "character": "Rochelle"
+      },
+      {
+        "dir": "rochelle",
+        "character": "Rochelle"
+      },
+      {
+        "dir": "teenangst",
+        "character": "Zoey"
+      },
+      {
+        "dir": "teengirl",
+        "character": "Zoey"
+      },
+      {
+        "dir": "zoey",
+        "character": "Zoey"
+      }
+    ],
+    "voiceDirInfected": [
+      {
+        "dir": "boomer",
+        "character": "Boomer"
+      },
+      {
+        "dir": "charger",
+        "character": "Charger"
+      },
+      {
+        "dir": "common",
+        "character": "Common Infected"
+      },
+      {
+        "dir": "hulk",
+        "character": "Tank"
+      },
+      {
+        "dir": "hunter",
+        "character": "Hunter"
+      },
+      {
+        "dir": "jockey",
+        "character": "Jockey"
+      },
+      {
+        "dir": "smoker",
+        "character": "Smoker"
+      },
+      {
+        "dir": "spitter",
+        "character": "Spitter"
+      },
+      {
+        "dir": "tank",
+        "character": "Tank"
+      },
+      {
+        "dir": "witch",
+        "character": "Witch"
+      }
+    ],
+    "survivorVariants": [
+      {
+        "keyword": "bill_death",
+        "tag": "BillDeathPose"
+      },
+      {
+        "keyword": "billdeath",
+        "tag": "BillDeathPose"
+      },
+      {
+        "keyword": "bill_corpse",
+        "tag": "BillDeathPose"
+      },
+      {
+        "keyword": "billcorpse",
+        "tag": "BillDeathPose"
+      },
+      {
+        "keyword": "francis_flashlight",
+        "tag": "FrancisLight"
+      },
+      {
+        "keyword": "francisflashlight",
+        "tag": "FrancisLight"
+      },
+      {
+        "keyword": "francis_light",
+        "tag": "FrancisLight"
+      },
+      {
+        "keyword": "francislight",
+        "tag": "FrancisLight"
+      },
+      {
+        "keyword": "zoey_flashlight",
+        "tag": "ZoeyLight"
+      },
+      {
+        "keyword": "zoeyflashlight",
+        "tag": "ZoeyLight"
+      },
+      {
+        "keyword": "zoey_light",
+        "tag": "ZoeyLight"
+      },
+      {
+        "keyword": "zoeylight",
+        "tag": "ZoeyLight"
+      }
+    ],
+    "survivors": [
+      {
+        "keyword": "namvet",
+        "tag": "Bill"
+      },
+      {
+        "keyword": "bill",
+        "tag": "Bill"
+      },
+      {
+        "keyword": "biker",
+        "tag": "Francis"
+      },
+      {
+        "keyword": "francis",
+        "tag": "Francis"
+      },
+      {
+        "keyword": "manager",
+        "tag": "Louis"
+      },
+      {
+        "keyword": "louis",
+        "tag": "Louis"
+      },
+      {
+        "keyword": "teenangst",
+        "tag": "Zoey"
+      },
+      {
+        "keyword": "zoey",
+        "tag": "Zoey"
+      },
+      {
+        "keyword": "coach",
+        "tag": "Coach"
+      },
+      {
+        "keyword": "mechanic",
+        "tag": "Ellis"
+      },
+      {
+        "keyword": "ellis",
+        "tag": "Ellis"
+      },
+      {
+        "keyword": "gambler",
+        "tag": "Nick"
+      },
+      {
+        "keyword": "nick",
+        "tag": "Nick"
+      },
+      {
+        "keyword": "producer",
+        "tag": "Rochelle"
+      },
+      {
+        "keyword": "rochelle",
+        "tag": "Rochelle"
+      }
+    ],
+    "specialInfected": [
+      {
+        "keyword": "charger",
+        "tag": "charger"
+      },
+      {
+        "keyword": "jockey",
+        "tag": "jockey"
+      },
+      {
+        "keyword": "spitter",
+        "tag": "spitter"
+      },
+      {
+        "keyword": "smoker",
+        "tag": "smoker"
+      },
+      {
+        "keyword": "boomer",
+        "tag": "boomer"
+      },
+      {
+        "keyword": "hunter",
+        "tag": "hunter"
+      },
+      {
+        "keyword": "witch",
+        "tag": "witch"
+      },
+      {
+        "keyword": "hulk",
+        "tag": "tank"
+      },
+      {
+        "keyword": "tank",
+        "tag": "tank"
+      }
+    ],
+    "commonInfected": [
+      {
+        "keyword": "uncommon",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "roadcrew",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "fallen",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "ceda",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "clown",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "jimmy",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "riot",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "mud",
+        "tag": "uncommon_infected"
+      },
+      {
+        "keyword": "common",
+        "tag": "common"
+      },
+      {
+        "keyword": "zombie",
+        "tag": "common"
+      },
+      {
+        "keyword": "infected",
+        "tag": "common"
+      }
+    ]
+  }
+}

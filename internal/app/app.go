@@ -231,6 +231,9 @@ type App struct {
 	conflictRecheck conflictRecheckState
 	// stockWhitelist 缓存游戏原版文件白名单（内置批次 + 用户增量批次）。
 	stockWhitelist stockWhitelistCache
+	// stockIndex 懒加载「游戏本体文件索引」（标签识别的精确证据来源）。
+	// 加载失败时保持 nil —— 所有依赖它的判定自动跳过，不影响既有标签产出。
+	stockIndex stockIndexCache
 	// collectionsPath / collectionsMu 管理"工坊合集实体化"记录。
 	collectionsPath string
 	// downloadTasksPath 是下载任务快照（download_tasks.json）的路径。

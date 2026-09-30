@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "_readme": [
+    "标签回归 allowlist：登记「已确认的错误标签」修正。",
+    "护栏默认只允许新增标签；只有本文件里登记的 (entryId 或 name, tag) 组合才允许消失。",
+    "每一条都必须写清 reason 与 evidence（本体路径/脚本），否则评审不通过。",
+    "用法：LytVPK-Community-Fork.exe --check-tag-regression <基线> --allowlist tools/tag-regression-allowlist.json",
+    "不指定 --allowlist 时，会尝试读取 <基线>.allowlist.json（便于给某个基线单独放行）。",
+    "注意：真机基线含用户 Mod 名，不要提交进公开仓库；本文件只放少量、可公开的条目。"
+  ],
+  "entries": [
+    {
+      "scope": "global",
+      "tag": "木喷",
+      "reason": "已确认的错误标签：models/w_models/weapons/w_pumpshotgun_A.mdl 是 Chrome 连喷（铁喷）的世界模型，不是木喷；另外本体把 sound/weapons/shotgun/** 与 materials/**/weapons/shotgun/** 当作多把霰弹枪的共享目录（泵动/Chrome/连喷共用），从这些目录判成「木喷」同样只是猜测。W3 引入本体实体锚点后由锚点给出「铁喷」，此处放行「木喷」在整库范围内被移除（真机 23 例）。",
+      "evidence": "scripts/weapon_shotgun_chrome.txt → playermodel = models/w_models/weapons/w_pumpshotgun_A.mdl；scripts/weapon_pumpshotgun.txt → models/w_models/weapons/w_shotgun.mdl；共享目录证据：sound/weapons/shotgun/gunother/shotgun_pump_1.wav 与 materials/models/v_models/weapons/shotgun/qx.vmt 都被多个霰弹枪变体加载"
+    }
+  ]
+}

@@ -1385,3 +1385,67 @@ html.dark-mode .toast-close:hover {
   }
 }
 
+/* 标签依据（W6）：说明每个标签来自哪条规则、哪条真实路径。 */
+.detail-tag-evidence {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color, #2c3e50);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.detail-tag-evidence-title {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.detail-tag-evidence-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.detail-tag-evidence-tag {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.detail-tag-evidence-level {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.6875rem;
+  opacity: 0.85;
+}
+
+.detail-tag-evidence-level[data-level="exact"] {
+  color: #4ec9b0;
+}
+
+.detail-tag-evidence-level[data-level="pattern"] {
+  color: #dcdcaa;
+}
+
+.detail-tag-evidence-level[data-level="inferred"] {
+  color: #ce9178;
+}
+
+.detail-tag-evidence-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.detail-tag-evidence-more {
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  opacity: 0.6;
+}
+

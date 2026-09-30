@@ -70,8 +70,22 @@ func TestScanAppliesWorkshopMetaTagsWhenWorkshopDetailsAreDisabled(t *testing.T)
 	app := &App{rootDir: addonsDir, workshopMetaEnabled: false}
 	app.processVPKFileWithCache(vpkPath)
 	cached := app.mustCachedVPKFile(t, vpkPath)
-	if cached.PrimaryTag != "人物" || len(cached.SecondaryTags) != 1 || cached.SecondaryTags[0] != "Bill" {
-		t.Fatalf("scanner did not apply workshop meta tags: %#v", cached)
+	// D13：`.meta` 自定义标签只能"叠加"，不能覆盖自动识别结果。
+	// 这个 VPK 里只有 scripts/test.txt，解析器会给出「脚本」；自定义标签是 人物/Bill。
+	if cached.PrimaryTag != "人物" {
+		t.Fatalf("scanner did not apply workshop meta primary tag: %#v", cached)
+	}
+	for _, want := range []string{"Bill", "脚本"} {
+		found := false
+		for _, tag := range cached.SecondaryTags {
+			if tag == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("缺少标签 %q（自定义与自动识别必须并存）: %#v", want, cached.SecondaryTags)
+		}
 	}
 }
 

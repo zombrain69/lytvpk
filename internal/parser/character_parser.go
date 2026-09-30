@@ -2,38 +2,24 @@ package parser
 
 import (
 	"strings"
+
+	"vpk-manager/internal/ruletable"
 )
 
-var survivorVoiceDirectoryRules = map[string]string{
-	"namvet":    "Bill",
-	"bill":      "Bill",
-	"biker":     "Francis",
-	"francis":   "Francis",
-	"manager":   "Louis",
-	"louis":     "Louis",
-	"teenangst": "Zoey",
-	"teengirl":  "Zoey",
-	"zoey":      "Zoey",
-	"coach":     "Coach",
-	"mechanic":  "Ellis",
-	"ellis":     "Ellis",
-	"gambler":   "Nick",
-	"nick":      "Nick",
-	"producer":  "Rochelle",
-	"rochelle":  "Rochelle",
-}
+var survivorVoiceDirectoryRules = buildVoiceDirRules(ruletable.MustLoad().CharacterRules.VoiceDirSurvivor)
 
-var infectedVoiceDirectoryRules = map[string]string{
-	"boomer":  "Boomer",
-	"charger": "Charger",
-	"hunter":  "Hunter",
-	"jockey":  "Jockey",
-	"smoker":  "Smoker",
-	"spitter": "Spitter",
-	"tank":    "Tank",
-	"hulk":    "Tank",
-	"witch":   "Witch",
-	"common":  "Common Infected",
+var infectedVoiceDirectoryRules = buildVoiceDirRules(ruletable.MustLoad().CharacterRules.VoiceDirInfected)
+
+// buildVoiceDirRules 把"语音目录段 → 角色"映射从规则表转成解析器内部形态。
+func buildVoiceDirRules(rules []ruletable.VoiceDirRule) map[string]string {
+	out := make(map[string]string, len(rules))
+	for _, rule := range rules {
+		if rule.Dir == "" || rule.Character == "" {
+			continue
+		}
+		out[rule.Dir] = rule.Character
+	}
+	return out
 }
 
 // detectVoiceCharacter identifies the character slot from the standard Source
@@ -43,14 +29,37 @@ var infectedVoiceDirectoryRules = map[string]string{
 // not be treated as evidence for another character.
 func detectVoiceCharacter(name string) string {
 	parts := strings.Split(strings.Trim(strings.ToLower(name), "/"), "/")
-	if len(parts) < 5 || parts[0] != "sound" || parts[1] != "player" || parts[3] != "voice" {
+	if len(parts) < 4 || parts[0] != "sound" {
 		return ""
 	}
-	if parts[2] == "survivor" {
+	// 语音有两套根：sound/player/**（玩家角色）与 sound/npc/**（如 Witch 的 npc 语音）。
+	if parts[1] != "player" && parts[1] != "npc" {
+		return ""
+	}
+
+	// 幸存者：sound/player/survivor/voice/<角色目录>/...
+	if parts[2] == "survivor" && len(parts) >= 5 && parts[3] == "voice" {
 		return survivorVoiceDirectoryRules[parts[4]]
 	}
-	if parts[2] == "infected" {
+	// 历史假设（本体里并不存在，保留兼容作者自建目录）：sound/player/infected/voice/<特感>/...
+	if parts[2] == "infected" && len(parts) >= 5 && parts[3] == "voice" {
 		return infectedVoiceDirectoryRules[parts[4]]
+	}
+
+	// 本体真实布局（D5）：sound/player/<特感>/{voice,attack,hit,death,idle,miss,alert,...}/...
+	// 实测目录：boomer charger hunter jockey smoker spitter tank pz footsteps survivor items water。
+	if character := infectedVoiceDirectoryRules[parts[2]]; character != "" {
+		return character
+	}
+	// 第三种布局（本体真实路径）：sound/npc/<class>/voice/…，例如 Witch 的鬼叫。
+	if parts[1] == "npc" && len(parts) >= 4 {
+		if character := infectedVoiceDirectoryRules[parts[2]]; character != "" {
+			return character
+		}
+	}
+	if parts[2] == "pz" {
+		// pz = "player zombie"，普通感染者的语音目录。
+		return "Common Infected"
 	}
 	return ""
 }
@@ -79,15 +88,20 @@ func collectCharacterTags(index archivePathIndex, secondaryTags map[string]bool)
 		if character == "Common Infected" {
 			secondaryTags["common"] = true
 			secondaryTags["普通感染者"] = true
+			index.evidence.record("普通感染者", "character:"+character, EvidenceLevelPattern, "")
 			continue
 		}
 		if isInfectedVoiceCharacter(character) {
 			secondaryTags[strings.ToLower(character)] = true
 			secondaryTags["特殊感染者"] = true
+			index.evidence.record(character, "character:"+character, EvidenceLevelPattern, "")
+			index.evidence.record("特殊感染者", "character:"+character, EvidenceLevelPattern, "")
 			continue
 		}
 		secondaryTags["幸存者"] = true
 		secondaryTags[character] = true
+		index.evidence.record(character, "character:"+character, EvidenceLevelPattern, "")
+		index.evidence.record("幸存者", "character:"+character, EvidenceLevelPattern, "")
 	}
 
 	// 只处理建立目录索引时确认的角色资源，避免再次遍历整个 VPK。
@@ -115,63 +129,21 @@ type characterMatchRule struct {
 	tag     string
 }
 
-var survivorVariantRules = []characterMatchRule{
-	{"bill_death", "BillDeathPose"},
-	{"billdeath", "BillDeathPose"},
-	{"bill_corpse", "BillDeathPose"},
-	{"billcorpse", "BillDeathPose"},
-	{"francis_flashlight", "FrancisLight"},
-	{"francisflashlight", "FrancisLight"},
-	{"francis_light", "FrancisLight"},
-	{"francislight", "FrancisLight"},
-	{"zoey_flashlight", "ZoeyLight"},
-	{"zoeyflashlight", "ZoeyLight"},
-	{"zoey_light", "ZoeyLight"},
-	{"zoeylight", "ZoeyLight"},
-}
+var survivorVariantRules = buildCharacterMatchRules(ruletable.MustLoad().CharacterRules.SurvivorVariants)
 
-var survivorRules = []characterMatchRule{
-	{"namvet", "Bill"},
-	{"bill", "Bill"},
-	{"biker", "Francis"},
-	{"francis", "Francis"},
-	{"manager", "Louis"},
-	{"louis", "Louis"},
-	{"teenangst", "Zoey"},
-	{"zoey", "Zoey"},
-	{"coach", "Coach"},
-	{"mechanic", "Ellis"},
-	{"ellis", "Ellis"},
-	{"gambler", "Nick"},
-	{"nick", "Nick"},
-	{"producer", "Rochelle"},
-	{"rochelle", "Rochelle"},
-}
+var survivorRules = buildCharacterMatchRules(ruletable.MustLoad().CharacterRules.Survivors)
 
-var specialInfectedRules = []characterMatchRule{
-	{"charger", "charger"},
-	{"jockey", "jockey"},
-	{"spitter", "spitter"},
-	{"smoker", "smoker"},
-	{"boomer", "boomer"},
-	{"hunter", "hunter"},
-	{"witch", "witch"},
-	{"hulk", "tank"},
-	{"tank", "tank"},
-}
+var specialInfectedRules = buildCharacterMatchRules(ruletable.MustLoad().CharacterRules.SpecialInfected)
 
-var commonInfectedRules = []characterMatchRule{
-	{"uncommon", "uncommon_infected"},
-	{"roadcrew", "uncommon_infected"},
-	{"fallen", "uncommon_infected"},
-	{"ceda", "uncommon_infected"},
-	{"clown", "uncommon_infected"},
-	{"jimmy", "uncommon_infected"},
-	{"riot", "uncommon_infected"},
-	{"mud", "uncommon_infected"},
-	{"common", "common"},
-	{"zombie", "common"},
-	{"infected", "common"},
+var commonInfectedRules = buildCharacterMatchRules(ruletable.MustLoad().CharacterRules.CommonInfected)
+
+// buildCharacterMatchRules 把角色关键词规则从规则表转成解析器内部形态（顺序即优先级）。
+func buildCharacterMatchRules(rules []ruletable.MatchRule) []characterMatchRule {
+	out := make([]characterMatchRule, 0, len(rules))
+	for _, rule := range rules {
+		out = append(out, characterMatchRule{keyword: rule.Keyword, tag: rule.Tag})
+	}
+	return out
 }
 
 // DetectSurvivorType 检测幸存者类型 - 基于NekoVpk识别模式

@@ -1,5 +1,62 @@
 # Changelog
 
+## 2.7.1-community.43 — 2026-10-01
+
+**Mod 标签识别 v2：把"猜关键词"换成"用游戏本体的证据判断"，并用护栏保证「只加不减」。**
+
+老实现全部靠文件名/路径里的关键词猜标签：改过名的模型认不出来、本体有的资源却不认识、
+同一个词在不同包里互相污染。v2 把每个标签的来源变成可解释的证据，并且**先上护栏再改规则**——
+规则表怎么改都不允许出现「少标」。维护者文档见 `docs/development/mod-tag-recognition-v2.md`
+（含每个工作包的真机取证与复现命令）。
+
+### 做了什么（W0–W6）
+
+- **W0 护栏先行**：新增 `--check-tag-regression`（`internal/app/tag_regression.go`）+
+  `tools/tag-regression-allowlist.json`。对着真机基线比对，**只允许新增标签**，少一个就退出 1
+  并精确报出是哪个 Mod 丢了哪个标签。这是"不能少标"的机器保证。
+- **W1 本体索引（StockIndex）**：扫一遍游戏本体的 5 个挂载点生成
+  `%APPDATA%\LytVPK\stock_index.json`（真机 **80937** 条路径，构建 5.6 秒），
+  解析器有了"这个路径本体到底有没有"的权威答案；索引缺失时全部判定自动跳过，不影响既有产出。
+- **W2 规则表声明化**：`internal/ruletable/rules.json` 成为**唯一事实源**
+  （44 条内容规则 + 88 条武器路径规则 + 56 条标题关键词规则 + 角色六表 + 7 个文件类别），
+  Go 里的规则字面量已删除；`--validate-tag-rules` 用本体索引校验规则是否"打空"。
+  校验器第一次跑就抓到 `materials/vgui/loadingscreen/` 在本体 0 命中，
+  修好后真机 **+41 / −0**（41 个 Mod 找回「载入画面」）。
+- **W3 实体表 + 精确锚点**：从本体脚本生成 **64 个实体 / 109 条锚点**
+  （`--generate-entity-table`），命中即加标签且不参与排除：`w_golfclub`→高尔夫球杆、
+  `explosive_box001`→烟花盒、`v_claw_hunter`→Hunter……
+- **W4 多通道证据**：本体基名 token（`codm_krig6icedrake-ak47` 也算）、
+  `.mdl` 材质表（改名模型照样认得出）、标题/描述/文件名（对所有主类型生效）、
+  套件命名空间继承（同套件 ≥60% 成员带的标签补给缺它的成员，只加不删）。
+  **验收：29 个"标题/文件名含型号但缺标签"的 Mod → 0 个残留**。
+- **W5 新类别与漏判路径**：补齐 `particles/`→粒子特效、`scripts/vscripts/`→VScript、
+  `resource/`→UI；认出特感语音的第三种本体布局 `sound/npc/<class>/voice/…`；
+  missions-only 包也能给出战役与模式。
+- **W6 呈现与对外清单**：每个标签记录 rule / level / ≤3 条来源（`VPKFile.TagEvidence`），
+  Mod 详情新增「标签依据」区块；`--export-grouping-catalog` 增加 `tagEvidence`
+  （每条只带 1 条代表路径，9.36MB→7.83MB），schemaRev 提到 `2026-09-30.1`，
+  分组建议追加「共同标签：X」展示信号（不改 Keys/Score/Strategy，不影响分组结果）。
+
+### 真机结果（2858–2861 个真实 Mod）
+
+```text
+--check-tag-regression    +1396 / −0（护栏口径：只增不减）
+--validate-tag-rules      checked=398 / ok=true（前缀与锚点全部有效；
+                          33 条关键词在本体 0 命中，属于「只匹配作者命名空间」的保留项，工具会在 notes 里列出）
+--stock-index-status      indexPaths=80937，5 个挂载点全部命中
+全库有标签率              2859/2861 = 99.9%，平均 5.40 个二级标签
+2855/2861 个 Mod 带标签依据（规则前缀分布 entity 1695 / category 7463 / content 1366 /
+                          token 359 / custom 212 / weapon 127 / character 99 / title 88）
+粒子 140/140、resource 17/17、语音包 72 个里 61 个拿到角色身份
+```
+
+### 验证
+
+- `go test ./... -count=1` / `go vet ./...` 全绿；`node --test` 469 项全绿；`npm run build` 通过
+- 新增回归夹具全部取自游戏本体脚本与真实路径（`stock_entity_anchor_test.go`、
+  `title_evidence_test.go`、`mdl_materials_test.go`、`w5_paths_test.go` 等），不是编造样例
+- 迁移收尾前后真机结果**逐位一致**；连续多次导出与回归的标签/证据签名完全一致（确定性已验证）
+
 ## 2.7.1-community.42 — 2026-09-30
 
 **解包坏压缩包时，把解码库的英文原文直接摆给了用户。**

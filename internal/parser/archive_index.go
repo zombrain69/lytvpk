@@ -33,14 +33,19 @@ type archivePathIndex struct {
 	// 作者/套件命名空间（models/<作者>/<套件>）的出现次数：同一个套件的多个 VPK 会共享它。
 	sourceRoots map[string]int
 
-	characterFiles  []archivePathEntry
-	weaponFiles     []archivePathEntry
+	characterFiles []archivePathEntry
+	weaponFiles    []archivePathEntry
+	// modelFiles 只保留前若干个模型文件，供"通道 3：.mdl 材质表"按需读取（有界，不扫描全部）。
+	modelFiles      []*vpk.File
 	missionFiles    []*vpk.File
 	contentTags     map[string]bool
 	voiceCharacters map[string]bool
 	subjectEvidence map[string]subjectEvidence
 	xdrSlots        map[string]xdrSlotEvidence
 	hasXDRMarker    bool
+
+	// evidence 记录"标签是怎么来的"（W6）：只用于展示与对外清单，不参与取舍。
+	evidence *tagEvidenceRecorder
 
 	addonImageFile *vpk.File
 	addonInfoFile  *vpk.File
@@ -59,6 +64,7 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 		voiceCharacters: make(map[string]bool),
 		subjectEvidence: make(map[string]subjectEvidence),
 		xdrSlots:        make(map[string]xdrSlotEvidence),
+		evidence:        newTagEvidenceRecorder(),
 	}
 
 	for i := range archive.Files {
@@ -76,7 +82,7 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 		if isMissionPath(name) {
 			index.missionFiles = append(index.missionFiles, file)
 		}
-		isItem := collectContentTags(name, index.contentTags)
+		isItem := collectContentTagsWithEvidence(name, index.contentTags, index.evidence)
 		collectSubjectEvidence(name, isItem, &index)
 		collectXDRSlotEvidence(name, &index)
 		if character := detectVoiceCharacter(name); character != "" {
@@ -87,6 +93,9 @@ func buildArchivePathIndex(archive *vpk.Archive) archivePathIndex {
 		}
 		if isWeaponAssetPath(name, isItem) {
 			index.weaponFiles = append(index.weaponFiles, entry)
+		}
+		if strings.HasSuffix(name, ".mdl") && len(index.modelFiles) < mdlEvidenceFileLimit {
+			index.modelFiles = append(index.modelFiles, file)
 		}
 
 		if index.addonImageFile == nil && name == "addonimage.jpg" {
@@ -308,6 +317,11 @@ func isCharacterAssetPath(name string) bool {
 		return false
 	}
 
+	// 标准语音目录（含本体真实的 sound/player/<特感>/… 布局）：直接算角色资源（D5）。
+	if detectVoiceCharacter(name) != "" {
+		return true
+	}
+
 	characterRoots := []string{
 		"models/survivors/",
 		"models/infected/",
@@ -336,22 +350,32 @@ func isCharacterAssetPath(name string) bool {
 	return strings.Contains(name, "survivor") || strings.Contains(name, "infected") || strings.Contains(name, "zombie")
 }
 
+// weaponAssetRoots 是"武器资源目录"白名单：只有落在这些目录下的文件才算武器证据。
+// 单独抽成包级变量，供规则校验等外部工具复用同一份口径，避免两处各写一份后漂移。
+var weaponAssetRoots = []string{
+	"models/weapons/",
+	"models/v_models/weapons/",
+	"models/w_models/weapons/",
+	"materials/models/weapons/",
+	"materials/models/v_models/weapons/",
+	"materials/weapons/",
+	"scripts/weapons/",
+	"sound/weapons/",
+}
+
+// WeaponAssetRoots 返回武器资源目录白名单（只读快照）。
+func WeaponAssetRoots() []string {
+	out := make([]string, len(weaponAssetRoots))
+	copy(out, weaponAssetRoots)
+	return out
+}
+
 func isWeaponAssetPath(name string, isItem bool) bool {
 	if isItem {
 		return false
 	}
 
-	weaponRoots := []string{
-		"models/weapons/",
-		"models/v_models/weapons/",
-		"models/w_models/weapons/",
-		"materials/models/weapons/",
-		"materials/models/v_models/weapons/",
-		"materials/weapons/",
-		"scripts/weapons/",
-		"sound/weapons/",
-	}
-	for _, root := range weaponRoots {
+	for _, root := range weaponAssetRoots {
 		if strings.HasPrefix(name, root) {
 			return true
 		}

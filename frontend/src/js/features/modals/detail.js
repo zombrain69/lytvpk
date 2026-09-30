@@ -12,6 +12,7 @@ import {
   loadVPKPreviewWithOptions,
 } from "../shared/vpk-preview-cache.js";
 import { initDetailIgnoreControls, syncDetailIgnoreEditor } from "./detail-ignore.js";
+import { buildTagEvidenceRows } from "./tag-evidence-view.mjs";
 
 let currentDetailFile = null;
 let detailPreviousFocus = null;
@@ -214,6 +215,7 @@ export function showFileDetail(filePath) {
           .join("")
       : "";
   detailTagsContainer.innerHTML = voiceTagsHtml + secondaryTagsHtml;
+  renderTagEvidence(file, detailTagsContainer);
 
   const vpkInfoSection = document.getElementById("vpk-info-section");
   document.getElementById("detail-vpk-title").textContent = file.title || "无标题";
@@ -318,6 +320,59 @@ export function showFileDetail(filePath) {
     (closeButton || modal).focus?.();
   }, 0);
 
+}
+
+// renderTagEvidence 展示"每个标签是怎么来的"（W6）。
+// 只用创建元素 + textContent，避免 innerHTML 注入；证据缺失时整块不显示。
+function renderTagEvidence(file, anchor) {
+  const existing = document.getElementById("detail-tag-evidence");
+  if (existing) existing.remove();
+  if (!anchor) return;
+
+  const { rows, hiddenCount } = buildTagEvidenceRows(file.tagEvidence);
+  if (rows.length === 0) return;
+
+  const block = document.createElement("div");
+  block.id = "detail-tag-evidence";
+  block.className = "detail-tag-evidence";
+
+  const title = document.createElement("div");
+  title.className = "detail-tag-evidence-title";
+  title.textContent = "标签依据";
+  block.appendChild(title);
+
+  rows.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "detail-tag-evidence-row";
+
+    const tag = document.createElement("span");
+    tag.className = "detail-tag-evidence-tag";
+    tag.textContent = item.tag;
+    row.appendChild(tag);
+
+    const level = document.createElement("span");
+    level.className = "detail-tag-evidence-level";
+    level.dataset.level = item.level;
+    level.textContent = item.levelLabel;
+    row.appendChild(level);
+
+    const detail = document.createElement("span");
+    detail.className = "detail-tag-evidence-detail";
+    detail.textContent = item.detail;
+    detail.title = detail.textContent;
+    row.appendChild(detail);
+
+    block.appendChild(row);
+  });
+
+  if (hiddenCount > 0) {
+    const more = document.createElement("div");
+    more.className = "detail-tag-evidence-more";
+    more.textContent = `…另有 ${hiddenCount} 条`;
+    block.appendChild(more);
+  }
+
+  anchor.insertAdjacentElement("afterend", block);
 }
 
 export function closeModal() {

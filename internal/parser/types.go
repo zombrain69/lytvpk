@@ -26,6 +26,7 @@ type VPKFile struct {
 	Size              int64         `json:"size"`
 	PrimaryTag        string        `json:"primaryTag"`        // 一级标签: "地图", "人物", "武器", "其他"
 	SecondaryTags     []string      `json:"secondaryTags"`     // 二级标签: ["ellis", "ak47", "versus"] 等
+	TagEvidence       []TagEvidence `json:"tagEvidence"`       // 每个标签的证据来源（W6：只解释，不参与取舍）
 	VoiceCharacters   []string      `json:"voiceCharacters"`   // 从标准 sound/player 语音目录识别出的替换角色
 	ContentSubjects   []string      `json:"contentSubjects"`   // 基于资源路径证据识别出的实际主体
 	SubjectSummary    string        `json:"subjectSummary"`    // 面向用户的主体摘要

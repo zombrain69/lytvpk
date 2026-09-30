@@ -179,13 +179,48 @@ func runSuiteNamespaceSignal(index *Index, options Options) []Candidate {
 			Label:    label,
 			Reason:   reason,
 			Score:    SuiteNamespaceScore,
-			Signals:  []string{suiteSignalLabel},
+			Signals:  suiteSignals(index, keys),
 			Keys:     keys,
 			Names:    names,
 			Strategy: "all",
 		})
 	}
 	return candidates
+}
+
+// suiteSignals 组装套件候选的信号列表。
+//
+// W6：把"这套模块共同带的标签"作为补充信号（例如「共同标签：AK47」）。
+// 只追加展示用信号，**不改 Keys / Score / Strategy**，因此不会改变分组结果；
+// 置信度计算只认信号目录里登记过的 id，未知 id 会被忽略。
+func suiteSignals(index *Index, keys []string) []string {
+	signals := []string{suiteSignalLabel}
+	for _, tag := range suiteCommonTags(index, keys, 3) {
+		signals = append(signals, "共同标签："+tag)
+	}
+	return signals
+}
+
+// suiteCommonTags 返回套件里 ≥60% 成员都带的标签（最多 limit 个，按出现次数排序）。
+func suiteCommonTags(index *Index, keys []string, limit int) []string {
+	if index == nil || len(keys) < 2 || limit <= 0 {
+		return nil
+	}
+	frequencies := TagFrequenciesForSet(index.mods, keys)
+	if len(frequencies) == 0 {
+		return nil
+	}
+	out := make([]string, 0, limit)
+	for _, item := range frequencies {
+		if item.Count*5 < len(keys)*3 {
+			continue
+		}
+		out = append(out, item.Tag)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out
 }
 
 func dedupeMods(mods []Mod) []Mod {

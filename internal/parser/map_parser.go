@@ -12,7 +12,12 @@ import (
 // ProcessMapVPK 处理地图类型VPK
 func ProcessMapVPK(opener *vpk.Opener, index archivePathIndex, vpkFile *VPKFile, secondaryTags map[string]bool, chapters map[string]ChapterInfo) {
 	vpkFile.PrimaryTag = "地图"
+	collectMissionEvidence(opener, index, vpkFile, secondaryTags, chapters)
+}
 
+// collectMissionEvidence 只负责从 missions/*.txt 里提取战役 / 章节 / 模式证据，
+// **不改变主分类**。地图包（有 BSP）与 missions-only 包（没有 BSP，D9）共用这一段。
+func collectMissionEvidence(opener *vpk.Opener, index archivePathIndex, vpkFile *VPKFile, secondaryTags map[string]bool, chapters map[string]ChapterInfo) {
 	// 初始化 VPKFile 的 Chapters map，如果尚未初始化
 	if vpkFile.Chapters == nil {
 		vpkFile.Chapters = make(map[string]ChapterInfo)

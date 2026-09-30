@@ -46,6 +46,10 @@ export function BatchUpdateModStrategyGroups(arg1, arg2, arg3) {
   return window['go']['app']['App']['BatchUpdateModStrategyGroups'](arg1, arg2, arg3);
 }
 
+export function BuildStockIndex(arg1) {
+  return window['go']['app']['App']['BuildStockIndex'](arg1);
+}
+
 export function CancelDownloadTask(arg1) {
   return window['go']['app']['App']['CancelDownloadTask'](arg1);
 }
@@ -108,6 +112,10 @@ export function CheckModStrategyGroupApply(arg1, arg2) {
 
 export function CheckModUpdates() {
   return window['go']['app']['App']['CheckModUpdates']();
+}
+
+export function CheckTagRegression(arg1, arg2, arg3) {
+  return window['go']['app']['App']['CheckTagRegression'](arg1, arg2, arg3);
 }
 
 export function CheckUpdate() {
@@ -258,6 +266,10 @@ export function ExportSprayFiles(arg1) {
   return window['go']['app']['App']['ExportSprayFiles'](arg1);
 }
 
+export function ExportTagBaseline(arg1) {
+  return window['go']['app']['App']['ExportTagBaseline'](arg1);
+}
+
 export function ExportVPKFilesToZip(arg1, arg2, arg3) {
   return window['go']['app']['App']['ExportVPKFilesToZip'](arg1, arg2, arg3);
 }
@@ -316,6 +328,10 @@ export function FetchWorkshopList(arg1) {
 
 export function ForceExit() {
   return window['go']['app']['App']['ForceExit']();
+}
+
+export function GenerateEntityTable(arg1, arg2) {
+  return window['go']['app']['App']['GenerateEntityTable'](arg1, arg2);
 }
 
 export function GenerateStockWhitelistBatchesFromGame() {
@@ -380,6 +396,10 @@ export function GetCurrentBestIPOption() {
 
 export function GetDownloadTasks() {
   return window['go']['app']['App']['GetDownloadTasks']();
+}
+
+export function GetEntityTableStatus() {
+  return window['go']['app']['App']['GetEntityTableStatus']();
 }
 
 export function GetExternalGroupSuggestions() {
@@ -472,6 +492,10 @@ export function GetSecondaryTags(arg1) {
 
 export function GetServerStorage() {
   return window['go']['app']['App']['GetServerStorage']();
+}
+
+export function GetStockIndexStatus() {
+  return window['go']['app']['App']['GetStockIndexStatus']();
 }
 
 export function GetStockWhitelistStatus() {
@@ -756,6 +780,10 @@ export function PreviewAddonListLoadOrderPolicy(arg1) {
 
 export function PreviewAddonListMerge(arg1) {
   return window['go']['app']['App']['PreviewAddonListMerge'](arg1);
+}
+
+export function QueryStockIndex(arg1, arg2) {
+  return window['go']['app']['App']['QueryStockIndex'](arg1, arg2);
 }
 
 export function ReadCrashReport(arg1) {
@@ -1108,4 +1136,8 @@ export function ValidateDirectory(arg1) {
 
 export function ValidateGroupSuggestionsFile(arg1) {
   return window['go']['app']['App']['ValidateGroupSuggestionsFile'](arg1);
+}
+
+export function ValidateTagRules() {
+  return window['go']['app']['App']['ValidateTagRules']();
 }

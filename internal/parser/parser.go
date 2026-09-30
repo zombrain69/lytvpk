@@ -142,6 +142,12 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 		vpkFile.PrimaryTag = "其他"
 		vpkFile.SecondaryTags = []string{}
 		vpkFile.Chapters = make(map[string]ChapterInfo)
+		if shouldCollectMissionEvidence(vpkType, index) {
+			// missions-only 包（D9）：本体里只有 missions/*.txt、没有 .bsp。
+			// 解析出战役名 / 模式，并给一个兜底标签，避免整包零标签。
+			collectMissionEvidence(opener, index, vpkFile, secondaryTags, chapters)
+			secondaryTags["地图配置"] = true
+		}
 		// 注意：不在这里 return，让它继续执行提取预览图的逻辑
 	}
 
@@ -149,6 +155,14 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 已确认资源。把这些作为附加二级标签后，前端便能筛选“人物 + AK47”、
 	// “地图 + HUD”等组合，而不会把 Mod 的主分类改错。
 	collectSupplementaryTypeTags(index, vpkType, secondaryTags)
+
+	// W4 通道 4：标题/描述证据对所有主类型生效（D7）。
+	// 过去只有"主类型=武器"的包才读标题，于是 `ak47冰龙参数包紫.vpk` 这类
+	// 主类型为「其他」的包明明标题写着型号，却拿不到标签。
+	applyTitleEvidenceWithRecorder(vpkFile.Title, vpkFile.Desc, vpkFile.Name, secondaryTags, index.evidence)
+
+	// W4 通道 3：.mdl 材质表（只在还没有本体精确证据时读取，有界）。
+	applyModelMaterialEvidence(opener, index, secondaryTags, index.evidence)
 
 	// 一级类型表示 Mod 的主内容；额外的 UI、道具、环境等资源仍保留为
 	// 中文二级标签。纯“其他”内容无需调整前端即可按这些标签筛选；混合包
@@ -169,20 +183,29 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 匕首、HUD 等自动标签全部消失。
 	if pTag, sTags, _, ok := ParseFilenameTags(vpkFile.Name); ok {
 		applyFilenameTagOverrides(vpkFile, pTag, sTags)
+		index.evidence.record(pTag, "custom:filename", EvidenceLevelInferred, vpkFile.Name)
+		for _, tag := range sTags {
+			index.evidence.record(tag, "custom:filename", EvidenceLevelInferred, vpkFile.Name)
+		}
 	}
 	if vpkFile.XDRSummary != "" {
 		vpkFile.SecondaryTags = UniqueTagsExcluding(append(vpkFile.SecondaryTags, "XDR动画"), vpkFile.PrimaryTag)
 	}
 
+	// W6：把"标签是怎么来的"写进结果（只增字段，不影响标签集合）。
+	vpkFile.TagEvidence = evidenceForTags(index.evidence, vpkFile.SecondaryTags, vpkFile.PrimaryTag)
+
 	return vpkFile, nil
 }
 
-// applyFilenameTagOverrides applies the explicit tags encoded in a filename
-// while retaining automatic content tags discovered from the archive. The
-// custom primary tag remains the card's primary grouping label; the detected
-// primary type is added as a secondary tag when it differs (except the generic
-// “其他” bucket, which would only add noise).
-func applyFilenameTagOverrides(vpkFile *VPKFile, customPrimary string, customSecondary []string) {
+// ApplyCustomTagOverride 把「用户自定义标签」合并到自动识别结果上，语义固定为**只增不减**：
+//   - 自定义一级标签作为卡片的分组标签；
+//   - 自定义二级标签与自动识别出的二级标签取并集；
+//   - 自动识别出的一级标签（非「其他」）降级成二级标签保留，不会被自定义标签吞掉。
+//
+// 文件名标签（`[标签]xxx.vpk`）与 `.meta` 本地标签走的是同一个函数 ——
+// 过去 `.meta` 走的是硬覆盖，导致 942 个工坊 Mod 上"自动识别结果完全不可见"（D13）。
+func ApplyCustomTagOverride(vpkFile *VPKFile, customPrimary string, customSecondary []string) {
 	if vpkFile == nil {
 		return
 	}
@@ -203,6 +226,21 @@ func applyFilenameTagOverrides(vpkFile *VPKFile, customPrimary string, customSec
 	}
 	vpkFile.PrimaryTag = customPrimary
 	vpkFile.SecondaryTags = UniqueTagsExcluding(merged, customPrimary)
+}
+
+// applyFilenameTagOverrides 是文件名标签的入口，直接复用统一语义。
+func applyFilenameTagOverrides(vpkFile *VPKFile, customPrimary string, customSecondary []string) {
+	ApplyCustomTagOverride(vpkFile, customPrimary, customSecondary)
+}
+
+// shouldCollectMissionEvidence 判定是否要从 missions 文件提取战役 / 模式证据。
+// 地图包（有 BSP）本来就会走这条路；missions-only 包（没有 BSP，D9）同样需要，
+// 否则整包零标签、战役名也拿不到。
+func shouldCollectMissionEvidence(vpkType string, index archivePathIndex) bool {
+	if vpkType == "地图" {
+		return true
+	}
+	return len(index.missionFiles) > 0
 }
 
 // UniqueTagsExcluding trims and de-duplicates tags while preserving their first

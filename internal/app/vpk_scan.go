@@ -132,6 +132,10 @@ func (a *App) ScanVPKFiles() error {
 	// disabled 目录的整理状态。扫描完成后统一合并，避免对每个 VPK 重复读文件。
 	a.applyAddonListGameStates()
 
+	// W4 通道 5：套件命名空间内的标签继承（只增不减，见 tag_inheritance.go）。
+	// 必须放在扫描之后、任何清单导出/分组推导之前，这样下游看到的是同一份结果。
+	a.applySuiteTagInheritance()
+
 	return nil
 }
 
@@ -256,13 +260,13 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	metaEnabled, updateCheckEnabled := a.workshopOptionsSnapshot()
 	if meta, err := LoadWorkshopMeta(filePath); meta != nil && err == nil {
 		if meta.PrimaryTag != "" || len(meta.SecondaryTags) > 0 {
-			vpkFile.PrimaryTag = parser.CanonicalTag(meta.PrimaryTag)
-			vpkFile.SecondaryTags = parser.UniqueTagsExcluding(meta.SecondaryTags, vpkFile.PrimaryTag)
+			// 只增不减：自定义标签与自动识别结果合并（自动一级标签降级为二级保留）。
+			// 曾经的硬覆盖让 942 个工坊 Mod 的自动识别标签完全不可见（D13）。
+			parser.ApplyCustomTagOverride(vpkFile, meta.PrimaryTag, meta.SecondaryTags)
 		} else if len(meta.Tags) > 0 {
 			metaTags := parser.UniqueTagsExcluding(meta.Tags)
 			if len(metaTags) > 0 {
-				vpkFile.PrimaryTag = parser.CanonicalTag(metaTags[0])
-				vpkFile.SecondaryTags = parser.UniqueTagsExcluding(metaTags[1:], vpkFile.PrimaryTag)
+				parser.ApplyCustomTagOverride(vpkFile, metaTags[0], metaTags[1:])
 			}
 		}
 
