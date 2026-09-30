@@ -969,3 +969,11 @@ checksum mismatch）。细节见 `docs/development/manual-verification.md` 第�
   没有可捡的便宜，也没有"用起来明显卡"的点。
 - **构建链路**：`npm run build` 2.3s、`wails build` 12.8s 均通过；产物 18,888,704 字节，
   且**不含**任何 CUA 桥标记（`LYTVPK_CUA_BRIDGE` / `cua bridge listening` / `eval-sync`）。
+- **工坊信息抓取 + 更新检测**（真实工坊物品 `2998315305`，沙箱 + 只读复制真实文件）：
+  `EnrichWorkshopMetadata` 写出的 `.meta` 带 `steamTags=[Scripts/Special Infected/Common Infected/Other]`、
+  订阅 7042、收藏 1717；独立 HTTP 请求核对到 `time_updated=2023-07-03T16:28:39+08:00`。
+  更新检测三条分支全部符合预期：下载时间早于远端更新 → `{TotalUpdates:1 NewDetected:1}` 并把
+  `time_updated` 按**接口原值**写回；再检测 → `{TotalUpdates:1 NewDetected:0}`（走"本地已确认"分支，
+  不再打接口）；下载时间晚于远端更新 → `{TotalUpdates:0}`。
+  附注：`WorkshopID` 只从 `.meta` 读（不是从文件名推导），所以更新检测天然只覆盖"有工坊信息记录"的
+  Mod —— 与 `docs/features/settings.md` 里"会检查**带有工坊信息**的 Mod"的说明一致。
