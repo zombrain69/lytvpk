@@ -236,11 +236,23 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	// frontend requests it later only for visible cards or the detail dialog.
 	vpkFile, err := parser.ParseVPKFileMetadata(filePath)
 	if err != nil {
+		// 「扩展名是 .vpk、实际是压缩包」不是异常：工坊作者会特意把插件/工具/教程包
+		// 打成压缩包上传（首次安装或自动更新用），游戏根本不加载它，也不该进
+		// addonlist.txt。以前这里一律当解析失败，界面上会弹红色「解析错误」——
+		// 那是误报。这里改成记一条分类结果 + 一条普通日志。
+		if pack, ok := parser.DescribeArchivePack(filePath); ok {
+			a.recordArchivePack(filePath, pack)
+			a.clearUnreadableMod(filePath)
+			log.Printf("跳过压缩包类条目: %s（%s / %s，%d 个条目）— %s",
+				filepath.Base(filePath), pack.Label, pack.Format, pack.EntryCount, pack.Note)
+			return
+		}
 		a.LogError("VPK解析", describeVPKParseError(filePath, err), filePath)
 		a.recordUnreadableMod(filePath, describeVPKParseError(filePath, err))
 		return
 	}
 	a.clearUnreadableMod(filePath)
+	a.clearArchivePack(filePath)
 	if hasPreviousGameState {
 		vpkFile.GameEnabled = previousGameEnabled
 		vpkFile.GameStateKnown = previousGameStateKnown

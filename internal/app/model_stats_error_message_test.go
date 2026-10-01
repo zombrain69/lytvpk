@@ -43,7 +43,10 @@ func TestScanModelStatsTargetDescribesBadVPKInChinese(t *testing.T) {
 	}
 }
 
-// ZIP 伪装成 .vpk 时给出的是"其实是 ZIP 压缩包"这条更具体的说明。
+// ZIP 伪装成 .vpk 时给出的是"压缩包类条目"的类别说明，而不是"读不出来的 Mod"。
+//
+// 这类包是工坊作者特意做的插件/工具/教程包：游戏不加载、也不进 addonlist.txt，
+// 所以消息要说清"它是什么类型"，而不是让用户以为自己的 Mod 坏了。
 func TestScanModelStatsTargetExplainsZipRenamedToVPK(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "zip-in-disguise.vpk")
@@ -58,7 +61,13 @@ func TestScanModelStatsTargetExplainsZipRenamedToVPK(t *testing.T) {
 		Location: "root",
 	})
 
-	if !strings.Contains(item.Message, "实际是 ZIP 压缩包") {
-		t.Fatalf("应指出它其实是 ZIP，实际 %q", item.Message)
+	if !strings.Contains(item.Message, "压缩包") {
+		t.Fatalf("应指出它其实是压缩包，实际 %q", item.Message)
+	}
+	if !strings.Contains(item.Message, "不参与 addonlist.txt") {
+		t.Fatalf("应说明这类包不进 addonlist，实际 %q", item.Message)
+	}
+	if strings.Contains(item.Message, "vpk:") {
+		t.Fatalf("不该把解码库的英文原文摆出来：%q", item.Message)
 	}
 }

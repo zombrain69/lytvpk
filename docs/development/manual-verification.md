@@ -116,6 +116,18 @@ $exe = 'build\bin\LytVPK-Community-Fork.exe'
 - 除 `--build-stock-index` / `--generate-entity-table` 会更新数据文件外，其余命令都只读，
   或只写你显式指定的输出路径（不传路径时写配置目录）。
 - CLI 与界面共用同一份 Go 逻辑：**CLI 通过而界面不对，问题基本在前端或事件接线**，不用再怀疑解析层。
+- 这是 **Windows GUI 子系统**的可执行文件：PowerShell 里 `& $exe --xxx` **不会等它跑完**，
+  输出要过一会儿才出现、`$LASTEXITCODE` 也是空的。要拿退出码与输出就用 `Start-Process -Wait`，
+  并且**参数里的带空格路径必须自己加引号**（`-ArgumentList` 只把数组拼成命令行，不会替你加）：
+
+  ```powershell
+  $argList = @('--export-grouping-catalog', "`"$outPath`"")   # ← 引号必须有
+  $process = Start-Process -FilePath $exe -ArgumentList $argList -Wait -PassThru -NoNewWindow `
+      -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+  $process.ExitCode
+  ```
+
+  漏引号的表现很隐蔽：路径中途被截断，命令"成功"返回，产物却写到了别处。
 
 ### 通道 2：应用内 JS 桥（本项目的 UI 通道）
 

@@ -149,9 +149,14 @@ type App struct {
 	configWriteMu           sync.Mutex
 	// externalCache 缓存"组建议收件箱"的解析结果，避免每次推导都重新解析文件与建索引。
 	externalCache externalSuggestionCache
-	// unreadableMods 记录"磁盘上存在但解析失败"的 VPK（例如扩展名是 .vpk 实为 ZIP），
+	// unreadableMods 记录"磁盘上存在但解析失败"的 VPK（文件损坏、下载不完整等），
 	// 供导出清单时说明"扫描范围里少了哪些文件"。
-	unreadableMods        sync.Map // map[string]string，key 是文件路径，value 是原因
+	unreadableMods sync.Map // map[string]string，key 是文件路径，value 是原因
+	// archivePacks 记录"扩展名是 .vpk、实际是压缩包"的条目的分类结果（工具/插件包、
+	// Mod 压缩包、教程/素材包…）。这类包是工坊作者特意做的（首次安装 / 自动更新用），
+	// 游戏不加载、也不该进 addonlist.txt —— 所以**不算异常**：既不进 unreadableMods，
+	// 也不发 error 事件（否则界面上会弹一个红色的「解析错误」）。
+	archivePacks          sync.Map // map[string]parser.ArchivePackInfo
 	addonListGuardEnabled bool
 	addonListLastRestore  string
 	addonListLastError    string

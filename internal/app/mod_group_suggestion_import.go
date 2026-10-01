@@ -925,7 +925,7 @@ func (a *App) ExportGroupingCatalog(path string) (string, error) {
 			"entryId", "structure", "structure.targets", "workshopMeta", "addonInfo",
 			"management", "coverage", "scope", "clusterHints.full", "ungroupedKeys",
 			"duplicateGroups", "xdrSlots", "unreadableMods", "themeHints", "preloadHints",
-			"structure.resourceRoots", "tagEvidence",
+			"structure.resourceRoots", "tagEvidence", "archivePacks",
 		},
 		GeneratedAt:     time.Now().Format(time.RFC3339),
 		Generator:       "LytVPK " + AppVersion,
@@ -933,6 +933,7 @@ func (a *App) ExportGroupingCatalog(path string) (string, error) {
 		Mods:            entries,
 		Scope:           a.catalogScope(),
 		UnreadableMods:  a.unreadableModSnapshot(),
+		ArchivePacks:    a.archivePackSnapshot(),
 		DuplicateGroups: duplicateGroups,
 		ClusterHints:    clusterHints,
 		UngroupedKeys:   ungroupedKeys(entries, clusterHints),
@@ -945,6 +946,9 @@ func (a *App) ExportGroupingCatalog(path string) (string, error) {
 			"不要一次性把整个 mods 数组读进上下文。" +
 			"tagEvidence 解释每个标签的来源（rule/level/source，清单里每条只带 1 条代表路径；" +
 			"level: exact=本体精确路径/脚本、pattern=本体特征/目录规则、inferred=关键词或标题），可用于判断可信度；" +
+			"archivePacks 是「扩展名是 .vpk、实际是压缩包」的条目（工坊作者特意做的插件/工具/教程包：" +
+			"kind=toolkit/mod-bundle/docs/archive，带 label 与判定依据 evidence）：游戏不加载它们，" +
+			"也不参与 addonlist.txt，**不要**把它们当成异常或缺失的 Mod（unreadableMods 里也不会再出现它们）；" +
 			"coverage 字段说明各类信息的可用数量：工坊资料（workshop.*）只对本地存在 .meta 的 Mod 有值，" +
 			"缺失时可以在 LytVPK 的工坊设置里开启工坊信息存储后重新下载/刷新对应 Mod。",
 	}
@@ -994,8 +998,11 @@ type groupingCatalogFile struct {
 	Mods         []groupingCatalogEntry `json:"mods"`
 	// Scope 说明本次扫描覆盖哪些位置、哪些位置被有意排除。
 	Scope *groupingCatalogScope `json:"scope,omitempty"`
-	// UnreadableMods 是"磁盘上有、但解析失败"的文件（例如扩展名是 .vpk 实为 ZIP）。
+	// UnreadableMods 是"磁盘上有、但真的解析失败"的文件（损坏、下载不完整…）。
 	UnreadableMods []groupingCatalogUnreadable `json:"unreadableMods,omitempty"`
+	// ArchivePacks 是"扩展名是 .vpk、实际是压缩包"的条目——工坊作者特意做的
+	// 插件/工具/教程包，游戏不加载、也不参与 addonlist.txt，**不算异常**。
+	ArchivePacks []groupingCatalogArchivePack `json:"archivePacks,omitempty"`
 	// UngroupedKeys 是没有任何 clusterHint 覆盖到的 Mod 键，方便推导方接力分析。
 	UngroupedKeys []string `json:"ungroupedKeys,omitempty"`
 	// DuplicateGroups 预计算好"疑似同一 Mod 的多个副本"，省去智能体自行比对。
@@ -1194,6 +1201,56 @@ func (a *App) recordUnreadableMod(filePath, reason string) {
 
 func (a *App) clearUnreadableMod(filePath string) {
 	a.unreadableMods.Delete(filePath)
+}
+
+// recordArchivePack 记录一个"其实是压缩包的 .vpk"的分类结果。
+// 与 recordUnreadableMod 互斥：这类条目不是异常，只是游戏加载不了、也不进 addonlist。
+func (a *App) recordArchivePack(filePath string, pack parser.ArchivePackInfo) {
+	if strings.TrimSpace(filePath) == "" {
+		return
+	}
+	pack.Path = filePath
+	a.archivePacks.Store(filePath, pack)
+}
+
+func (a *App) clearArchivePack(filePath string) {
+	a.archivePacks.Delete(filePath)
+}
+
+type groupingCatalogArchivePack struct {
+	Name       string   `json:"name"`
+	Path       string   `json:"path"`
+	Format     string   `json:"format"`
+	Kind       string   `json:"kind"`
+	Label      string   `json:"label"`
+	Note       string   `json:"note"`
+	EntryCount int      `json:"entryCount,omitempty"`
+	Evidence   []string `json:"evidence,omitempty"`
+}
+
+// archivePackSnapshot 导出"压缩包类条目"清单（最多 50 条）。
+func (a *App) archivePackSnapshot() []groupingCatalogArchivePack {
+	result := make([]groupingCatalogArchivePack, 0, 4)
+	a.archivePacks.Range(func(key, value any) bool {
+		filePath, _ := key.(string)
+		pack, ok := value.(parser.ArchivePackInfo)
+		if !ok || filePath == "" {
+			return true
+		}
+		result = append(result, groupingCatalogArchivePack{
+			Name:       filepath.Base(filePath),
+			Path:       filePath,
+			Format:     pack.Format,
+			Kind:       string(pack.Kind),
+			Label:      pack.Label,
+			Note:       pack.Note,
+			EntryCount: pack.EntryCount,
+			Evidence:   pack.Evidence,
+		})
+		return len(result) < 50
+	})
+	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
+	return result
 }
 
 // unreadableModSnapshot 导出解析失败清单（文件名 + 原因，最多 50 条）。

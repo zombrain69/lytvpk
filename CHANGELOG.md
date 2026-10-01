@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.7.1-community.51 — 2026-10-01
+
+**「扩展名是 .vpk、实际是压缩包」的条目被当成异常 Mod 弹红框；现在按压缩包文件树报出它属于哪一类。**
+
+工坊里有一类条目是作者**特意**打成压缩包的插件/工具/教程包（首次安装或自动更新用），
+游戏根本不加载它，也不该进 addonlist.txt —— 玩家的用法是"关掉它、自己去文件夹解压"。
+之前扫描路径一律按"VPK 解析失败"处理：写 error 日志 + 给前端发 error 事件，
+界面上弹一个红色「解析错误」，还进 `unreadableMods`（"扫描范围里少了哪些文件"）。
+这是误报。
+
+真机样本（整库 4269 个 `.vpk` 里 2 个，都在 `addons\workshop\`）：
+
+```text
+3558049615.vpk  22.1 MB  76 条  → 工具/插件包（bin/left4neko.dll、l4n_magic_converter.exe、*.bat）
+3787239937.vpk   6.5 MB  61 条  → 工具/插件包（necola.dll、skeeto.dll、skeeto_apply_update.bat，附 SKILL.md 说明）
+```
+
+改动：
+
+1. **新增分类器 `parser.DescribeArchivePack`**：文件头判格式（zip/rar/7z/gzip…），
+   zip 再读中央目录按文件树分四类 —— `toolkit` 工具/插件包、`mod-bundle` Mod 压缩包、
+   `docs` 教程/素材包、`archive` 其它压缩包；每类带中文 `label`、一句 `note`
+   （写清"游戏不加载、不参与 addonlist、怎么用"）和最多 3 条判定依据 `evidence`。
+   规则按存在性判断，不打分：有 `.vpk` → Mod 压缩包；有 `bin/` 或 dll/exe/bat →
+   工具/插件包；有 md/txt/教程·docs 路径/素材图 → 教程/素材包。
+2. **扫描路径不再当异常**：这类条目记进新的 `archivePacks`、只写一条普通日志
+   （"跳过压缩包类条目: … 工具/插件包 / zip，76 个条目"），**不发 error 事件**、
+   **不进 `unreadableMods`**；文件被换成真 VPK 时会自动清掉这条记录。
+3. **模型统计扫描**：同样报类别（"工具/插件包（zip 压缩包：…不参与 addonlist.txt）"），
+   不再只说"读不出来"。
+4. **导出清单新增 `archivePacks`**（name/path/format/kind/label/note/entryCount/evidence），
+   reading guide 里写明"游戏不加载它们、也不参与 addonlist.txt，**不要**当成异常或缺失的 Mod"；
+   `unreadableMods` 恢复它本来的含义（真损坏、下载不完整）。
+5. **文件头表只留一份**：`parser.SniffContainer` 成为唯一实现（vpk/zip/rar/7z/gzip/bzip2/xz/cab），
+   拖入/解包路径的 `sniffDropImportContainer` 改为委托它，避免两份魔术数字表各自漂移。
+
+### 验证
+
+- 真机（真实库，只读 CLI 导出）：
+
+```text
+archivePacks: 2
+  3558049615.vpk | toolkit | 工具/插件包 | zip | 76 条 | evidence=[bin/left4neko.dll, bin/neko/build_sound_cache.bat, …]
+  3787239937.vpk | toolkit | 工具/插件包 | zip | 61 条 | evidence=[necola.dll, skeeto.dll, skeeto_apply_update.bat]
+unreadableMods: 0        ← 这两个不再算异常
+日志：只有"跳过压缩包类条目"的普通行，没有 [VPK解析] 错误
+```
+
+- 新增测试：分类器 6 项（工具包 / Mod 压缩包 / 教程包 / 7z 只报格式 / 真 VPK 不误判 / 坏 zip 仍报压缩包）、
+  扫描路径 1 项（进 `archivePacks`、不进 `unreadableMods`、导出项带 label 与说明）；
+  更新模型统计那条既有断言（从"其实是 ZIP"改成"压缩包类别 + 不参与 addonlist"）。
+- `go test ./...` / `go vet ./...` / `node --test`（482）/ `npm run docs:build`（含内部链接自检）全绿。
+- runbook §0 补一条 CLI 调用坑：这是 GUI 子系统 EXE，`& $exe …` 不会等待；
+  用 `Start-Process -Wait` 时**带空格的路径必须自己加引号**，否则参数被截断、产物写到别处。
+
 ## 2.7.1-community.50 — 2026-10-01
 
 本版是这一轮「真实库 + 真实网络」联调攒下的 **四处修复** 与 **两类新体检项**。

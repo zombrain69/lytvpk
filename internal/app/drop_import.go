@@ -2,7 +2,6 @@ package app
 
 import (
 	"archive/zip"
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -255,32 +254,22 @@ const (
 
 // sniffDropImportContainer 只读前 8 字节判断容器格式。
 // readable=false 表示文件头读不到（被独占占用、权限不足等）——调用方不要据此拒绝文件。
+//
+// 文件头表只有一份：internal/parser 的 SniffContainer（扫描分类也用它），
+// 这里只把它的容器名映射成本包的常量，避免两份魔术数字表各自漂移。
 func sniffDropImportContainer(path string) (container string, readable bool) {
-	file, err := os.Open(path)
-	if err != nil {
-		return dropContainerUnknown, false
-	}
-	defer file.Close()
-
-	header := make([]byte, 8)
-	count, _ := io.ReadFull(file, header)
-	if count <= 0 {
-		return dropContainerUnknown, true
-	}
-	head := header[:count]
-	switch {
-	case bytes.HasPrefix(head, []byte{'P', 'K', 0x03, 0x04}),
-		bytes.HasPrefix(head, []byte{'P', 'K', 0x05, 0x06}),
-		bytes.HasPrefix(head, []byte{'P', 'K', 0x07, 0x08}):
-		return dropContainerZIP, true
-	case bytes.HasPrefix(head, []byte("Rar!\x1a\x07")):
-		return dropContainerRAR, true
-	case bytes.HasPrefix(head, []byte{'7', 'z', 0xBC, 0xAF, 0x27, 0x1C}):
-		return dropContainer7z, true
-	case bytes.HasPrefix(head, []byte{0x34, 0x12, 0xAA, 0x55}):
-		return dropContainerVPK, true
+	sniffed, readable := parser.SniffContainer(path)
+	switch sniffed {
+	case parser.ContainerVPK:
+		return dropContainerVPK, readable
+	case parser.ContainerZIP:
+		return dropContainerZIP, readable
+	case parser.ContainerRAR:
+		return dropContainerRAR, readable
+	case parser.Container7z:
+		return dropContainer7z, readable
 	default:
-		return dropContainerUnknown, true
+		return dropContainerUnknown, readable
 	}
 }
 

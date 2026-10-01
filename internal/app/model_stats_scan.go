@@ -227,6 +227,12 @@ func (a *App) scanModelStatsTarget(target modelStatsScanTarget) ModelStatsModRes
 
 	stats, err := parser.AnalyzeVPKModelStats(target.Path)
 	if err != nil {
+		// 「扩展名是 .vpk、实际是压缩包」不是异常：工坊作者特意做的插件/工具/教程包，
+		// 游戏不加载它。这里报类别，而不是当成"读不出来的 Mod"。
+		if pack, ok := parser.DescribeArchivePack(target.Path); ok {
+			item.Message = fmt.Sprintf("%s（%s 压缩包：%s）", pack.Label, pack.Format, pack.Note)
+			return item
+		}
 		// 与列表扫描同源：坏 VPK 要说清「不是有效的 VPK / 其实是 ZIP」，
 		// 而不是把解码库的 "vpk: invalid magic: …" 原样摆给用户（真机复现过）。
 		item.Message = describeVPKParseError(target.Path, err)
