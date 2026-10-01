@@ -208,6 +208,43 @@ $real = "<真实>\left4dead2\addonlist.txt"
 （§15 与 `docs/development/fireaxe-parity.md` 的历史记录就是范本）。
 临时探针放 `.tmp-cua/`（已 gitignore），稳定下来的工具再提升到 `scripts/devtools/`。
 
+### 调试用到的目录与路径（只允许这几处，别再新造）
+
+调试产物**只允许**落在这几处；`scripts/devtools/` 之外不要新增一次性脚本或输出目录。
+
+| 路径 | 用途 | 谁维护 |
+| --- | --- | --- |
+| `scripts/devtools/` | 常驻工具：`build-cua.ps1`（带桥 EXE）、`launch-cua-sandbox.ps1`（只读沙箱）、`launch-cua-copy-sandbox.ps1`（副本库沙箱，写盘验证用）、`capture-window.ps1`（PrintWindow 抓像素）、`click/type/scroll/drag-window-at.ps1`（坐标输入）、`cua-eval.py`（对桥求值 JS）、`backup-modlist.ps1` | 仓库（提交） |
+| `.tmp-cua/` | **唯一**的临时落脚点：沙箱 APPDATA、副本库、探针脚本、报告 JSON（已 gitignore，可随时整目录删掉） | 本地 |
+| `build/bin/` | 构建产物：正式 `LytVPK-Community-Fork.exe` 与调试 `…-cua.exe` | 构建脚本（gitignore） |
+| `build/release/` | 发布包 ZIP 与 SHA256SUMS | 构建脚本（gitignore） |
+| `%TEMP%\lytvpk-cua-bridge.log` | 桥监听的端口那一行（`listening 127.0.0.1:<port>`） | 桥 |
+| `%TEMP%\lytvpk-cua-sandbox-<port>.{out,err}.log` | 只读沙箱子进程 stdout/stderr | 启动脚本 |
+| `%TEMP%\lytvpk-copy-sandbox-<port>.{out,err}.log` | 副本库沙箱子进程 stdout/stderr | 启动脚本 |
+| `%APPDATA%\LytVPK\` | 应用真实配置（config / groups / priority / stock_index / grouping_catalog）；沙箱只用它的**副本** | 应用 |
+
+**"要做什么 → 用哪个"对照表**（别再造轮子）：
+
+| 想做的事 | 用这个 | 不要 |
+| --- | --- | --- |
+| 读 DOM / 量几何 / 派发真实事件 / 统计 window 错误 | `python scripts/devtools/cua-eval.py "…"` 或 `--file probe.js` | 不要每次现写一套 HTTP 轮询脚本（`await ( … )` 那条坑已经封装好了） |
+| 抓真实像素（窗口被遮挡 / 锁屏） | `scripts/devtools/capture-window.ps1` | 不要依赖 `include_screenshot`（本机 19045 不可用） |
+| 点击 / 输入 / 滚动 / 拖拽 | `scripts/devtools/*-window-at.ps1`（坐标先由 `cua-eval.py` 读 `getBoundingClientRect()` 得到） | 不要估坐标 |
+| 只读验证（列表、开关状态、几何） | `scripts/devtools/launch-cua-sandbox.ps1` | 不要用它点会写盘的按钮 |
+| 写盘验证（游戏内开关、搬文件、按分层应用） | `scripts/devtools/launch-cua-copy-sandbox.ps1` | 不要在真实库上点写盘按钮 |
+| 数据 / 规则 / 回归核对 | `build/bin/LytVPK-Community-Fork.exe --check-tag-regression …` 等 CLI | 不要为了读数据去开界面 |
+
+收尾清理（一条命令，走回收站可恢复；先 `-DryRun` 看会删什么）：
+
+```powershell
+pwsh -File scripts/devtools/clean-cua-artifacts.ps1 -DryRun   # 只看
+pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收站）
+```
+
+它清的就是上面那三处（`.tmp-cua/`、`build\bin\*-cua.exe`、`%TEMP%\lytvpk-*.log`）。
+被其它进程占用或路径过长的项会**跳过并告警**（不做跨盘移动 —— 那会留下半份副本）；
+并行会话各自的夹具目录（例如别人建的 `.tmp-cua\zz-testlib`）删不掉属于正常情况，先确认再动。
+
 ## 准备
 
 1. 构建：`wails build`，产物 `build/bin/LytVPK-Community-Fork.exe`。

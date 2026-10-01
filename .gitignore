@@ -27,3 +27,7 @@ frontend/dist/*
 secrets.json
 secrets.*
 credentials.json
+
+# Python 调试助手（scripts/devtools/cua-eval.py）跑过之后留下的字节码缓存
+__pycache__/
+*.pyc
