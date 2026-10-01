@@ -8,7 +8,7 @@ import {
 } from "../state.js";
 import { showError, showNotification, showSuccess } from "../../core/toast.js";
 import { showConfirmModal } from "../modals/confirm.js";
-import { renderFileList, iconSvg, getLocationSvg, getGameStateActionControls } from "./render.js";
+import { renderFileList, updateSingleFileDisplay } from "./render.js";
 import { refreshFilesKeepFilter } from "./filters.js";
 import {
   SetVPKGameEnabledBatch,
@@ -564,84 +564,6 @@ export async function batchUpdateFileStatus(filePaths) {
   } catch (error) {
     console.error("批量更新文件状态失败:", error);
     await refreshFilesKeepFilter();
-  }
-}
-
-function updateSingleFileDisplay(file) {
-  const item = document.querySelector(`.file-item[data-path="${CSS.escape(file.path)}"], .file-card[data-path="${CSS.escape(file.path)}"]`);
-  if (!item) return;
-
-  const rowPrefix = item.classList.contains("file-card") ? "mod-card" : "mod-row";
-  item.classList.remove(
-    `${rowPrefix}-state-enabled`,
-    `${rowPrefix}-state-disabled`,
-    `${rowPrefix}-state-unknown`,
-    `${rowPrefix}-location-disabled`,
-    "disabled",
-  );
-  const stateClass = !file.gameStateKnown
-    ? "unknown"
-    : file.gameEnabled
-      ? "enabled"
-      : "disabled";
-  item.classList.add(`${rowPrefix}-state-${stateClass}`);
-  if (file.location === "disabled") item.classList.add(`${rowPrefix}-location-disabled`);
-  if (item.classList.contains("file-card") && file.enabled === false) {
-    item.classList.add("disabled");
-  }
-
-  const stateBadge = item.querySelector(".game-state-badge");
-  if (stateBadge) {
-    const stateLabels = {
-      enabled: "游戏内开启",
-      disabled: "游戏内关闭",
-      unknown: "未记录",
-    };
-    const stateTitles = {
-      enabled: "addonlist.txt：1；点击关闭游戏内 Mod",
-      disabled: "addonlist.txt：0；点击开启游戏内 Mod",
-      unknown: "addonlist.txt 中未记录此 Mod；点击选择游戏内关闭、游戏内启用或禁用",
-    };
-    stateBadge.classList.remove("game-state-enabled", "game-state-disabled", "game-state-unknown");
-    stateBadge.classList.add(`game-state-${stateClass}`);
-    stateBadge.textContent = stateLabels[stateClass];
-    stateBadge.title = stateTitles[stateClass];
-  }
-
-  const locationEl = item.querySelector(".file-location");
-  if (locationEl) {
-    const locationNames = { root: "根目录", workshop: "创意工坊", disabled: "已禁用" };
-    locationEl.innerHTML = `
-      <span class="location-state-tag location-${file.location}">
-        ${getLocationSvg(file.location)}
-        <span>${locationNames[file.location] || file.location}</span>
-      </span>
-    `;
-  }
-
-  const actionBtn = item.querySelector(".toggle-btn, .move-btn");
-  if (actionBtn) {
-    if (file.location === "workshop") {
-      actionBtn.outerHTML = `
-        <button class="btn-small action-btn move-btn" data-file-path="${file.path}" data-action="move">
-          <span class="btn-icon">${iconSvg("package")}</span>
-          <span class="btn-text">复制到 addons</span>
-        </button>
-      `;
-    } else {
-      actionBtn.outerHTML = `
-        <button class="btn-small action-btn toggle-btn ${file.enabled ? "toggle-disable" : "toggle-enable"}"
-                data-file-path="${file.path}" data-action="toggle">
-          <span class="btn-icon">${file.enabled ? iconSvg("x") : iconSvg("check")}</span>
-          <span class="btn-text">${file.enabled ? "禁用" : "启用"}</span>
-        </button>
-      `;
-    }
-  }
-
-  const gameStateControls = item.querySelector(".game-state-controls");
-  if (gameStateControls) {
-    gameStateControls.outerHTML = getGameStateActionControls(file);
   }
 }
 

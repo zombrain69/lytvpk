@@ -573,9 +573,11 @@ func (a *App) ApplyModStrategyGroup(id string, options ModStrategyGroupApplyOpti
 
 	result := ModStrategyGroupApplyResult{GroupID: group.ID, GroupName: group.Name, Strategy: strategy}
 	// 文件已经被删除/移出受管目录的成员：不往 addonlist 写幽灵条目，改为跳过并报告。
+	// 存在性判定批量化（建一次索引），否则组一大就是 O(成员数 × 缓存数)。
+	vaultKeys := a.buildVaultKeyIndex(a.rootDirectorySnapshot())
 	liveMembers := make([]ModStrategyGroupMember, 0, len(group.Members))
 	for _, member := range group.Members {
-		if !a.modKeyExistsInVault(member.Key) {
+		if !a.modKeyExistsInVaultIndexed(vaultKeys, member.Key) {
 			result.Skipped = append(result.Skipped, groupMemberDisplayName(member))
 			continue
 		}

@@ -794,6 +794,11 @@ html.dark-mode .autoexec-analysis.is-warning {
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
+  /* 这里一次渲染 193 条指令说明；切到「游戏配置」分栏时面板变可见 + 导航指示条
+     读取布局，会把整块强制结算一遍（真机实测 157ms 长任务）。
+     屏外条目不必参与布局/绘制，`auto` 会记住每条渲染后的真实高度。 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
 }
 
 .autoexec-help-item:hover {

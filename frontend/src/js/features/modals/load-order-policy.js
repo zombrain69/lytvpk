@@ -318,16 +318,93 @@ function renderRuleSelectors() {
   const selectedTarget = selectedTargetKey || target.value;
   const sourceQuery = document.getElementById("load-order-rule-sources-search")?.value || "";
   const targetQuery = document.getElementById("load-order-rule-target-search")?.value || "";
+  // 真机（2599 条 addonlist 条目）：两个下拉各塞 2599 个 <option>，
+  // 加上预览区 2599 行 = 开窗时一次 373ms 的长任务。这里改成"首屏先填一批，
+  // 其余按 8ms 时间片补齐"，中途换搜索词/换文件会作废上一轮（token）。
+  const token = ++ruleSelectorToken;
   sources.replaceChildren();
   target.replaceChildren();
-  currentEntries.filter((entry) => entryMatchesSearch(entry, sourceQuery)).forEach((entry) => {
-    const label = entryLabel(entry);
-    sources.add(new Option(label, entry.key, false, selectedSources.has(entry.key)));
-  });
-  currentEntries.filter((entry) => entryMatchesSearch(entry, targetQuery)).forEach((entry) => {
-    const label = entryLabel(entry);
-    target.add(new Option(label, entry.key, false, selectedTarget === entry.key));
-  });
+  const sourceEntries = currentEntries.filter((entry) => entryMatchesSearch(entry, sourceQuery));
+  const targetEntries = currentEntries.filter((entry) => entryMatchesSearch(entry, targetQuery));
+  fillSelectInChunks(sources, sourceEntries, token, selectedSources, "");
+  fillSelectInChunks(target, targetEntries, token, null, selectedTarget);
+}
+
+// ── 大列表分帧：加载顺序窗口一次要建几千行/几千个 option ────────────────────
+const LOAD_ORDER_FIRST_CHUNK = 60;
+// 每批小一点：真机上"建 240 行 + 插进容器"仍然会顶出 100–150ms 的帧，
+// 因为代价主要落在布局/绘制而不是建节点上（屏外行已用 content-visibility 跳过）。
+const LOAD_ORDER_CHUNK = 120;
+const LOAD_ORDER_CHUNK_BUDGET_MS = 6;
+// 两个规则下拉是 <select>：Chromium 每插一批 option 都要重建它的内部列表，
+// 所以这里比预览区更保守。
+const LOAD_ORDER_SELECT_CHUNK = 60;
+
+let ruleSelectorToken = 0;
+let previewRenderToken = 0;
+
+function loadOrderNow() {
+  return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+}
+
+/**
+ * scheduleLoadOrderStep 跑下一批：rAF 优先（可见时贴着帧走），50ms 定时器兜底
+ * （窗口最小化/被遮挡时 rAF 几乎不触发，只靠 rAF 会让列表永远补不完）。
+ */
+function scheduleLoadOrderStep(step) {
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    step();
+  };
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+  setTimeout(run, 50);
+}
+
+/** fillSelectInChunks 往 <select> 里分批填 option；已选中的值在每批之后保持不变。 */
+function fillSelectInChunks(select, entries, token, selectedSources, selectedTargetKey) {
+  if (!select) return;
+  let index = 0;
+  const keepValue = () => {
+    // 用户可能在补齐过程中已经选了别的：每批之后把当前值写回去，避免被清空。
+    if (select.value) return;
+    if (selectedSources) {
+      const firstSelected = [...select.options].find((option) => option.selected);
+      if (firstSelected) select.value = firstSelected.value;
+    } else if (selectedTargetKey) {
+      select.value = selectedTargetKey;
+    }
+  };
+  const appendChunk = (limit, budgetMs) => {
+    if (token !== ruleSelectorToken) return false;
+    const started = loadOrderNow();
+    const end = Math.min(entries.length, index + limit);
+    let added = 0;
+    const fragment = document.createDocumentFragment();
+    for (; index < end; index += 1) {
+      if (added > 0 && loadOrderNow() - started >= budgetMs) break;
+      const entry = entries[index];
+      const label = entryLabel(entry);
+      const isSelected = selectedSources ? selectedSources.has(entry.key) : selectedTargetKey === entry.key;
+      const option = document.createElement("option");
+      option.value = entry.key;
+      option.textContent = label;
+      option.selected = isSelected;
+      fragment.appendChild(option);
+      added += 1;
+    }
+    if (added === 0) return index < entries.length;
+    select.appendChild(fragment);
+    keepValue();
+    return index < entries.length;
+  };
+  if (!appendChunk(LOAD_ORDER_FIRST_CHUNK, Infinity)) return;
+  const step = () => {
+    if (token !== ruleSelectorToken) return;
+    if (appendChunk(LOAD_ORDER_SELECT_CHUNK, LOAD_ORDER_CHUNK_BUDGET_MS)) scheduleLoadOrderStep(step);
+  };
+  scheduleLoadOrderStep(step);
 }
 
 function addConstraints(direction) {
@@ -508,8 +585,9 @@ function renderPreview(entries, summary) {
       targetKeys.add(constraint.after);
     }
   });
-  const fragment = document.createDocumentFragment();
-  entries.forEach((entry) => {
+  const token = ++previewRenderToken;
+  let index = 0;
+  const buildRow = (entry) => {
     const row = document.createElement("div");
     row.className = "load-order-preview-item";
     if (sourceKeys.has(entry.key)) row.classList.add("is-rule-source");
@@ -543,9 +621,29 @@ function renderPreview(entries, summary) {
           : "addonlist.txt 里有这条记录，但磁盘上找不到对应文件（失效条目）";
       row.appendChild(badge);
     }
-    fragment.appendChild(row);
-  });
-  container.appendChild(fragment);
+    return row;
+  };
+  const appendChunk = (limit, budgetMs) => {
+    if (token !== previewRenderToken) return false;
+    const started = loadOrderNow();
+    const end = Math.min(entries.length, index + limit);
+    let added = 0;
+    const fragment = document.createDocumentFragment();
+    for (; index < end; index += 1) {
+      if (added > 0 && loadOrderNow() - started >= budgetMs) break;
+      fragment.appendChild(buildRow(entries[index]));
+      added += 1;
+    }
+    if (added === 0) return index < entries.length;
+    container.appendChild(fragment);
+    return index < entries.length;
+  };
+  if (!appendChunk(LOAD_ORDER_FIRST_CHUNK, Infinity)) return;
+  const step = () => {
+    if (token !== previewRenderToken) return;
+    if (appendChunk(LOAD_ORDER_CHUNK, LOAD_ORDER_CHUNK_BUDGET_MS)) scheduleLoadOrderStep(step);
+  };
+  scheduleLoadOrderStep(step);
 }
 
 function entryLabel(entry) {

@@ -113,6 +113,111 @@ test("窗口有三个入口：分组菜单、设置页入口按钮、窗口自�
   assert.match(runtimeSource, /initStrategyGroupManager\(\)/, "app-runtime 要初始化窗口");
 });
 
+// 开窗口的性能：真机上 212 个组时，每行内联一个含全部候选的「上级分组」下拉
+// = 44,779 个 <option> / 4.9 万节点 / 3.7MB HTML，首屏要 1.6 秒。
+// 候选改成"用户真的要改时才填"，三个后端调用并行发出。
+test("上级分组下拉惰性填充 + 三路 IPC 并行（开窗口不再一次造 4 万个 option）", () => {
+  assert.match(managerSource, /function parentOptionSummaryHtml/, "缺少「只渲染当前值」的摘要渲染");
+  assert.match(managerSource, /function fillParentOptions/, "缺少候选惰性填充");
+  assert.match(managerSource, /data-parent-options|dataset\.parentOptions = "filled"/, "填充要幂等（只填一次）");
+  assert.match(managerSource, /pointerdown[\s\S]{0,200}fillParentOptions/, "鼠标点开下拉时要先填候选");
+  assert.match(managerSource, /focusin[\s\S]{0,200}fillParentOptions/, "键盘聚焦时也要先填候选");
+  // 旧写法（每行内联全部候选）必须已经删掉，否则 4 万个 option 会回来。
+  assert.equal(
+    /buildParentOptions\(managerState\.rows, group\.id\)\s*\n?\s*\.map\(/.test(managerSource),
+    false,
+    "每行不再内联全部候选（改成惰性填充）",
+  );
+  assert.match(managerSource, /Promise\.allSettled\(/, "三个读接口要并行发出");
+});
+
+// 从 Mod 列表的「组：xxx」徽标点进来：不另做一个重复窗口，而是把现有的策略组管理窗口
+// 变成"聚焦模式"——顶部列出这个 Mod 所属的**全部**组，并展开 / 高亮被点的那一组。
+test("徽标点击 → 打开管理窗口并定位到那一组（列出这个 Mod 的全部组）", () => {
+  // ① 徽标点击＝打开窗口并聚焦；不再是就地整组开关
+  assert.match(groupUiSource, /openStrategyGroupManager\(\{\s*focusGroupId/, "徽标要带上要定位的组");
+  assert.match(groupUiSource, /focusFilePath/, "还要带上 Mod 路径，才能列出它所属的全部组");
+  assert.equal(
+    /void toggleGroupEnabled\(groupId/.test(groupUiSource),
+    false,
+    "徽标点击不应再直接整组开关",
+  );
+  // ② 整组开关没丢：分组菜单里保留，窗口定位条上也有一个
+  assert.match(groupUiSource, /"整组开关"/, "分组菜单的整组开关要保留");
+  assert.match(managerSource, /data-focus-action="toggle-group"/, "定位条要有整组开关");
+  assert.match(managerSource, /SetModStrategyGroupEnabled\(/, "整组开关要走后端绑定");
+  assert.match(managerSource, /groupEnabledVote\(/, "开关方向要与列表共用同一份纯函数");
+  // ③ 定位条本体：容器 + 每个组一个可点 chip + 退出定位
+  assert.match(indexHtml, /id="strategy-group-focus"/, "窗口里缺少定位条容器");
+  assert.match(managerSource, /function renderFocusBar/, "定位条要有独立渲染");
+  assert.match(managerSource, /data-focus-group-id/, "每个组要有一个可点的 chip");
+  assert.match(managerSource, /groupsForFile\(/, "要按 addonlist 键找出这个 Mod 所属的全部组");
+  assert.match(managerSource, /data-focus-action="clear"/, "要能退出定位");
+  // ④ 打开时展开 + 滚过去 + 高亮（组行与这个 Mod 的成员行都要）
+  assert.match(managerSource, /openStrategyGroupManager\(options = \{\}\)/, "要接受聚焦参数");
+  assert.match(managerSource, /function setFocusRequest/, "要记住聚焦目标");
+  assert.match(managerSource, /function revealFocusedGroup/, "要滚过去并高亮");
+  assert.match(managerSource, /scrollIntoView/, "定位要真的把那一行滚进视野");
+  assert.match(managerSource, /is-focus-target/, "组行要有定位高亮类");
+  assert.match(managerSource, /is-focus-member/, "这个 Mod 的成员行也要高亮");
+  // 列表是整片 innerHTML 重建的：任何一次重画都会把 class 抹掉，必须在 renderManager 里补回来。
+  const renderManagerBody = managerSource.slice(
+    managerSource.indexOf("function renderManager()"),
+    managerSource.indexOf("function renderExpandedMembers()"),
+  );
+  assert.ok(renderManagerBody.length > 0, "找不到 renderManager 本体");
+  assert.match(
+    renderManagerBody,
+    /applyFocusHighlight\(\)/,
+    "每次重画后要补回定位高亮（否则启动期组成员刷新一次就丢了）",
+  );
+  assert.equal(
+    /revealFocusedGroup\(\)/.test(renderManagerBody),
+    false,
+    "重画时只补高亮，不要每次都把列表滚回去（用户可能已经滚到别处）",
+  );
+  assert.match(cssSource, /\.strategy-group-focus\s*\{/, "定位条要有样式");
+  assert.match(cssSource, /\.is-focus-target/, "定位高亮要有样式");
+  // 定位到某组时，组行右侧那排按钮最容易横向撑出滚动条（真机 1144px vs 容器 704px）。
+  const actionRowCss = cssSource.match(/#strategy-group-modal \.settings-profile-actions\s*\{[^}]*\}/);
+  assert.ok(actionRowCss, "缺少组行动作区的样式覆盖");
+  assert.match(actionRowCss[0], /flex-wrap:\s*wrap/, "组行动作按钮要换行，别把右边的按钮挤出视野");
+});
+
+// 定位模式必须让"刚跳过去的那一组"真的能操作。真机复现（2026-10-01，2906 个 Mod 的真实库）：
+// 定位条 144px + 粘性「回到顶层」落点 35px，把 271px 的滚动区挤得只剩 60px 无遮挡视野，
+// 那一组的 10 个组级按钮 elementFromPoint 命中测试 10/10 都落在落点下面（等于点不到）。
+test("定位模式：条子压矮 + 落点不再悬浮盖住刚定位的组", () => {
+  const focusBarBody = managerSource.slice(
+    managerSource.indexOf("function renderFocusBar"),
+    managerSource.indexOf("function setFocusRequest"),
+  );
+  assert.ok(focusBarBody.length > 0, "找不到 renderFocusBar 本体");
+  assert.equal(
+    /strategy-group-focus-hint/.test(focusBarBody),
+    false,
+    "定位条不再常驻一行说明（真机上它把组级按钮顶出视野）",
+  );
+  assert.match(focusBarBody, /host\.title/, "说明要改挂到定位条的悬浮提示上");
+  assert.match(
+    managerSource,
+    /classList\.toggle\("is-focus-mode", Boolean\(focusState\)\)/,
+    "定位模式要标在滚动区上（renderManager 每次重画都同步）",
+  );
+  const focusBarCss = cssSource.match(/^\.strategy-group-focus\s*\{[^}]*\}/m);
+  assert.ok(focusBarCss, "缺少定位条样式");
+  assert.match(focusBarCss[0], /max-height/, "定位条要有高度上限（组特别多时别挤没列表）");
+  const focusModeCss = cssSource.match(
+    /\.strategy-group-body\.is-focus-mode \.strategy-group-drop-root\s*\{[^}]*\}/,
+  );
+  assert.ok(focusModeCss, "缺少定位模式下「回到顶层」落点的样式覆盖");
+  assert.match(
+    focusModeCss[0],
+    /position:\s*static/,
+    "定位模式下落点要回列表末尾，不能再当悬浮层盖住刚跳过去的组行",
+  );
+});
+
 test("浮动窗口：打开时就能直接操作主界面的分组筛选", () => {
   // 与其它管理窗口完全一致：开关是通用模块自动插到标题栏的按钮，页面里不再有自定义那一行。
   assert.equal(
@@ -308,7 +413,9 @@ test("组行可以拖动排序（拖放落点判定走纯函数 + 后端两个�
   assert.match(managerSource, /dropRoot\.dataset\.bound === "1"/, "静态落点只能绑一次");
   assert.match(managerSource, /bindGroupDropRoot\(\);/, "初始化时要绑定落点");
   // 组一多就必须滚到底才能用落点 —— 真机量过（3 组就会把落点顶到可视区外），所以必须粘住。
-  const dropRootCss = cssSource.match(/\.strategy-group-drop-root\s*\{[^}]*\}/);
+  // 注意别用不带行首锚点的正则：定位模式那条 `.strategy-group-body.is-focus-mode
+  // .strategy-group-drop-root { position: static }` 会先被匹配到。
+  const dropRootCss = cssSource.match(/^\.strategy-group-drop-root\s*\{[^}]*\}/m);
   assert.ok(dropRootCss, "缺少 .strategy-group-drop-root 样式");
   assert.match(dropRootCss[0], /position:\s*sticky/, "落点要粘在滚动区底部");
   assert.match(dropRootCss[0], /bottom:\s*0/, "落点要贴底");

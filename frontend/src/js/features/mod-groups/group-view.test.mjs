@@ -17,8 +17,12 @@ import {
   formatGroupOptionLabel,
   formatGroupStrategy,
   formatFileGroupImpact,
+  formatModGroupFocusChip,
+  formatModGroupFocusChipTitle,
+  formatModGroupFocusSummary,
   formatSuggestionCreateSummary,
   formatSuggestionSummary,
+  groupEnabledVote,
   groupsForFile,
   normalizeGroupKey,
   sortGroupFilterOptions,
@@ -129,10 +133,56 @@ test("组徽标与悬浮说明包含关键信息", () => {
   const title = formatGroupChipTitle(memberships[0]);
   assert.ok(title.includes("打包组") && title.includes("3 个成员"));
   assert.ok(title.includes("互斥单选") && title.includes("组权重 -2") && title.includes("自动联动"));
-  assert.ok(title.includes("单击整组开关"), "徽标提示要说明单击行为");
+  assert.ok(
+    title.includes("打开「策略组管理」窗口并定位到这一组"),
+    "徽标单击是打开管理窗口并定位，不是就地整组开关",
+  );
+  assert.ok(title.includes("整组开关"), "整组开关没丢，徽标提示要指向它现在所在的位置");
   assert.ok(title.includes("分组"), "徽标提示要指向整组优先级移动所在位置");
   assert.equal(formatGroupStrategy("single_random"), "随机单选");
   assert.equal(formatGroupStrategy("unknown"), "unknown");
+});
+
+// —— 「从 Mod 列表点进来」的定位条：这个 Mod 属于哪几组要一次说清 ——
+
+test("定位条文案：列出这个 Mod 所属的全部组，并说清点组名会发生什么", () => {
+  assert.equal(
+    formatModGroupFocusSummary([{ groupId: "g1" }, { groupId: "g2" }]),
+    "这个 Mod 属于 2 个策略组 —— 点组名展开并跳到那一组（组级动作在那一行右侧）",
+  );
+  assert.equal(formatModGroupFocusSummary([]), "这个 Mod 现在不属于任何策略组");
+  assert.equal(formatModGroupFocusChip(memberships[0]), "组：打包组 · 3 个成员");
+  assert.equal(formatModGroupFocusChip({}), "");
+  const idle = formatModGroupFocusChipTitle(memberships[0], "g2");
+  assert.ok(idle.includes("互斥单选") && idle.includes("3 个成员"));
+  assert.ok(idle.includes("单击：展开这个组并跳到它那一行"), "未定位的组要说明点击效果");
+  const active = formatModGroupFocusChipTitle(memberships[0], "g1");
+  assert.ok(active.includes("正在定位这一组"), "当前定位的组要有不同文案");
+});
+
+test("groupEnabledVote 按多数派决定整组开关方向（列表菜单与定位条共用）", () => {
+  const files = [
+    { name: "a.vpk", path: "C:\\addons\\a.vpk", location: "root", gameEnabled: true, gameStateKnown: true },
+    { name: "b.vpk", path: "C:\\addons\\b.vpk", location: "root", gameEnabled: false, gameStateKnown: true },
+    { name: "123.vpk", path: "C:\\addons\\workshop\\123.vpk", location: "workshop", gameEnabled: true, gameStateKnown: true },
+  ];
+  // g1 有 3 个成员：2 开 1 关 → 多数开着，下次整组开关就是"整组关闭"。
+  assert.deepEqual(groupEnabledVote(memberships, files, "g1", "C:\\addons"), {
+    enabled: 2,
+    disabled: 1,
+    mostlyEnabled: true,
+  });
+  // g2 只有一个成员（开着）→ 也是开着；别的组不会串进来。
+  assert.deepEqual(groupEnabledVote(memberships, files, "g2", "C:\\addons"), {
+    enabled: 1,
+    disabled: 0,
+    mostlyEnabled: true,
+  });
+  assert.deepEqual(groupEnabledVote(memberships, files, "nope", "C:\\addons"), {
+    enabled: 0,
+    disabled: 0,
+    mostlyEnabled: true,
+  });
 });
 
 test("buildGroupFilterOptions 去重并按组聚合成员键", () => {

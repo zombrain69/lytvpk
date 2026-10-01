@@ -41,6 +41,7 @@ import {
   formatSuggestionCreateSummary,
   formatSuggestionSignals,
   formatSuggestionSummary,
+  groupEnabledVote,
   suggestionMemberRows,
   normalizeGroupKey,
 } from "./group-view.mjs";
@@ -404,7 +405,7 @@ async function confirmDeleteStrategyGroup(option) {
 
 async function toggleGroupEnabled(groupId, groupName) {
   const members = (appState.modGroupMemberships || []).filter((item) => item.groupId === groupId);
-  const vote = groupEnabledVote(groupId);
+  const vote = currentGroupEnabledVote(groupId);
   const nextEnabled = !vote.mostlyEnabled;
   // 使用应用内确认弹窗：WebView2 的原生 confirm 在锁屏/自动化环境下会阻塞页面。
   showConfirmModal(
@@ -435,23 +436,16 @@ async function applyGroupEnabledToggle(groupId, groupName, nextEnabled) {
   }
 }
 
-// groupEnabledVote 统计组内成员在 addonlist 里的开关情况，用于决定"整组开关"的方向。
-function groupEnabledVote(groupId) {
-  const keys = new Set(
-    (appState.modGroupMemberships || [])
-      .filter((item) => item.groupId === groupId)
-      .map((item) => normalizeGroupKey(item.key)),
-  );
+// groupEnabledVote（group-view.mjs 里的纯函数）统计组内成员在 addonlist 里的开关情况，
+// 用于决定"整组开关"的方向；「策略组管理」窗口的聚焦条复用同一份判定。
+function currentGroupEnabledVote(groupId) {
   const files = appState.allVpkFiles?.length ? appState.allVpkFiles : appState.vpkFiles || [];
-  let enabled = 0;
-  let disabled = 0;
-  for (const file of files) {
-    const fileKeys = filePriorityKeys(file, appState.currentDirectory);
-    if (!fileKeys.some((key) => keys.has(key))) continue;
-    if (file.gameEnabled) enabled += 1;
-    else if (file.gameStateKnown) disabled += 1;
-  }
-  return { enabled, disabled, mostlyEnabled: enabled >= disabled };
+  return groupEnabledVote(
+    appState.modGroupMemberships || [],
+    files,
+    groupId,
+    appState.currentDirectory,
+  );
 }
 
 async function shiftGroupPriority(groupId, groupName, delta) {
@@ -1256,15 +1250,22 @@ export function initModGroupUI() {
   syncSuggestionFilterControls();
   observeSuggestionModalSize();
 
-  // 组徽标点击 = 整组开关（真实按钮，键盘可达）。
+  // 组徽标点击 = 打开「策略组管理」窗口并定位到这一组（真实按钮，键盘可达）。
+  //
+  // 这里曾经是"就地整组开关"，但用户要的是"从这个 Mod 一眼看到它属于哪些组，
+  // 然后在这一组里管理成员"。整组开关本身没有丢：工具栏「分组」菜单里每个组
+  // 都还有「整组开关」，管理窗口的聚焦条上也有一个（见 strategy-group-manager.js）。
   document.addEventListener("click", (event) => {
     const badge = event.target.closest(".mod-group-badge");
     if (!badge) return;
     event.preventDefault();
     event.stopPropagation();
     const groupId = badge.dataset.groupId;
-    const name = (badge.textContent || "").replace(/^组：/, "");
-    if (groupId) void toggleGroupEnabled(groupId, name);
+    if (!groupId) return;
+    void openStrategyGroupManager({
+      focusGroupId: groupId,
+      focusFilePath: badge.dataset.filePath || "",
+    });
   });
 
   void refreshModGroupMembership();

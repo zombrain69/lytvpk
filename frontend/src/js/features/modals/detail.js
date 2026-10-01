@@ -2,6 +2,7 @@ import { appState } from "../state.js";
 import { escapeHtml, formatFileSize, getLocationDisplayName } from "../../core/utils.js";
 import { showError } from "../../core/toast.js";
 import {
+  GetModEvidence,
   GetWorkshopBrowserTarget,
   ParseWorkshopID,
 } from "../../../../wailsjs/go/app/App";
@@ -216,6 +217,7 @@ export function showFileDetail(filePath) {
       : "";
   detailTagsContainer.innerHTML = voiceTagsHtml + secondaryTagsHtml;
   renderTagEvidence(file, detailTagsContainer);
+  void loadTagEvidenceIfMissing(file, detailTagsContainer);
 
   const vpkInfoSection = document.getElementById("vpk-info-section");
   document.getElementById("detail-vpk-title").textContent = file.title || "无标题";
@@ -373,6 +375,32 @@ function renderTagEvidence(file, anchor) {
   }
 
   anchor.insertAdjacentElement("afterend", block);
+}
+
+/**
+ * loadTagEvidenceIfMissing 按需取「标签依据」。
+ *
+ * 列表 IPC（GetVPKFiles / SearchVPKFiles）刻意不再带 tagEvidence —— 真机上这份依据
+ * 占列表 payload 的 35%（2904 个 Mod 合计 2.15MB，整包 6.11MB / 一次 IPC 340ms），
+ * 而它只在详情弹窗里显示。所以打开详情时才对这一个 Mod 取一次。
+ * 结果回来时如果用户已经换了文件或关了弹窗，就直接丢弃。
+ */
+async function loadTagEvidenceIfMissing(file, anchor) {
+  if (!file?.path || !anchor) return;
+  if (Array.isArray(file.tagEvidence) && file.tagEvidence.length > 0) return;
+  const path = String(file.path);
+  try {
+    const evidence = await GetModEvidence(path);
+    if (!evidence) return;
+    if (String(currentDetailFile?.path || "") !== path) return;
+    const modal = document.getElementById("file-detail-modal");
+    if (!modal || modal.classList.contains("hidden")) return;
+    if (!anchor.isConnected) return;
+    renderTagEvidence({ ...file, tagEvidence: evidence.tagEvidence }, anchor);
+  } catch (error) {
+    // 依据取不到不影响详情的其它内容：静默降级，不弹错误。
+    console.warn("读取标签依据失败:", error);
+  }
 }
 
 export function closeModal() {

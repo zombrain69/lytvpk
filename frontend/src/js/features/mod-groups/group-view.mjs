@@ -68,8 +68,70 @@ export function formatGroupChipTitle(membership) {
     parts.push(`组权重 ${membership.tier}`);
   }
   if (membership?.enforce) parts.push("已开启自动联动");
-  parts.push("单击整组开关；整组优先级前移/后移在工具栏「分组」菜单里");
+  parts.push("单击：打开「策略组管理」窗口并定位到这一组（这个 Mod 所属的组会全部列在窗口顶部）");
+  parts.push("整组开关、整组优先级前移/后移也还在工具栏「分组」菜单里");
   return parts.join(" · ");
+}
+
+/**
+ * groupEnabledVote 统计一个策略组在 addonlist 里的开关情况。
+ *
+ * 「整组开关」要按多数派决定方向（多数开着就整组关，反之整组开），
+ * Mod 列表的分组菜单与「策略组管理」窗口的聚焦条共用这一份判定。
+ */
+export function groupEnabledVote(memberships, files, groupId, currentDirectory = "") {
+  const keys = new Set(
+    (Array.isArray(memberships) ? memberships : [])
+      .filter((item) => String(item?.groupId || "") === String(groupId || ""))
+      .map((item) => normalizeGroupKey(item?.key)),
+  );
+  let enabled = 0;
+  let disabled = 0;
+  (Array.isArray(files) ? files : []).forEach((file) => {
+    const fileKeys = filePriorityKeys(file, currentDirectory);
+    if (!fileKeys.some((key) => keys.has(key))) return;
+    if (file.gameEnabled) enabled += 1;
+    else if (file.gameStateKnown) disabled += 1;
+  });
+  return { enabled, disabled, mostlyEnabled: enabled >= disabled };
+}
+
+// ── 「从 Mod 列表点进来」的聚焦条文案 ─────────────────────────────────────
+// 徽标点击 → 策略组管理窗口的一个聚焦模式：窗口顶部把"这个 Mod 属于哪些组"
+// 一次列全，点其中一个就展开并跳到那一组，不用再回到列表里逐个猜。
+
+function membershipLabel(membership) {
+  return String(membership?.groupName || membership?.groupId || "").trim();
+}
+
+/** formatModGroupFocusSummary 聚焦条上的一句话：这个 Mod 一共属于几个组。 */
+export function formatModGroupFocusSummary(memberships) {
+  const count = (Array.isArray(memberships) ? memberships : []).filter((item) =>
+    membershipLabel(item),
+  ).length;
+  if (count === 0) return "这个 Mod 现在不属于任何策略组";
+  return `这个 Mod 属于 ${count} 个策略组 —— 点组名展开并跳到那一组（组级动作在那一行右侧）`;
+}
+
+/** formatModGroupFocusChip 聚焦条上的一个组按钮文案（带成员数）。 */
+export function formatModGroupFocusChip(membership) {
+  const name = membershipLabel(membership);
+  if (!name) return "";
+  return `组：${name} · ${Number(membership?.memberCount || 0)} 个成员`;
+}
+
+/** formatModGroupFocusChipTitle 聚焦条上组按钮的悬浮说明。 */
+export function formatModGroupFocusChipTitle(membership, activeGroupId = "") {
+  const name = membershipLabel(membership);
+  if (!name) return "";
+  const isActive = String(membership?.groupId || "") === String(activeGroupId || "");
+  return (
+    `策略组「${name}」· 策略：${formatGroupStrategy(membership?.strategy)}` +
+    ` · ${Number(membership?.memberCount || 0)} 个成员` +
+    (isActive
+      ? " · 正在定位这一组（要收起成员用这一行右侧的「收起成员」）"
+      : " · 单击：展开这个组并跳到它那一行")
+  );
 }
 
 /**

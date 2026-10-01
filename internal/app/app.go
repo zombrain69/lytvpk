@@ -156,7 +156,11 @@ type App struct {
 	// Mod 压缩包、教程/素材包…）。这类包是工坊作者特意做的（首次安装 / 自动更新用），
 	// 游戏不加载、也不该进 addonlist.txt —— 所以**不算异常**：既不进 unreadableMods，
 	// 也不发 error 事件（否则界面上会弹一个红色的「解析错误」）。
-	archivePacks          sync.Map // map[string]parser.ArchivePackInfo
+	archivePacks sync.Map // map[string]parser.ArchivePackInfo
+	// scanStats 记录最近一次扫描的"未变化 / 重新解析"数量，供日志、诊断与测试断言。
+	// 磁盘扫描缓存命中率也是从这里看出来的（见 vpk_scan_cache.go）。
+	scanStatsMu           sync.Mutex
+	scanStats             ScanStats
 	addonListGuardEnabled bool
 	addonListLastRestore  string
 	addonListLastError    string

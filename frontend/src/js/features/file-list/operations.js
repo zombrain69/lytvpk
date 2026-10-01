@@ -3,6 +3,7 @@ import {
   showLoadingScreen,
   showMainScreen,
   updateLoadingMessage,
+  updateStatusBar,
 } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
 import { unpackVPKFromPath } from "../diagnostics/vpk-unpack.js";
@@ -10,6 +11,7 @@ import { showConfirmModal } from "../modals/confirm.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import { getFileLoadOrderIndex, refreshLoadOrderMap } from "./sorting.js";
+import { updateSingleFileDisplay } from "./render.js";
 import { getUnrecordedGameStateOptions } from "./unrecorded-game-state.mjs";
 import { explainActionAvailability, formatExplanation } from "../../core/action-explanation.mjs";
 import { formatStrategyGroupEnforcementNotice } from "../settings/strategy-group-format.mjs";
@@ -113,13 +115,31 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
       });
     });
 
-    // SetVPKGameEnabled 可能首次把根目录 Mod 写入 addonlist.txt；同步重建
-    // 加载顺序映射，避免新条目直到下一次完整刷新才出现优先级编号。
-    await refreshLoadOrderMap({ silent: true });
-    await performSearch();
+    // 什么时候需要重建加载顺序映射（顺序真的会变）：
+    //   ① 这个 Mod 原本没记录，开启后会在 addonlist.txt 里新增一行；
+    //   ② 开启时策略组自动联动也可能替"原本没记录"的组员新增行；
+    //      关闭方向的联动只改已有行，顺序不变。
+    // 其余情况（最常见：已经在 addonlist 里，翻一下 0/1）顺序没变 ——
+    // 省掉 2 次 IPC + 重建，这正是"点一下游戏开关"里剩下的那 80ms 长任务。
+    const loadOrderMayChange = wasUnrecorded || (nextEnabled && enforcedCount > 0);
+    if (loadOrderMayChange) {
+      await refreshLoadOrderMap({ silent: true });
+    }
     const file =
       appState.allVpkFiles.find((item) => item.path === filePath) ||
       appState.vpkFiles.find((item) => item.path === filePath);
+    // 最常见的路径（改动的是已经在 addonlist 里的记录、没有组联动、也没按
+    // 游戏内状态筛选）只影响这一张卡：局部重画它就行。
+    // 真机上整表 performSearch() 会重画 2904 张卡，用户点一下就看到 200ms 卡顿。
+    const gameStateFilterActive = (appState.selectedGameStates?.length || 0) > 0;
+    const canUpdateInPlace =
+      !wasUnrecorded && enforcedCount === 0 && !gameStateFilterActive && Boolean(file);
+    if (canUpdateInPlace) {
+      updateSingleFileDisplay(file);
+      updateStatusBar();
+    } else {
+      await performSearch();
+    }
     const orderIndex = getFileLoadOrderIndex(file);
     const priorityHint = wasUnrecorded && nextEnabled && Number.isInteger(orderIndex)
       ? `（新增为优先级 #${orderIndex + 1}）`

@@ -26,6 +26,7 @@ import {
   RenameModStrategyGroup,
   RemoveModStrategyGroupMembers,
   CreateModStrategyGroupChild,
+  SetModStrategyGroupEnabled,
   SetModStrategyGroupEnforcement,
   SetModStrategyGroupTier,
   SetVPKGameEnabledBatch,
@@ -62,10 +63,17 @@ import {
 } from "../settings/strategy-group-format.mjs";
 import {
   buildSuggestionFileIndex,
+  buildGroupIndex,
+  formatModGroupFocusChip,
+  formatModGroupFocusChipTitle,
+  formatModGroupFocusSummary,
   formatGroupMissingNotice,
   formatGroupSubtreeMissingNotice,
+  groupEnabledVote,
+  groupsForFile,
   normalizeGroupKey,
 } from "./group-view.mjs";
+import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 import { buildModMemberRow } from "./member-row.js";
 import {
   applyMemberScopeToggle,
@@ -110,6 +118,49 @@ function setStatus(message) {
   if (status) status.textContent = message;
 }
 
+// ── 「上级分组」下拉：惰性填充 ──────────────────────────────────────────────
+//
+// 每一行的上级分组下拉原本内联了所有可选的组（除自己与自己的下级）。
+// 真机上 212 个组 = 44,779 个 <option>、4.9 万节点、3.7MB HTML，
+// 打开窗口要 1.6 秒（长任务 158ms）。这些选项绝大多数永远用不到，
+// 所以先只画"当前值"那一个选项，等用户真的要改（pointerdown / 聚焦 / 键盘）
+// 再一次性把候选填进去 —— 交互完全不变，DOM 少 95%。
+
+/** parentOptionLabel 单个组的显示名（与 buildParentOptions 的缩进规则一致）。 */
+function parentOptionLabel(groupId) {
+  const row = (managerState?.rows || []).find((item) => String(item.group?.id) === String(groupId));
+  if (!row) return "";
+  return `${"— ".repeat(Math.max((row.depth || 1) - 1, 0))}${row.group.name || row.group.id}`;
+}
+
+/** parentOptionSummaryHtml 只渲染"当前值"，完整候选留到用户真的要用时再填。 */
+function parentOptionSummaryHtml(group) {
+  const parentId = String(group?.parentId || "");
+  if (!parentId) {
+    return `<option value="">（顶层）</option>`;
+  }
+  // 上级可能已经被删掉（脏数据）：这时退回"顶层"，与后端迁移行为一致。
+  const label = parentOptionLabel(parentId);
+  if (!label) {
+    return `<option value="">（顶层）</option>`;
+  }
+  return `<option value="${escapeAttr(parentId)}" selected>${escapeHtml(label)}</option>`;
+}
+
+/** fillParentOptions 在用户第一次操作某个下拉时补上完整候选（同一个只填一次）。 */
+function fillParentOptions(select) {
+  if (!select || select.dataset.parentOptions === "filled") return;
+  const keep = String(select.value || "");
+  const options = buildParentOptions(managerState?.rows || [], select.dataset.groupId || "")
+    .map(
+      (option) =>
+        `<option value="${escapeAttr(option.id)}" ${option.id === keep ? "selected" : ""}>${escapeHtml(option.label)}</option>`,
+    )
+    .join("");
+  select.innerHTML = `<option value="">（顶层）</option>${options}`;
+  select.dataset.parentOptions = "filled";
+  select.value = keep;
+}
 // refreshAfterChange 把"组/开关变了"反映到主列表与筛选结果上。
 async function refreshAfterChange() {
   try {
@@ -126,30 +177,32 @@ async function refreshAfterChange() {
 
 /** 读取策略组、树形层级与缺失成员，供渲染使用。 */
 async function loadManagerData() {
-  let groups = [];
+  // 三个调用互不依赖：并行发出。串行时窗口首屏要等三次 IPC 相加
+  // （真机 17 + 18 + 10 ms，改造前其中一次是 1593ms）。
+  const [groupsResult, treeResult, missingResult] = await Promise.allSettled([
+    ListModStrategyGroups(),
+    ListModStrategyGroupTree(),
+    GetModStrategyGroupMissingMembers(),
+  ]);
   let error = "";
-  try {
-    groups = (await ListModStrategyGroups()) || [];
-  } catch (err) {
-    error = String(err?.message || err || "无法读取策略组");
+  let groups = [];
+  if (groupsResult.status === "fulfilled") {
+    groups = groupsResult.value || [];
+  } else {
+    error = String(groupsResult.reason?.message || groupsResult.reason || "无法读取策略组");
   }
-  let tree = null;
-  try {
-    tree = (await ListModStrategyGroupTree()) || null;
-  } catch (err) {
-    tree = null;
-  }
+  const tree = treeResult.status === "fulfilled" ? treeResult.value || null : null;
   const missingByName = new Map();
   // missingSummary 保留完整条目（含"子树缺失"汇总），供父组行显示 AddonChildrenProblem 式的提示。
   const missingSummary = new Map();
-  try {
-    const missing = (await GetModStrategyGroupMissingMembers()) || [];
+  if (missingResult.status === "fulfilled") {
+    const missing = missingResult.value || [];
     missing.forEach((item) => {
       missingByName.set(String(item.groupId), item.missingNames || []);
       missingSummary.set(String(item.groupId), item);
     });
-  } catch (err) {
-    console.warn("读取缺失成员失败:", err);
+  } else {
+    console.warn("读取缺失成员失败:", missingResult.reason);
   }
   return {
     groups,
@@ -380,6 +433,227 @@ function syncMemberCheckboxes() {
     });
 }
 
+// ── 「从 Mod 列表点进来」的聚焦模式 ────────────────────────────────────────
+// Mod 列表上的「组：xxx」徽标单击 → 打开这个窗口并定位到那一组：
+// 顶部把这个 Mod 所属的**全部**组一次列全（点一下切组），那一组自动展开并高亮，
+// 这个 Mod 的成员行也加上高亮。这里只做"看和跳"，所有动作仍走窗口里原有的按钮。
+
+let focusState = null;
+
+function currentFiles() {
+  return appState.allVpkFiles?.length ? appState.allVpkFiles : appState.vpkFiles || [];
+}
+
+function fileByPath(filePath) {
+  const target = String(filePath || "");
+  if (!target) return null;
+  return currentFiles().find((file) => String(file?.path || "") === target) || null;
+}
+
+/** focusedFileKeys 聚焦 Mod 的 addonlist 键（用来给成员行加高亮）。 */
+function focusedFileKeys() {
+  const file = fileByPath(focusState?.filePath);
+  if (!file) return new Set();
+  return new Set(filePriorityKeys(file, appState.currentDirectory).map(normalizeGroupKey));
+}
+
+/** focusMemberships 聚焦 Mod 所属的全部策略组（与列表徽标同一份索引）。 */
+function focusMemberships() {
+  const file = fileByPath(focusState?.filePath);
+  if (!file) return [];
+  const index =
+    appState.modGroupIndex instanceof Map && appState.modGroupIndex.size > 0
+      ? appState.modGroupIndex
+      : buildGroupIndex(appState.modGroupMemberships || []);
+  return groupsForFile(file, index, appState.currentDirectory);
+}
+
+function focusFileName() {
+  const file = fileByPath(focusState?.filePath);
+  const raw = String(file?.name || focusState?.filePath || "");
+  return raw.split(/[\\/]/).pop() || raw;
+}
+
+/** renderFocusBar 画窗口顶部的聚焦条（没有聚焦目标时隐藏）。 */
+function renderFocusBar() {
+  const host = element("strategy-group-focus");
+  if (!host) return;
+  if (!focusState) {
+    host.classList.add("hidden");
+    host.replaceChildren();
+    return;
+  }
+  const memberships = focusMemberships();
+  const activeId = String(focusState.groupId || "");
+  const chips = memberships
+    .map((membership) => {
+      const isActive = String(membership?.groupId || "") === activeId;
+      const aria = isActive ? ' aria-current="true"' : "";
+      const title = escapeAttr(formatModGroupFocusChipTitle(membership, activeId));
+      const label = escapeHtml(formatModGroupFocusChip(membership));
+      return (
+        `<button type="button" class="strategy-group-focus-chip${isActive ? " is-active" : ""}"` +
+        ` data-focus-group-id="${escapeAttr(membership?.groupId)}"${aria} title="${title}">${label}</button>`
+      );
+    })
+    .join("");
+  const title = escapeHtml(focusFileName());
+  const pathTitle = escapeAttr(focusState.filePath);
+  const summary = escapeHtml(formatModGroupFocusSummary(memberships));
+  // 定位条要尽量矮。真机量过：三行（标题 / 组按钮 / 说明）＝144px，而这个窗口的
+  // 滚动区一共只有 271px，再叠上底部那条粘性「回到顶层」落点（35px），
+  // 刚跳过去的那一组只剩 60px 无遮挡视野 —— 它右侧的组级按钮（标题下第二行）
+  // 整排被落点盖住，elementFromPoint 命中测试 10/10 都点不到。
+  // 说明改挂 title：鼠标悬停照样看得全，条上只留一行标题 + 一行组按钮。
+  host.title =
+    "点下面的组名＝展开它并跳到那一行；那一行右侧的「按策略应用 / 随机单选 / 全关 / 重命名 / 删除」就是组级管理；" +
+    "「展开成员」后还能勾选多行、用窗口底部的批量条一次处理。";
+  host.classList.remove("hidden");
+  host.innerHTML =
+    `<div class="strategy-group-focus-main">` +
+    `<span class="strategy-group-focus-title">定位：</span>` +
+    `<span class="strategy-group-focus-file" title="${pathTitle}">${title}</span>` +
+    `<span class="strategy-group-focus-count">${summary}</span>` +
+    `<button type="button" class="settings-strategy-batch-btn" data-focus-action="toggle-group" title="把当前定位的这一组全部成员一起启用或关闭（只改 addonlist.txt 的 0/1）">整组开关</button>` +
+    `<button type="button" class="settings-strategy-batch-btn" data-focus-action="clear" title="结束定位，回到普通的策略组列表（不会取消任何勾选）">清除定位</button>` +
+    `</div>` +
+    (chips ? `<div class="strategy-group-focus-chips">${chips}</div>` : "");
+}
+
+/** setFocusRequest 记录"从 Mod 列表点进来"的定位目标（空参数＝退出定位）。 */
+function setFocusRequest(options = {}) {
+  const groupId = String(options?.focusGroupId || "").trim();
+  const filePath = String(options?.focusFilePath || "").trim();
+  if (!groupId && !filePath) {
+    focusState = null;
+    return;
+  }
+  focusState = { groupId, filePath };
+  if (!groupId) return;
+  expandedSet().add(groupId);
+  clearSearchIfGroupHidden(groupId);
+}
+
+/** clearSearchIfGroupHidden 搜索关键字会把定位的组筛掉时清空它（否则"定位"落到空白处）。 */
+function clearSearchIfGroupHidden(groupId) {
+  if (!managerQuery || visibleGroupIds().includes(String(groupId || ""))) return;
+  managerQuery = "";
+  const search = element("strategy-group-search");
+  if (search) search.value = "";
+}
+
+/** focusOnGroup 在聚焦条里切到另一个组：展开它、跳过挡住它的搜索、滚过去并高亮。 */
+function focusOnGroup(groupId) {
+  if (!focusState) return;
+  const nextId = String(groupId || "");
+  focusState = { ...focusState, groupId: nextId };
+  if (nextId) {
+    expandedSet().add(nextId);
+    clearSearchIfGroupHidden(nextId);
+  }
+  renderManager();
+  revealFocusedGroup();
+}
+
+/**
+ * applyFocusHighlight 给定位的组行与这个 Mod 的成员行补上高亮（只改 class，不滚动）。
+ *
+ * 必须由 renderManager 在每次重画后调用：列表是整片 innerHTML 重建的，
+ * 只要别处再来一次重画（例如启动期组成员刷新触发的 reload），
+ * 只加一次的 class 就会被抹掉 —— 真机上就是这么丢的（marked=1 → 0）。
+ */
+function applyFocusHighlight() {
+  const list = element("strategy-group-list");
+  if (!list || !focusState) return null;
+  list
+    .querySelectorAll(".mod-member-row.is-focus-member")
+    .forEach((row) => row.classList.remove("is-focus-member"));
+  const keys = focusedFileKeys();
+  if (keys.size > 0) {
+    list.querySelectorAll(".mod-member-row[data-member-key]").forEach((row) => {
+      if (keys.has(normalizeGroupKey(row.dataset.memberKey))) row.classList.add("is-focus-member");
+    });
+  }
+  const groupId = String(focusState.groupId || "");
+  if (!groupId) return null;
+  list
+    .querySelectorAll("[data-group-row].is-focus-target")
+    .forEach((row) => row.classList.remove("is-focus-target"));
+  const row = list.querySelector(`[data-group-row="${CSS.escape(groupId)}"]`);
+  if (!row) return null;
+  row.classList.add("is-focus-target");
+  return row;
+}
+
+/** revealFocusedGroup 重新补高亮，并把定位行滚到定位条下面。 */
+function revealFocusedGroup() {
+  const row = applyFocusHighlight();
+  if (row) scrollRowBelowFocusBar(row);
+}
+
+/**
+ * scrollRowBelowFocusBar 把定位的组行滚到"定位条下面"。
+ *
+ * 不能用 block:"center"：展开过的组行（25 个成员）可能比可视区还高，
+ * 居中等于把组名顶出视野、只剩成员列表 —— 真机上量到过 rowTopVsBody = -1015。
+ * 先按 block:"start" 贴到滚动区顶部，再把被粘性定位条盖住的那一段补回来。
+ *
+ * 注意方向：**加大** scrollTop 是把内容往上推，所以要把被盖住的部分"顶下来"，
+ * 得**减** scrollTop（第一版写成 += ，真机量到行仍停在 -167，等于没修）。
+ */
+function scrollRowBelowFocusBar(row) {
+  const body = row.closest(".strategy-group-body");
+  if (!body) return;
+  row.scrollIntoView({ block: "start" });
+  const bar = element("strategy-group-focus");
+  if (!bar || bar.classList.contains("hidden")) return;
+  const overlap = bar.getBoundingClientRect().bottom + 8 - row.getBoundingClientRect().top;
+  if (overlap > 0) body.scrollTop = Math.max(0, body.scrollTop - overlap);
+}
+
+/** toggleFocusedGroupEnabled 聚焦条上的「整组开关」：语义与列表「分组」菜单完全一致。 */
+async function toggleFocusedGroupEnabled() {
+  const groupId = String(focusState?.groupId || "");
+  const group = groupById(groupId);
+  if (!group) {
+    setStatus("先在上面点一个组，再来整组开关");
+    return;
+  }
+  const vote = groupEnabledVote(
+    appState.modGroupMemberships || [],
+    currentFiles(),
+    groupId,
+    appState.currentDirectory,
+  );
+  const nextEnabled = !vote.mostlyEnabled;
+  // 与 Mod 列表的「整组开关」同一句确认文案：只说会改 addonlist 的 0/1。
+  const action = nextEnabled ? "启用" : "关闭";
+  const memberCount = (group.members || []).length;
+  showConfirmModal(
+    "整组开关",
+    `把「${group.name}」的 ${memberCount} 个成员一起${action}。\n` +
+      `（当前统计：启用 ${vote.enabled} 个、关闭 ${vote.disabled} 个）\n` +
+      "只会修改 addonlist.txt 里的 0/1，不会重排顺序，也不会改动 Mod 文件。是否继续？",
+    async () => {
+      try {
+        const result = await SetModStrategyGroupEnabled(groupId, nextEnabled);
+        const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
+        const done = (result?.enabled?.length || 0) + (result?.disabled?.length || 0);
+        showNotification(
+          `「${group.name}」已整组${action} ${done} 个成员` +
+            (skipped.length > 0 ? `，${skipped.length} 个成员的文件已不在列表里，已跳过` : ""),
+          skipped.length > 0 ? "info" : "success",
+        );
+        await reload();
+        await refreshAfterChange();
+        revealFocusedGroup();
+      } catch (error) {
+        setStatus("整组开关失败: " + String(error?.message || error));
+      }
+    },
+  );
+}
+
 /** 渲染批量工具条与组列表（整体重画，动作完成后调用）。 */
 function renderManager() {
   if (!managerState) return;
@@ -387,6 +661,12 @@ function renderManager() {
   pruneExpanded();
   pruneMemberSelection();
   syncSelectAll();
+  renderFocusBar();
+  // 定位模式标在滚动区上：底部那条「回到顶层」落点是 sticky 浮层，会把刚跳过去的
+  // 组行盖掉一截（见 mods.css 的 .is-focus-mode 规则）。定位模式下它回到列表末尾。
+  element("strategy-group-list")
+    ?.closest(".strategy-group-body")
+    ?.classList.toggle("is-focus-mode", Boolean(focusState));
   const list = element("strategy-group-list");
   const batch = element("strategy-group-batch");
   const status = element("strategy-group-status");
@@ -552,13 +832,7 @@ function renderManager() {
             <button type="button" class="settings-strategy-delete" data-group-id="${escapeAttr(group.id)}" title="删除这个策略组（只删 groups.json 里的记录）">删除</button>
             <span class="settings-strategy-parent" title="上级分组只影响这里的展示层级，不会改变优先级（优先级由组权重与 Mod 分层决定）">
               <select class="settings-strategy-parent-select" data-group-id="${escapeAttr(group.id)}" aria-label="上级分组">
-                <option value="">（顶层）</option>
-                ${buildParentOptions(managerState.rows, group.id)
-                  .map(
-                    (option) =>
-                      `<option value="${escapeAttr(option.id)}" ${option.id === group.parentId ? "selected" : ""}>${escapeHtml(option.label)}</option>`,
-                  )
-                  .join("")}
+                ${parentOptionSummaryHtml(group)}
               </select>
             </span>
             <span class="settings-strategy-tier" title="组权重：叠加到组内成员的有效分层；数值越小越先加载。留空表示未设置，多个组的权重取最小值。">
@@ -584,6 +858,8 @@ function renderManager() {
     .join("");
   renderExpandedMembers();
   bindRowActions();
+  // 重画后补回定位高亮（不滚动：用户可能已经自己滚到别处去了）。
+  applyFocusHighlight();
   // 成员批量条：只在有组展开时出现；计数与按钮可用性跟着勾选走。
   updateMemberBatchBar();
 }
@@ -1353,8 +1629,14 @@ async function captureGroupFromSelection() {
   }
 }
 
-/** openStrategyGroupManager 打开独立的策略组管理窗口。 */
-export async function openStrategyGroupManager() {
+/**
+ * openStrategyGroupManager 打开独立的策略组管理窗口。
+ *
+ * @param {{focusGroupId?: string, focusFilePath?: string}} [options]
+ *        从 Mod 列表的「组：xxx」徽标点进来时传：窗口顶部会列出这个 Mod 所属的
+ *        全部策略组，并展开 / 高亮 focusGroupId 这一组。不传就是普通打开。
+ */
+export async function openStrategyGroupManager(options = {}) {
   const modal = element("strategy-group-modal");
   if (!modal) return;
   modal.classList.remove("hidden");
@@ -1363,11 +1645,15 @@ export async function openStrategyGroupManager() {
   // 成员批量选择不跨窗口生命周期保留：重新打开就是一次新的批量操作。
   memberSelection = new Set();
   managerState = await loadManagerData();
+  setFocusRequest(options);
   renderManager();
+  revealFocusedGroup();
   updateCaptureButton();
 }
 
 function closeStrategyGroupManager() {
+  // 定位只在这一次打开里有效：下次（比如从设置页）打开是普通的组列表。
+  focusState = null;
   element("strategy-group-modal")?.classList.add("hidden");
 }
 
@@ -1405,6 +1691,42 @@ export function initStrategyGroupManager() {
   element("strategy-group-capture")?.addEventListener("click", () => void captureGroupFromSelection());
   element("strategy-group-close-btn")?.addEventListener("click", closeStrategyGroupManager);
   element("strategy-group-close-footer-btn")?.addEventListener("click", closeStrategyGroupManager);
+  // 聚焦条（从 Mod 列表徽标点进来时出现）：条本身是静态元素，重画只换里面的内容，
+  // 所以这里绑一次委托。点组名＝展开并跳过去；「整组开关」与列表「分组」菜单同语义。
+  element("strategy-group-focus")?.addEventListener("click", (event) => {
+    const chip = event.target.closest?.("[data-focus-group-id]");
+    if (chip) {
+      event.preventDefault();
+      focusOnGroup(chip.dataset.focusGroupId);
+      return;
+    }
+    const action = event.target.closest?.("[data-focus-action]")?.dataset?.focusAction;
+    if (action === "toggle-group") {
+      event.preventDefault();
+      void toggleFocusedGroupEnabled();
+      return;
+    }
+    if (action === "clear") {
+      event.preventDefault();
+      focusState = null;
+      renderManager();
+    }
+  });
+  // 「上级分组」下拉的候选惰性填充：鼠标点开、键盘 Tab 进来、键盘直接操作，
+  // 三种路径都先补候选再让浏览器打开原生下拉（见 fillParentOptions 的说明）。
+  const groupListHost = element("strategy-group-list");
+  groupListHost?.addEventListener("pointerdown", (event) => {
+    const select = event.target?.closest?.(".settings-strategy-parent-select");
+    if (select) fillParentOptions(select);
+  });
+  groupListHost?.addEventListener("focusin", (event) => {
+    const select = event.target?.closest?.(".settings-strategy-parent-select");
+    if (select) fillParentOptions(select);
+  });
+  groupListHost?.addEventListener("keydown", (event) => {
+    const select = event.target?.closest?.(".settings-strategy-parent-select");
+    if (select) fillParentOptions(select);
+  });
   // 成员批量条：元素是静态的（index.html），这里绑定一次；
   // 计数与可用性由 updateMemberBatchBar() 在每次重画/勾选后刷新。
   element("strategy-group-member-select-all")?.addEventListener("change", (event) => {

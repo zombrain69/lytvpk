@@ -111,10 +111,15 @@ export function renderModInfoPanel(file) {
 }
 
 function syncSelectedRow() {
+  // 只同步"已经在 DOM 里"的行：列表是"按需物化"的，为一行高亮把整表补齐
+  // 会让"点一下卡片"变成一秒级操作。之后滚动到新物化的行时，
+  // render.js 会广播 file-list:materialized，这里再补一次高亮（见下）。
   document.querySelectorAll(".file-item, .file-card").forEach((item) => {
     item.classList.toggle("active-inspect", item.dataset.path === selectedPath);
   });
 }
+
+document.addEventListener("file-list:materialized", syncSelectedRow);
 
 function infoRow(label, value, variant = "") {
   return `

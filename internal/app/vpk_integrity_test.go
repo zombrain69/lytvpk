@@ -168,7 +168,7 @@ func TestRepairVPKIntegrityRestoresWorkshopMetaIntoRepairedCopy(t *testing.T) {
 	}
 
 	scanner := &App{rootDir: tempDir, workshopMetaEnabled: true}
-	scanner.processVPKFileWithCache(result.OutputPath)
+	scanner.processVPKFileWithCache(result.OutputPath, nil)
 	cached, ok := scanner.vpkCache.Load(result.OutputPath)
 	if !ok {
 		t.Fatal("repaired VPK was not added to the scan cache")

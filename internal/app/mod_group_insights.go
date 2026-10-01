@@ -39,6 +39,8 @@ func (a *App) GetModGroupMembership() ([]ModGroupMembership, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 一次建索引：逐个成员问"文件还在不在"是 O(成员数 × 缓存数)，真机 1.6 秒。
+	vaultKeys := a.buildVaultKeyIndex(a.rootDirectorySnapshot())
 	result := make([]ModGroupMembership, 0)
 	for _, group := range groups {
 		for _, member := range group.Members {
@@ -55,7 +57,7 @@ func (a *App) GetModGroupMembership() ([]ModGroupMembership, error) {
 				Tier:        group.Tier,
 				MemberCount: len(group.Members),
 				ParentID:    group.ParentID,
-				Missing:     !a.modKeyExistsInVault(key),
+				Missing:     !a.modKeyExistsInVaultIndexed(vaultKeys, key),
 			})
 		}
 	}
@@ -94,11 +96,13 @@ func (a *App) GetModStrategyGroupMissingMembers() ([]ModStrategyGroupMissingMemb
 
 	selfMissing := make(map[string][]string, len(groups))
 	children := make(map[string][]string, len(groups))
+	// 同上：批量化"文件还在不在"的判定，否则开一次窗口要 1.6 秒。
+	vaultKeys := a.buildVaultKeyIndex(a.rootDirectorySnapshot())
 	for _, group := range groups {
 		missing := make([]string, 0, 4)
 		for _, member := range group.Members {
 			key := normalizeAddonListKey(member.Key)
-			if key == "" || a.modKeyExistsInVault(key) {
+			if key == "" || a.modKeyExistsInVaultIndexed(vaultKeys, key) {
 				continue
 			}
 			missing = append(missing, groupMemberDisplayName(member))

@@ -226,6 +226,8 @@ export function GetMirrorsInitial():Promise<Array<app.MirrorWithLatency>>;
 
 export function GetMirrorsWithLatency():Promise<Array<app.MirrorWithLatency>>;
 
+export function GetModEvidence(arg1:string):Promise<app.ModEvidence>;
+
 export function GetModGroupMembership():Promise<Array<app.ModGroupMembership>>;
 
 export function GetModIgnoreFiles(arg1:string):Promise<Array<string>>;
@@ -247,6 +249,8 @@ export function GetPrimaryTags():Promise<Array<string>>;
 export function GetProblemModScanSession():Promise<app.ProblemModScanSession>;
 
 export function GetRootDirectory():Promise<string>;
+
+export function GetScanStats():Promise<app.ScanStats>;
 
 export function GetSecondaryTags(arg1:string):Promise<Array<string>>;
 

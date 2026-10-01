@@ -711,6 +711,109 @@
   line-height: 1.5;
 }
 
+/* 「从 Mod 列表点进来」的定位条：列出这个 Mod 所属的全部策略组。
+   粘在滚动区顶部 —— 滚到列表下半部分时，"这个 Mod 属于哪几组 / 切到别组"还在手边。
+   高度必须克制：滚动区一共 271px（真机 1400×900 窗口），条子每多一行，
+   刚定位的那一组就少一行视野（它的组级按钮在标题下面第二行）。 */
+.strategy-group-focus {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 0 0.5rem;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border-default));
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  font-size: 0.78rem;
+  /* 一个 Mod 属于十来个组时 chips 会换行到很高；给个上限，多出来的在条内滚动。 */
+  max-height: 5.5rem;
+  overflow-y: auto;
+}
+
+.strategy-group-focus-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.strategy-group-focus-title {
+  color: var(--text-secondary);
+}
+
+.strategy-group-focus-file {
+  color: var(--text-primary);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.strategy-group-focus-count {
+  color: var(--text-secondary);
+}
+
+.strategy-group-focus-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.strategy-group-focus-chip {
+  padding: 0.1rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border-default));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  cursor: pointer;
+}
+
+.strategy-group-focus-chip:hover {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.strategy-group-focus-chip.is-active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 26%, transparent);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* 定位模式：底部「回到顶层」落点退回列表末尾，不再当悬浮层。
+   它是 sticky 的 35px 浮层，正好压在刚跳过去那一行下面 —— 真机上那组的
+   「按策略应用 / 随机单选 / 全关 / 重命名 / 删除」10/10 个按钮都被它挡住，
+   elementFromPoint 全部命中落点（等于点不到）。滚到列表末尾它照样能用。 */
+.strategy-group-body.is-focus-mode .strategy-group-drop-root {
+  position: static;
+}
+
+/* 定位目标：组行描边，这一组里那个 Mod 的成员行也加一条边，避免"跳到了但不知道看哪行"。 */
+.strategy-group-list [data-group-row].is-focus-target {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.strategy-group-list .mod-member-row.is-focus-member {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--primary) 55%, transparent);
+  outline-offset: -1px;
+}
+
+/* 组行右侧的动作按钮要能换行。
+   一排「＋子组 / 筛选这组 / 按策略应用 / 随机单选 / 全关 / 重命名 / 删除 / 上级分组 /
+   权重 / 保存权重 / 自动联动」真机上需要 1144px，而浮动窗口下的容器只有 704px：
+   不换行的结果是横向滚动条 + 右边的按钮根本看不见（定位到某组时尤其明显）。 */
+#strategy-group-modal .settings-profile-actions {
+  /* flex: 0 0 auto（global.css 的默认值）会让这一排按"最长一行"撑到 max-content，
+     flex-wrap 永远不触发 —— 真机上量到 actions=1110px、容器只有 704px，右边的按钮照样看不见。 */
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 0.35rem;
+}
+
 /* 底部"回到顶层"落点：平时是一条安静的提示，拖动经过时高亮。 */
 .strategy-group-drop-root {
   /* 粘在滚动区底部：组一多就必须滚到最底才能用它，粘住后随时可点。 */
@@ -1691,6 +1794,11 @@
   padding: var(--spacing-2) var(--spacing-3);
   border-bottom: 1px solid var(--border-light);
   font-size: var(--text-sm);
+  /* 加载顺序预览是真机 2599 行（含失效/未记录角标后 1.3 万节点）的长列表：
+     屏外行不必参与布局与绘制，否则每次"开窗/重排"都要把整份列表算一遍。
+     行是定高（实测 40px），所以尺寸估计是精确的。 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
 }
 
 .load-order-preview-item:last-child {
@@ -3904,6 +4012,12 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg-app);
+}
+
+/* 「按需物化」列表底部的占位块：撑出完整滚动条高度，滚到附近再补真实卡片。 */
+.file-list-window-spacer {
+  min-height: 1px;
+  pointer-events: none;
 }
 
 .file-card {

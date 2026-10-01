@@ -442,6 +442,10 @@ export function GetMirrorsWithLatency() {
   return window['go']['app']['App']['GetMirrorsWithLatency']();
 }
 
+export function GetModEvidence(arg1) {
+  return window['go']['app']['App']['GetModEvidence'](arg1);
+}
+
 export function GetModGroupMembership() {
   return window['go']['app']['App']['GetModGroupMembership']();
 }
@@ -484,6 +488,10 @@ export function GetProblemModScanSession() {
 
 export function GetRootDirectory() {
   return window['go']['app']['App']['GetRootDirectory']();
+}
+
+export function GetScanStats() {
+  return window['go']['app']['App']['GetScanStats']();
 }
 
 export function GetSecondaryTags(arg1) {

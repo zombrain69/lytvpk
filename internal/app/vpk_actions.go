@@ -564,7 +564,7 @@ func (a *App) ToggleVPKVisibility(filePath string) (string, error) {
 		a.deleteVPKPreviewCaches(filePath)
 		a.vpkCache.Store(newPath, cache)
 	} else {
-		a.processVPKFileWithCache(newPath)
+		a.processVPKFileWithCache(newPath, nil)
 	}
 
 	// 隐藏/显示会加/去掉 `_` 前缀，addonlist 键随之变化：
@@ -601,7 +601,7 @@ func (a *App) SetVPKTags(filePath string, primaryTag string, secondaryTags []str
 	if result.rescanPath != "" {
 		// processVPKFileWithCache 自己会取 a.mu.RLock，只能在锁外跑。
 		// 原来缓存未命中时是在锁内调用的，会直接把整个应用卡死。
-		a.processVPKFileWithCache(result.rescanPath)
+		a.processVPKFileWithCache(result.rescanPath, nil)
 	}
 	return nil
 }
@@ -779,7 +779,7 @@ func (a *App) setWorkshopVPKTagsLocked(filePath, primaryTag string, secondaryTag
 		a.vpkCache.Delete(filePath)
 		a.deleteVPKPreviewCaches(filePath)
 	}
-	a.processVPKFileWithCache(filePath)
+	a.processVPKFileWithCache(filePath, nil)
 	return nil
 }
 
@@ -860,7 +860,7 @@ func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error)
 		a.vpkCache.Store(newPath, cache)
 	} else {
 		// 如果不在缓存中，重新处理
-		a.processVPKFileWithCache(newPath)
+		a.processVPKFileWithCache(newPath, nil)
 	}
 
 	// 改名后把本地记录（策略组 / 分层 / 依赖 / 忽略清单）里的旧键迁移到新键，

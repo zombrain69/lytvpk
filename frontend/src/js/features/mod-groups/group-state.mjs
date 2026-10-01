@@ -8,6 +8,23 @@ import { GetModGroupMembership } from "../../../../wailsjs/go/app/App";
 import { buildGroupFilterOptions, buildGroupIndex, sortGroupFilterOptions } from "./group-view.mjs";
 
 const listeners = new Set();
+// 上一次归属内容的指纹：内容没变就不通知。
+//
+// 为什么必须做：每次搜索结束后 filters.js 都会在后台刷一次归属，
+// 而监听方（group-ui）收到通知会**重画整份 Mod 列表** ——
+// 真机上等于每次搜索都白白再渲染 2904 张卡（第二次 500ms 级长任务）。
+// 归属没变时跳过通知，界面状态一个字节都不会少。
+let lastMembershipSignature = null;
+
+function membershipSignature(memberships) {
+  return memberships
+    .map(
+      (item) =>
+        `${item?.groupId ?? ""}|${item?.key ?? ""}|${item?.groupName ?? ""}|${item?.strategy ?? ""}|` +
+        `${item?.enforce ? 1 : 0}|${item?.tier ?? ""}|${item?.parentId ?? ""}|${item?.missing ? 1 : 0}`,
+    )
+    .join(";");
+}
 
 /** onModGroupMembershipChanged 注册"组归属变化"回调，返回取消函数。 */
 export function onModGroupMembershipChanged(listener) {
@@ -38,6 +55,11 @@ export async function refreshModGroupMembershipState({ silent = true } = {}) {
     if (!silent) console.warn("读取策略组归属失败:", error);
     memberships = [];
   }
+  const signature = membershipSignature(memberships);
+  if (lastMembershipSignature !== null && signature === lastMembershipSignature) {
+    return memberships;
+  }
+  lastMembershipSignature = signature;
   appState.modGroupMemberships = memberships;
   appState.modGroupIndex = buildGroupIndex(memberships);
   // 顺序＝组权重升序（未设置权重的组排最后）+ 子组紧跟父组：

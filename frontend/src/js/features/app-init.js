@@ -175,8 +175,10 @@ export async function loadFiles() {
   showFileListLoading("正在扫描VPK文件...");
 
   try {
-    await ScanVPKFiles();
-    await refreshLoadOrderMap({ silent: true });
+    // 冷启动时 ScanVPKFiles 要把 2904 个 VPK 全解析一遍（实测 1–2s，属于磁盘 I/O）。
+    // 加载顺序映射跟扫描互不依赖（一个读 addonlist/priority，一个读 VPK 头），
+    // 并行跑能把这 2 次 IPC 的时间藏进扫描里。
+    await Promise.all([ScanVPKFiles(), refreshLoadOrderMap({ silent: true })]);
 
     const [files, primaryTags] = await Promise.all([
       GetVPKFiles(),
@@ -188,8 +190,8 @@ export async function loadFiles() {
     appState.allVpkFiles = files;
     appState.primaryTags = primaryTags;
 
-    await renderTagFilters();
-    await performSearch();
+    // 标签筛选条与列表渲染互不依赖（各画各的容器）：并起来，卡片能更早出现。
+    await Promise.all([renderTagFilters(), performSearch()]);
 
     console.log("扫描完成，找到", files.length, "个文件");
   } catch (error) {

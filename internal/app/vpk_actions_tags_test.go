@@ -68,7 +68,7 @@ func TestScanAppliesWorkshopMetaTagsWhenWorkshopDetailsAreDisabled(t *testing.T)
 	}
 
 	app := &App{rootDir: addonsDir, workshopMetaEnabled: false}
-	app.processVPKFileWithCache(vpkPath)
+	app.processVPKFileWithCache(vpkPath, nil)
 	cached := app.mustCachedVPKFile(t, vpkPath)
 	// D13：`.meta` 自定义标签只能"叠加"，不能覆盖自动识别结果。
 	// 这个 VPK 里只有 scripts/test.txt，解析器会给出「脚本」；自定义标签是 人物/Bill。

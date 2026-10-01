@@ -903,6 +903,9 @@ html.dark-mode .autoexec-analysis.is-warning {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   background: var(--bg-app);
+  /* 同 .autoexec-help-item：切分栏时这块也会被强制结算，屏外条目跳过渲染。 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
 }
 
 .autoexec-match.is-unknown {

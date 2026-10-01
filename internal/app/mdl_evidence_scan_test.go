@@ -56,7 +56,7 @@ func TestScanUsesModelMaterialTableForRenamedModels(t *testing.T) {
 	})
 
 	app := &App{rootDir: addonsDir}
-	app.processVPKFileWithCache(vpkPath)
+	app.processVPKFileWithCache(vpkPath, nil)
 	cached := app.mustCachedVPKFile(t, vpkPath)
 
 	if !containsInheritedTag(cached.SecondaryTags, "AK47") {

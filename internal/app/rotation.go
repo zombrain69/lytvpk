@@ -83,7 +83,7 @@ func (a *App) rotateModsInternal(config RotationConfig) error {
 	logMsg("开始执行Mod随机轮换...")
 
 	// 1. 获取所有VPK文件
-	files := a.GetVPKFiles()
+	files := a.allVPKFilesSnapshot()
 
 	// 2. 识别当前启用的武器和人物Mod，并收集二级标签
 	targetTags := make(map[string]bool)

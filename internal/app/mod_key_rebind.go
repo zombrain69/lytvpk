@@ -198,15 +198,21 @@ func (a *App) addonListKeyForPath(path string) string {
 // modKeyExistsInVault 判断某个 addonlist 键当前是否还能在已扫描列表里找到文件。
 // 组应用前用它过滤"文件已被删除/移走"的成员，避免往 addonlist 写幽灵条目。
 func (a *App) modKeyExistsInVault(key string) bool {
-	target := normalizeAddonListKey(key)
-	if target == "" {
-		return false
-	}
-	rootDir := a.rootDirectorySnapshot()
+	return a.modKeyExistsInVaultIndexed(nil, key)
+}
+
+// vaultKeyIndex 把"已扫描的 VPK 缓存"折成"addonlist 键"集合，供批量判断复用。
+//
+// 为什么需要它：逐个键调用 modKeyExistsInVault 是 O(键数 × 缓存数) ——
+// 真机上 212 个策略组 / 1964 条成员 × 2904 个已缓存文件 ≈ 570 万次路径推导，
+// 单次调用实测 1.6 秒（GetModGroupMembership 每次搜索后台都会调一次，
+// GetModStrategyGroupMissingMembers 每次开「策略组管理」都要调一次）。
+// 折成索引后是 O(缓存数 + 键数)：一次遍历 2904 个文件，之后全是 map 查表。
+func (a *App) buildVaultKeyIndex(rootDir string) map[string]struct{} {
+	index := make(map[string]struct{}, 4096)
 	if rootDir == "" {
-		return true // 没有根目录信息时不拦截，保持旧行为
+		return index
 	}
-	found := false
 	a.vpkCache.Range(func(_ any, value any) bool {
 		cache, ok := value.(*VPKFileCache)
 		if !ok || cache == nil {
@@ -216,13 +222,31 @@ func (a *App) modKeyExistsInVault(key string) bool {
 		if err != nil {
 			return true
 		}
-		if normalizeAddonListKey(current) == target {
-			found = true
-			return false
+		if normalized := normalizeAddonListKey(current); normalized != "" {
+			index[normalized] = struct{}{}
 		}
 		return true
 	})
-	if found {
+	return index
+}
+
+// modKeyExistsInVaultIndexed 是 modKeyExistsInVault 的批量版本：
+// 传入 buildVaultKeyIndex 的结果即可避免重复扫描缓存；index 为 nil 时自行构建。
+// 判定结果与原实现逐字一致：缓存命中 → 存在；否则再按物理路径兜底三处。
+func (a *App) modKeyExistsInVaultIndexed(index map[string]struct{}, key string) bool {
+	target := normalizeAddonListKey(key)
+	if target == "" {
+		return false
+	}
+	rootDir := a.rootDirectorySnapshot()
+	if rootDir == "" {
+		return true // 没有根目录信息时不拦截，保持旧行为
+	}
+	lookup := index
+	if lookup == nil {
+		lookup = a.buildVaultKeyIndex(rootDir)
+	}
+	if _, ok := lookup[target]; ok {
 		return true
 	}
 	// 缓存可能还没扫描到（例如测试夹具或刚移动完的文件），

@@ -18,6 +18,7 @@ import { showContextMenu, hideContextMenu, showServerSubmenu, hideServerSubmenu 
 import { shareWorkshopFileByPath } from "./share.js";
 import { getServers } from "../servers/servers.js";
 import { showConflictDetailsForFile } from "../conflicts/conflicts.js";
+import { ensureMoreActionsMenu } from "./render.js";
 
 const DROPDOWN_EDGE_GAP = 8;
 const DROPDOWN_TRIGGER_GAP = 4;
@@ -123,6 +124,11 @@ export function setupFileListEventDelegation() {
       if (!dropdown) return;
       moreBtn._dropdown = dropdown;
       const fileContainer = moreBtn.closest(".file-item") || moreBtn.closest(".file-card");
+
+      // 菜单内容是按需生成的（见 render.js 的 ensureMoreActionsMenu）：
+      // 真机 2904 张卡时，这段内容占卡片 44% 字节 / 46% 节点，绝大多数从没被打开过。
+      // 必须在测量/定位之前填，否则 positionFloatingDropdown 量到的是空盒子。
+      ensureMoreActionsMenu(dropdown, fileContainer);
 
       closeAllDropdowns(dropdown);
 

@@ -15,9 +15,9 @@
 | --- | --- | --- | --- |
 | 1 | `go test ./... -count=1` | 全部 ok（含仓库一致性审计） | ok（`internal/app` 等 8 个包） |
 | 2 | `go vet ./...` | 无输出 | 无输出 |
-| 3 | `node --test`（在 `frontend/`） | 全通过 | **482 项 / 0 失败**（2026-10-01 复跑） |
+| 3 | `node --test`（在 `frontend/`） | 全通过 | **496 项 / 0 失败**（2026-10-01 复跑） |
 | 4 | `npm run build`（在 `frontend/`） | 产物正常（仅有既有的 chunk 体积警告） | 通过（2026-10-01 复跑，2.3s） |
-| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（2026-10-01：12.8s / 18,888,704 字节，且默认构建不含任何 CUA 桥标记） |
+| 5 | `wails build` | 产出 `build/bin/LytVPK-Community-Fork.exe` | 通过（2026-10-01 2.7.1-community.55：16.9s / 18,950,656 字节，ASCII 扫描确认不含 CUA 桥标记） |
 | 6 | `npm run docs:build`（在 `docs/`） | VitePress 构建完成（含内部链接检查） | 通过 |
 
 另外两项"不靠命令"的复核点：
@@ -228,6 +228,7 @@ $real = "<真实>\left4dead2\addonlist.txt"
 | 想做的事 | 用这个 | 不要 |
 | --- | --- | --- |
 | 读 DOM / 量几何 / 派发真实事件 / 统计 window 错误 | `python scripts/devtools/cua-eval.py "…"` 或 `--file probe.js` | 不要每次现写一套 HTTP 轮询脚本（`await ( … )` 那条坑已经封装好了） |
+| 量界面性能（延迟 / 长任务 / 帧间隔） | `python scripts/devtools/cua-eval.py --file scripts/devtools/measure-ui-perf.js` | 不要凭感觉说"卡"：长任务 > 100ms 才是用户能明显感到的卡顿 |
 | 抓真实像素（窗口被遮挡 / 锁屏） | `scripts/devtools/capture-window.ps1` | 不要依赖 `include_screenshot`（本机 19045 不可用） |
 | 点击 / 输入 / 滚动 / 拖拽 | `scripts/devtools/*-window-at.ps1`（坐标先由 `cua-eval.py` 读 `getBoundingClientRect()` 得到） | 不要估坐标 |
 | 只读验证（列表、开关状态、几何） | `scripts/devtools/launch-cua-sandbox.ps1` | 不要用它点会写盘的按钮 |
@@ -296,6 +297,15 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
 
 ## 3. 策略组与自动联动
 
+- [ ] 在 Mod 管理页点任意卡片/列表行上的 `组：<组名>` 徽标。
+  - 预期：「策略组管理」窗口打开并**定位到这一组** —— 顶部定位条列出这个 Mod 所属的
+    **全部**组（每个带成员数），点其中一个就切组；被点的那一组自动展开 + 整行高亮，
+    这个 Mod 在成员列表里的那一行也一起高亮。
+  - 预期：滚到列表下半部分时定位条仍粘在顶部；定位行贴在定位条下面（不是被盖住、
+    也不是被 `block:"center"` 顶到视野外）。
+  - 预期：定位条上的「整组开关」弹出与「分组」菜单同一句确认文案
+    （标题「整组开关」+ 成员数 + 当前开关统计 + "只改 `addonlist.txt` 的 0/1"）；
+    点「取消」后 `addonlist.txt` 的哈希不变。「清除定位」回到普通列表。
 - [ ] 在 Mod 管理页勾选 3 个 Mod，打开「分组 → 策略组管理…」窗口，填名称、选“互斥单选”并建组。
   - 预期：按钮显示当前选中数量；建组成功后列表出现该组。
 - [ ] 点“随机单选”。
@@ -691,6 +701,9 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
 - **整组开关（安全路径）**：真实点击组徽标 → 应用内确认弹窗出现
   （标题「整组开关」+ 成员数 + 当前开关统计 + "只改 addonlist.txt 的 0/1"）；点「取消」后
   `addonlist.txt` 的 SHA-256 保持 `f4ac529e…9df89b9` 不变，确认没有误写。
+  （**2.7.1-community.53 起**徽标单击改成"打开管理窗口并定位到那一组"，不再就地整组开关；
+  整组开关改从工具栏「分组」菜单或窗口顶部定位条触发 —— 同一句确认文案、同一份多数派判定。
+  这一条的收敛范围、定位几何与哈希不变复验见 `CHANGELOG.md` 的 .53 条目。）
 - **整组优先级移动**：点「↑ 前移」→ `priority.json` 出现 `workshop\3245634710.vpk` 的 `tier: 490`，
   卡片角标同步变为 `优先级 #486`，`addonlist.txt` 哈希不变（符合"只写分层、不重排"的设计）。
   验证后已把 `priority.json` 还原为 `{ "entries": [] }`。
@@ -1994,6 +2007,122 @@ requested=2 updated=2 failed=[] errors=[]
 
 本轮没有"计划内但完全未验证"的项目。
 
+## 第二十一轮：界面性能（2026-10-01，只读沙箱 + 应用内 JS 桥，真实 2904 个 Mod）
+
+用户反馈"点一下有非常明显的卡顿"。这一轮不做主观判断：先用探针量出**长任务**（> 100ms 的
+主线程阻塞就是用户感到的卡顿）与**首屏可见时间**，再按数据修。
+
+复跑（一条命令，只读；唯一会写盘的是"点游戏内开关"，所以必须在沙箱里跑）：
+
+```powershell
+pwsh -File scripts/devtools/build-cua.ps1 -OutName LytVPK-Community-Fork-cua.exe
+pwsh -File scripts/devtools/launch-cua-sandbox.ps1 -Port 38999
+python scripts/devtools/cua-eval.py --base http://127.0.0.1:38999 --file scripts/devtools/measure-ui-perf.js
+```
+
+**测量注意**：窗口在后台时 Chromium 会把 `requestAnimationFrame` 节流，量到的是后台值。
+要拿用户视角的数，先把窗口切到前台（`SetForegroundWindow`）再跑；探针里也不要写死 sleep，
+按"卡片数稳定"判完成。
+
+### 本轮基线（改造前 → 改造后）
+
+| 路径 | 改造前 | 改造后 |
+| --- | --- | --- |
+| `GetModStrategyGroupMissingMembers`（IPC） | 1593ms | 10ms |
+| `GetModGroupMembership`（IPC） | 1615ms | 28ms |
+| 开「策略组管理」 | 4265ms（长任务 89/152/137ms） | 192ms（长任务 0） |
+| 清空搜索 675 → 2904 张卡 | 1120ms，**单帧 519ms 阻塞** | 首屏 237ms，最大帧间隔 51ms，0 帧 >100ms |
+| 点卡片游戏内开关 | 289ms（长任务 206/111ms） | 87ms（自身长任务 0） |
+| 列表（行）模式 2904 行 | 同上（同步整表） | 首行 78ms，补齐 780ms，0 帧 >100ms |
+| 卡片详情 / 加载顺序 / 设置页 / 切回 Mod 页 | 未量 | 25 / 29 / 107 / 77ms，0 长任务 |
+| 列表 DOM | 331,085 节点 | 304,941 节点 |
+| `ScanVPKFiles`（文件操作 / 启动 / 换目录） | 908ms | **175ms**（侧车文件不再逐个 stat） |
+| 冲突分析开/关后的一波重绘 | 22 个 60–78ms 帧（≈4s 连续抖动） | **1 个 56ms** |
+| 同长度重画（复检 / 单卡开关） | 整批摘挂 2904 个节点（121ms 长任务） | 只替换变化的卡片（有单测） |
+| 切「创意工坊」（1020 张工坊卡） | 204–237ms | **78–87ms**（工坊卡片跳过屏外渲染） |
+| 切其它页面（工具箱 / 设置 / 下载 / 服务器 / 回 Mod 页） | 未量 | 57 / 60 / 77 / 69 / 75ms |
+| `GetVPKFiles`（搜索 / 文件操作后的整表刷新） | 6.11MB / 340ms | **2.93MB / 180ms**（剔除列表不渲染的依据字段） |
+| 详情弹窗「标签依据」 | 随列表一起带（占 35% 体积） | 按需 `GetModEvidence` 单文件 **1ms** |
+| 列表 DOM（2904 张卡） | 281,177 节点 / 30.1MB HTML | **132,880 节点 / 16.5MB**（「⋮」菜单点开才生成） |
+| 清空搜索补齐总时长 | 3374ms | **2616ms**（首屏 249ms，0 帧 >100ms） |
+| 开「加载顺序优化」（2599 行 + 5198 个 option） | 373ms 长任务 | **0 帧 >100ms**（最大 56ms，分帧补齐） |
+| 设置页「游戏配置」分栏（1411 节点） | 157ms | **27ms**（指令说明/匹配条目跳过屏外渲染） |
+| 冷启动：进程 → 桥 / 页面可求值 / 首张卡 / 列表补齐 | 未量 | **150ms / 800ms / 1.8–2.0s / 4.2s**（首张卡原 2.19s） |
+| 工具箱「冲突检测」全量扫描 / Mod 体检 | 未量 | 624ms / 853ms，**均 0 长任务** |
+| Mod 列表"按需物化"后：首屏 DOM | 133,880 节点 / 16.5MB | **6,518 节点 / 2.7MB**（−95%） |
+| 打字延迟 / 切页面（5 个页面） | 22–35ms / 57–291ms | **7–12ms / 6–11ms** |
+| 冷启动首张卡 / 列表可滚到末尾 | 1.8–2.0s / 4.2s | **1.5–1.6s / 同首屏**（不再有 2.6s 填充） |
+
+### 本轮已经自动化覆盖的部分
+
+- Go：`internal/app/mod_group_vault_index_test.go` 3 项 ——
+  批量键索引与逐键判定逐字一致（含 `disabled` 裸名、物理路径兜底、空键）、
+  300 条成员 / 600 个缓存下缺失语义不变、以及**结构守卫**（热路径必须走批量索引，
+  退回逐键就会失败）。另有 `BenchmarkGetModGroupMembershipVaultLookup` 可复跑：
+  2000 缓存 × 1000 成员时旧实现 856ms/次、新实现 1.9ms/次。
+- 前端：`features/file-list/chunked-render.test.mjs` 3 项（最小 DOM 桩 import 真实 render.js：
+  首帧不等于全部、flush 补齐、重画作废上一轮；外加四个 flush 入口的结构守卫）、
+  `features/mod-groups/group-state-dedupe.test.mjs` 1 项（归属指纹：没变不通知、改名/成员/缺失变化要通知）、
+  `features/mod-groups/strategy-group-batch.test.mjs` 新增开窗结构守卫（惰性下拉 + 并行 IPC）。
+
+### 只能人工确认的部分
+
+- **观感**：分帧补齐是"首屏先出来、其余在 ~1–3 秒内自己填满"。数据上 0 帧 >100ms，
+  但"卡片陆续出现"是否比"一次卡死再全出现"更舒服，只能自己用一段时间再判断
+  （真机录屏/截图见本轮记录）。
+- **机械硬盘 / 低配机**：本机是 7800X3D + NVMe；补齐时长会随单卡创建成本线性变化。
+
+### 下一批候选（还没做，按已量到的数据排序）
+
+1. 卡片菜单/角标仍是每张卡内联 8 个带 SVG 的菜单项（23,260 个菜单项节点）→ 惰性生成可再砍 ~30% DOM。
+   —— 已完成：菜单改成点开才生成，节点 281,177 → 132,880（−53%）。注意卡片模式下
+   **Enter 打开详情**原来依赖菜单里的 `.detail-btn`，已改成找不到按钮就直接
+   `showFileDetail(path)`（不然惰性化会让它静默失效）。
+2. ~~`GetVPKFiles` 390ms~~ 已瘦身到 **2.93MB / 180ms**（剔除列表不渲染的 tagEvidence
+   与 structure* 字段，详情按需取）；剩下的 `GetConflictBadges` 580ms 可做增量 ——
+   它只在开启冲突分析后于后台跑，优先级次之。
+3. **切页面的同步耗时**：切「创意工坊」实测 276ms 全在点击处理函数里（`app:page-change`
+   里的 `renderWorkshopSidebar()` / `renderDiagnosticsPage()` 等）—— 已解决：那 200ms 是
+   "页面变可见 + `updateActiveIndicator()` 强制布局"时整张工坊网格的重排，给 `.workshop-card`
+   加 `content-visibility` 后降到 78–87ms。
+   **测量坑**：量页面切换时不要在计时区间里用 `querySelectorAll('[data-page]')` 找按钮 ——
+   在 29.7 万节点的文档里它自己要 26ms，会被算进"切换耗时"（本轮第一版就踩了）。
+4. Mod 体检 290ms（1 个 55ms 长任务）、创意工坊/下载/服务器页面的长任务都在 100–170ms。
+   （工坊页的长任务已随手修复；体检与下载页的长任务还在。）
+   —— 复测：体检 **853ms 出报告、0 长任务**；冲突检测全量扫描 624ms、0 长任务。
+5. **冷启动**：第一张卡 1.8–2.0s、列表补齐 4.2s。大头是冷进程首次扫描（2904 个 VPK 全解析，
+   `0 个未变化、2904 个重新解析`）。要再快只有两条路：**持久化扫描缓存**（按 path+size+mtime
+   校验；缓存失效判错会直接让标签失真，需要专门一轮做失效语义与迁移）或**虚拟滚动**
+   （DOM 从 13.3 万节点降到几百）。两者都还没做。
+   —— 虚拟滚动已落地（"按需物化"，只追加不回收）：列表 DOM 6,518 节点、切页面 6–11ms、
+   冷启动首张卡 1.5–1.6s。
+   —— 持久化扫描缓存也已完成（见「第三十轮」）：冷启动全量解析 775/968/782ms →
+   命中缓存 221–231ms，且失效语义 / 版本门禁 / 降级都有真机证据。
+6. 列表窗口化的验收要点（改动这里时逐条复验）：首屏只有约两屏卡片 + 底部占位块；
+   拖动滚动条跳到中间要能补到位且**滚动位置不跳**；拖到底最后一张可见可点；
+   勾选/框选/「全选」计数正常；搜索 → ↓↓↓ → Enter 打开的是光标那一行；
+   清空搜索要重置窗口；同批次重画（单卡开关/复检）不能把滚动位置重置到顶部。
+
+### 第二十一轮最终态（全部为真机实测，2904 个 Mod）
+
+```text
+点按钮   单卡游戏内开关 25ms · 分组管理窗口 138ms · 批量操作只弹完整性确认（0 长任务）
+开窗口   策略组管理 138ms · 卡片详情 5ms · 加载顺序 2ms · 设置页 5ms · 冲突检测 624ms 出结果
+切页面   创意工坊/工具箱/设置/下载/服务器 6–11ms（原 57–291ms）
+搜索     打字 7–12ms/字符（原 22–35ms）· 首屏 217–235ms · 结果集切换不再"边滚边长"
+后端     GetModGroupMembership 1615ms→28ms · MissingMembers 1593ms→10ms
+          ScanVPKFiles 908ms→175ms（当时冷启动仍要全量解析 2904 个 VPK，约 1–1.5s；
+          现已由持久化扫描缓存省掉，见第三十轮：0.78–0.97s → 0.22–0.23s）
+          GetVPKFiles 6.11MB/340ms→2.93MB/180ms
+列表 DOM 首屏 6,518 节点（原 133,880）· 冷启动首张卡 1.5–1.6s（原 2.19s）
+全流程   所有被量到的交互 0 个 >100ms 的长任务
+```
+
+**当时唯一未做的结构性项**：持久化扫描缓存（把冷启动那 1–1.5s 的 VPK 全量解析省掉）。
+它已在「第三十轮」完成：失效语义（path+size+mtime+封面图/侧车 mtime）、迁移门禁
+（schemaVersion + AppVersion）、降级（损坏 / 锁住 / 写盘失败一律退回全量解析）都有真机验证，
+标签结果用规范化指纹证明"没有丢、也没有多"。
+
 ### 第二十轮（窗口几何与双击复位：三个真实缺陷的复现与修复，打包 EXE 驱动验证）
 
 **背景**：用户要求"上游学得差不多了就转去看窗口、使用交互、功能正常运行"。
@@ -2664,6 +2793,202 @@ re:[           → 「正则表达式无效：…」
    可以在命令表里再加一条命令（表 + 动作映射各一行）。
 3. **重置窗口几何的实际场景**：自动化验证的是"记忆键被清掉 + 面板关闭"，
    你在真实多显示器环境下把窗口拖乱后点一次，感受是否一步到位。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第三十轮：持久化扫描缓存（2026-10-01，只读沙箱 + 写盘副本沙箱 + 应用内 JS 桥，真实 2906 个 Mod）
+
+**目标**：把冷启动那 1–1.5s 的 VPK 全量解析省掉，同时**不许**出现"拿老数据糊弄人"。
+
+**用户的硬约束（原话）**：我经常会在开启本项目 exe 的时候进行 addonlist 修改或者添加一些新
+mod、移除一些 mod，**别把老的数据持久化了**。
+
+### 设计（`internal/app/vpk_scan_cache.go`，新增）
+
+- 缓存文件 `<配置目录>/vpk_scan_cache.json`：`schemaVersion` + **AppVersion 门禁** ——
+  换版本 / 换格式整份作废（规则表是 `go:embed` 的，解析结果不能跨版本复用）。
+- 条目：`path / size / modTime / imageModTime / metaModTime / file`；命中判据与内存缓存
+  `processVPKFileWithCache` **逐字一致**（含同名封面图、侧车 meta 的 mtime）。
+- 失效即降级：JSON 损坏、版本不符、schema 不符 → 全部重新解析，不报错、不改行为。
+- 写入时机：`wg.Wait()` 之后、`applySuiteTagInheritance()` 之前 —— 缓存里只存"纯解析结果"，
+  继承标签每次现算；写完盘后列表才暴露。
+- 写入分档：≤200 条同步写，>200 条后台写（别拖慢"点禁用/删除/切目录"）。
+- 多库保护：写盘时保留其它根目录的旧条目（`pathWithinRoot`），只丢弃当前库里已不存在的条目。
+- 新绑定 `GetScanStats()` → `{Total, Unchanged, Reparsed, CacheLoaded, CacheEntrySize}`。
+
+### 上游对比（为什么没照抄）
+
+| 项目 | 它的做法 | 结论 |
+| --- | --- | --- |
+| FireAxe (`ktxiaok/FireAxe`) | `VpkAddonSave.cs` 只持久化**用户数据**（优先级、忽略清单）；VPK 每次重读，`OnClearCaches` 清内存 | 没有带校验的解析缓存 |
+| NekoVpk (`Starfelll/NekoVpk`) | 只持久化 `TaggedAssets.jsonc`（标签库），**无 mtime/size 校验** | 同上 |
+
+两边都没有"按 path+size+mtime+侧车校验、带版本门禁、失败即降级"的解析缓存，所以按本项目自己的路径做。
+
+### 真机验证（真实库 2906 个 Mod）
+
+```text
+冷启动（无缓存）：扫描完成：共 2906 个 Mod（0 个未变化、2906 个重新解析）
+                 写盘 7,433,831 字节（.tmp-cua/zz-appdata/LytVPK/vpk_scan_cache.json）
+命中缓存重启：    扫描缓存：载入 2906 条记录
+                 扫描完成：共 2906 个 Mod（2906 个未变化、0 个重新解析）
+                 GetScanStats → {Total:2906, Unchanged:2906, Reparsed:0, CacheLoaded:true, CacheEntrySize:2906}
+```
+
+扫描汇总行现在带**耗时**（同一台机、同一天、连续三次启动）：
+
+```text
+冷启动 #1（无缓存，2906 个重新解析）：耗时 775ms
+冷启动 #2（无缓存，2906 个重新解析）：耗时 968ms
+命中缓存 #1（2906 个未变化）：        耗时 231ms
+命中缓存 #2（2906 个未变化）：        耗时 224ms
+⇒ 扫描阶段省掉约 0.55–0.74 秒（−72% ~ −77%），且不再重算 7.4MB 派生数据。
+```
+
+### 失效语义 / 降级真机验证（写盘副本沙箱；全部在 2.7.1-community.55 上跑）
+
+```text
+① 开着程序改 addonlist.txt（只改那一个字节，87799B → 87799B）
+   2998315305.vpk  "1" → "0"：重扫后 enabled=False，且 {Unchanged:10, Reparsed:0}
+   再改回 "1"：重扫后 enabled=True，仍 {Unchanged:10, Reparsed:0}
+   ⇒ 缓存命中时用的是**最新** addonlist 状态，没有把旧开关一起缓存下来。
+
+② 开着程序改某个 VPK 的 mtime（耳朵装饰.vpk）
+   重扫 → {Total:10, Unchanged:9, Reparsed:1}  ← 只有被改的那一个重新解析
+
+③ 缓存文件被写成 64 字节乱码后重启
+   日志：扫描缓存无法解析（将重新全量解析）: invalid character '|' looking for beginning of value
+        扫描完成：共 10 个 Mod（0 个未变化、10 个重新解析，耗时 3ms）
+   应用照常启动、无 panic；并且当次就重写出一份合法缓存
+   （schemaVersion=1 / appVersion=2.7.1-community.55 / entries=10）
+   再重启：扫描缓存：载入 10 条记录 → {Unchanged:10, Reparsed:0}  ← 自愈闭环
+
+④ 缓存文件被独占锁住（读都读不到）
+   日志：扫描完成：共 13 个 Mod（0 个未变化、13 个重新解析，耗时 3ms）
+   ⇒ 读失败 → 直接全量解析，不报错、不阻塞启动
+
+⑤ 缓存文件被独占锁住 + 当次有新文件（必须写盘）
+   日志：写入扫描缓存失败（下次仍会全量解析）: remove ...vpk_scan_cache.json:
+        The process cannot access the file because it is being used by another process.
+   应用照常可用（桥在线、列表 13 个 Mod）；下次启动按"全量解析"走，不会拿半份缓存。
+
+⑥ 版本门禁（真实库）：把缓存 JSON 里的 appVersion 改成 2.7.1-community.54 后重启
+   日志：扫描缓存来自其它版本（2.7.1-community.54 ≠ 2.7.1-community.55），重新全量解析
+        扫描完成：共 2906 个 Mod（0 个未变化、2906 个重新解析，耗时 782ms）
+   当次重写出 appVersion=2.7.1-community.55 / entries=2906 的缓存；
+   再重启：扫描缓存：载入 2906 条记录 → {Unchanged:2906, Reparsed:0, 耗时 221ms}
+   ⇒ 规则表 / 解析逻辑随版本变化时，旧结果绝不会被复用。
+```
+
+### 「缓存会不会让标签结果变样」——规范化指纹定论
+
+原版探针的原样 JSON 哈希两次不同、字节数却完全相等（3,072,406 == 3,072,406），
+这是"数组内部顺序不同"的典型形状。用规范化探针（对象键排序；数组元素递归规范化后排序）
+把两件事分开看：
+
+```text
+                     冷解析            命中缓存
+items                2906              2906
+rawBytes             3,072,406         3,072,406
+rawHash              3,584,520,058 ≠   3,410,875,002     ← 顺序敏感
+canonicalHash        3,241,931,066 ==  3,241,931,066     ← 顺序无关，完全一致
+secondaryTags 总数   16,018            16,018
+contentSubjects      4,157             4,157
+voiceCharacters      51                51
+xdrSlots             301               301
+structureResourceRoots 1,870           1,870
+前 40 个文件逐字段摘要   差异 0 处
+（原版不排序探针）命中缓存重启两次 warm↔warm：listHash 逐字节一致（1,707,576,346）
+```
+
+结论：**没有丢标签、也没有多标签**，差的是数组元素顺序；缓存回放本身是确定的。
+探针：`.tmp-cua/perf-100-cache-fingerprint-normalized.js`（对比时用规范化哈希）。
+
+### 「开着程序增删 Mod」真机验证（写盘副本沙箱 `zz-copy-lib`，10 个 VPK）
+
+```text
+基线                 count=10  identityHash=1596320932  {CacheLoaded:true, Unchanged:10, Reparsed:0}
+开着程序拷进 1 个     count=11  新文件带真实标签（primaryTag=其他 / secondaryTags=2）
+                              {Total:11, Unchanged:10, Reparsed:1}  ← 只有新文件被解析
+开着程序删掉它       count=10  identityHash=1596320932  ← 与基线完全一致，老数据没被动过
+                              {Total:10, Unchanged:10, Reparsed:0}
+再重启一次           count=10  列表里没有这个文件（磁盘上的孤儿条目不会把它拉回来）
+                              {CacheEntrySize:11, Total:10, Unchanged:10}
+```
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 命中缓存 ≡ 真解析（逐字节比较） | `internal/app/vpk_scan_cache_test.go::TestScanCacheSkipsReparseAfterRestart` |
+| 改 VPK mtime / 增删同名封面图 → 只失效那一个 | `...InvalidatesChangedFileAndSidecar` |
+| 坏 JSON / 版本不符 / schema 不符 → 退化全量解析且不报错 | `...DegradesSafely` |
+| 已删文件不进缓存、运行中增删 Mod、命中缓存也套最新 addonlist 开关、多库不互冲 | `...DropsDeletedFiles` / `...FollowsLiveAddAndRemoveWhileRunning` / `...StillAppliesFreshAddonListState` / `...KeepsOtherRoots` |
+| 扫描日志 ≤3 行、不逐文件刷屏 | `internal/app/vpk_scan_log_test.go` |
+
+### 只能人工确认的部分
+
+1. **真实库上"开着程序增删 Mod"**：本轮用副本库（同一条代码路径）做的，真实库上只做了只读扫描；
+   你下次真的往 `addons` 里丢文件时留意一下首屏是否只多了那一个。
+2. **缓存文件的体积观感**（2906 个 Mod ≈ 7.4MB）：占的是配置目录，删掉只会让下次冷启动；
+   要不要在设置页加"清空扫描缓存"，看你的偏好。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
+## 第二十九轮：Mod 卡片「组：xxx」徽标 → 策略组定位模式（2026-10-01，只读沙箱 + 应用内 JS 桥，真实 2906 个 Mod）
+
+**用户要求**：点卡片上的组徽标，直接跳到那一组的管理页面；要能看到这个 Mod 所属的**所有**组，
+并在窗口里完成组级管理；同时不要让按钮滚到看不见的地方。
+
+### 本次改动
+
+| 文件 | 改动 |
+| --- | --- |
+| `frontend/src/js/features/file-list/render.js` | 卡片 / 列表行上的组徽标改成**一个组一个 `<button>`**（`data-group-id` + `data-file-path`），属于几个组就显示几个 |
+| `frontend/src/js/features/mod-groups/group-ui.js` | 徽标点击 → `openStrategyGroupManager({ focusGroupId, focusFilePath })`；整组开关保留在「分组」菜单与定位条上 |
+| `frontend/src/js/features/mod-groups/strategy-group-manager.js` | 定位模式：顶部列出该 Mod 的全部组（点一下切组）、目标组展开 + 高亮、该 Mod 的成员行高亮；定位条瘦身（144px → 88px），说明移到悬停提示；`renderManager` 同步 `.is-focus-mode` |
+| `frontend/src/js/features/mod-groups/group-view.mjs` | `formatModGroupFocusSummary / Chip / ChipTitle`（纯函数，带单测） |
+| `frontend/src/css/app/mods.css` | 定位条样式与高度上限（5.5rem，超出条内滚动）；组行动作区 `flex-wrap`；`.strategy-group-body.is-focus-mode` 下「回到顶层」落点退回 `position: static` |
+
+### 真机验证（只读沙箱 + 应用内 JS 桥，真实库 2906 个 Mod；探针 `.tmp-cua/probe-group-badge.js`）
+
+```text
+搜索 woolywinter_bill → 卡片上 2 个组徽标：
+  组：Airi WoolyWinter 套装 / 组：Airi WoolyWinter 角色本体（badges=2, chips=2, 一致）
+单击第一个徽标：窗口 186ms 打开；定位条「这个 Mod 属于 2 个策略组 —— 点组名展开并跳到那一组（组级动作在那一行右侧）」
+  目标组行 is-focus-target=1（data-group-row 与被点的组一致）；该 Mod 成员行 is-focus-member=1
+  点定位条上另一个组：switched=true，目标行随切换，行顶停在定位条下方 8px，成员行高亮=2
+  按钮几何：10 个组级控件（收起成员 / ＋子组 / 筛选这组 / 按策略应用 / 随机单选 / 全关 / 重命名 / 删除 / 上级分组 / 保存权重）
+           全部 insideBody=true、横向滚动 0px
+
+修复前（同一探针 + elementFromPoint）：
+  定位条 144px + 粘性「回到顶层」落点 35px → 滚动区 271px 里只剩 60px 无遮挡视野
+  10/10 个组级按钮 elementFromPoint 全部命中 .strategy-group-drop-root（等于点不到）
+修复后：
+  定位条 88px、dropRoot position=static（is-focus-mode=true）
+  10/10 个组级按钮 elementFromPoint 全部命中按钮本身（hit=true, insideBody=true）
+页面 window 错误：0
+```
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 徽标点击带 `focusGroupId` / `focusFilePath`，且不再就地整组开关 | `frontend/src/js/features/mod-groups/strategy-group-batch.test.mjs` |
+| 定位条文案（全部组、点击含义、当前组） | `frontend/src/js/features/mod-groups/group-view.test.mjs` |
+| 定位模式：条子有高度上限、说明改挂 title、`is-focus-mode` 接线、落点 `position: static` | `strategy-group-batch.test.mjs`（本轮新增用例） |
+| 组行动作区换行（真机 1144px vs 容器 704px 那次） | 同上 |
+
+### 只能人工确认的部分
+
+1. **这排组级按钮的视觉分量**：真机上它们现在是浅灰描边小按钮，能点但不抢眼；
+   要不要把「按策略应用 / 全关」这类破坏性动作换成更醒目的配色，属主观判断。
+2. **定位条是否还需要更多动作**：目前是「点组名切组 + 整组开关 + 清除定位」；
+   如果实际使用中你总要「筛选这组」，可以再把它提到条上（现在在组行右侧）。
 
 ### 仍未验证
 

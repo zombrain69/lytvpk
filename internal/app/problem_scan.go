@@ -67,7 +67,7 @@ func (a *App) StartProblemModScan() (ProblemModScanSession, error) {
 		return emptyProblemModScanSession(), fmt.Errorf("请先选择 addons 目录")
 	}
 
-	files := a.GetVPKFiles()
+	files := a.allVPKFilesSnapshot()
 	candidates := make([]ProblemModScanItem, 0)
 	for _, file := range files {
 		if file.Enabled && file.Location == "root" {

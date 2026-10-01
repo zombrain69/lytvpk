@@ -91,6 +91,13 @@ test("渲染层与快捷键都接上了键盘光标", () => {
   assert.match(runtimeSource, /nextResultPath\(/, "上下键要走纯函数");
   assert.match(runtimeSource, /event\.key === "Enter" && document\.activeElement === searchInput/, "缺少 Enter 打开详情");
   assert.match(runtimeSource, /\.detail-btn/, "Enter 应复用详情按钮的点击逻辑");
+  // 卡片模式下「详情」只在按需生成的「⋮」菜单里：拿不到按钮必须直接开详情，
+  // 否则惰性菜单会让卡片模式的 Enter 静默失效（功能回退）。
+  assert.match(
+    runtimeSource,
+    /showFileDetail\(path\);/,
+    "找不到详情按钮时要直接调用 showFileDetail（惰性菜单兼容）",
+  );
   assert.match(runtimeSource, /appState\.searchCursorPath = ""/, "Esc 清空时要一起清光标");
 
   assert.match(cssSource, /\.file-item\.is-result-cursor/, "缺少光标行样式");

@@ -97,7 +97,10 @@ import {
 } from "./workshop/workshop-browser.js";
 import { showError, showNotification, handleError } from "../core/toast.js";
 import { appState, applyConfigToAppState } from "./state.js";
-import { applySearchResultCursor, renderFileList } from "./file-list/render.js";
+import {
+  applySearchResultCursor,
+  renderFileList,
+} from "./file-list/render.js";
 import { collectResultPaths, describeResultCursor, nextResultPath } from "./file-list/result-cursor.mjs";
 import { buildSearchHelpHtml, buildSearchHelpTitle } from "./file-list/search-help.mjs";
 import { buildShortcutsHtml, buildShortcutsTitle, isTextEntryElement } from "../core/shortcuts.mjs";
@@ -1214,8 +1217,11 @@ function setupEventListeners() {
       (event.key === "ArrowDown" || event.key === "ArrowUp") &&
       document.activeElement === searchInput
     ) {
-      const container = document.getElementById("file-list");
-      const paths = collectResultPaths(container);
+      // 结果集从 appState 取（列表是"按需物化"的：DOM 里只有已滚动到的那一部分，
+      // 之前的实现会去 DOM 收集 + 先把整表补齐，2904 条时光这一下就要 1 秒以上）。
+      const paths = (appState.vpkFiles || [])
+        .map((file) => String(file?.path || ""))
+        .filter(Boolean);
       if (paths.length === 0) return;
       event.preventDefault();
       appState.searchCursorPath = nextResultPath(
@@ -1233,14 +1239,20 @@ function setupEventListeners() {
       const path = String(appState.searchCursorPath || "");
       if (!path) return;
       // 列表模式是 .file-item、卡片模式是 .file-card：两种都要能找到，
-      // 否则卡片模式下 Enter 静默无反应。
+      // 否则卡片模式下 Enter 静默无反应。列表是"按需物化"的：那一行可能还没进 DOM，
+      // 拿不到就直接开详情（见下面的 showFileDetail 兜底），不再为此把整表补齐。
       const row = container?.querySelector(
         `.file-item[data-path="${CSS.escape(path)}"], .file-card[data-path="${CSS.escape(path)}"]`,
       );
       const detailButton = row?.querySelector(".detail-btn");
-      if (!detailButton) return;
       event.preventDefault();
-      detailButton.click();
+      if (detailButton) {
+        detailButton.click();
+        return;
+      }
+      // 卡片模式里「详情」现在只在按需生成的「⋮」菜单里（见 render.js 的
+      // ensureMoreActionsMenu），拿不到按钮时直接开详情，保持 Enter 的行为不变。
+      showFileDetail(path);
       return;
     }
 

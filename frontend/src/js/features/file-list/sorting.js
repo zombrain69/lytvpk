@@ -1,6 +1,6 @@
 import { appState } from "../state.js";
 import { showNotification, showError } from "../../core/toast.js";
-import { renderFileList } from "./render.js";
+import { flushFileListRender, renderFileList } from "./render.js";
 import { GetAddonListOrder, GetModPriorityPlan } from "../../../../wailsjs/go/app/App";
 import { buildPriorityPlanMap } from "./priority-label.mjs";
 import { compareByPriority } from "./priority-sort.mjs";
@@ -83,6 +83,8 @@ async function locateFileByLoadOrder(input) {
       return;
     }
 
+    // 列表可能还在分帧补齐：先补完再找，否则会误报"列表正在更新"。
+    flushFileListRender();
     const element = Array.from(
       document.querySelectorAll("#file-list .file-item[data-path], #file-list .file-card[data-path]"),
     ).find((item) => item.dataset.path === targetFile.path);
