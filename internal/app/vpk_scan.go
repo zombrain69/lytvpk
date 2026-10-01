@@ -235,24 +235,35 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	// List scanning intentionally avoids eager Base64 preview extraction. The
 	// frontend requests it later only for visible cards or the detail dialog.
 	vpkFile, err := parser.ParseVPKFileMetadata(filePath)
+	var archivePack *parser.ArchivePackInfo
 	if err != nil {
 		// 「扩展名是 .vpk、实际是压缩包」不是异常：工坊作者会特意把插件/工具/教程包
-		// 打成压缩包上传（首次安装或自动更新用），游戏根本不加载它，也不该进
-		// addonlist.txt。以前这里一律当解析失败，界面上会弹红色「解析错误」——
-		// 那是误报。这里改成记一条分类结果 + 一条普通日志。
+		// 打成压缩包上传（首次安装或自动更新用），游戏根本不加载它。以前这里一律当
+		// 解析失败，界面上会弹红色「解析错误」——那是误报。
+		//
+		// 但它**照常进列表**：真机上这两个包都占着 addonlist.txt 的一行（也就是占了
+		// 优先级位置），用户需要能看到它、把它关掉或移走。所以这里构造一个只有文件
+		// 信息的条目，并盖上 ArchivePack 标记，后续走和普通 Mod 一样的缓存/展示路径。
 		if pack, ok := parser.DescribeArchivePack(filePath); ok {
 			a.recordArchivePack(filePath, pack)
 			a.clearUnreadableMod(filePath)
-			log.Printf("跳过压缩包类条目: %s（%s / %s，%d 个条目）— %s",
+			archivePack = &pack
+			vpkFile = &parser.VPKFile{
+				Name: filepath.Base(filePath),
+				// 工坊条目用数字 ID 当标题；有 .meta 时后面还会被真实标题覆盖。
+				Title: strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)),
+			}
+			log.Printf("压缩包类条目进列表: %s（%s / %s，%d 个条目）— %s",
 				filepath.Base(filePath), pack.Label, pack.Format, pack.EntryCount, pack.Note)
+		} else {
+			a.LogError("VPK解析", describeVPKParseError(filePath, err), filePath)
+			a.recordUnreadableMod(filePath, describeVPKParseError(filePath, err))
 			return
 		}
-		a.LogError("VPK解析", describeVPKParseError(filePath, err), filePath)
-		a.recordUnreadableMod(filePath, describeVPKParseError(filePath, err))
-		return
+	} else {
+		a.clearUnreadableMod(filePath)
+		a.clearArchivePack(filePath)
 	}
-	a.clearUnreadableMod(filePath)
-	a.clearArchivePack(filePath)
 	if hasPreviousGameState {
 		vpkFile.GameEnabled = previousGameEnabled
 		vpkFile.GameStateKnown = previousGameStateKnown
@@ -266,6 +277,10 @@ func (a *App) processVPKFileWithCache(filePath string) {
 	vpkFile.LastModified = modTime.Format(time.RFC3339)
 	vpkFile.PreviewRevision = previewRevision
 	vpkFile.Path = filePath
+	if archivePack != nil {
+		// 标记"这不是 VPK"：前端据此显示显眼徽标，并按"压缩包类条目"处理详情/操作。
+		vpkFile.ArchivePack = archivePack
+	}
 
 	// 自定义标签始终从 .meta 读取：它们是本程序的本地分类数据，不能依赖于工坊详情开关。
 	// 这样 workshop\123456.vpk 无需通过重命名来保存标签，Steam 仍可识别原始文件名。

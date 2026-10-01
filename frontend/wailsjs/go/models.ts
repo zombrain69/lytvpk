@@ -4750,6 +4750,30 @@ export namespace network {
 
 export namespace parser {
 	
+	export class ArchivePackInfo {
+	    path: string;
+	    format: string;
+	    kind: string;
+	    label: string;
+	    note: string;
+	    entryCount: number;
+	    evidence: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ArchivePackInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.format = source["format"];
+	        this.kind = source["kind"];
+	        this.label = source["label"];
+	        this.note = source["note"];
+	        this.entryCount = source["entryCount"];
+	        this.evidence = source["evidence"];
+	    }
+	}
 	export class ChapterInfo {
 	    title: string;
 	    modes: string[];
@@ -4845,6 +4869,7 @@ export namespace parser {
 	    structureResourceRoots: string[];
 	    location: string;
 	    enabled: boolean;
+	    archivePack?: ArchivePackInfo;
 	    gameEnabled: boolean;
 	    gameStateKnown: boolean;
 	    modelStatsKnown: boolean;
@@ -4891,6 +4916,7 @@ export namespace parser {
 	        this.structureResourceRoots = source["structureResourceRoots"];
 	        this.location = source["location"];
 	        this.enabled = source["enabled"];
+	        this.archivePack = this.convertValues(source["archivePack"], ArchivePackInfo);
 	        this.gameEnabled = source["gameEnabled"];
 	        this.gameStateKnown = source["gameStateKnown"];
 	        this.modelStatsKnown = source["modelStatsKnown"];

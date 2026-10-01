@@ -59,6 +59,28 @@ func TestScanRecordsArchivePackInsteadOfUnreadableMod(t *testing.T) {
 		t.Fatal("压缩包类条目不该再进 unreadableMods（它不是异常）")
 	}
 
+	// 但**要出现在列表里**：真机上这类包占着 addonlist 的一行（= 占了优先级位置），
+	// 用户需要能看到它、能把它关掉。列表条目带 ArchivePack 标记供界面显示徽标。
+	cached, ok := app.vpkCache.Load(fakePath)
+	if !ok {
+		t.Fatal("压缩包类条目应出现在列表（vpkCache）里")
+	}
+	listed, ok := cached.(*VPKFileCache)
+	if !ok || listed.File.ArchivePack == nil {
+		t.Fatalf("列表条目要带 ArchivePack 标记：%+v", cached)
+	}
+	if listed.File.Location != "workshop" || listed.File.Title != "3558049615" {
+		t.Fatalf("列表条目要有位置与可读标题：location=%q title=%q",
+			listed.File.Location, listed.File.Title)
+	}
+
+	// 清单导出里它**不进** mods[]（不是 Mod），只进 archivePacks[]。
+	for _, mod := range app.groupingMods() {
+		if mod.Name == "3558049615.vpk" {
+			t.Fatal("压缩包类条目不该进分组候选/标签基线")
+		}
+	}
+
 	// 清单导出里也应带上它，且写清类别与说明。
 	packs := app.archivePackSnapshot()
 	if len(packs) != 1 || packs[0].Name != "3558049615.vpk" {

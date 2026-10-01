@@ -4749,6 +4749,38 @@ html.dark-mode .card-badge.xdr-badge {
 }
 
 /* 更新可用标签 - 列表模式（文件名后面内联） */
+.archive-pack-tag {
+  /* 「其实是压缩包」的显眼标记：琥珀色虚线胶囊 + 📦。
+     这类条目（工坊作者做的插件/工具/教程包）不是 VPK Mod，但占着 addonlist 的一行，
+     必须让人一眼区分开，别以为自己的 Mod 坏了。 */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 6px;
+  min-height: 1.6rem;
+  padding: 0 var(--spacing-2);
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px dashed rgba(245, 158, 11, 0.65);
+  border-radius: var(--radius-full);
+  color: #b45309;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: help;
+  vertical-align: middle;
+}
+
+html.dark-mode .archive-pack-tag {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(251, 191, 36, 0.6);
+  color: var(--warning-light);
+}
+
+.card-badges .archive-pack-tag {
+  margin-left: 0;
+}
+
 .update-available-tag {
   display: inline-flex;
   align-items: center;

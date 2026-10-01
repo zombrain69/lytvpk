@@ -42,21 +42,25 @@ type VPKFile struct {
 	// StructureResourceRoots 是"作者/套件命名空间"（如 913limod/airi_evilfall、codm/ice）：
 	// 同一个套件常拆成很多 VPK（本体 + 配件 / 贴图包 / 参数包），它们共享这个目录，
 	// 是判断"需要一起启用"的结构性证据。只收非官方根，最多 6 条。
-	StructureResourceRoots []string               `json:"structureResourceRoots"`
-	Location               string                 `json:"location"` // "root", "workshop", "disabled"
-	Enabled                bool                   `json:"enabled"`
-	GameEnabled            bool                   `json:"gameEnabled"`    // addonlist.txt 中的游戏内开关
-	GameStateKnown         bool                   `json:"gameStateKnown"` // addonlist.txt 是否包含此 Mod
-	ModelStatsKnown        bool                   `json:"modelStatsKnown"`
-	ModelCount             int                    `json:"modelCount"`
-	ModelVertices          int                    `json:"modelVertices"`
-	ModelTriangles         int                    `json:"modelTriangles"`
-	Campaign               string                 `json:"campaign"`
-	Chapters               map[string]ChapterInfo `json:"chapters"` // key: 章节代码, value: 章节信息
-	Mode                   string                 `json:"mode"`
-	PreviewImage           string                 `json:"previewImage"`    // Base64编码的预览图
-	PreviewRevision        string                 `json:"previewRevision"` // 预览源签名；用于前端跨刷新/移动复用已解码图片
-	LastModified           string                 `json:"lastModified"`
+	StructureResourceRoots []string `json:"structureResourceRoots"`
+	Location               string   `json:"location"` // "root", "workshop", "disabled"
+	Enabled                bool     `json:"enabled"`
+	// ArchivePack 非空表示"扩展名是 .vpk、实际是压缩包"：工坊作者特意做的插件/工具/教程包。
+	// 游戏不会加载它，但它常常已经占着 addonlist.txt 的一行（也就占了优先级位置），
+	// 所以照常出现在列表里、照常可以开/关，只是界面上要带一个显眼的"非 VPK 压缩包"标记。
+	ArchivePack     *ArchivePackInfo       `json:"archivePack,omitempty"`
+	GameEnabled     bool                   `json:"gameEnabled"`    // addonlist.txt 中的游戏内开关
+	GameStateKnown  bool                   `json:"gameStateKnown"` // addonlist.txt 是否包含此 Mod
+	ModelStatsKnown bool                   `json:"modelStatsKnown"`
+	ModelCount      int                    `json:"modelCount"`
+	ModelVertices   int                    `json:"modelVertices"`
+	ModelTriangles  int                    `json:"modelTriangles"`
+	Campaign        string                 `json:"campaign"`
+	Chapters        map[string]ChapterInfo `json:"chapters"` // key: 章节代码, value: 章节信息
+	Mode            string                 `json:"mode"`
+	PreviewImage    string                 `json:"previewImage"`    // Base64编码的预览图
+	PreviewRevision string                 `json:"previewRevision"` // 预览源签名；用于前端跨刷新/移动复用已解码图片
+	LastModified    string                 `json:"lastModified"`
 	// addoninfo.txt 相关信息
 	Title      string `json:"title"`      // addontitle (必有)
 	Author     string `json:"author"`     // addonauthor (若有)

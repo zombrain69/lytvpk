@@ -198,6 +198,12 @@ func (a *App) groupingMods() []grouping.Mod {
 			return true
 		}
 		file := cache.File
+		// 「扩展名是 .vpk、实际是压缩包」的条目要在**界面列表**里可见可管（它占着
+		// addonlist 的一行），但它不是 Mod：不进分组推导的候选、不进标签基线、
+		// 也不出现在对外清单的 mods[] 里（清单另有 archivePacks 段落专门说明）。
+		if file.ArchivePack != nil {
+			return true
+		}
 		key, err := addonListKeyForManagedVPKPathFromRoot(rootDir, file.Path)
 		if err != nil || key == "" {
 			return true

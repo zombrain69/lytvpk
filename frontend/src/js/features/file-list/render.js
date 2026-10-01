@@ -545,6 +545,25 @@ export function applySearchResultCursor() {
   if (label) label.textContent = `${label.dataset.baseLabel || ""} · ${position}`.trim();
 }
 
+/**
+ * getArchivePackBadge 给"扩展名是 .vpk、实际是压缩包"的条目生成显眼标记。
+ *
+ * 这类包（工坊作者特意做的插件/工具/教程包）游戏不会加载，但它常常占着 addonlist.txt
+ * 的一行 —— 也就是占了加载顺序里的位置。所以它照常出现在列表里，必须一眼就能看出
+ * "这不是 VPK Mod"，而不是让人以为自己的 Mod 坏了。
+ */
+function getArchivePackBadge(file, className = "archive-pack-tag") {
+  const pack = file?.archivePack;
+  if (!pack) return "";
+  const label = escapeHtml(pack.label || "压缩包");
+  const note = escapeHtml(pack.note || "游戏不会加载它，也不参与 addonlist.txt");
+  const format = escapeHtml(String(pack.format || "").toUpperCase());
+  const evidence = Array.isArray(pack.evidence) && pack.evidence.length > 0
+    ? `；判定依据：${escapeHtml(pack.evidence.slice(0, 3).join("、"))}`
+    : "";
+  return `<span class="${className}" title="${label}（${format}，不是 VPK）：${note}${evidence}">📦 ${label} · 非 VPK</span>`;
+}
+
 export function createFileItem(file) {
   const item = document.createElement("div");
   item.className = "file-item";
@@ -650,7 +669,7 @@ export function createFileItem(file) {
     <div class="file-checkbox-container"></div>
     <div class="file-name" title="${file.path}">
       <div class="file-title">${titleHighlighted}</div>
-      <div class="file-filename">${nameHighlighted}${updateTagHtml}</div>
+      <div class="file-filename">${nameHighlighted}${updateTagHtml}${getArchivePackBadge(file)}</div>
     </div>
     <div class="file-size">${formatFileSize(file.size)}</div>
     <div class="file-location">
@@ -901,6 +920,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
       <div class="card-checkbox-container"></div>
       <div class="card-badges">
         <span class="card-badge location-badge">${getLocationDisplayName(file.location)}</span>
+        ${getArchivePackBadge(file, "card-badge archive-pack-tag")}
         ${getGameStateBadge(file, "card-badge game-state-badge")}
         ${getLoadOrderBadge(file, "card-badge load-order-badge")}
         ${getConflictRecheckBadge(file, "card-badge conflict-recheck-badge")}
