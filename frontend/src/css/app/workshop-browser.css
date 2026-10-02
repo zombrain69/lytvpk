@@ -790,7 +790,8 @@ html.dark-mode .workshop-type-toggle-btn.active {
   font-weight: 800;
   line-height: 1;
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(6px);
+  /* 与 Mod 卡片徽标同因：每张集合卡一个 backdrop-filter，列表一大就拖 hover 帧率。
+     底色本来就有 0.82 不透明度，直接去掉虚化（真机 A/B 数字见 mods.css 的 .card-badge 注释）。 */
 }
 
 .card-info {

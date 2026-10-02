@@ -45,13 +45,18 @@ let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
 const checkboxByPath = new Map();
 
-// ── 列表分帧渲染 ──────────────────────────────────────────────────────────
+// ── 列表分帧渲染 + 回收式窗口 ─────────────────────────────────────────────
 //
 // 真机量化（2904 个 Mod、卡片视图）：把整份列表一次性造完是一个 519ms 的长任务，
 // 期间点什么都没反应 —— 用户感受到的就是"点一下明显卡顿"。
-// 这里把"造 DOM"拆成每帧一批：第一屏立即出现（首帧只造 ≈1 屏），其余在后续帧补齐。
-// 任何"需要列表已经完整"的入口（框选 / 键盘光标 / 按优先级定位 / 检查面板同步）
-// 先调用 flushFileListRender() 把剩下的同步补齐，语义与改造前一致。
+//
+// 两层策略：
+//   小列表（< FILE_LIST_WINDOW_MIN_ITEMS）：分帧补齐，最终整份留在 DOM，语义最简单。
+//   大列表：上下双向占位块 + 只保留"视口 ± overscan"这一段，滚出窗口的卡片会被回收。
+//     真机背景（2026-10-02，2912 张卡）：只追加不回收时滚遍全库 DOM 涨到 133,213 个节点，
+//     滚动 p90 17–30ms；回收式窗口把它压到常量级，滚动/悬停不再随"看过多少卡"退化。
+//     占位块高度用精确分页公式（见 updateWindowSpacers），总滚动高度恒等于真实列表，
+//     所以回收不会让滚动位置跳动。
 const FILE_LIST_RENDER_CHUNK = 120;
 // 单帧最多占用的毫秒数（时间片）。固定"每帧 120 张"在真机上仍是 ~50ms/帧的抖动，
 // 按时间预算交还主线程才能让补齐过程保持流畅（滚动、悬停、点击都不卡）。
@@ -60,8 +65,10 @@ const FILE_LIST_RENDER_BUDGET_MS = 8;
 const FILE_LIST_RENDER_FIRST_CHUNK = 30;
 // 低于这个条目数就老样子"一路补完"：窗口化的复杂度不值得。
 const FILE_LIST_WINDOW_MIN_ITEMS = 300;
-// 列表离底部还剩这么多屏时，提前把下一批物化好（避免滚到底看到空白）。
-const FILE_LIST_SCROLL_OVERSCAN_SCREENS = 1.5;
+// 视口上下各多物化几行，避免快速滚动时露白。
+const FILE_LIST_WINDOW_OVERSCAN_ROWS = 3;
+// 首帧 / 隐藏页面量不到 clientHeight 时的兜底视口高度（否则只会物化一行）。
+const FILE_LIST_WINDOW_FALLBACK_VIEWPORT = 600;
 
 function nowMs() {
   return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
@@ -69,52 +76,329 @@ function nowMs() {
 
 let pendingListRender = null;
 
-// 窗口化状态：只"追加物化"，不回收已经造好的卡 —— 这样选中、高亮、框选、
-// 「检查面板」的行高亮这些既有语义都不用改（回收会让它们凭空消失）。
-// 未物化的部分用底部占位块撑出滚动条高度，滚到附近再补。
+// 窗口化状态：容器里始终是 [上占位块, ...窗口内的节点, 下占位块]，
+// 节点按 index 存在 nodes 里，滚出 [start, end) 就回收。
+// 选中态 / 光标 / 面板高亮都从 appState 重新落到新建的节点上（见 refreshResultCursorHighlight
+// 与 createFileCard 的 checkbox 初始化），所以回收不会丢状态。
 let listWindowState = null;
 
 function detachWindowState() {
-  if (listWindowState?.container) {
-    listWindowState.container.removeEventListener("scroll", handleListWindowScroll);
+  const state = listWindowState;
+  if (!state) return;
+  state.container?.removeEventListener?.("scroll", handleListWindowScroll);
+  try {
+    state.resizeObserver?.disconnect?.();
+  } catch (error) {
+    // 观察器随窗口状态一起失效，忽略即可
   }
+  if (state.windowResizeHandler && typeof window !== "undefined") {
+    window.removeEventListener?.("resize", state.windowResizeHandler);
+  }
+  // 占位块随窗口一起走；节点本身由调用方决定（replaceChildren / flush 各有自己的路径）。
+  state.topSpacer?.remove?.();
+  state.bottomSpacer?.remove?.();
   listWindowState = null;
 }
 
-/** 卡片网格：一屏几列、行高多少（用于算占位块高度）。 */
+/** 卡片网格/列表行：一屏几列、行高多少（占位块与"偏移 ↔ 条目"换算都用它）。 */
 function measureListMetrics(container) {
   const isGrid = container.classList?.contains("file-list-grid");
   let columns = 1;
   let rowPitch = 0;
+  let gap = 0;
+  let itemHeight = 0;
   if (isGrid && typeof getComputedStyle === "function") {
     const style = getComputedStyle(container);
     const tracks = String(style.gridTemplateColumns || "")
       .split(/\s+/)
       .filter((track) => track && track !== "none");
     if (tracks.length > 0) columns = tracks.length;
-    const gap = parseFloat(style.rowGap) || 16;
+    gap = parseFloat(style.rowGap) || 16;
     const firstCard = container.querySelector(".file-card");
     const cardHeight = firstCard ? firstCard.getBoundingClientRect().height : 280;
-    rowPitch = (cardHeight || 280) + gap;
+    itemHeight = cardHeight || 280;
+    rowPitch = itemHeight + gap;
   } else {
     const firstItem = container.querySelector(".file-item");
-    rowPitch = firstItem ? firstItem.getBoundingClientRect().height : 56;
+    itemHeight = (firstItem ? firstItem.getBoundingClientRect().height : 0) || 56;
+    rowPitch = itemHeight;
   }
-  return { isGrid, columns: Math.max(1, columns), rowPitch: Math.max(1, rowPitch) };
+  return {
+    isGrid,
+    columns: Math.max(1, columns),
+    rowPitch: Math.max(1, rowPitch),
+    gap,
+    itemHeight: Math.max(1, itemHeight),
+  };
 }
 
-/** 未物化的条目要占多高，才能让滚动条和真实列表一样长。 */
-function updateListWindowSpacer() {
-  const state = listWindowState;
-  if (!state || !state.spacer) return;
-  const remaining = state.pending.specs.length - state.pending.index;
-  if (remaining <= 0) {
-    state.spacer.remove();
-    state.spacer = null;
-    return;
+function createWindowSpacer(isGrid, kind) {
+  const spacer = document.createElement("div");
+  spacer.className = "file-list-window-spacer";
+  spacer.dataset.windowSpacer = kind;
+  spacer.setAttribute("aria-hidden", "true");
+  if (isGrid) spacer.style.gridColumn = "1 / -1";
+  spacer.style.display = "none";
+  return spacer;
+}
+
+function setSpacerHeight(spacer, height) {
+  if (!spacer) return;
+  const safe = Math.max(0, Number(height) || 0);
+  spacer.style.height = `${safe}px`;
+  // 高度为 0 时必须真正退出网格流：否则它自己仍占一个网格行 + 一个 gap，
+  // 总高度会比真实列表多 16px，回收时会漂。
+  spacer.style.display = safe > 0 ? "" : "none";
+}
+
+/**
+ * updateWindowSpacers 把上下占位块调成"精确分页高度"。
+ *
+ * 目标：不管窗口里保留了几行，容器总滚动高度恒等于真实列表高度。
+ * 网格模式里占位块自己也是网格项（各占一行、各自带一个 gap），所以：
+ *   上占位 = startRow * rowPitch - gap
+ *   下占位 = remainingRows * rowPitch - gap
+ * 结果为 0 时整块退流，公式回到"没有占位块"的真实高度。
+ */
+function updateWindowSpacers(state) {
+  if (!state) return;
+  const { pending, columns, rowPitch, gap, isGrid, topSpacer, bottomSpacer } = state;
+  const total = pending.specs.length;
+  const totalRows = Math.max(1, Math.ceil(total / columns));
+  const startRow = Math.floor(state.start / columns);
+  const endRow = Math.ceil(state.end / columns);
+  const remainingRows = Math.max(0, totalRows - endRow);
+  const topHeight = state.full || !isGrid ? startRow * rowPitch : Math.max(0, startRow * rowPitch - gap);
+  const bottomHeight = state.full || !isGrid ? remainingRows * rowPitch : Math.max(0, remainingRows * rowPitch - gap);
+  setSpacerHeight(topSpacer, topHeight);
+  setSpacerHeight(bottomSpacer, bottomHeight);
+}
+
+/** 视口 ± overscan 需要哪些条目（回收式窗口的核心换算）。 */
+function computeWindowRange(state) {
+  const { pending, columns, rowPitch, container } = state;
+  const total = pending.specs.length;
+  if (total === 0) return { start: 0, end: 0 };
+  const minRows = FILE_LIST_WINDOW_OVERSCAN_ROWS * 2 + 1;
+  if (state.full || total <= columns * minRows) return { start: 0, end: total };
+
+  const totalRows = Math.max(1, Math.ceil(total / columns));
+  const scrollTop = Math.max(0, Number(container.scrollTop) || 0);
+  const viewport = Math.max(Number(container.clientHeight) || 0, FILE_LIST_WINDOW_FALLBACK_VIEWPORT);
+  const firstVisibleRow = Math.floor(scrollTop / rowPitch);
+  const visibleRows = Math.max(1, Math.ceil(viewport / rowPitch) + 1);
+  const startRow = Math.max(0, firstVisibleRow - FILE_LIST_WINDOW_OVERSCAN_ROWS);
+  const endRow = Math.min(totalRows, firstVisibleRow + visibleRows + FILE_LIST_WINDOW_OVERSCAN_ROWS);
+  const start = Math.min(total - 1, startRow * columns);
+  const end = Math.min(total, Math.max(start + columns, endRow * columns));
+  return { start, end };
+}
+
+/**
+ * renderListWindow 把 DOM 调整成 [上占位块, 窗口内节点..., 下占位块]。
+ *
+ * 窗口永远是一段连续区间，所以只需要"头部前插 / 尾部后插 / 回收窗口外节点"，
+ * 不需要整段重建；节点按 index 缓存在 state.nodes 里，滚回去时同一个 index 重新建卡。
+ */
+function renderListWindow(state, range = computeWindowRange(state), { force = false } = {}) {
+  const { container, pending, nodes, bottomSpacer } = state;
+  const total = pending.specs.length;
+  if (total === 0) return false;
+  const start = Math.max(0, Math.min(Number(range.start) || 0, total - 1));
+  const end = Math.max(start + 1, Math.min(Number(range.end) || total, total));
+  // 记住"视口顶部那一条"的索引：窗口尺寸/列数变化时用它把滚动位置钉回原处
+  // （不能现算 —— 重排期间浏览器自身的 scroll anchoring 会先动 scrollTop）。
+  state.anchorIndex = windowIndexAtOffset(state, container.scrollTop);
+  if (!force && start === state.start && end === state.end) return false;
+
+  // ① 回收窗口外的节点：摘 DOM、断开预览观察、清掉按路径的复选框缓存，别把旧节点留在内存里。
+  for (const [index, node] of [...nodes]) {
+    if (index >= start && index < end) continue;
+    unobserveCardPreview(node);
+    const path = pending.paths[index];
+    if (path) checkboxByPath.delete(path);
+    node.remove?.();
+    nodes.delete(index);
   }
-  const rows = Math.ceil(remaining / state.columns);
-  state.spacer.style.height = `${rows * state.rowPitch}px`;
+
+  // ② 补齐窗口内的缺口。剩下的节点一定是连续区间，前插/后插即可保持顺序。
+  const kept = [...nodes.keys()].sort((a, b) => a - b);
+  if (kept.length === 0) {
+    const fragment = document.createDocumentFragment();
+    for (let index = start; index < end; index += 1) {
+      const node = buildListSpecNode(pending.specs[index], pending);
+      nodes.set(index, node);
+      fragment.appendChild(node);
+    }
+    container.insertBefore(fragment, bottomSpacer);
+  } else {
+    const firstKept = kept[0];
+    const lastKept = kept[kept.length - 1];
+    if (start < firstKept) {
+      const anchor = nodes.get(firstKept);
+      for (let index = start; index < firstKept; index += 1) {
+        const node = buildListSpecNode(pending.specs[index], pending);
+        nodes.set(index, node);
+        container.insertBefore(node, anchor);
+      }
+    }
+    if (end > lastKept + 1) {
+      for (let index = lastKept + 1; index < end; index += 1) {
+        const node = buildListSpecNode(pending.specs[index], pending);
+        nodes.set(index, node);
+        container.insertBefore(node, bottomSpacer);
+      }
+    }
+  }
+
+  state.start = start;
+  state.end = end;
+  updateWindowSpacers(state);
+  refreshResultCursorHighlight();
+  return true;
+}
+
+/** syncWindowNodes 同一批条目重画（刷新 / 单卡开关 / 复检）时的原地协调，只动窗口内的节点。 */
+function syncWindowNodes(state) {
+  const { container, pending, nodes } = state;
+  const entries = [...nodes.entries()].sort((a, b) => a[0] - b[0]);
+  for (const [index, node] of entries) {
+    const spec = pending.specs[index];
+    if (!spec) continue;
+    const desired = spec.node || buildListSpecNode(spec, pending);
+    if (desired === node) continue;
+    container.replaceChild?.(desired, node);
+    nodes.set(index, desired);
+  }
+}
+
+/** 光标行必须在窗口里；不在就先把它挪进视口，再按新位置重画窗口。 */
+function ensureWindowIndex(index, { block = "nearest" } = {}) {
+  const state = listWindowState;
+  if (!state?.pending) return null;
+  const total = state.pending.specs.length;
+  if (total === 0) return null;
+  const safeIndex = Math.max(0, Math.min(total - 1, Number(index) || 0));
+  if (!state.full && safeIndex >= state.start && safeIndex < state.end) {
+    return state.nodes.get(safeIndex) || null;
+  }
+  const container = state.container;
+  const viewport = Math.max(Number(container.clientHeight) || 0, FILE_LIST_WINDOW_FALLBACK_VIEWPORT);
+  const viewTop = Math.max(0, Number(container.scrollTop) || 0);
+  const viewBottom = viewTop + viewport;
+  const rowTop = Math.floor(safeIndex / state.columns) * state.rowPitch;
+  const rowBottom = rowTop + state.rowPitch;
+  let nextTop = viewTop;
+  if (block === "center") {
+    // 先让目标行露在视口底部附近，余下的一段交给 scrollIntoView 平滑完成。
+    nextTop = Math.max(0, rowTop - viewport + state.rowPitch * 2);
+  } else if (rowTop < viewTop) {
+    nextTop = Math.max(0, rowTop - state.rowPitch);
+  } else if (rowBottom > viewBottom) {
+    nextTop = Math.max(0, rowBottom - viewport + state.rowPitch);
+  }
+  if (nextTop !== viewTop) {
+    container.scrollTop = nextTop;
+  }
+  renderListWindow(state, computeWindowRange(state), { force: true });
+  return state.nodes.get(safeIndex) || null;
+}
+
+function findWindowNodeByPath(container, path) {
+  if (!path) return null;
+  const state = listWindowState;
+  if (state && state.container === container) {
+    const index = state.paths.indexOf(path);
+    // 窗口状态下索引表就是权威答案：物化了就是那个节点，没物化就是 null，
+    // 不要退回 querySelector（那会把"还没画出来"误判成"找不到 DOM"）。
+    if (index >= 0) return state.nodes.get(index) || null;
+  }
+  return (
+    container.querySelector?.(
+      `.file-item[data-path="${CSS.escape(path)}"], .file-card[data-path="${CSS.escape(path)}"]`,
+    ) || null
+  );
+}
+
+/** 回收再建卡之后，光标行要重新画上（不会滚动页面，滚动由调用方决定）。 */
+function refreshResultCursorHighlight() {
+  const cursorPath = String(appState.searchCursorPath || "");
+  if (!cursorPath) return;
+  const container = document.getElementById("file-list");
+  if (!container) return;
+  container
+    .querySelectorAll?.(".file-item.is-result-cursor, .file-card.is-result-cursor")
+    ?.forEach((row) => row.classList.remove("is-result-cursor"));
+  findWindowNodeByPath(container, cursorPath)?.classList.add("is-result-cursor");
+}
+
+function windowIndexAtOffset(state, offset) {
+  const row = Math.max(0, Math.floor((Number(offset) || 0) / state.rowPitch));
+  return Math.max(0, Math.min(state.pending.specs.length - 1, row * state.columns));
+}
+
+function windowOffsetForIndex(state, index) {
+  const row = Math.max(0, Math.floor((Number(index) || 0) / state.columns));
+  return row * state.rowPitch;
+}
+
+/** 窗口尺寸/列数变化（拉窗口、切卡片/列表）后重新量行高，并把滚动位置钉在同一条目上。 */
+function attachWindowResizeWatch(state) {
+  const remeasure = () => {
+    if (listWindowState !== state) return;
+    const container = state.container;
+    const anchor = Number.isInteger(state.anchorIndex)
+      ? state.anchorIndex
+      : windowIndexAtOffset(state, container.scrollTop);
+    const metrics = measureListMetrics(state.container);
+    if (!metrics.columns || !metrics.rowPitch) return;
+    const geometryChanged =
+      metrics.columns !== state.columns ||
+      metrics.rowPitch !== state.rowPitch ||
+      metrics.isGrid !== state.isGrid;
+    if (!geometryChanged) {
+      // 只变了高度：窗口范围可能要跟着变，但锚点不用动。
+      renderListWindow(state, computeWindowRange(state));
+      return;
+    }
+    state.columns = metrics.columns;
+    state.rowPitch = metrics.rowPitch;
+    state.gap = metrics.gap;
+    state.isGrid = metrics.isGrid;
+    if (state.full) {
+      renderListWindow(state, { start: 0, end: state.pending.specs.length }, { force: true });
+      return;
+    }
+    // 先把新几何的窗口/占位块摆好，再落滚动锚点 —— 反过来的话，
+    // 新 scrollTop 会在"占位块还是旧几何"的中间态里被浏览器夹断（真机踩过：跳回顶部）。
+    renderListWindow(state, computeWindowRange(state), { force: true });
+    const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    const targetTop = Math.min(windowOffsetForIndex(state, anchor), maxTop);
+    if (targetTop !== container.scrollTop) {
+      container.scrollTop = targetTop;
+      renderListWindow(state, computeWindowRange(state), { force: true });
+    }
+    notifyFileListMaterialized();
+  };
+  if (typeof ResizeObserver === "function") {
+    try {
+      state.resizeObserver = new ResizeObserver(remeasure);
+      state.resizeObserver.observe(state.container);
+      return;
+    } catch (error) {
+      state.resizeObserver = null;
+    }
+  }
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    state.windowResizeHandler = remeasure;
+    window.addEventListener("resize", state.windowResizeHandler);
+  }
+}
+
+function syncListWindow(state = listWindowState) {
+  if (!state || state !== listWindowState) return;
+  const changed = renderListWindow(state, computeWindowRange(state));
+  if (changed) notifyFileListMaterialized();
 }
 
 function handleListWindowScroll() {
@@ -124,59 +408,10 @@ function handleListWindowScroll() {
   const run = () => {
     state.scrollPending = false;
     if (listWindowState !== state) return;
-    maybeMaterializeForScroll();
+    syncListWindow(state);
   };
   if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
   setTimeout(run, 50);
-}
-
-/** indexForOffset 由滚动偏移反推"这里该显示第几个条目"（按行高换算）。 */
-function indexForOffset(state, offset) {
-  const total = state.pending.specs.length;
-  const row = Math.max(0, Math.floor(Math.max(0, offset) / state.rowPitch));
-  return Math.min(total - 1, (row + 1) * state.columns - 1);
-}
-
-/**
- * maybeMaterializeForScroll 把视口需要的那一段补出来。
- *
- * 两种触发：
- *   ① 视口已经越过已物化内容（拖动滚动条跳到中间）——按"视口索引"补到位。
- *      占位块会同步缩短，所以滚动位置不会跳（总高度不变）。
- *   ② 视口贴近已物化内容的底部 —— 预取下一批，滚动时不会看到空白。
- */
-function maybeMaterializeForScroll() {
-  const state = listWindowState;
-  if (!state) return;
-  const pending = state.pending;
-  if (pendingListRender !== pending) return;
-  const container = state.container;
-  const overscan = (container.clientHeight || 0) * FILE_LIST_SCROLL_OVERSCAN_SCREENS;
-  if (pending.index < pending.specs.length) {
-    const neededIndex = indexForOffset(state, container.scrollTop + container.clientHeight + overscan);
-    if (neededIndex >= pending.index) {
-      const done = materializeThroughIndex(neededIndex, FILE_LIST_RENDER_BUDGET_MS * 2);
-      // 还没补到位（跳得很远）：下一帧接着补；占位块保证滚动位置不动。
-      if (!done && pendingListRender === pending) handleListWindowScroll();
-      return;
-    }
-  }
-  const distanceToBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
-  if (distanceToBottom > overscan) return;
-  if (pending.index >= pending.specs.length) return;
-  appendListRenderChunk(pending, FILE_LIST_RENDER_CHUNK, FILE_LIST_RENDER_BUDGET_MS);
-  updateListWindowSpacer();
-  if (pending.index >= pending.specs.length) {
-    pendingListRender = null;
-    applySearchResultCursor();
-    notifyFileListMaterialized();
-    return;
-  }
-  notifyFileListMaterialized();
-  // 还贴着底部（例如窗口很长）：下一帧继续补。
-  if (container.scrollHeight - (container.scrollTop + container.clientHeight) <= overscan) {
-    handleListWindowScroll();
-  }
 }
 
 /** notifyFileListMaterialized 通知"这一批卡片已经进 DOM"（检查面板靠它重刷行高亮）。 */
@@ -188,8 +423,17 @@ function notifyFileListMaterialized() {
   }
 }
 
-/** materializeThroughIndex 把前 index+1 个条目物化出来（超出预算的部分下一帧继续）。 */
+/**
+ * materializeThroughIndex 保证第 index 个条目已经物化。
+ *
+ * 回收式窗口下不需要"把前面几千条都造出来"：直接把窗口搬到目标行附近即可；
+ * 小列表仍然沿用"按时间预算逐段补齐"的老逻辑。
+ */
 function materializeThroughIndex(index, budgetMs = FILE_LIST_RENDER_BUDGET_MS) {
+  if (listWindowState) {
+    const node = ensureWindowIndex(index, { block: "nearest" });
+    return Boolean(node) || Number(index) < 0;
+  }
   const pending = pendingListRender;
   if (!pending) return true;
   const target = Math.min(index + 1, pending.specs.length);
@@ -200,7 +444,6 @@ function materializeThroughIndex(index, budgetMs = FILE_LIST_RENDER_BUDGET_MS) {
     appendListRenderChunk(pending, FILE_LIST_RENDER_CHUNK, FILE_LIST_RENDER_BUDGET_MS);
     if (pending.index === before) break;
   }
-  updateListWindowSpacer();
   notifyFileListMaterialized();
   if (pending.index >= pending.specs.length) {
     pendingListRender = null;
@@ -214,21 +457,31 @@ export function hasPendingFileListRender() {
 }
 
 /**
- * flushFileListRender 同步补齐剩余列表项。
+ * flushFileListRender 同步补齐剩余列表项（显式"我要完整 DOM"的逃生口）。
  *
- * 只在"真的需要完整 DOM"的入口调用：框选开始、↑↓ 收集结果、按优先级定位、
- * 检查面板同步选中行。返回是否真的补过（没补过说明列表本来就已经完整）。
+ * 回收式窗口之后这条路已经很少有人走：整表物化会把 DOM 拉回 13 万节点，
+ * 只有确实要"一次拿到所有行"的调用方才该用（按优先级定位已改成按索引定位）。
+ * 返回是否真的补过（没补过说明列表本来就已经完整）。
  */
 export function flushFileListRender() {
-  if (!pendingListRender) return false;
+  const state = listWindowState;
   const pending = pendingListRender;
+  if (state && pending && state.pending === pending) {
+    state.full = true;
+    renderListWindow(state, { start: 0, end: pending.specs.length }, { force: true });
+    state.topSpacer?.remove?.();
+    state.bottomSpacer?.remove?.();
+    state.topSpacer = null;
+    state.bottomSpacer = null;
+    detachWindowState();
+    pendingListRender = null;
+    notifyFileListMaterialized();
+    applySearchResultCursor();
+    return true;
+  }
+  if (!pending) return false;
   pendingListRender = null;
   appendListRenderChunk(pending, pending.specs.length, Infinity);
-  if (listWindowState?.spacer) {
-    listWindowState.spacer.remove();
-    listWindowState.spacer = null;
-  }
-  detachWindowState();
   notifyFileListMaterialized();
   applySearchResultCursor();
   return true;
@@ -239,11 +492,32 @@ function cancelPendingListRender() {
   pendingListRender = null;
 }
 
+/**
+ * revealFileByPath 把某个 Mod 的卡片/行物化出来并滚进视野（按优先级定位用）。
+ *
+ * 回收式窗口下这是 O(1)：直接把窗口搬到目标行附近画一屏，不再整表同步补齐
+ * （旧实现要把前面几千条全造出来，大库上是一次几百毫秒的冻结）。
+ * 返回落点节点；找不到（列表正在更新 / 当前筛选没有它）返回 null。
+ */
+export function revealFileByPath(filePath, { behavior = "auto", block = "center" } = {}) {
+  const container = document.getElementById("file-list");
+  const path = String(filePath || "");
+  if (!container || !path) return null;
+  let node = findWindowNodeByPath(container, path);
+  if (!node && listWindowState) {
+    const index = listWindowState.paths.indexOf(path);
+    if (index >= 0) node = ensureWindowIndex(index, { block });
+  }
+  if (!node) return null;
+  node.scrollIntoView?.({ behavior, block });
+  return node;
+}
+
 function startChunkedListRender(container, specs, mode, panelServersAvailable = false) {
   const previousWindow = listWindowState;
   const paths = specs.map((spec) => String(spec.file?.path || spec.node?.dataset?.path || ""));
-  // 同一批条目（刷新 / 单卡开关 / 复检后的角标变化）：整表原地协调，
-  // 滚动位置与"已物化到哪"都保持不动 —— 否则用户滚到中间时点一下开关，
+  // 同一批条目（刷新 / 单卡开关 / 复检后的角标变化）：原地协调窗口内的节点，
+  // 滚动位置与已物化的那一段都保持不动 —— 否则用户滚到中间时点一下开关，
   // 列表会被整批换掉、滚动位置跳回顶部。
   const samePaths = Boolean(
     previousWindow?.container === container &&
@@ -251,86 +525,114 @@ function startChunkedListRender(container, specs, mode, panelServersAvailable = 
       previousWindow.paths.length === paths.length &&
       previousWindow.paths.every((path, index) => path === paths[index]),
   );
-  // 两种落地策略，按"到底要重建多少张卡"来选（真机实测出来的分界）：
-  //   patch   —— 变化很小（刷新 / 单个开关 / 复检后少数角标变化）：按位置原地替换。
-  //              原来一律 replaceChildren(fragment)：哪怕只改了 1 张卡，也会把 2904 个
-  //              节点整批摘下来再插回去（"自动复检后重绘"那一波 121ms 长任务）。
-  //   replace —— 变化很大（搜索/筛选换了结果集、或冲突分析导致几乎全表重建）：
-  //              整批插入走一次布局更快 —— 逐张 replaceChild 在真机上反而更慢。
-  let rebuildCount = 0;
-  for (const spec of specs) {
-    if (!spec.node) rebuildCount += 1;
-  }
-  const spacerOverhead = listWindowState?.spacer ? 1 : 0;
-  const materialized = Math.max(0, container.children.length - spacerOverhead);
-  const sameLength = materialized === specs.length;
-  const mostlyRebuilt = rebuildCount * 2 >= specs.length;
-  const usePatch = samePaths || (sameLength && !mostlyRebuilt);
   const pending = {
     container,
     specs,
     mode,
     panelServersAvailable,
-    index: samePaths ? 0 : 0,
-    strategy: usePatch ? "patch" : "replace",
-    replaceOnNextAppend: !usePatch || !samePaths,
+    index: 0,
+    strategy: "replace",
+    replaceOnNextAppend: true,
     paths,
   };
 
-  if (samePaths && previousWindow) {
-    // 沿用现有窗口与占位块：只把 specs 换成新的一份，已物化部分按位协调。
-    previousWindow.pending = pending;
-    const metrics = measureListMetrics(container);
-    previousWindow.columns = metrics.columns;
-    previousWindow.rowPitch = metrics.rowPitch;
-    pendingListRender = pending;
-    if (materialized > 0) patchListRenderChunk(pending, materialized, Infinity);
-    if (previousWindow.spacer) updateListWindowSpacer();
+  // 空结果集：必须显式清空容器，不能"什么都不做"。
+  //
+  // appendListRenderChunk 对空 specs 会走 `end <= pending.index` 的短路（0 <= 0），
+  // 于是 replace 分支的 replaceChildren 永远不会执行 —— 容器里上一次渲染的卡片会
+  // 一直留着。真机现象：筛「游戏内：未记录」而库里 0 个未记录时，筛选条已经高亮、
+  // 状态栏也更新了，列表却还是上一批（甚至 30 张「游戏内开启」）卡片；
+  // 用户逐张把未记录 Mod 点成「游戏内关闭」点到最后一张时也会停在旧卡片上，
+  // 看起来就是"界面卡在这了"。
+  if (specs.length === 0) {
+    detachWindowState();
+    pendingListRender = null;
+    container.replaceChildren();
     notifyFileListMaterialized();
-    if (pending.index >= specs.length) pendingListRender = null;
     return;
   }
 
+  // 大列表：回收式窗口。首屏就是"一屏 + overscan"，随滚动双向回收，
+  // DOM 规模与"看过多少卡"无关（真机 2912 张卡：只追加时 13 万节点）。
+  if (specs.length >= FILE_LIST_WINDOW_MIN_ITEMS) {
+    if (samePaths && previousWindow) {
+      previousWindow.pending = pending;
+      previousWindow.paths = paths;
+      pendingListRender = pending;
+      syncWindowNodes(previousWindow);
+      updateWindowSpacers(previousWindow);
+      notifyFileListMaterialized();
+      return;
+    }
+    detachWindowState();
+    pendingListRender = pending;
+    startListWindow(pending);
+    notifyFileListMaterialized();
+    return;
+  }
+
+  // 小列表：沿用"首帧 30 条 + 分帧补齐"，最终整份留在 DOM。
+  // 两种落地策略，按"到底要重建多少张卡"来选（真机实测出来的分界）：
+  //   patch   —— 变化很小（刷新 / 单个开关 / 复检后少数角标变化）：按位置原地替换。
+  //              原来一律 replaceChildren(fragment)：哪怕只改了 1 张卡，也会把 2904 个
+  //              节点整批摘下来再插回去（"自动复检后重绘"那一波 121ms 长任务）。
+  //   replace —— 变化很大（搜索/筛选换了结果集）：整批插入走一次布局更快。
+  // 从回收式窗口切到小列表：先把旧窗口的节点清掉，避免和新的分帧补齐混在一起。
+  const previousWasWindow = Boolean(listWindowState);
   detachWindowState();
+  if (previousWasWindow) container.replaceChildren();
   pendingListRender = pending;
+  let rebuildCount = 0;
+  for (const spec of specs) {
+    if (!spec.node) rebuildCount += 1;
+  }
+  const materialized = Math.max(0, container.children.length);
+  const sameLength = materialized === specs.length;
+  const mostlyRebuilt = rebuildCount * 2 >= specs.length;
+  pending.strategy = sameLength && !mostlyRebuilt ? "patch" : "replace";
+  pending.replaceOnNextAppend = pending.strategy !== "patch";
   // 第一屏同步造出来：用户看到的还是"点完就有内容"，不是空列表。
   appendListRenderChunk(pending, FILE_LIST_RENDER_FIRST_CHUNK, Infinity);
   if (pending.index >= specs.length) {
     pendingListRender = null;
     return;
   }
-  // 大列表走"按需物化"：首屏之后不再自动补，改成滚到附近才补，
-  // 未物化部分用底部占位块撑出滚动条（真机 2904 张卡要 2.6s 才补完，
-  // 那段时间用户既滚不到底、列表也一直在长）。
-  if (specs.length >= FILE_LIST_WINDOW_MIN_ITEMS) {
-    startListWindow(pending);
-    notifyFileListMaterialized();
-    return;
-  }
   scheduleListRenderStep(pending);
 }
 
-/** startListWindow 给大列表装上"滚动到附近才物化"的窗口 + 底部占位块。 */
+/**
+ * startListWindow 给大列表装上"回收式窗口"：上下占位块 + 只保留视口 ± overscan 的节点。
+ * 首屏直接按当前滚动位置画一屏（不是固定 30 张），否则大屏窗口会露白。
+ */
 function startListWindow(pending) {
   const container = pending.container;
   const metrics = measureListMetrics(container);
-  const spacer = document.createElement("div");
-  spacer.className = "file-list-window-spacer";
-  spacer.setAttribute("aria-hidden", "true");
-  if (metrics.isGrid) spacer.style.gridColumn = "1 / -1";
-  // 占位块必须是最后一个孩子：已物化的卡片用 insertBefore(fragment, spacer) 插到它前面。
-  container.appendChild(spacer);
-  listWindowState = {
+  const topSpacer = createWindowSpacer(metrics.isGrid, "top");
+  const bottomSpacer = createWindowSpacer(metrics.isGrid, "bottom");
+  const state = {
     container,
     pending,
-    spacer,
     paths: pending.paths,
+    nodes: new Map(),
+    start: 0,
+    end: 0,
     columns: metrics.columns,
     rowPitch: metrics.rowPitch,
+    gap: metrics.gap,
+    isGrid: metrics.isGrid,
+    topSpacer,
+    bottomSpacer,
     scrollPending: false,
+    full: false,
+    resizeObserver: null,
+    windowResizeHandler: null,
   };
+  listWindowState = state;
+  // 容器里只放两个占位块，窗口节点稍后插在它们之间。
+  container.replaceChildren(topSpacer, bottomSpacer);
+  renderListWindow(state, computeWindowRange(state), { force: true });
   container.addEventListener("scroll", handleListWindowScroll, { passive: true });
-  updateListWindowSpacer();
+  attachWindowResizeWatch(state);
 }
 
 function scheduleListRenderStep(pending) {
@@ -364,6 +666,14 @@ function appendListRenderChunk(pending, limit, budgetMs = FILE_LIST_RENDER_BUDGE
     patchListRenderChunk(pending, limit, budgetMs);
     return;
   }
+  // 空结果集（兜底）：replace 策略下也要真的把容器清掉，见 startChunkedListRender 的说明。
+  if (pending.specs.length === 0) {
+    if (pending.replaceOnNextAppend) {
+      pending.replaceOnNextAppend = false;
+      pending.container.replaceChildren();
+    }
+    return;
+  }
   const end = Math.min(pending.specs.length, pending.index + limit);
   if (end <= pending.index) return;
   const started = nowMs();
@@ -381,13 +691,8 @@ function appendListRenderChunk(pending, limit, budgetMs = FILE_LIST_RENDER_BUDGE
     pending.container.replaceChildren(fragment);
     return;
   }
-  // 窗口化时占位块永远在最后：新卡片必须插到它前面，否则占位块会被顶到中间。
-  const spacer =
-    listWindowState?.pending === pending ? listWindowState.spacer : null;
-  if (spacer && spacer.parentNode === pending.container) {
-    pending.container.insertBefore(fragment, spacer);
-    return;
-  }
+  // 回收式窗口不走这条路径（窗口节点由 renderListWindow 维护）；
+  // 这里只服务小列表的分帧补齐。
   pending.container.appendChild(fragment);
 }
 
@@ -934,20 +1239,17 @@ export function applySearchResultCursor() {
   }
 
   // 光标行可能是列表模式的行，也可能是卡片模式的卡片。
-  let target = container.querySelector(
-    `.file-item[data-path="${CSS.escape(cursorPath)}"], .file-card[data-path="${CSS.escape(cursorPath)}"]`,
-  );
+  // 回收式窗口下旧节点可能已经被回收：先查窗口索引表（O(1)），再退回 DOM 查询。
+  let target = findWindowNodeByPath(container, cursorPath);
   if (!target && pendingListRender) {
-    // 光标落在还没物化的部分：先把到它为止的条目补出来（按时间预算，不卡主线程），
-    // 补完再重新走一次，把这行滚进视野。
+    // 光标落在还没物化的部分：窗口化时直接把窗口搬过去（O(1)），
+    // 小列表则按时间预算补齐；都补完再重新走一次，把这行滚进视野。
     const index = paths.indexOf(cursorPath);
     if (index >= 0 && !materializeThroughIndex(index, 60)) {
       scheduleCursorReveal(cursorPath);
       return;
     }
-    target = container.querySelector(
-      `.file-item[data-path="${CSS.escape(cursorPath)}"], .file-card[data-path="${CSS.escape(cursorPath)}"]`,
-    );
+    target = findWindowNodeByPath(container, cursorPath);
   }
   target?.classList.add("is-result-cursor");
   target?.scrollIntoView({ block: "nearest" });

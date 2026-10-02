@@ -42,8 +42,13 @@ export function initBoxSelection() {
   fileListContainer.addEventListener("mouseup", handleMouseUp);
   fileListContainer.addEventListener("mouseleave", handleMouseUp);
 
-  // 滚动时取消选择
+  // 滚动时取消选择。
+  //
+  // 真机回归（2026-10-02）：真正滚动的是 #file-list（卡片网格 / 列表都挂在它上面，
+  // overflow-y:auto），外层 .file-list-container 是 overflow:hidden —— 挂在它身上的
+  // scroll 监听永远不会触发，"拖动中滚动 → 取消框选"这条保护实际是死的。
   fileListContainer.addEventListener("scroll", handleScroll);
+  document.getElementById("file-list")?.addEventListener("scroll", handleScroll, { passive: true });
 
   // 阻止框选后的误触发 click
   fileListContainer.addEventListener("click", handleClickCapture, { capture: true });

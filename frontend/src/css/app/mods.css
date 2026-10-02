@@ -4166,8 +4166,12 @@
 .file-checkbox.card-checkbox {
   width: 20px;
   height: 20px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(4px);
+  /* 每张卡一个 backdrop-filter：全库 2912 张卡就有 2912 个 backdrop root。
+     真机 A/B（2560×1440、2912 张卡全部物化、鼠标在按钮间滑动）：
+     徽标 blur 90.8–92.2 FPS / 38–42 帧 >50ms；
+     去掉列表内每卡片 blur 后 195.9 FPS / 0 帧 >50ms / 0 长任务。
+     复选框这里只是"看起来更实"一点，用提高不透明度代替虚化。 */
+  background: rgba(255, 255, 255, 0.95);
   box-shadow: var(--shadow-sm);
 }
 
@@ -4201,13 +4205,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* 这里原来有 backdrop-filter: blur(8px)。全库 2912 张卡时徽标数量 23,633 个，
+     每个徽标都会为卡片建立 backdrop root：鼠标在按钮间移动时
+     实测 91 FPS、p90 38ms、12 个 52–95ms 长任务；去掉后 196 FPS、0 长任务。
+     徽标本来就有半透明底色，虚化只是观感，收益远小于成本，故移除。 */
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .card-badge.location-badge {
-  background: rgba(15, 23, 42, 0.78);
+  background: rgba(15, 23, 42, 0.88);
   border-color: rgba(255, 255, 255, 0.16);
   color: rgba(255, 255, 255, 0.94);
 }
@@ -4219,7 +4225,7 @@
 }
 
 .card-badge.secondary-tag-badge {
-  background: rgba(30, 41, 59, 0.82);
+  background: rgba(30, 41, 59, 0.9);
   color: rgba(248, 250, 252, 0.92);
   border-color: rgba(226, 232, 240, 0.22);
 }
@@ -4238,7 +4244,7 @@
 }
 
 .card-badge.more-tag-badge {
-  background: rgba(51, 65, 85, 0.82);
+  background: rgba(51, 65, 85, 0.9);
   border-color: rgba(226, 232, 240, 0.2);
   color: rgba(248, 250, 252, 0.92);
 }

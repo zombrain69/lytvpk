@@ -22,6 +22,9 @@ function ruleFor(css, selector) {
   return match ? match[0] : "";
 }
 
+// 注释里会写"这里原来有 backdrop-filter"之类的说明，静态断言只看声明。
+const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
+
 test("Mod 卡片与工坊卡片都跳过屏外渲染（保住页面切换与滚动性能）", () => {
   const modsCard = ruleFor(readCss("app/mods.css"), ".file-card");
   assert.ok(modsCard, "没找到 .file-card 规则");
@@ -62,4 +65,36 @@ test("加载顺序预览与 autoexec 帮助列表也跳过屏外渲染", () => {
   const matchItem = ruleFor(readCss("app/diagnostics.css"), ".autoexec-match");
   assert.ok(matchItem, "没找到 .autoexec-match 规则");
   assert.match(matchItem, /content-visibility:\s*auto/, "指令匹配列表要跳过屏外渲染");
+});
+
+// 每卡片元素上的 backdrop-filter 会给每张卡建一个 backdrop root。
+// 真机 A/B（2560×1440、2912 张卡全部物化、真鼠标在按钮间滑动）：
+//   保留：90.8–92.2 FPS、p90 38–44ms、12 个 50–95ms 长任务
+//   去掉：195.9 FPS、p90 7.2ms、0 长任务
+// 单实例的大面积 blur（模态遮罩、头部、状态栏）不在此列，不动。
+test("列表卡片内的元素不得使用 backdrop-filter（大列表 hover 会掉一半帧）", () => {
+  const mods = stripComments(readCss("app/mods.css"));
+  const badge = ruleFor(mods, ".card-badge");
+  assert.ok(badge, "没找到 .card-badge 规则");
+  assert.doesNotMatch(
+    badge,
+    /backdrop-filter/,
+    "卡片徽标不能再带 backdrop-filter：23,633 个徽标在鼠标移动时会掉到 90 FPS",
+  );
+
+  const checkbox = ruleFor(mods, ".file-checkbox.card-checkbox");
+  assert.ok(checkbox, "没找到 .file-checkbox.card-checkbox 规则");
+  assert.doesNotMatch(
+    checkbox,
+    /backdrop-filter/,
+    "卡片复选框也不能带 backdrop-filter：2,912 个复选框同样参与每帧重采样",
+  );
+
+  const collectionTag = ruleFor(stripComments(readCss("app/workshop-browser.css")), ".collection-card-tag");
+  assert.ok(collectionTag, "没找到 .collection-card-tag 规则");
+  assert.doesNotMatch(
+    collectionTag,
+    /backdrop-filter/,
+    "工坊集合卡角标与 Mod 徽标同因，不能再带 backdrop-filter",
+  );
 });

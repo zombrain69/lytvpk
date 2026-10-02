@@ -1,6 +1,6 @@
 import { appState } from "../state.js";
 import { showNotification, showError } from "../../core/toast.js";
-import { flushFileListRender, renderFileList } from "./render.js";
+import { renderFileList, revealFileByPath } from "./render.js";
 import { GetAddonListOrder, GetModPriorityPlan } from "../../../../wailsjs/go/app/App";
 import { buildPriorityPlanMap } from "./priority-label.mjs";
 import { compareByPriority } from "./priority-sort.mjs";
@@ -83,18 +83,18 @@ async function locateFileByLoadOrder(input) {
       return;
     }
 
-    // 列表可能还在分帧补齐：先补完再找，否则会误报"列表正在更新"。
-    flushFileListRender();
-    const element = Array.from(
-      document.querySelectorAll("#file-list .file-item[data-path], #file-list .file-card[data-path]"),
-    ).find((item) => item.dataset.path === targetFile.path);
+    // 回收式窗口下按索引定位：直接把窗口搬到目标行附近，不再整表同步补齐
+    // （旧实现大库上要先造出几千张卡，实测是一次几百毫秒的冻结）。
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const element = revealFileByPath(targetFile.path, {
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
     if (!element) {
       showNotification("列表正在更新，请稍后再次定位", "info");
       return;
     }
 
-    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
     document.querySelectorAll(".load-order-locate-highlight").forEach((item) => item.classList.remove("load-order-locate-highlight"));
     element.classList.add("load-order-locate-highlight");
     if (loadOrderHighlightTimer) window.clearTimeout(loadOrderHighlightTimer);
