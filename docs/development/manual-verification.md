@@ -2798,6 +2798,215 @@ re:[           → 「正则表达式无效：…」
 
 本轮没有"计划内但完全未验证"的项目。
 
+## 第三十三轮：列表回收式窗口（2026-10-02，真实库硬链接镜像沙箱 + 应用内 JS 桥 + 真鼠标/滚轮，2912 个 Mod）
+
+**背景**：第三十二轮把 hover 拉回 211 FPS 后，窗口化渲染器仍然是"只追加、不回收"——
+用户滚过的卡片永远留在 DOM 里。滚遍全库后 DOM 133,213 个节点，滚动 p90 17–30ms，
+而且"按优先级定位"要走 `flushFileListRender()` 把几千张卡同步造出来（几百毫秒冻结）。
+
+### 实现
+
+```text
+容器结构   [上占位块][视口 ± 3 行][下占位块]     （节点按 index 缓存在 state.nodes）
+占位块公式  网格：上 = startRow*rowPitch - gap；下 = remainingRows*rowPitch - gap（0 时退流）
+           列表：上 = startRow*rowPitch；下 = remainingRows*rowPitch
+           两条都保证"总滚动高度 == 真实列表高度"，回收不跳位
+回收        滚出 [start,end) 的节点摘 DOM、断预览观察、清 checkbox 缓存
+锚点        renderListWindow 记录"视口顶部那一条"的 index；尺寸/列数变化先摆新几何再落锚点
+```
+
+### 真机数据（2560×1440，7 个滚动位置：0/20k/40k/60k/90k/118k/底部）
+
+```text
+总高度          恒为 123,152px（7 个位置零漂移；顶/底分别出现上下占位 0 的情况）
+窗口卡片        ≤ 77（旧实现：滚遍后 2912 张全留）
+DOM 节点        ≤ 9,288（旧实现：133,213）
+真鼠标划过按钮  320 FPS、p90 3.2ms、p99 3.3ms、0 掉帧、0 长任务
+真滚轮滚 12,000px  141 FPS、p90 22ms、0 长任务（滚动中还在懒加载新卡缩略图）
+按优先级 #1000 定位  79–82ms 高亮到位（含 GetAddonListOrder + GetModPriorityPlan 两次 IPC）、0 长任务
+```
+
+### 交互回归（真机 + 单元测试）
+
+| 项目 | 做法 | 结果 |
+| --- | --- | --- |
+| 键盘 ↑/↓ | 搜索 "a"（1625 命中）连按 40 次 | 光标第 40 条已物化、计数文案正确、0 长任务 |
+| 框选 | 拖出矩形 → 松手 | 6–9 张卡进选择、状态栏同步 |
+| 框选 + 滚动 | 拖到一半滚动 | 选择框收起、`box-selected` 清空（**修复前这里从来不取消**：监听挂在 `overflow:hidden` 的外层容器，收不到 scroll） |
+| 定位后再框选 | 见上 | 正常 |
+| 窗口缩放 | 最大 ↔ 1500×900 | 总高度按列数重算（123,152 ↔ 215,504）、锚点保持在同一条目 ±1 行、不跳回顶部 |
+| 空结果筛选 | 点「未记录」 | 列表 49 → 0 → 恢复 56（.56 的回归仍然成立） |
+| 回收后再重建的状态 | 点卡片游戏内开关 → 滚远 → 滚回 | 原地更新、滚动 0 位移、0 长任务；重建后的卡片显示新状态 |
+| 单元测试 | `node --test` | 501 项全过（新增：回收有界 / 滚回重建 / 占位块守恒 / 定位不整表 / 框选滚动接线） |
+| 竞态 | `go test -race ./...` | 全绿（含新增的并发写扫描缓存用例） |
+
+### 顺带修掉的并发缺陷（扫描缓存写入）
+
+`saveVPKScanCacheNow` 原来只在**后台写**路径上拿 `vpkScanCacheSaveMu`，小库走同步写时不加锁；
+两条路径又共用同一个 `vpk_scan_cache.json.tmp`，且都会 `Remove`+`Rename`。开着大库后台写缓存时
+切到小库（或反之）就会出现两个 writer 互相踩：rename 失败退回全量解析，最坏是把半截 JSON
+改名成正式缓存。现在同步/后台都走同一把锁（`writeVPKScanCacheLocked` 作为无锁内核），
+`TestScanCacheConcurrentWritesStaySerialized` 用 24 个 goroutine 并发写做回归。
+
+### 只在此环境成立的坑（写给下次）
+
+1. **窗口被别的窗口盖住时，hover 与滚轮全部失效**：这次是 Edge 挡在 LytVPK 上面，
+   `WindowFromPoint` 命中的是 `msedge` 的 `Chrome_RenderWidgetHostHWND`，页面里 `:hover` 为空。
+   跑真机 UI 测量前先确认应用在最前面（`SetWindowPos(HWND_TOP)` + `SetForegroundWindow`）。
+2. **`SetCursorPos` 单点跳转不一定触发 Blink 的 hover 更新**：要走一小段路（每步 2px）再发滚轮；
+   `.tmp-cua/hover-perf/park-and-wheel.ps1` 已经封装。
+3. **`PostMessage(WM_MOUSEWHEEL)` 依赖"第一个 Chrome_WidgetWin_1 子窗口"**，重建后可能捞到隐藏窗口；
+   改用 `mouse_event(MOUSEEVENTF_WHEEL)`（系统级输入）更稳。
+
+### 仍未验证
+
+1. **多显示器/DPI 缩放下的窗口缩放锚点**：本轮只验证了 100% 缩放、单屏。
+2. **超长列表的极端拖动**（直接拖滚动条到中间再拖回）：自动化里用 JS 跳转验证了等价路径
+   （7 个位置总高度守恒），真实拖动条的手感仍需你用一段时间确认。
+
+## 第三十二轮：大列表鼠标悬停掉帧（2026-10-02，真实库硬链接镜像沙箱 + 应用内 JS 桥 + 真鼠标轨迹，2911 个 Mod）
+
+**用户反馈**：「卡片多的时候，鼠标在按钮之间移动还是挺卡的，帧数很低。」
+
+### 复现与测量方法（可重跑）
+
+```text
+EXE     ：scripts/devtools/build-cua.ps1 → LytVPK-Community-Fork-cua.exe
+沙箱    ：scripts/devtools/launch-cua-sandbox.ps1 -SandboxRoot .tmp-cua\zz-real-appdata -Port 38999
+探针    ：.tmp-cua/hover-perf/            （gitignore 内，不随仓库分发）
+  probe-fps.js       量 rAF 帧间隔 + longtask + long-animation-frame
+  points.js          取首屏可见按钮中心点（卡片动作按钮）
+  move-cursor.ps1    Win32 SetCursorPos 让**真鼠标**沿这些点来回滑动（不是合成事件，能触发 :hover）
+窗口    ：还原 + 最大化（2560×1440；最小化时 ClientToScreen 返回 -32000，hover 测不到）
+场景    ：先滚到底把 2912 张卡全部物化（append-only 窗口化），再滚回顶部
+```
+
+### 数据（同一位置、同一条轨迹，各 5 秒）
+
+```text
+修复前  平均 90.8–92.2 FPS  p90 37.4–44.2ms  p99 80–86ms  max 97.5–125.9ms
+        12 个 50–95ms 长任务、38–47 帧 >50ms
+修复后  平均 210.8 FPS       p90 6.2ms        p99 25.6ms   max 29.2ms
+        0 长任务、0 帧 >33ms
+对照    30 张卡（未物化全库）时同一轨迹 148 FPS、0 长任务 —— 问题随"卡片多"放大
+```
+
+### 根因
+
+列表里 **26,545 个元素**带 `backdrop-filter`：23,633 个 `.card-badge`（`blur(8px)`）
+加 2,912 个 `.file-checkbox.card-checkbox`（`blur(4px)`），后来还有
+`.collection-card-tag`（`blur(6px)`）。每个都会为所在卡片建立 backdrop root，
+鼠标悬停触发重绘时逐帧重新采样背景 —— 卡片越多、代价越大。
+
+逐项覆盖 A/B（其他条件不变）：
+
+| 覆盖项 | 平均 FPS | 长任务 |
+| --- | --- | --- |
+| 原样 | 90.8–92.2 | 12 个（50–95ms） |
+| 只去徽标 `backdrop-filter` | 143.6 | 1 个（53ms） |
+| 只去复选框 `backdrop-filter` | 91.7 | 12 个 |
+| 去掉卡片 hover 位移/阴影过渡 | 92.4 | 12 个 |
+| 去掉缩略图 hover 缩放 | 93.0 | 12 个 |
+| 全关过渡（诊断） | 178.0 | 12 个 |
+| **徽标 + 复选框都去** | **195.9** | **0 个** |
+
+结论：位移/阴影/图片缩放不是主因，`backdrop-filter` 的**元素数量**才是。
+
+### 修复
+
+| 文件 | 改动 |
+| --- | --- |
+| `frontend/src/css/app/mods.css` | `.card-badge` / `.file-checkbox.card-checkbox` 去掉 `backdrop-filter`；徽标底色 0.78→0.88、0.82→0.9 补偿可读性 |
+| `frontend/src/css/app/workshop-browser.css` | `.collection-card-tag` 同样去掉 `blur(6px)` |
+| `frontend/src/js/core/large-list-containment.test.mjs` | 新增静态回归：这三条规则再写回 `backdrop-filter` 直接失败 |
+
+### 被否定/保持不动的假设（避免以后重复劳动）
+
+1. **头部/状态栏 `blur(20px)` 拖慢滚动？** 交替 A/B（原样→去虚化→原样→去虚化，各 34 次
+   真滚轮）暖机后都在 ~153–156 FPS、p90 17–26ms —— 第一轮的差距是缩略图解码冷启动，
+   不是虚化。**不改**头部样式。
+2. **卡片 hover 位移/阴影、缩略图缩放？** 单去掉任一项都没有改善（见上表）。
+3. **顶部工具栏按钮之间移动？** 修后同一探针 312.6 FPS，无长任务，不必再优化。
+
+### 仍未解决（已量化，属于后续设计）
+
+1. **按需物化只追加、不回收**：滚遍全库后 DOM 会到 133,213 个节点（30 张时 6,518）。
+   修完 hover 后滚动仍有 p90 ~17–30ms 的抖动（无长任务）；要再进一步需要"回收式虚拟列表"
+   （上下双向 spacer + 离屏回收），会碰到框选、键盘光标、检查面板行高亮、选中态这几条既有语义，
+   属于单独立项，不在本轮偷偷改。
+2. **"按优先级定位"仍会同步补齐整表**（`sorting.js` 的 `flushFileListRender()`）：
+   大列表下这是一次几百毫秒的同步补齐，属于"要跳到第 N 行"的功能性代价；
+   若要吃掉它，需要把定位改成"滚动驱动物化 + 完成后定位"。
+
+### 参考（2026-10-02 全部 200 可访问）
+
+- content-visibility / contain-intrinsic-size（本项目已在 `.file-card`、`.load-order-preview-item`、
+  `.workshop-card` 等使用）：https://web.dev/articles/content-visibility
+- backdrop-filter 的性能注意（本轮踩的坑）：https://developer.mozilla.org/en-US/docs/Web/CSS/backdrop-filter
+- CSS containment（`contain: layout/style/paint` 的作用域与副作用）：https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Using_CSS_containment
+- 合成器友好的动画（只动 transform/opacity，别动 box-shadow/filter 这类每帧重绘的属性）：
+  https://developer.chrome.com/docs/lighthouse/performance/non-composited-animations
+- 虚拟列表（回收式；本项目下一步如果做 DOM 回收，参考它的回收/占位模型）：
+  https://github.com/TanStack/virtual 、 https://github.com/bvaughn/react-window
+- WebView2（本项目的宿主，GPU 加速与渲染行为以它为准）：https://learn.microsoft.com/en-us/microsoft-edge/webview2/
+
+## 第三十一轮：筛选结果为空时列表不清空（2026-10-02，真实库硬链接镜像沙箱 + 应用内 JS 桥，2911 个 Mod）
+
+**用户反馈**：筛「游戏内：未记录」之后快速连点未记录 Mod 变成「游戏内关闭」，界面就"卡在这了"——
+筛选条明明写着未记录，列表却不动。
+
+### 复现（硬链接镜像 `.tmp-cua/zz-real-sandbox`，零数据复制；写盘只落副本 addonlist.txt）
+
+```text
+① 库里 0 个未记录时点「未记录」筛选
+   before: cards=30（全量前 30 张，全是「游戏内开启」）
+   after : cards=30 ← 筛选条高亮 + 状态栏更新，但列表一张没清（与用户 a11y 树完全一致）
+
+② 删掉 6 条 addonlist 行造出未记录 Mod，筛出 6 张，逐张点「游戏内关闭」（60ms 手速）
+   6 → 5 → 4 → 3 → 2 → 1 → 1 → 1 → 1  ← 归零那一步列表停在 1 张（卡片已不是未记录）
+   主线程心跳最大间隔 205ms（只有渲染抖动，没有死锁）
+```
+
+### 根因
+
+按需物化渲染器（`.54` 引入）里：
+
+```js
+// appendListRenderChunk
+const end = Math.min(pending.specs.length, pending.index + limit);
+if (end <= pending.index) return;         // specs 为空：0 <= 0 → 直接返回
+...
+if (pending.replaceOnNextAppend) {
+  pending.container.replaceChildren(fragment);   // ← 永远不会执行
+}
+```
+
+空结果集时 `startChunkedListRender` 随后只把 `pendingListRender = null` 就返回，
+容器里上一轮的卡片原样留着。**筛选条件变了、列表没跟着变**。
+
+### 修复与复验
+
+| 文件 | 改动 |
+| --- | --- |
+| `frontend/src/js/features/file-list/render.js` | `startChunkedListRender` 对 `specs.length === 0` 显式 `replaceChildren()` + 清窗口状态/占位块/待渲染队列；`appendListRenderChunk` 同样兜底 |
+| `frontend/src/js/features/file-list/chunked-render.test.mjs` | 新增「0 命中必须清空」用例（卡片 / 行两种模式 + 清空后能恢复） |
+
+```text
+修复后同一沙箱、同两条探针：
+① 0 命中点「未记录」 → cards=0，筛选条保持高亮
+② 4 个未记录逐张点掉 → 4 → 3 → 2 → 1 → 0，最终 cards=0、chipActive=true、
+   window error 0、主线程心跳最大间隔 193ms
+node --test：497 项全过
+```
+
+**顺带排除的假设**：怀疑过"快速连点导致 Go 侧锁顺序死锁"。写了同序并发压测
+（12 goroutine × 25 步混跑 `SetVPKGameEnabled` / `SetVPKGameEnabledBatch` / `ScanVPKFiles` /
+`GetAddonListOrder` / `GetVPKFiles` / `GetModPriorityPlan` / `SearchVPKFiles`），
+30 秒内跑完且无锁等待 —— 不是死锁，就是上面这个渲染分支。
+
+**只能人工确认的部分**：修复后列表清空是"空白"，没有额外的"0 个匹配"提示文案；
+筛选条与状态栏能说明状态，但如果你希望空白区给一句提示，可以再加（属于观感偏好）。
+
 ## 第三十轮：持久化扫描缓存（2026-10-01，只读沙箱 + 写盘副本沙箱 + 应用内 JS 桥，真实 2906 个 Mod）
 
 **目标**：把冷启动那 1–1.5s 的 VPK 全量解析省掉，同时**不许**出现"拿老数据糊弄人"。
