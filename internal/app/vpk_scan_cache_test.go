@@ -5,11 +5,58 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
 	"vpk-manager/internal/parser"
 )
+
+// 并发写缓存必须串行化：小库走同步写、大库走后台写，两条路径共用同一个 `.tmp`
+// 文件名（真机复现的形态：开着大库后台写缓存，用户切到小库触发同步写）。
+// 修复前会出现 rename 互相踩踏（缓存退回全量解析）；修复后每次写都必须成功，
+// 且最终文件是完整可解析的 JSON、没有残留 .tmp。
+func TestScanCacheConcurrentWritesStaySerialized(t *testing.T) {
+	app, _ := newScanCacheTestApp(t)
+	if err := app.ScanVPKFiles(); err != nil {
+		t.Fatalf("首次扫描失败: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 24)
+	for i := 0; i < 24; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := app.saveVPKScanCacheNow(); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("并发写缓存失败: %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(app.configDir, vpkScanCacheFileName))
+	if err != nil {
+		t.Fatalf("读缓存失败: %v", err)
+	}
+	var payload vpkScanCachePayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("缓存 JSON 损坏: %v", err)
+	}
+	if payload.SchemaVersion != vpkScanCacheSchemaVersion {
+		t.Fatalf("schema 版本不对: %d", payload.SchemaVersion)
+	}
+	if len(payload.Entries) != 3 {
+		t.Fatalf("缓存条目数不对: %d", len(payload.Entries))
+	}
+	if _, err := os.Stat(filepath.Join(app.configDir, vpkScanCacheFileName+".tmp")); !os.IsNotExist(err) {
+		t.Fatalf("临时文件应被 rename 掉: %v", err)
+	}
+}
 
 // formatVPKFileForCacheCompare 把解析结果序列化成可比较的字符串（时间戳之外的字段都在内）。
 func formatVPKFileForCacheCompare(file parser.VPKFile) string {

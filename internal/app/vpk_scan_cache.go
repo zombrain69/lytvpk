@@ -111,6 +111,15 @@ func vpkScanCacheEntryMatches(entry vpkScanCacheEntry, size int64, modTime, imag
 
 var vpkScanCacheSaveMu sync.Mutex
 
+// saveVPKScanCacheNow 串行化写盘：小库走同步写、大库走后台写，两条路径共用同一个
+// `.tmp` 文件名，不串行化会出现「两个 writer 同时写临时文件 / 互相 rename」的竞态
+// （轻则 rename 失败退回全量解析，重则把半截 JSON 改名成正式缓存）。
+func (a *App) saveVPKScanCacheNow() error {
+	vpkScanCacheSaveMu.Lock()
+	defer vpkScanCacheSaveMu.Unlock()
+	return a.writeVPKScanCacheLocked()
+}
+
 // pathWithinRoot 判断路径是否在给定根目录下（Windows 路径大小写不敏感）。
 func pathWithinRoot(rootDir, path string) bool {
 	root := filepath.Clean(strings.TrimSpace(rootDir))
@@ -123,12 +132,13 @@ func pathWithinRoot(rootDir, path string) bool {
 	return target == root || strings.HasPrefix(target, root+string(filepath.Separator))
 }
 
-// saveVPKScanCacheNow 把当前内存缓存整体写成 JSON（先写临时文件再改名）。
+// writeVPKScanCacheLocked 把当前内存缓存整体写成 JSON（先写临时文件再改名）。
+// 调用方必须持有 vpkScanCacheSaveMu。
 //
 // 只覆盖**当前根目录**的条目：其它库（用户切过目录）的记录原样保留，
 // 免得在两个库之间来回切换时每次都全量重解析。当前库删掉的条目会被真正丢弃
 // （用户常在开着程序时删/移 Mod，缓存里不能留已删文件的"幽灵记录"）。
-func (a *App) saveVPKScanCacheNow() error {
+func (a *App) writeVPKScanCacheLocked() error {
 	path := a.vpkScanCachePath()
 	if path == "" {
 		return nil
@@ -233,8 +243,6 @@ func (a *App) saveVPKScanCacheAsync() {
 		return
 	}
 	go func() {
-		vpkScanCacheSaveMu.Lock()
-		defer vpkScanCacheSaveMu.Unlock()
 		if err := a.saveVPKScanCacheNow(); err != nil {
 			log.Printf("写入扫描缓存失败（下次仍会全量解析）: %v", err)
 		}
