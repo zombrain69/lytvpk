@@ -14,7 +14,6 @@ import (
 
 	"vpk-manager/internal/network"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const configMigrationVersion = 2
@@ -684,7 +683,7 @@ func (a *App) SetWorkshopPreferredIP(enabled bool) {
 
 	// 如果开启，立即触发一次IP优选（如果尚未优选）
 	if enabled {
-		runtime.EventsEmit(a.ctx, "ip_selection_start", nil)
+		a.emitEvent("ip_selection_start", nil)
 		go func() {
 			if fixedIP != "" {
 				network.GlobalIPSelector.SetFixedIP(fixedIP)
@@ -693,7 +692,7 @@ func (a *App) SetWorkshopPreferredIP(enabled bool) {
 				// 实际上 IPSelector 目前是硬编码了获取 IP 的逻辑，这里只需要触发一下
 				network.GlobalIPSelector.GetBestIP("https://steamuserimages-a.akamaihd.net/ugc/test")
 			}
-			runtime.EventsEmit(a.ctx, "ip_selection_end", nil)
+			a.emitEvent("ip_selection_end", nil)
 		}()
 	}
 }

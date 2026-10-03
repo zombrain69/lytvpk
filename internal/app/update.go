@@ -302,7 +302,7 @@ func (a *App) TestMirrorsLatency() {
 			target = "https://github.com"
 		}
 		latency := checkLatency(target)
-		wailsRuntime.EventsEmit(a.ctx, "mirror_latency_result", MirrorWithLatency{URL: "", Latency: latency})
+		a.emitEvent("mirror_latency_result", MirrorWithLatency{URL: "", Latency: latency})
 	}()
 
 	// 2. 镜像源检测
@@ -317,7 +317,7 @@ func (a *App) TestMirrorsLatency() {
 				target = prefix + pendingUpdateURL
 			}
 			latency := checkLatency(target)
-			wailsRuntime.EventsEmit(a.ctx, "mirror_latency_result", MirrorWithLatency{URL: m, Latency: latency})
+			a.emitEvent("mirror_latency_result", MirrorWithLatency{URL: m, Latency: latency})
 		}(mirror)
 	}
 }

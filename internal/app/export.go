@@ -175,7 +175,7 @@ func (a *App) ExportVPKFilesToZip(files []string, includeExtra bool, renameToTit
 	totalFiles := len(files)
 	for i, file := range files {
 		// 发送进度事件
-		runtime.EventsEmit(a.ctx, "export-progress", ProgressInfo{
+		a.emitEvent("export-progress", ProgressInfo{
 			Current: i + 1,
 			Total:   totalFiles,
 			Message: fmt.Sprintf("正在导出: %s", filepath.Base(file)),

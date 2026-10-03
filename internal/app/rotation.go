@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // 官方标签白名单（只允许这些标签参与随机轮换）
@@ -76,7 +75,7 @@ func (a *App) rotateModsInternal(config RotationConfig) error {
 	}
 
 	logMsg := func(msg string) {
-		runtime.EventsEmit(a.ctx, "rotation_log", msg)
+		a.emitEvent("rotation_log", msg)
 		fmt.Println("[ModRotation]", msg)
 	}
 
@@ -249,7 +248,7 @@ func (a *App) rotateModsInternal(config RotationConfig) error {
 	}
 
 	// 5. 刷新前端文件列表
-	runtime.EventsEmit(a.ctx, "refresh_files", nil)
+	a.emitEvent("refresh_files", nil)
 	logMsg("Mod轮换完成")
 
 	return nil

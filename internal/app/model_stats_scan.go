@@ -12,7 +12,6 @@ import (
 
 	"vpk-manager/internal/parser"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const (
@@ -356,7 +355,7 @@ func (a *App) emitModelStatsScanProgress(scanID string, current, total int, mess
 		a.modelStatsScanProgress = progress
 	}
 	a.modelStatsScanMu.Unlock()
-	runtime.EventsEmit(a.ctx, "model_stats_scan_progress", ModelStatsScanProgress{
+	a.emitEvent("model_stats_scan_progress", ModelStatsScanProgress{
 		ScanID:  scanID,
 		Current: current,
 		Total:   total,
@@ -365,7 +364,7 @@ func (a *App) emitModelStatsScanProgress(scanID string, current, total int, mess
 }
 
 func (a *App) emitModelStatsScanComplete(scanID string, result *ModelStatsScanResult, message string) {
-	runtime.EventsEmit(a.ctx, "model_stats_scan_complete", ModelStatsScanComplete{
+	a.emitEvent("model_stats_scan_complete", ModelStatsScanComplete{
 		ScanID: scanID,
 		Result: result,
 		Error:  message,

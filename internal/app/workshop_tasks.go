@@ -36,7 +36,7 @@ func (a *App) ClearCompletedTasks() {
 	taskManager.mu.Unlock()
 
 	_ = a.persistDownloadTasks(true)
-	runtime.EventsEmit(a.ctx, "tasks_cleared", nil)
+	a.emitEvent("tasks_cleared", nil)
 }
 
 func normalizeDownloadTaskPath(filePath string) string {
@@ -84,7 +84,7 @@ func (a *App) updateCompletedDownloadTaskPath(oldPath string, newPath string) {
 	taskManager.mu.Unlock()
 
 	for i := range updatedTasks {
-		runtime.EventsEmit(a.ctx, "task_updated", &updatedTasks[i])
+		a.emitEvent("task_updated", &updatedTasks[i])
 	}
 }
 
