@@ -2256,13 +2256,13 @@
                       <div class="load-order-rule-column">
                         <label for="load-order-rule-sources-search" class="load-order-label">要移动的一个或多个 Mod</label>
                         <input id="load-order-rule-sources-search" class="load-order-search" type="search" placeholder="搜索 Mod 名称或 VPK 路径" autocomplete="off" />
-                        <select id="load-order-rule-sources" class="load-order-select" multiple size="7" aria-label="选择需要排序的 Mod"></select>
+                        <div id="load-order-rule-sources" class="load-order-rule-list" role="listbox" aria-multiselectable="true" tabindex="0" aria-label="选择需要排序的 Mod"></div>
                       </div>
 
                       <div class="load-order-rule-column">
                         <label for="load-order-rule-target-search" class="load-order-label">作为锚点的 Mod</label>
                         <input id="load-order-rule-target-search" class="load-order-search" type="search" placeholder="搜索作为前后参照的 Mod" autocomplete="off" />
-                        <select id="load-order-rule-target" class="load-order-select" size="7" aria-label="选择锚点 Mod"></select>
+                        <div id="load-order-rule-target" class="load-order-rule-list" role="listbox" tabindex="0" aria-label="选择锚点 Mod"></div>
                       </div>
 
                       <div class="load-order-rule-actions">

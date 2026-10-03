@@ -3,7 +3,7 @@ import { showNotification, showError } from "../../core/toast.js";
 import { renderFileList, revealFileByPath } from "./render.js";
 import { GetAddonListOrder, GetModPriorityPlan } from "../../../../wailsjs/go/app/App";
 import { buildPriorityPlanMap } from "./priority-label.mjs";
-import { compareByPriority } from "./priority-sort.mjs";
+import { compareByPriority, compareNames } from "./priority-sort.mjs";
 
 let loadOrderHighlightTimer = null;
 
@@ -328,32 +328,49 @@ export function updateSortButtonUI() {
 }
 
 export function applySort(files) {
+  const writeBack = (decorated) => {
+    for (let index = 0; index < decorated.length; index += 1) files[index] = decorated[index].file;
+    return files;
+  };
+  // 装饰-排序：把"每次比较都要重算"的键（addonlist 键 / 日期 / 文件名小写）先算一次。
+  // 真机实测（2298 条）：现算 addonlist 键 84ms、日期排序 65ms 长任务。
+  if (appState.sortType === "loadOrder") {
+    const decorated = files.map((file) => ({
+      file,
+      layer: getFileEffectiveLayer(file),
+      order: getFileLoadOrderIndex(file),
+      name: file?.name || "",
+    }));
+    decorated.sort((left, right) => compareByPriority(left, right));
+    return writeBack(decorated);
+  }
+  if (appState.sortType === "date" || appState.sortType === "name") {
+    const descending = appState.sortOrder === "desc";
+    const decorated = files.map((file) => ({
+      file,
+      name: String(file?.name || "").toLowerCase(),
+      time: file?.lastModified ? new Date(file.lastModified).getTime() : 0,
+    }));
+    decorated.sort((left, right) => {
+      let result = appState.sortType === "date" ? left.time - right.time : compareNames(left, right);
+      if (descending) result = -result;
+      if (result !== 0) return result;
+      // 平局：日期相同按名称（与原实现一致），名称相同按路径，保证顺序确定。
+      if (appState.sortType === "date") return compareNames(left, right);
+      return String(left.file?.path || "").localeCompare(String(right.file?.path || ""));
+    });
+    return writeBack(decorated);
+  }
   return files.sort((a, b) => {
     let result = 0;
 
-    if (appState.sortType === "date") {
-      const dateA = a.lastModified ? new Date(a.lastModified).getTime() : 0;
-      const dateB = b.lastModified ? new Date(b.lastModified).getTime() : 0;
-      result = dateA - dateB;
-    } else if (appState.sortType === "size") {
+    if (appState.sortType === "size") {
       result = Number(a.size || 0) - Number(b.size || 0);
     } else if (appState.sortType === "modelComplexity") {
       result = Number(a.modelVertices || 0) - Number(b.modelVertices || 0);
-    } else if (appState.sortType === "loadOrder") {
-      // 优先级排序：有效分层（含策略组权重）优先，同层按 addonlist 真实顺序，
-      // 未写入 addonlist 的 Mod 排末尾。没有分层记录时与旧的“按加载顺序”完全一致。
-      return compareByPriority(
-        { layer: getFileEffectiveLayer(a), order: getFileLoadOrderIndex(a), name: a.name },
-        { layer: getFileEffectiveLayer(b), order: getFileLoadOrderIndex(b), name: b.name },
-      );
     } else {
-      const nameA = a.name.toLowerCase();
-      const nameB = b.name.toLowerCase();
-
-      result = nameA.localeCompare(nameB, "zh-CN", {
-        numeric: true,
-        sensitivity: "accent",
-      });
+      // 复用 priority-sort 里那个 Intl.Collator（localeCompare+options 每次调用都会新建 collator）。
+      result = compareNames(a, b);
     }
 
     if (appState.sortOrder === "desc") {
@@ -361,9 +378,6 @@ export function applySort(files) {
     }
 
     if (result === 0) {
-      if (appState.sortType === "date") {
-        return a.name.localeCompare(b.name, "zh-CN", { numeric: true });
-      }
       return a.path.localeCompare(b.path);
     }
 

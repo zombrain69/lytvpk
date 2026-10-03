@@ -54,8 +54,19 @@ test("Mod 卡片与工坊卡片都跳过屏外渲染（保住页面切换与滚�
 test("加载顺序预览与 autoexec 帮助列表也跳过屏外渲染", () => {
   const previewRow = ruleFor(readCss("app/mods.css"), ".load-order-preview-item");
   assert.ok(previewRow, "没找到 .load-order-preview-item 规则");
-  assert.match(previewRow, /content-visibility:\s*auto/, "加载顺序预览行要跳过屏外渲染");
-  assert.match(previewRow, /contain-intrinsic-size:\s*auto\s+\d+(px|rem)/, "要给出定高估计（实测 40px）");
+  // 预览行改成"只物化视口 ± overscan"的窗口化渲染：content-visibility 在真机上
+  // 反而让滚动 23 帧 >50ms（去掉后 203 FPS / 0 长任务），所以这里反过来钉住不再依赖它。
+  assert.doesNotMatch(
+    stripComments(previewRow),
+    /content-visibility/,
+    "预览行不应再依赖 content-visibility（真机滚动反而更慢）",
+  );
+  const policySource = readFileSync(
+    path.resolve(here, "../features/modals/load-order-policy.js"),
+    "utf8",
+  );
+  assert.match(policySource, /computePreviewWindow\(/, "预览行要走窗口化渲染");
+  assert.match(policySource, /LOAD_ORDER_PREVIEW_OVERSCAN_ROWS/, "窗口要带 overscan");
 
   const helpItem = ruleFor(readCss("app/settings.css"), ".autoexec-help-item");
   assert.ok(helpItem, "没找到 .autoexec-help-item 规则");
@@ -65,6 +76,32 @@ test("加载顺序预览与 autoexec 帮助列表也跳过屏外渲染", () => {
   const matchItem = ruleFor(readCss("app/diagnostics.css"), ".autoexec-match");
   assert.ok(matchItem, "没找到 .autoexec-match 规则");
   assert.match(matchItem, /content-visibility:\s*auto/, "指令匹配列表要跳过屏外渲染");
+});
+
+// 设置页「常用指令说明」（真机 193 条）曾经整段塞进模板 HTML：插入时一次 parse + 布局，
+// 首开「游戏配置」分区要为此付 100ms 级停顿。现在改成插入后分片渲染，这里钉住这条接线。
+test("设置页的常用指令说明要分片渲染，不能整段进模板", () => {
+  const source = readFileSync(
+    path.resolve(here, "../features/settings/settings-page.js"),
+    "utf8",
+  );
+  assert.match(source, /AUTOEXEC_HELP_FIRST_CHUNK/, "缺少首屏批次常量");
+  assert.match(source, /scheduleAutoexecHelpChunk/, "缺少分帧补齐调度");
+  assert.match(
+    source,
+    /renderAutoexecHelpListIfNeeded\(\)/,
+    "分区首次可见时要触发帮助列表填充",
+  );
+  assert.match(
+    source,
+    /requestAnimationFrame\(\(\) => requestAnimationFrame\(run\)\)/,
+    "填充要延后两帧，避免搭进分区首次布局",
+  );
+  assert.equal(
+    /renderAutoexecHelpItems\(autoexecHelp\)/.test(source),
+    false,
+    "不要再把整份帮助列表塞进模板 HTML（插入时会一次性 parse + 布局）",
+  );
 });
 
 // 每卡片元素上的 backdrop-filter 会给每张卡建一个 backdrop root。

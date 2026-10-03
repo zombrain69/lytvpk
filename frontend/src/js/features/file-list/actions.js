@@ -9,7 +9,7 @@ import {
 import { showError, showNotification, showSuccess } from "../../core/toast.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import { renderFileList, updateSingleFileDisplay } from "./render.js";
-import { refreshFilesKeepFilter } from "./filters.js";
+import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import {
   SetVPKGameEnabledBatch,
   ToggleVPKFile,
@@ -26,6 +26,7 @@ import { confirmVPKOperationWarning, moveWorkshopFilesToAddons } from "./operati
 import {
   formatBatchGameStateConfirm,
   formatBatchGameStateSummary,
+  canApplyBatchGameStateLocally,
 } from "./batch-game-state-format.mjs";
 
 /**
@@ -63,9 +64,42 @@ export async function setSelectedGameEnabled(enabled) {
           targets.map((file) => file.path),
           enabled,
         );
-        await refreshFilesKeepFilter();
-        const updated = (result?.updated || []).length;
-        showNotification(formatBatchGameStateSummary(result, enabled), updated > 0 ? "success" : "info");
+        const updatedPaths = Array.isArray(result?.updated) ? result.updated : [];
+        // 与单个开关同一套判据：能本地应用就不要全量重扫（真机 165–175ms 长帧）。
+        const canApplyLocally = canApplyBatchGameStateLocally({
+          targets,
+          enforced: result?.enforced,
+        });
+        if (canApplyLocally) {
+          const changed = new Set(updatedPaths);
+          [appState.allVpkFiles, appState.vpkFiles].forEach((files) => {
+            (files || []).forEach((file) => {
+              if (!changed.has(file.path)) return;
+              file.gameStateKnown = true;
+              file.gameEnabled = enabled;
+            });
+          });
+          // 当前按游戏内状态筛选时列表成员会变：本地重筛一次（performSearch 在
+          // "只有筛选条件"这条路径上是纯本地的，不会碰后端扫描）。
+          if ((appState.selectedGameStates?.length || 0) > 0) {
+            await performSearch();
+          } else {
+            updatedPaths.forEach((path) => {
+              const file =
+                appState.allVpkFiles?.find((item) => item.path === path) ||
+                appState.vpkFiles?.find((item) => item.path === path);
+              if (file) updateSingleFileDisplay(file);
+            });
+            updateStatusBar();
+          }
+        } else {
+          // 策略组联动 / 未记录条目进了 addonlist：顺序号与成员都可能有变，必须整表重扫。
+          await refreshFilesKeepFilter();
+        }
+        showNotification(
+          formatBatchGameStateSummary(result, enabled),
+          updatedPaths.length > 0 ? "success" : "info",
+        );
       } catch (error) {
         showError("批量设置游戏内开关失败: " + String(error?.message || error));
       }

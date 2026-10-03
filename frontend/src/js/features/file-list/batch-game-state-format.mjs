@@ -7,6 +7,24 @@ export function batchGameStateActionLabel(enabled) {
   return enabled ? "游戏内启用" : "游戏内关闭";
 }
 
+/**
+ * canApplyBatchGameStateLocally 判断批量改完游戏内开关后能不能"本地更新状态"。
+ *
+ * 与单个开关（operations.js setGameEnabled）同一套判据 —— 两种情况必须整表重扫：
+ *   ① 策略组自动联动改了别的成员（接口只给数量不给名单，本地拿不到）；
+ *   ② 选中的里面有"未记录"条目：会被写进 addonlist.txt，顺序号/优先级跟着变。
+ * 其余情况（最常见：已经在 addonlist 里，只翻 0/1）本地改 appState 即可 ——
+ * 真机上一次全量 refreshFilesKeepFilter 是 165–175ms 长帧。
+ *
+ * 注意：返回值只说明"状态来源可信"；当前若按游戏内状态筛选，调用方仍要重筛一次
+ * （列表成员会变），那是 filters.js 里本地重筛函数的活。
+ */
+export function canApplyBatchGameStateLocally({ targets, enforced = 0 } = {}) {
+  if (Number(enforced) > 0) return false;
+  const list = Array.isArray(targets) ? targets : [];
+  return list.every((file) => Boolean(file?.gameStateKnown));
+}
+
 /** formatBatchGameStateConfirm 生成应用内确认弹窗的正文。 */
 export function formatBatchGameStateConfirm(result, enabled) {
   const total = Number(result?.total || 0);

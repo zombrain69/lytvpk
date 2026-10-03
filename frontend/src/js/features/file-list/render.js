@@ -734,12 +734,22 @@ function patchListRenderChunk(pending, limit, budgetMs) {
 
 function buildListSpecNode(spec, pending) {
   if (spec.node) return spec.node;
-  if (pending.mode === "card") {
-    const card = createFileCard(spec.file, spec.previous || null, pending.panelServersAvailable);
-    card.dataset.renderSignature = spec.signature;
-    return card;
+  if (pending.mode !== "card") return createFileItem(spec.file);
+  // 懒签名：卡片真正要进 DOM 时才计算签名（大列表 2912 个文件全算 = 一次筛选 100ms）。
+  if (!spec.signature) {
+    spec.signature = getFileCardRenderSignature(spec.file, pending.panelServersAvailable);
   }
-  return createFileItem(spec.file);
+  if (spec.previous && spec.previous.dataset?.renderSignature === spec.signature) {
+    // 旧卡内容仍然匹配：复用（选择态与预览观察都要同步到最新一份文件数据）。
+    syncReusedCardSelection(spec.previous, spec.file);
+    ensureCardPreviewObservation(spec.previous, spec.file);
+    return spec.previous;
+  }
+  // 内容变了：旧卡的在途预览任务先取消，再按新数据建卡。
+  unobserveCardPreview(spec.previous);
+  const card = createFileCard(spec.file, spec.previous || null, pending.panelServersAvailable);
+  card.dataset.renderSignature = spec.signature;
+  return card;
 }
 
 function hasPanelServers() {
@@ -1150,8 +1160,14 @@ export function renderFileList() {
       }
     });
 
+    // 大列表走"懒签名"：renderSignature 只对真正要进 DOM 的那几十张卡算。
+    // 真机 2912 个文件全量算签名 = 切换一次筛选 100ms 长任务（窗口只物化 56 张，其余白算）。
+    const lazySignatures = (appState.vpkFiles?.length || 0) >= FILE_LIST_WINDOW_MIN_ITEMS;
     const specs = appState.vpkFiles.map((file) => {
       const existingCard = takeExistingCard(file, existingCards, cardsByIdentity);
+      if (lazySignatures) {
+        return { file, previous: existingCard || null };
+      }
       const signature = getFileCardRenderSignature(file, panelServersAvailable);
 
       if (existingCard?.dataset.renderSignature === signature) {

@@ -5,11 +5,40 @@ import {
   batchGameStateActionLabel,
   formatBatchGameStateConfirm,
   formatBatchGameStateSummary,
+  canApplyBatchGameStateLocally,
 } from "./batch-game-state-format.mjs";
 
 test("batchGameStateActionLabel 区分游戏内启用/关闭", () => {
   assert.equal(batchGameStateActionLabel(true), "游戏内启用");
   assert.equal(batchGameStateActionLabel(false), "游戏内关闭");
+});
+
+// 批量开关的"能不能本地应用"判据：组联动/未记录才必须整表重扫，
+// 其余本地改 appState（真机实测整表 refreshFilesKeepFilter 是 165–175ms 长帧）。
+test("canApplyBatchGameStateLocally：组联动/未记录才必须重扫", () => {
+  const recorded = [{ gameStateKnown: true }, { gameStateKnown: true }];
+  assert.equal(
+    canApplyBatchGameStateLocally({ targets: recorded, enforced: 0 }),
+    true,
+    "已在 addonlist 里的普通批量只翻 0/1，可以本地应用",
+  );
+  assert.equal(
+    canApplyBatchGameStateLocally({ targets: recorded, enforced: 2 }),
+    false,
+    "策略组联动改了别的成员，必须重扫",
+  );
+  assert.equal(
+    canApplyBatchGameStateLocally({
+      targets: [{ gameStateKnown: true }, { gameStateKnown: false }],
+    }),
+    false,
+    "未记录条目会被写进 addonlist，顺序号/优先级会变，必须重扫",
+  );
+  assert.equal(
+    canApplyBatchGameStateLocally({ targets: null, enforced: 0 }),
+    true,
+    "空目标没有什么要改的，按本地处理即可",
+  );
 });
 
 test("formatBatchGameStateConfirm 说明只改 addonlist、未记录与 disabled 的情况", () => {

@@ -665,9 +665,7 @@ export async function renderSettingsPage(deps) {
               <aside class="autoexec-help-column">
                 <div class="autoexec-help-title">常用指令说明</div>
                 <input type="search" id="settings-autoexec-help-search" class="form-input" placeholder="搜索命令或含义">
-                <div id="settings-autoexec-help-list" class="autoexec-help-list">
-                  ${renderAutoexecHelpItems(autoexecHelp)}
-                </div>
+                <div id="settings-autoexec-help-list" class="autoexec-help-list"></div>
               </aside>
             </div>
           </div>
@@ -1688,6 +1686,8 @@ function bindSettingsPage(deps) {
       item.classList.add("active");
       document.getElementById(`settings-panel-${target}`)?.classList.add("active");
       updateSettingsNavIndicator();
+      // 常用指令说明（193 条）不参与分区首次布局：等这个分区真的可见了再分片补上。
+      if (target === "addonlist") renderAutoexecHelpListIfNeeded();
     });
   });
 
@@ -2524,6 +2524,13 @@ function bindSettingsPage(deps) {
     autoexecLineNumberEditor.refresh();
     updateAutoexecAnalysis();
   });
+  // 常用指令说明（真机 193 条）：不进模板、也不在页面打开时渲染 —— 等「游戏配置」
+  // 分区第一次可见时再分片补（首屏 40 条同步，其余按帧补），这样分区首次布局更小。
+  autoexecHelpItems = deps.autoexecHelp || [];
+  autoexecHelpListRendered = false;
+  if (document.getElementById("settings-panel-addonlist")?.classList.contains("active")) {
+    renderAutoexecHelpListIfNeeded();
+  }
 
   const refreshAddonListPanel = async () => {
     await deps.refreshAddonListPanel?.();
@@ -2988,50 +2995,102 @@ function escapeAttr(value) {
   return String(value || "").replace(/"/g, "&quot;");
 }
 
-function renderAutoexecHelpItems(items) {
-  if (!Array.isArray(items) || items.length === 0) {
-    return `<div class="autoexec-help-empty">未找到匹配指令</div>`;
+// ── 常用指令说明列表：分片渲染 ─────────────────────────────────────────────
+// 真机 193 条：原来整段塞进设置页模板的 HTML 字符串，插入时是"一次 parse + 一次布局"，
+// 首开「游戏配置」分区要为此付一次 100ms 级停顿。现在首屏 40 条同步、其余按 6ms
+// 时间片补齐（与仓库其它长列表同一套做法）；搜索重填走同一个入口，token 作废旧一轮。
+const AUTOEXEC_HELP_FIRST_CHUNK = 30;
+const AUTOEXEC_HELP_CHUNK = 40;
+const AUTOEXEC_HELP_BUDGET_MS = 5;
+let autoexecHelpRenderToken = 0;
+// 「游戏配置」分区第一次可见前不渲染帮助列表（见分区点击处理里的调用）。
+let autoexecHelpItems = [];
+let autoexecHelpListRendered = false;
+
+function renderAutoexecHelpListIfNeeded() {
+  if (autoexecHelpListRendered) return;
+  autoexecHelpListRendered = true;
+  const run = () => {
+    const container = document.getElementById("settings-autoexec-help-list");
+    if (container) renderAutoexecHelpList(container, autoexecHelpItems);
+  };
+  // 延后两帧再开始填充：分区"第一次布局/首帧"里不带这几百个节点，
+  // 点分区的这一下（真机实测 66ms 长任务出在点击任务里）就不用为帮助列表买单。
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => requestAnimationFrame(run));
+    return;
   }
-  return items
-    .map(
-      (item) => `
-        <button type="button" class="autoexec-help-item" data-autoexec-command="${escapeAttr(item.command || "")}" data-autoexec-risk="${escapeAttr(item.risk || "")}">
-          <span class="autoexec-help-command">${escapeHtml(item.command || "")}</span>
-          <span class="autoexec-help-summary">${escapeHtml(item.summary || "")}</span>
-          <span class="autoexec-help-meta">${escapeHtml(item.scope || "")} · ${escapeHtml(item.risk || "")} · ${escapeHtml(item.source || "")}</span>
-        </button>
-      `,
-    )
-    .join("");
+  setTimeout(run, 32);
+}
+
+function autoexecHelpNow() {
+  return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+}
+
+function scheduleAutoexecHelpChunk(step) {
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    step();
+  };
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+  setTimeout(run, 50);
+}
+
+function buildAutoexecHelpItem(item) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "autoexec-help-item";
+  button.dataset.autoexecCommand = item.command || "";
+  button.dataset.autoexecRisk = item.risk || "";
+  const command = document.createElement("span");
+  command.className = "autoexec-help-command";
+  command.textContent = item.command || "";
+  const summary = document.createElement("span");
+  summary.className = "autoexec-help-summary";
+  summary.textContent = item.summary || "";
+  const meta = document.createElement("span");
+  meta.className = "autoexec-help-meta";
+  meta.textContent = [item.scope, item.risk, item.source].filter(Boolean).join(" · ");
+  button.append(command, summary, meta);
+  return button;
 }
 
 function renderAutoexecHelpList(container, items) {
+  if (!container) return;
+  const token = ++autoexecHelpRenderToken;
   container.replaceChildren();
-  if (!Array.isArray(items) || items.length === 0) {
+  const list = Array.isArray(items) ? items : [];
+  if (list.length === 0) {
     const empty = document.createElement("div");
     empty.className = "autoexec-help-empty";
     empty.textContent = "未找到匹配指令";
     container.appendChild(empty);
     return;
   }
-  for (const item of items) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "autoexec-help-item";
-    button.dataset.autoexecCommand = item.command || "";
-    button.dataset.autoexecRisk = item.risk || "";
-    const command = document.createElement("span");
-    command.className = "autoexec-help-command";
-    command.textContent = item.command || "";
-    const summary = document.createElement("span");
-    summary.className = "autoexec-help-summary";
-    summary.textContent = item.summary || "";
-    const meta = document.createElement("span");
-    meta.className = "autoexec-help-meta";
-    meta.textContent = [item.scope, item.risk, item.source].filter(Boolean).join(" · ");
-    button.append(command, summary, meta);
-    container.appendChild(button);
-  }
+  let index = 0;
+  const appendChunk = (limit, budgetMs) => {
+    if (token !== autoexecHelpRenderToken) return false;
+    const started = autoexecHelpNow();
+    const end = Math.min(list.length, index + limit);
+    let added = 0;
+    const fragment = document.createDocumentFragment();
+    for (; index < end; index += 1) {
+      if (added > 0 && autoexecHelpNow() - started >= budgetMs) break;
+      fragment.appendChild(buildAutoexecHelpItem(list[index]));
+      added += 1;
+    }
+    if (added === 0) return index < list.length;
+    container.appendChild(fragment);
+    return index < list.length;
+  };
+  if (!appendChunk(AUTOEXEC_HELP_FIRST_CHUNK, Infinity)) return;
+  const step = () => {
+    if (token !== autoexecHelpRenderToken) return;
+    if (appendChunk(AUTOEXEC_HELP_CHUNK, AUTOEXEC_HELP_BUDGET_MS)) scheduleAutoexecHelpChunk(step);
+  };
+  scheduleAutoexecHelpChunk(step);
 }
 
 function renderAutoexecMatches(container, items) {

@@ -16,13 +16,18 @@ function hasLayer(entry) {
   return Number.isInteger(entry?.layer);
 }
 
-function compareNames(left, right) {
-  return String(left?.name || "")
-    .toLowerCase()
-    .localeCompare(String(right?.name || "").toLowerCase(), "zh-CN", {
-      numeric: true,
-      sensitivity: "accent",
-    });
+// 复用一个 Intl.Collator：String.prototype.localeCompare 带 options 每次调用都会
+// 新建一个 collator，真机 2298 条排序 ≈ 25k 次比较 → 84ms 长任务；复用后只做比较本身。
+const NAME_COLLATOR = new Intl.Collator("zh-CN", {
+  numeric: true,
+  sensitivity: "accent",
+});
+
+/** compareNames 按文件显示名比较（中文 collation + 数字感知），大小写不敏感。 */
+export function compareNames(left, right) {
+  const leftName = left?.name ? String(left.name).toLowerCase() : "";
+  const rightName = right?.name ? String(right.name).toLowerCase() : "";
+  return NAME_COLLATOR.compare(leftName, rightName);
 }
 
 export function compareByPriority(left, right) {

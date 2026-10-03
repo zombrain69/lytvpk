@@ -9,6 +9,13 @@ import {
   classifyLoadOrderEntries,
   normalizeLoadOrderKey,
 } from "./load-order-entry-status.mjs";
+import { createRuleListbox } from "./load-order-rule-list.mjs";
+import {
+  LOAD_ORDER_PREVIEW_FALLBACK_ROW_PITCH,
+  LOAD_ORDER_PREVIEW_OVERSCAN_ROWS,
+  computePreviewWindow,
+  previewSpacerHeights,
+} from "./load-order-preview-window.mjs";
 import {
   ApplyAddonListLoadOrderPolicy,
   GetAddonListLoadOrderEntries,
@@ -145,6 +152,7 @@ export async function openEnhancedLoadOrderModal(context = {}) {
 export function closeEnhancedLoadOrderModal() {
   ++loadOrderModalGeneration;
   invalidateLoadOrderOperations();
+  detachPreviewWindow();
   document.getElementById("load-order-modal")?.classList.add("hidden");
   currentLoadOrderFile = null;
   selectedSourceKeys = new Set();
@@ -227,17 +235,26 @@ function setupLoadOrderControls() {
   document
     .getElementById("load-order-rule-target-search")
     ?.addEventListener("input", () => renderRuleSelectors());
-  document.getElementById("load-order-rule-sources")?.addEventListener("change", (event) => {
-    const visibleKeys = new Set(Array.from(event.target.options).map((option) => option.value));
-    selectedSourceKeys = new Set(
-      [...selectedSourceKeys].filter((key) => !visibleKeys.has(key))
-    );
-    Array.from(event.target.selectedOptions).forEach((option) => selectedSourceKeys.add(option.value));
-  });
-  document.getElementById("load-order-rule-target")?.addEventListener("change", (event) => {
-    selectedTargetKey = event.target.value || "";
-    invalidateLoadOrderOperations();
-  });
+  // 两个规则列表改成"可搜索 + 虚拟化的 listbox"（原来是原生 <select multiple size=7>，
+  // 2599 条 addonlist 时两个下拉合计 5,217 个 <option>；见 load-order-rule-list.mjs）。
+  // 选择集由这里持有：搜索/刷新列表不会丢选择。
+  if (!ruleSourcesList) {
+    ruleSourcesList = createRuleListbox(document.getElementById("load-order-rule-sources"), {
+      multiple: true,
+      onSelectionChange: (selected) => {
+        selectedSourceKeys = new Set(selected);
+      },
+    });
+  }
+  if (!ruleTargetList) {
+    ruleTargetList = createRuleListbox(document.getElementById("load-order-rule-target"), {
+      multiple: false,
+      onSelectionChange: (selected) => {
+        selectedTargetKey = [...selected][0] || "";
+        invalidateLoadOrderOperations();
+      },
+    });
+  }
   document.getElementById("load-order-rules")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-load-order-rule-index]");
     if (!button) return;
@@ -311,114 +328,32 @@ async function moveCurrentFileBy(delta) {
 }
 
 function renderRuleSelectors() {
-  const sources = document.getElementById("load-order-rule-sources");
-  const target = document.getElementById("load-order-rule-target");
-  if (!sources || !target) return;
-  const selectedSources = new Set(selectedSourceKeys);
-  const selectedTarget = selectedTargetKey || target.value;
   const sourceQuery = document.getElementById("load-order-rule-sources-search")?.value || "";
   const targetQuery = document.getElementById("load-order-rule-target-search")?.value || "";
-  // 真机（2599 条 addonlist 条目）：两个下拉各塞 2599 个 <option>，
-  // 加上预览区 2599 行 = 开窗时一次 373ms 的长任务。这里改成"首屏先填一批，
-  // 其余按 8ms 时间片补齐"，中途换搜索词/换文件会作废上一轮（token）。
-  const token = ++ruleSelectorToken;
-  sources.replaceChildren();
-  target.replaceChildren();
+  // 两个列表都是虚拟化的（只物化视口 ± overscan 的行），同步换数据即可；
+  // 选择集在 selectedSourceKeys / selectedTargetKey 里，不随搜索丢失。
   const sourceEntries = currentEntries.filter((entry) => entryMatchesSearch(entry, sourceQuery));
   const targetEntries = currentEntries.filter((entry) => entryMatchesSearch(entry, targetQuery));
-  fillSelectInChunks(sources, sourceEntries, token, selectedSources, "");
-  fillSelectInChunks(target, targetEntries, token, null, selectedTarget);
+  ruleSourcesList?.setItems(sourceEntries);
+  ruleSourcesList?.setSelection(selectedSourceKeys);
+  ruleTargetList?.setItems(targetEntries);
+  ruleTargetList?.setSelection(selectedTargetKey ? new Set([selectedTargetKey]) : new Set());
 }
 
-// ── 大列表分帧：加载顺序窗口一次要建几千行/几千个 option ────────────────────
-const LOAD_ORDER_FIRST_CHUNK = 60;
-// 每批小一点：真机上"建 240 行 + 插进容器"仍然会顶出 100–150ms 的帧，
-// 因为代价主要落在布局/绘制而不是建节点上（屏外行已用 content-visibility 跳过）。
-const LOAD_ORDER_CHUNK = 120;
-const LOAD_ORDER_CHUNK_BUDGET_MS = 6;
-// 两个规则下拉是 <select>：Chromium 每插一批 option 都要重建它的内部列表，
-// 所以这里比预览区更保守。
-const LOAD_ORDER_SELECT_CHUNK = 60;
-
-let ruleSelectorToken = 0;
 let previewRenderToken = 0;
-
-function loadOrderNow() {
-  return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
-}
-
-/**
- * scheduleLoadOrderStep 跑下一批：rAF 优先（可见时贴着帧走），50ms 定时器兜底
- * （窗口最小化/被遮挡时 rAF 几乎不触发，只靠 rAF 会让列表永远补不完）。
- */
-function scheduleLoadOrderStep(step) {
-  let done = false;
-  const run = () => {
-    if (done) return;
-    done = true;
-    step();
-  };
-  if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
-  setTimeout(run, 50);
-}
-
-/** fillSelectInChunks 往 <select> 里分批填 option；已选中的值在每批之后保持不变。 */
-function fillSelectInChunks(select, entries, token, selectedSources, selectedTargetKey) {
-  if (!select) return;
-  let index = 0;
-  const keepValue = () => {
-    // 用户可能在补齐过程中已经选了别的：每批之后把当前值写回去，避免被清空。
-    if (select.value) return;
-    if (selectedSources) {
-      const firstSelected = [...select.options].find((option) => option.selected);
-      if (firstSelected) select.value = firstSelected.value;
-    } else if (selectedTargetKey) {
-      select.value = selectedTargetKey;
-    }
-  };
-  const appendChunk = (limit, budgetMs) => {
-    if (token !== ruleSelectorToken) return false;
-    const started = loadOrderNow();
-    const end = Math.min(entries.length, index + limit);
-    let added = 0;
-    const fragment = document.createDocumentFragment();
-    for (; index < end; index += 1) {
-      if (added > 0 && loadOrderNow() - started >= budgetMs) break;
-      const entry = entries[index];
-      const label = entryLabel(entry);
-      const isSelected = selectedSources ? selectedSources.has(entry.key) : selectedTargetKey === entry.key;
-      const option = document.createElement("option");
-      option.value = entry.key;
-      option.textContent = label;
-      option.selected = isSelected;
-      fragment.appendChild(option);
-      added += 1;
-    }
-    if (added === 0) return index < entries.length;
-    select.appendChild(fragment);
-    keepValue();
-    return index < entries.length;
-  };
-  if (!appendChunk(LOAD_ORDER_FIRST_CHUNK, Infinity)) return;
-  const step = () => {
-    if (token !== ruleSelectorToken) return;
-    if (appendChunk(LOAD_ORDER_SELECT_CHUNK, LOAD_ORDER_CHUNK_BUDGET_MS)) scheduleLoadOrderStep(step);
-  };
-  scheduleLoadOrderStep(step);
-}
+// 两个规则列表（可搜索 + 虚拟化的 listbox），由 setupLoadOrderControls 建一次。
+let ruleSourcesList = null;
+let ruleTargetList = null;
 
 function addConstraints(direction) {
-  const sourceSelect = document.getElementById("load-order-rule-sources");
-  const targetSelect = document.getElementById("load-order-rule-target");
-  if (!sourceSelect || !targetSelect) {
+  if (!ruleSourcesList || !ruleTargetList) {
     showError("加载顺序规则选择器不可用，请重新打开窗口");
     return;
   }
-  const visibleSources = Array.from(sourceSelect.selectedOptions).map((option) => option.value);
   const entryKeys = new Set(currentEntries.map((entry) => entry.key));
+  // 选择集是唯一事实来源（虚拟化列表里没物化的行也算选中）。
   const sources = [...selectedSourceKeys].filter((key) => entryKeys.has(key));
-  if (sources.length === 0) sources.push(...visibleSources);
-  const target = selectedTargetKey || targetSelect.value;
+  const target = selectedTargetKey;
   if (!target || sources.length === 0) {
     showError("请至少选择一个 Mod，并选择相对目标");
     return;
@@ -551,6 +486,7 @@ function renderPreview(entries, summary) {
   const container = document.getElementById("load-order-preview");
   const summaryEl = document.getElementById("load-order-preview-summary");
   if (!container) return;
+  detachPreviewWindow();
   // 失效条目（文件不存在 / 在 disabled）与未记录 Mod 是排查加载顺序时最常用的两条线索。
   const { statuses, invalidCount, unrecorded } = classifyLoadOrderEntries(
     entries,
@@ -586,7 +522,6 @@ function renderPreview(entries, summary) {
     }
   });
   const token = ++previewRenderToken;
-  let index = 0;
   const buildRow = (entry) => {
     const row = document.createElement("div");
     row.className = "load-order-preview-item";
@@ -623,27 +558,126 @@ function renderPreview(entries, summary) {
     }
     return row;
   };
-  const appendChunk = (limit, budgetMs) => {
-    if (token !== previewRenderToken) return false;
-    const started = loadOrderNow();
-    const end = Math.min(entries.length, index + limit);
-    let added = 0;
+  // 窗口化渲染：容器里始终是 [上占位块, 视口±overscan 的行..., 下占位块]，
+  // 滚出窗口的行会被回收（真机 2607 行整表渲染时滚动 23 帧 >50ms）。
+  const topSpacer = document.createElement("div");
+  topSpacer.className = "load-order-preview-spacer";
+  topSpacer.dataset.previewSpacer = "top";
+  topSpacer.style.display = "none";
+  const bottomSpacer = document.createElement("div");
+  bottomSpacer.className = "load-order-preview-spacer";
+  bottomSpacer.dataset.previewSpacer = "bottom";
+  bottomSpacer.style.display = "none";
+  container.append(topSpacer, bottomSpacer);
+
+  const state = {
+    container,
+    token,
+    entries,
+    buildRow,
+    nodes: new Map(),
+    start: 0,
+    end: 0,
+    rowPitch: 0,
+    topSpacer,
+    bottomSpacer,
+    scrollPending: false,
+  };
+  previewWindowState = state;
+  updatePreviewWindow(state, { force: true });
+  container.addEventListener("scroll", handlePreviewWindowScroll, { passive: true });
+}
+
+// ── 预览行的窗口化渲染 ────────────────────────────────────────────────────
+// 真机（2607 行）两条路都试过：整表 + content-visibility 滚动 23 帧 >50ms；
+// 去掉 content-visibility 滚动顺了但开窗/填充变成 25 个长任务（50–249ms）。
+// 窗口化只建"视口 ± overscan"的几十行，开窗与滚动都保持满帧。
+let previewWindowState = null;
+
+function detachPreviewWindow() {
+  const state = previewWindowState;
+  if (!state) return;
+  state.container?.removeEventListener?.("scroll", handlePreviewWindowScroll);
+  previewWindowState = null;
+}
+
+function handlePreviewWindowScroll() {
+  const state = previewWindowState;
+  if (!state || state.scrollPending) return;
+  state.scrollPending = true;
+  const run = () => {
+    state.scrollPending = false;
+    if (previewWindowState !== state) return;
+    updatePreviewWindow(state);
+  };
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+  setTimeout(run, 50);
+}
+
+function setPreviewSpacer(spacer, height) {
+  if (!spacer) return;
+  const safe = Math.max(0, Number(height) || 0);
+  spacer.style.height = `${safe}px`;
+  spacer.style.display = safe > 0 ? "" : "none";
+}
+
+function updatePreviewWindow(state, { force = false } = {}) {
+  if (previewWindowState !== state || state.token !== previewRenderToken) return;
+  const { container, entries, nodes } = state;
+  const total = entries.length;
+  if (total === 0) return;
+  const { start, end } = computePreviewWindow({
+    total,
+    rowPitch: state.rowPitch,
+    scrollTop: container.scrollTop,
+    clientHeight: container.clientHeight,
+    overscanRows: LOAD_ORDER_PREVIEW_OVERSCAN_ROWS,
+  });
+  if (!force && start === state.start && end === state.end) return;
+
+  for (const [index, node] of [...nodes]) {
+    if (index >= start && index < end) continue;
+    node.remove?.();
+    nodes.delete(index);
+  }
+  const kept = [...nodes.keys()].sort((a, b) => a - b);
+  if (kept.length === 0) {
     const fragment = document.createDocumentFragment();
-    for (; index < end; index += 1) {
-      if (added > 0 && loadOrderNow() - started >= budgetMs) break;
-      fragment.appendChild(buildRow(entries[index]));
-      added += 1;
+    for (let index = start; index < end; index += 1) {
+      const node = state.buildRow(entries[index]);
+      nodes.set(index, node);
+      fragment.appendChild(node);
     }
-    if (added === 0) return index < entries.length;
-    container.appendChild(fragment);
-    return index < entries.length;
-  };
-  if (!appendChunk(LOAD_ORDER_FIRST_CHUNK, Infinity)) return;
-  const step = () => {
-    if (token !== previewRenderToken) return;
-    if (appendChunk(LOAD_ORDER_CHUNK, LOAD_ORDER_CHUNK_BUDGET_MS)) scheduleLoadOrderStep(step);
-  };
-  scheduleLoadOrderStep(step);
+    container.insertBefore(fragment, state.bottomSpacer);
+  } else {
+    const firstKept = kept[0];
+    const lastKept = kept[kept.length - 1];
+    if (start < firstKept) {
+      const anchor = nodes.get(firstKept);
+      for (let index = start; index < firstKept; index += 1) {
+        const node = state.buildRow(entries[index]);
+        nodes.set(index, node);
+        container.insertBefore(node, anchor);
+      }
+    }
+    if (end > lastKept + 1) {
+      for (let index = lastKept + 1; index < end; index += 1) {
+        const node = state.buildRow(entries[index]);
+        nodes.set(index, node);
+        container.insertBefore(node, state.bottomSpacer);
+      }
+    }
+  }
+  state.start = start;
+  state.end = end;
+  if (!state.rowPitch) {
+    const firstRow = nodes.get(start);
+    const measured = firstRow?.getBoundingClientRect?.().height || 0;
+    state.rowPitch = Math.max(1, Math.round(measured) || LOAD_ORDER_PREVIEW_FALLBACK_ROW_PITCH);
+  }
+  const heights = previewSpacerHeights({ total, start, end, rowPitch: state.rowPitch });
+  setPreviewSpacer(state.topSpacer, heights.top);
+  setPreviewSpacer(state.bottomSpacer, heights.bottom);
 }
 
 function entryLabel(entry) {
