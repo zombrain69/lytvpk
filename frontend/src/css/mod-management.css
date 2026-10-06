@@ -357,6 +357,27 @@ html.dark-mode .multi-select-menu {
   color: var(--primary);
 }
 
+/* 排序菜单的方向 chip：未激活显示"点下去会用的方向"，激活时高亮当前方向。
+   优先级/大小/模型复杂度这类排序都靠它把"顺序 / 逆序"两个方向显式摆出来。 */
+.dropdown-item .sort-direction-chip {
+  margin-left: auto;
+  padding: 1px var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dropdown-item.active .sort-direction-chip,
+.dropdown-item .sort-direction-chip.is-current {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .mod-floating-dropdown,
 .mod-management-page .more-actions-dropdown .dropdown-content,
 .mod-management-page .batch-actions-dropdown-container #batch-dropdown-content {

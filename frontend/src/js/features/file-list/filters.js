@@ -2,7 +2,12 @@ import { appState, updateStatusBar, showFileListLoading, hideFileListLoading } f
 import { showError, showNotification } from "../../core/toast.js";
 import { renderFileList } from "./render.js";
 import { getLocationDisplayName, escapeHtml } from "../../core/utils.js";
-import { applySort, updateSortButtonUI, refreshLoadOrderMap } from "./sorting.js";
+import {
+  applySort,
+  ensureVisibleModelMetrics,
+  updateSortButtonUI,
+  refreshLoadOrderMap,
+} from "./sorting.js";
 import { resetBoxSelection } from "./box-selection.js";
 import { scheduleScopedConflictAnalysis } from "../conflicts/conflicts.js";
 import { fileMatchesGroupFilter } from "../mod-groups/group-view.mjs";
@@ -1567,6 +1572,9 @@ export async function performSearch() {
     applySort(files);
     appState.vpkFiles = files;
     renderFileList();
+    // 模型复杂度排序处于激活状态时，筛选可能带出"还没算过模型指标"的新文件：
+    // 这里按需补齐（命中缓存时是纯内存操作），补完再重排一次。
+    void ensureVisibleModelMetrics();
     updateStatusBar();
     renderActiveFilterSummary();
     scheduleScopedConflictAnalysis();

@@ -54,3 +54,26 @@ export function sortByPriority(entries) {
   const list = Array.isArray(entries) ? [...entries] : [];
   return list.sort(compareByPriority);
 }
+
+/**
+ * nextSortState 决定"点某个排序项"之后的 (type, order)。
+ *
+ * 规则（与工具栏/菜单文案一一对应）：
+ *   · 点当前正在用的那一项 → 在 顺序 / 逆序 之间切换；
+ *   · 点别的项 → 用该项的默认方向：日期/大小/模型复杂度是"从大到小/最新/高到低"（desc），
+ *     文件名/优先级是"顺序"（asc）。
+ * 抽成纯函数是为了让"优先级排序点第二下没反应"这类回归能被单测钉住。
+ */
+export function nextSortState(currentType, currentOrder, type) {
+  if (currentType === type) {
+    return { type, order: currentOrder === "asc" ? "desc" : "asc" };
+  }
+  const defaultDesc = type === "date" || type === "size" || type === "modelComplexity";
+  return { type, order: defaultDesc ? "desc" : "asc" };
+}
+
+/** applySortOrder 把"升序比较结果"换算成当前方向的比较结果（降序取反，平局仍是 0）。 */
+export function applySortOrder(result, order) {
+  if (order !== "desc") return result;
+  return result === 0 ? 0 : -result;
+}

@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { compareByPriority, sortByPriority } from "./priority-sort.mjs";
+import {
+  applySortOrder,
+  compareByPriority,
+  nextSortState,
+  sortByPriority,
+} from "./priority-sort.mjs";
 
 test("按有效分层升序，越小越先加载", () => {
   const list = [
@@ -82,4 +87,63 @@ test("默认排序是优先级排序，且排序键包含有效分层", () => {
     branch.includes("compareByPriority") || branch.includes("getFileEffectiveLayer"),
     "优先级排序必须使用有效分层作为排序键",
   );
+});
+
+// 回归（2026-10-07 用户反馈）：优先级排序的"倒序"曾经完全不可达 ——
+// ① handleLoadOrderSort 写死 asc（上游与早期实现也如此）；② 装饰-排序重构时
+//    loadOrder 分支漏了按 sortOrder 取反。这两条都必须钉住。
+test("优先级排序支持顺序/倒序：点第二次切换方向，且比较结果按方向取反", () => {
+  const source = readFileSync(new URL("./sorting.js", import.meta.url), "utf8");
+  const applySortStart = source.indexOf("export function applySort(");
+  assert.ok(applySortStart >= 0, "sorting.js 应导出 applySort");
+  const branchStart = source.indexOf('appState.sortType === "loadOrder"', applySortStart);
+  assert.ok(branchStart >= 0, "sorting.js 应处理 loadOrder 排序");
+  const branch = source.slice(branchStart, branchStart + 900);
+  assert.match(
+    branch,
+    /applySortOrder\(/,
+    "loadOrder 分支必须按 appState.sortOrder 取反，否则「优先级排序（倒序）」点了不反转",
+  );
+  assert.match(
+    source,
+    /handleLoadOrderSort[\s\S]{0,400}nextSortState\(/,
+    "点第二次「优先级排序」要切换 顺序/倒序",
+  );
+  assert.match(source, /sort-direction-chip/, "排序菜单要有方向 chip，把两个方向显式摆出来");
+});
+
+test("nextSortState：同项切换方向，换项用该项默认方向", () => {
+  assert.deepEqual(nextSortState("loadOrder", "asc", "loadOrder"), { type: "loadOrder", order: "desc" });
+  assert.deepEqual(nextSortState("loadOrder", "desc", "loadOrder"), { type: "loadOrder", order: "asc" });
+  assert.deepEqual(nextSortState("name", "asc", "loadOrder"), { type: "loadOrder", order: "asc" });
+  assert.deepEqual(nextSortState("loadOrder", "asc", "date"), { type: "date", order: "desc" });
+  assert.deepEqual(nextSortState("date", "desc", "size"), { type: "size", order: "desc" });
+  assert.deepEqual(nextSortState("date", "desc", "modelComplexity"), {
+    type: "modelComplexity",
+    order: "desc",
+  });
+  assert.deepEqual(nextSortState("date", "desc", "name"), { type: "name", order: "asc" });
+});
+
+test("applySortOrder：降序取反、平局保持 0、升序原样", () => {
+  assert.equal(applySortOrder(3, "asc"), 3);
+  assert.equal(applySortOrder(3, "desc"), -3);
+  assert.equal(applySortOrder(-2, "desc"), 2);
+  assert.equal(Object.is(applySortOrder(0, "desc"), 0), true, "平局必须保持 0（稳定排序依赖它）");
+});
+
+test("优先级降序：compareByPriority + applySortOrder 组合真的反转", () => {
+  const entries = [
+    { name: "a", layer: 1, order: 0 },
+    { name: "b", layer: 2, order: 1 },
+    { name: "c", layer: 3, order: 2 },
+  ];
+  const asc = [...entries]
+    .sort((left, right) => applySortOrder(compareByPriority(left, right), "asc"))
+    .map((item) => item.name);
+  const desc = [...entries]
+    .sort((left, right) => applySortOrder(compareByPriority(left, right), "desc"))
+    .map((item) => item.name);
+  assert.deepEqual(asc, ["a", "b", "c"]);
+  assert.deepEqual(desc, ["c", "b", "a"]);
 });

@@ -2,6 +2,7 @@ package app
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"vpk-manager/internal/parser"
 )
@@ -20,6 +21,7 @@ type VPKModelMetric struct {
 func (a *App) GetVPKModelMetrics(filePaths []string) []VPKModelMetric {
 	metrics := make([]VPKModelMetric, len(filePaths))
 	var waitGroup sync.WaitGroup
+	var analyzedCount int64
 
 	for index, filePath := range filePaths {
 		cached, ok := a.vpkCache.Load(filePath)
@@ -68,9 +70,16 @@ func (a *App) GetVPKModelMetrics(filePaths []string) []VPKModelMetric {
 				currentCache.File.ModelTriangles = metric.TotalTriangles
 				a.vpkCache.Store(targetPath, currentCache)
 			}
+			atomic.AddInt64(&analyzedCount, 1)
 		})
 	}
 
 	waitGroup.Wait()
+	// 模型指标就存在 cache.File（parser.VPKFile 的 modelStats* 字段）里，顺手触发一次
+	// 扫描缓存落盘：下次冷启动直接命中，不再为整库重扫模型（真机 2912 个 Mod 首次 43s）。
+	// 失效判据仍由扫描缓存的 size+mtime+版本 负责，不新增规则。
+	if atomic.LoadInt64(&analyzedCount) > 0 {
+		a.saveVPKScanCacheAsync()
+	}
 	return metrics
 }
