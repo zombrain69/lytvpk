@@ -27,6 +27,8 @@ let searchInputTimer = null;
 let refreshFilesPromise = null;
 let refreshFilesPhase = "idle";
 let refreshFilesNeedsFollowUp = false;
+// 加载遮罩当前是否由"刷新"显示（静默轮次不显示；用户显式刷新会把它升格成显示）。
+let refreshFilesLoadingVisible = false;
 let searchRequestId = 0;
 let tagFilterRenderId = 0;
 let secondaryTagRenderId = 0;
@@ -1645,11 +1647,15 @@ export function closeFilterMenus(exceptMenu = null) {
   });
 }
 
-export async function refreshFilesKeepFilter() {
+export async function refreshFilesKeepFilter(options = {}) {
+  // silent：后台自动刷新（外部改动、定时更新检测）。不显示加载遮罩、不禁用工具栏，
+  // 失败也不弹错误——这类刷新不该打断用户正在做的事。
+  const silent = options?.silent === true;
   resetBoxSelection();
 
   if (!appState.currentDirectory) {
-    showNotification("请先选择目录", "info");
+    // 没选目录时的提示只给用户手动刷新用；后台自动刷新弹这个只会莫名其妙。
+    if (!silent) showNotification("请先选择目录", "info");
     return;
   }
 
@@ -1660,25 +1666,46 @@ export async function refreshFilesKeepFilter() {
     if (refreshFilesPhase === "scanning") {
       refreshFilesNeedsFollowUp = true;
     }
+    // 用户点了刷新却撞上后台静默轮次：把加载提示补上，别让人觉得没反应。
+    if (!silent) showRefreshLoadingOnce();
     return refreshFilesPromise;
   }
 
-  refreshFilesPromise = runRefreshFilesKeepFilter().finally(() => {
+  refreshFilesPromise = runRefreshFilesKeepFilter({ silent }).finally(() => {
     refreshFilesPromise = null;
     refreshFilesPhase = "idle";
     refreshFilesNeedsFollowUp = false;
+    refreshFilesLoadingVisible = false;
   });
   return refreshFilesPromise;
 }
 
-async function runRefreshFilesKeepFilter() {
-  do {
-    refreshFilesNeedsFollowUp = false;
-    refreshFilesPhase = "waiting";
-    await waitForFileListIdle();
-    refreshFilesPhase = "scanning";
-    await refreshFilesKeepFilterOnce();
-  } while (refreshFilesNeedsFollowUp);
+// 加载提示的生命周期挂在"整轮刷新"上（含合并出来的 follow-up 扫描），
+// 而不是单次扫描：合并刷新不会再出现遮罩闪两下。
+function showRefreshLoadingOnce() {
+  if (refreshFilesLoadingVisible) return;
+  refreshFilesLoadingVisible = true;
+  showFileListLoading("正在刷新文件列表...");
+}
+
+async function runRefreshFilesKeepFilter({ silent = false } = {}) {
+  try {
+    do {
+      refreshFilesNeedsFollowUp = false;
+      refreshFilesPhase = "waiting";
+      await waitForFileListIdle();
+      if (!silent) showRefreshLoadingOnce();
+      refreshFilesPhase = "scanning";
+      await refreshFilesKeepFilterOnce();
+    } while (refreshFilesNeedsFollowUp);
+  } finally {
+    // 只有真的显示过提示（可见轮次，或被用户的显式刷新升格过）才收起来，
+    // 避免静默轮次"顺手"解禁别人禁用的按钮 / 关掉别人的加载提示。
+    if (refreshFilesLoadingVisible) {
+      refreshFilesLoadingVisible = false;
+      hideFileListLoading();
+    }
+  }
 }
 
 // Directory switching changes the backend's process-wide root directory, so
@@ -1712,7 +1739,6 @@ async function refreshFilesKeepFilterOnce() {
   });
 
   appState.isLoading = true;
-  showFileListLoading("正在刷新文件列表...");
 
   try {
     await ScanVPKFiles();
@@ -1760,9 +1786,9 @@ async function refreshFilesKeepFilterOnce() {
     console.log("文件列表已刷新，筛选状态已恢复");
   } catch (error) {
     console.error("刷新文件列表失败:", error);
-    showError("刷新失败: " + error);
+    // 静默刷新失败只进控制台：后台自动刷新弹错误框属于打扰（用户手动刷新时才提示）。
+    if (refreshFilesLoadingVisible) showError("刷新失败: " + error);
   } finally {
     appState.isLoading = false;
-    hideFileListLoading();
   }
 }

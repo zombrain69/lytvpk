@@ -5,6 +5,7 @@ go 1.25.5
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bodgit/sevenzip v1.6.1
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-resty/resty/v2 v2.17.1
 	github.com/hymkor/trash-go v0.3.0
 	github.com/nwaples/rardecode v1.1.3

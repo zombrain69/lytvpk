@@ -296,3 +296,16 @@ export function resetBoxSelection() {
     clearBoxHighlights();
   }
 }
+
+/**
+ * 等框选拖动结束（最多 timeoutMs）。
+ *
+ * 给"后台自动刷新"让路用：拖动中重画列表会把正在拖的卡片换掉，
+ * 用户的手还没松开，选择框就没了。等松手再刷，最多等 timeoutMs。
+ */
+export async function waitForBoxSelectionIdle(timeoutMs = 8000) {
+  const deadline = performance.now() + timeoutMs;
+  while (boxState.isSelecting && performance.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+}

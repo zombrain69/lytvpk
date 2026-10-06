@@ -25,6 +25,8 @@ func (a *App) SetRootDirectory(path string) error {
 		a.addonListGuardMu.Unlock()
 		if restartMonitor {
 			a.restartAddonListMonitor()
+			// 目录变了：外部改动监听也要跟着换（监听的是"界面会列出来的那三处"）。
+			a.restartAddonsWatcher()
 		}
 	}()
 

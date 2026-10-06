@@ -146,7 +146,10 @@ type App struct {
 	addonListGuardMu        sync.Mutex
 	addonListMonitorMu      sync.Mutex
 	addonListMonitorStop    chan struct{}
-	configWriteMu           sync.Mutex
+	// addonsWatcher 监听 Mod 目录的外部改动（别的程序增删文件）→ 通知界面静默刷新。
+	addonsWatcherMu sync.Mutex
+	addonsWatcher   *addonsWatcher
+	configWriteMu   sync.Mutex
 	// externalCache 缓存"组建议收件箱"的解析结果，避免每次推导都重新解析文件与建索引。
 	externalCache externalSuggestionCache
 	// unreadableMods 记录"磁盘上存在但解析失败"的 VPK（文件损坏、下载不完整等），

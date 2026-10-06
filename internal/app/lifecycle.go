@@ -43,6 +43,10 @@ func (a *App) startup(ctx context.Context) {
 	// 处理启动时的命令行参数（第一个实例自己的参数）
 	HandleStartupArgs(a, os.Args)
 
+	// 外部改动自动发现：别的程序往 Mod 目录里增删文件时通知界面静默刷新。
+	// rootDir 为空（还没选目录）时这里什么都不做，等 SetRootDirectory 再挂。
+	a.restartAddonsWatcher()
+
 	// 清理旧版本文件
 	go func() {
 		// 稍微延迟一下，确保旧进程完全退出
@@ -167,6 +171,7 @@ func (a *App) ForceExit() {
 func (a *App) beforeClose() (prevent bool) {
 	if a.forceClose {
 		a.stopAddonListMonitor()
+		a.stopAddonsWatcher()
 		// 关闭单例监听器
 		if a.singletonMgr != nil {
 			a.singletonMgr.Close()
@@ -182,6 +187,7 @@ func (a *App) beforeClose() (prevent bool) {
 
 	// 关闭单例监听器
 	a.stopAddonListMonitor()
+	a.stopAddonsWatcher()
 	if a.singletonMgr != nil {
 		a.singletonMgr.Close()
 	}

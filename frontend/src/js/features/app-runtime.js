@@ -133,7 +133,8 @@ import {
   disableAllMods,
 } from "./file-list/actions.js";
 import { setupFileListEventDelegation } from "./file-list/events.js";
-import { initBoxSelection } from "./file-list/box-selection.js";
+import { initBoxSelection, waitForBoxSelectionIdle } from "./file-list/box-selection.js";
+import { createExternalRefreshScheduler } from "./file-list/external-refresh.mjs";
 import { showServerSubmenu } from "./file-list/context-menu.js";
 import { shareSelectedWorkshopItems } from "./file-list/share.js";
 import {
@@ -344,6 +345,8 @@ let lastDomSprayFallbackAt = 0;
 let lastDomSprayFallbackNames = new Set();
 let eventListenersSetup = false;
 let wailsEventsSetup = false;
+// 外部改动 → 静默刷新的调度器（合并密集通知；框选拖动时让路）。
+let externalRefreshScheduler = null;
 
 const ChangePanelDifficulty = (serverID, difficulty) => {
   const method = window?.go?.app?.App?.ChangePanelDifficulty;
@@ -939,7 +942,8 @@ async function initializeApp() {
     EventsOn("addonlist_guard_restored", async () => {
       showNotification("检测到游戏覆盖 addonlist.txt，已恢复受保护版本", "info");
       try {
-        await refreshFilesKeepFilter();
+        // 提示已经说明了发生了什么，刷新本身走静默：不必再闪一次加载遮罩。
+        await refreshFilesKeepFilter({ silent: true });
       } catch (error) {
         console.error("自动恢复后刷新 Mod 状态失败:", error);
       }
@@ -1937,6 +1941,20 @@ function setupWailsEvents() {
     refreshFilesKeepFilter();
   });
 
+  // 外部改动（资源管理器复制、Steam 更新工坊、游戏写文件）由后端 fsnotify 监听后推送。
+  // 这类刷新走静默模式：不弹加载遮罩、不禁用工具栏，失败也只进控制台。
+  externalRefreshScheduler = createExternalRefreshScheduler({
+    runRefresh: async () => {
+      // 框选拖动中重画列表会打断用户的手势：等松手再刷（最多 8 秒）。
+      await waitForBoxSelectionIdle();
+      await refreshFilesKeepFilter({ silent: true });
+    },
+    onError: (error) => console.warn("外部改动自动刷新失败:", error),
+  });
+  EventsOn("addons_changed_external", () => {
+    externalRefreshScheduler.notify();
+  });
+
   EventsOn("show_toast", (data) => {
     if (data.type === "error") {
       showError(data.message);
@@ -1990,7 +2008,8 @@ function setupWailsEvents() {
 
   // 监听Mod更新检测事件
   EventsOn("mod_update_check_complete", () => {
-    refreshFilesKeepFilter();
+    // 定时后台检测（每小时一次）不该在用户正操作时弹加载遮罩、禁用工具栏。
+    refreshFilesKeepFilter({ silent: true });
   });
 }
 
