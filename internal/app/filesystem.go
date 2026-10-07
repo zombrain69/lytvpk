@@ -374,6 +374,10 @@ func (a *App) OpenFileLocation(filePath string) error {
 
 // DeleteVPKFile 删除VPK文件到回收站
 func (a *App) DeleteVPKFile(filePath string) error {
+	// 沙箱只读闸门：单个删除不走 beginFileOperation，这里单独拦一次。
+	if err := rejectReadonlyLibraryWrite("删除 Mod 文件"); err != nil {
+		return err
+	}
 	if filePath == "" {
 		return fmt.Errorf("文件路径为空")
 	}
@@ -470,6 +474,11 @@ func (a *App) RestartApplication() error {
 		return err
 	}
 
+	// 顺序很重要：先释放后台资源（尤其是单例端口 19527），再启动新进程。
+	// 否则新进程会连上"正在退出的旧实例"、把参数转发过去然后自己退出，
+	// 用户看到的是"点了重启但什么都没发生"，而旧进程又已经拆掉一半资源。
+	a.stopBackgroundResources()
+
 	// 直接启动新进程
 	// 之前的 cmd /c start 会导致弹黑框，因为 cmd.exe 本身是控制台程序
 	// 直接运行编译为 GUI 的 exe 不会弹框
@@ -477,6 +486,8 @@ func (a *App) RestartApplication() error {
 
 	// 启动但不等待
 	if err := cmd.Start(); err != nil {
+		// 新进程没起来：把窗口仍然需要的后台资源恢复回来，别留下半残状态。
+		a.restartBackgroundResources()
 		return err
 	}
 

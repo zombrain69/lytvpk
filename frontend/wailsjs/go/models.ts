@@ -482,6 +482,7 @@ export namespace app {
 	    conflictIgnoreFiles?: string[];
 	    strategyGroupFloating?: boolean;
 	    autoDetectWorkshopLink?: boolean;
+	    categorySidebarVisible?: boolean;
 	    openWithProgram?: string;
 	    openWithArguments?: string;
 	    mainWindowWidth?: number;
@@ -525,6 +526,7 @@ export namespace app {
 	        this.conflictIgnoreFiles = source["conflictIgnoreFiles"];
 	        this.strategyGroupFloating = source["strategyGroupFloating"];
 	        this.autoDetectWorkshopLink = source["autoDetectWorkshopLink"];
+	        this.categorySidebarVisible = source["categorySidebarVisible"];
 	        this.openWithProgram = source["openWithProgram"];
 	        this.openWithArguments = source["openWithArguments"];
 	        this.mainWindowWidth = source["mainWindowWidth"];
@@ -3904,6 +3906,22 @@ export namespace app {
 
 export namespace entities {
 	
+	export class Slot {
+	    kind: string;
+	    prefix: string;
+	    hits: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Slot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.prefix = source["prefix"];
+	        this.hits = source["hits"];
+	    }
+	}
 	export class Entity {
 	    id: string;
 	    tag: string;
@@ -3914,6 +3932,7 @@ export namespace entities {
 	    character?: string;
 	    script?: string;
 	    anchors: string[];
+	    slots?: Slot[];
 	    note?: string;
 	
 	    static createFrom(source: any = {}) {
@@ -3931,9 +3950,29 @@ export namespace entities {
 	        this.character = source["character"];
 	        this.script = source["script"];
 	        this.anchors = source["anchors"];
+	        this.slots = this.convertValues(source["slots"], Slot);
 	        this.note = source["note"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
+	
 	export class Table {
 	    schemaVersion: number;
 	    generatedAt?: string;
@@ -4878,12 +4917,104 @@ export namespace parser {
 	        this.recoveredTruncatedText = source["recoveredTruncatedText"];
 	    }
 	}
+	export class XDRSlotRival {
+	    name: string;
+	    title?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotRival(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.title = source["title"];
+	    }
+	}
+	export class XDRSlotStatus {
+	    character: string;
+	    slot: number;
+	    slotLabel: string;
+	    slotName?: string;
+	    state: string;
+	    rivals?: XDRSlotRival[];
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.character = source["character"];
+	        this.slot = source["slot"];
+	        this.slotLabel = source["slotLabel"];
+	        this.slotName = source["slotName"];
+	        this.state = source["state"];
+	        this.rivals = this.convertValues(source["rivals"], XDRSlotRival);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class XDRPriorityInfo {
+	    state: string;
+	    activeSlots: number;
+	    randomSlots: number;
+	    slots?: XDRSlotStatus[];
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRPriorityInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.state = source["state"];
+	        this.activeSlots = source["activeSlots"];
+	        this.randomSlots = source["randomSlots"];
+	        this.slots = this.convertValues(source["slots"], XDRSlotStatus);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class XDRSlotInfo {
 	    character: string;
 	    model: string;
 	    scope: string;
 	    slot: number;
 	    slotLabel: string;
+	    slotName?: string;
+	    slotGroup?: string;
 	    actions: string[];
 	    evidence: string[];
 	    confidence: string;
@@ -4899,6 +5030,8 @@ export namespace parser {
 	        this.scope = source["scope"];
 	        this.slot = source["slot"];
 	        this.slotLabel = source["slotLabel"];
+	        this.slotName = source["slotName"];
+	        this.slotGroup = source["slotGroup"];
 	        this.actions = source["actions"];
 	        this.evidence = source["evidence"];
 	        this.confidence = source["confidence"];
@@ -4917,6 +5050,7 @@ export namespace parser {
 	    subjectConfidence: string;
 	    xdrSlots: XDRSlotInfo[];
 	    xdrSummary: string;
+	    xdrPriority?: XDRPriorityInfo;
 	    structureTopDirs: string[];
 	    structureFileCount: number;
 	    structureTotalSize: number;
@@ -4964,6 +5098,7 @@ export namespace parser {
 	        this.subjectConfidence = source["subjectConfidence"];
 	        this.xdrSlots = this.convertValues(source["xdrSlots"], XDRSlotInfo);
 	        this.xdrSummary = source["xdrSummary"];
+	        this.xdrPriority = this.convertValues(source["xdrPriority"], XDRPriorityInfo);
 	        this.structureTopDirs = source["structureTopDirs"];
 	        this.structureFileCount = source["structureFileCount"];
 	        this.structureTotalSize = source["structureTotalSize"];
@@ -5080,6 +5215,9 @@ export namespace parser {
 		    return a;
 		}
 	}
+	
+	
+	
 
 }
 

@@ -117,6 +117,14 @@ var distinctiveShortTokens = map[string]struct{}{
 
 // applyStockTokenEvidence 在任意目录下按"本体基名 token"补标签，返回是否命中物品实体。
 func applyStockTokenEvidence(name string, tags map[string]bool, evidence *tagEvidenceRecorder) bool {
+	// 只跳过"地图自带音乐 / 彩蛋"目录：`sound/music_new/…/50cal_metalimpact.wav`
+	// 这类素材名是巧合，不是武器替换（真机案例：广西-南宁地图靠一个彩蛋音效被判成
+	// 「固定机枪」+「电锯」）。sound/ 下的其它目录仍要参与：
+	// `sound/doors/medkit_doors_open.wav` 这类物品音效是合法证据（曾因一刀切跳过 sound/
+	// 导致 8 个音频包的「医疗包 / 可乐」等标签被误删）。
+	if strings.HasPrefix(name, "sound/music") {
+		return false
+	}
 	return applyStockTokenLookup(stockPathTokens(name), tags, evidence, "token:", name)
 }
 

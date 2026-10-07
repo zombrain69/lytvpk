@@ -815,6 +815,52 @@ function getLoadOrderBadge(file, className = "load-order-badge") {
 
 // getConflictRecheckBadge 显示变更驱动自动复检算出的冲突角标。
 // 没有角标（未复检过或该 Mod 不参与重叠）时返回空串，不占位。
+// buildXDRPriorityBadge 按官方规则回答"这个动作 Mod 会不会播"：
+//   active  → 每个槽位都没有同槽竞争者，会按预期播放；
+//   random  → 有槽位被别的 Mod 同槽占用，游戏随机生效一个（与 addonlist 顺序无关）；
+//   partial → 一部分槽位会播、一部分同槽随机。
+// 后端只在"真的有槽位证据 + 这个 Mod 会被游戏挂载"时才给 xdrPriority 结论，避免误导。
+function buildXDRPriorityBadge(file) {
+  const info = file?.xdrPriority;
+  if (!info || !info.state) return "";
+
+  const slots = Array.isArray(info.slots) ? info.slots : [];
+  const describeSlot = (slot) =>
+    `${slot.character || "未指定角色"} slot ${slot.slotLabel || String(slot.slot ?? "?")}`;
+  const randomSlots = slots.filter((slot) => slot.state === "random");
+  const activeSlots = slots.filter((slot) => slot.state !== "random");
+  const rivalLabels = [];
+  randomSlots.forEach((slot) => {
+    (slot.rivals || []).forEach((rival) => {
+      const label = String(rival.title || rival.name || "").trim();
+      if (label && !rivalLabels.includes(label)) rivalLabels.push(label);
+    });
+  });
+  const summarize = (values, limit = 4) =>
+    values.length > limit ? `${values.slice(0, limit).join("、")} 等 ${values.length} 个` : values.join("、");
+
+  if (info.state === "active") {
+    const title = `XDR 动作生效：${activeSlots.length} 个槽位都没有同槽竞争者（${summarize(
+      activeSlots.map(describeSlot),
+    )}），游戏里会按预期播放`;
+    return `<span class="card-badge xdr-priority-badge is-active" title="${escapeHtml(title)}">▶ 动作生效</span>`;
+  }
+
+  if (info.state === "random") {
+    const title = `XDR 同槽冲突：${summarize(randomSlots.map(describeSlot))} 被其它 Mod 同槽占用（${summarize(
+      rivalLabels,
+    )}）—— 官方规则是同角色同槽只会随机生效一个，与加载顺序无关；想确定播哪个就把其中一个改到空槽`;
+    return `<span class="card-badge xdr-priority-badge is-random" title="${escapeHtml(title)}">⚠ 动作随机生效</span>`;
+  }
+
+  const title = `XDR 动作部分生效：${activeSlots.length} 个槽位会播放（${summarize(
+    activeSlots.map(describeSlot),
+  )}）；${randomSlots.length} 个槽位与其它 Mod 同槽、游戏随机生效（${summarize(
+    randomSlots.map(describeSlot),
+  )}${rivalLabels.length ? `，同槽的：${summarize(rivalLabels)}` : ""}）`;
+  return `<span class="card-badge xdr-priority-badge is-partial" title="${escapeHtml(title)}">◐ 动作部分生效 ${activeSlots.length}/${slots.length}</span>`;
+}
+
 function getConflictRecheckBadge(file, className = "conflict-recheck-badge") {
   const badge = findConflictRecheckBadge(file);
   if (!shouldShowConflictBadge(badge)) return "";
@@ -934,6 +980,17 @@ function getFileCardRenderSignature(file, panelServersAvailable) {
     secondaryTags: file.secondaryTags || [],
     subjectSummary: file.subjectSummary || "",
     xdrSummary: file.xdrSummary || "",
+    // XDR 动作生效结论（同槽冲突/唯一）也要进签名，否则卡片被复用后角标会停在旧状态。
+    xdrPriority: file.xdrPriority
+      ? [
+          file.xdrPriority.state || "",
+          file.xdrPriority.activeSlots ?? 0,
+          file.xdrPriority.randomSlots ?? 0,
+          (file.xdrPriority.slots || [])
+            .map((slot) => `${slot.state || ""}:${slot.character || ""}:${slot.slot ?? 0}:${(slot.rivals || []).length}`)
+            .join("|"),
+        ]
+      : null,
     previewRevision: getCardPreviewRevision(file),
     loadOrder: getLoadOrderValue(file),
     priority: priority ? [priority.order ?? null, priority.tier ?? null, priority.effective ?? null, priority.source ?? null] : null,
@@ -1579,6 +1636,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
   const xdrBadgeHtml = xdrSummary
     ? `<span class="card-badge xdr-badge" title="${escapeHtml(xdrSummary)}">${escapeHtml(xdrSummary)}</span>`
     : "";
+  const xdrPriorityBadgeHtml = buildXDRPriorityBadge(file);
   const uniqueDisplayTags = getUniqueDisplayTags(file.primaryTag, file.secondaryTags);
   if (uniqueDisplayTags.secondary.length > 0) {
     const displayTags = uniqueDisplayTags.secondary.slice(0, 2);
@@ -1643,7 +1701,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
             ? `<span class="card-badge tag-badge" title="${escapeHtml(file.primaryTag)}">${escapeHtml(file.primaryTag)}</span>`
             : ""
         }
-        ${xdrBadgeHtml}${subjectBadgeHtml}${cardMatchReasonChip}
+        ${xdrPriorityBadgeHtml}${xdrBadgeHtml}${subjectBadgeHtml}${cardMatchReasonChip}
         ${secondaryTagsHtml}
         ${getConflictSummaryBadge(file, "card-badge mod-conflict-badge")}
       </div>

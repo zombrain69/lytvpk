@@ -21,6 +21,7 @@ import {
   searchConflictGroups,
 } from "./conflict-search.mjs";
 import { buildScopedConflictSummary } from "./scoped-conflict-summary.mjs";
+import { attachConflictRowDrag } from "./conflict-row-drag.mjs";
 import {
   conflictScopeSummaryLabel,
   describeConflictScope,
@@ -145,6 +146,38 @@ function getConflictRelativeDestination(currentPath, targetVpk, direction) {
 
   const maxOrder = conflictOrderEntryCount + (Number.isInteger(currentPriority) ? 0 : 1);
   return Math.max(1, Math.min(maxOrder, destination));
+}
+
+// applyConflictOrderMove 是「提前/延后」按钮与拖拽排序共用的写入路径：
+// 只调 SetVPKLoadOrder（改 addonlist.txt 里的顺序号），然后刷新顺序表 + 重画列表。
+async function applyConflictOrderMove(path, targetPath, direction, options = {}) {
+  const source = options.source === "drag" ? "drag" : "button";
+  // 覆盖关系卡片同样提供“提前/延后”，因此两类分组都要参与查找。
+  const targetVpk = [
+    ...(currentConflictResult?.conflict_groups || []),
+    ...(currentConflictResult?.override_groups || []),
+  ]
+    .flatMap((item) => item.vpk_files || [])
+    .find((item) => item.path === targetPath);
+  if (!targetVpk || (direction !== "before" && direction !== "after")) {
+    throw new Error("未找到对应的冲突目标 Mod，请刷新冲突分析后重试");
+  }
+  const nextPriority = getConflictRelativeDestination(path, targetVpk, direction);
+  if (!Number.isInteger(nextPriority)) {
+    throw new Error("冲突目标 Mod 尚未取得有效的 addonlist.txt 优先级");
+  }
+  await SetVPKLoadOrder(path, nextPriority);
+  await refreshConflictOrderMap();
+  renderFileList?.();
+  renderConflictResults(currentConflictResult);
+  showNotification?.(
+    source === "drag"
+      ? "已按拖动位置调整该 Mod 的加载顺序（优先级）"
+      : direction === "before"
+        ? "Mod 已提前到上方冲突 Mod 之前"
+        : "Mod 已延后到下方冲突 Mod 之后，覆盖优先级通常更高",
+    "success",
+  );
 }
 
 export function configureConflicts(deps) {
@@ -916,29 +949,46 @@ function syncConflictSearchBar() {
   });
 }
 
-const CONFLICT_FIX_LIMIT = 5;
 let currentConflictFixSuggestions = [];
+// 修复建议默认收起：只在用户点「展开建议」时才铺开（展开状态在同一次运行里保持）。
+let conflictFixExpanded = false;
+let conflictFixToggleBound = false;
 
-// renderConflictFixSection 展示变更驱动复检给出的"建议"。
-// 采纳按钮只保存分层（priority.json），不会重排 addonlist.txt。
-async function renderConflictFixSection() {
-  const section = document.getElementById("conflict-fix-section");
+// syncConflictFixSectionUI 只切换"展开/收起"这一层，不重建建议列表。
+function syncConflictFixSectionUI() {
+  const body = document.getElementById("conflict-fix-body");
+  const toggle = document.getElementById("conflict-fix-toggle");
+  const count = currentConflictFixSuggestions.length;
+  body?.classList.toggle("hidden", !conflictFixExpanded);
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(conflictFixExpanded));
+    toggle.textContent = conflictFixExpanded ? "收起建议" : `展开建议（${count} 条）`;
+    toggle.disabled = count === 0;
+  }
+}
+
+function bindConflictFixToggle() {
+  if (conflictFixToggleBound) return;
+  const toggle = document.getElementById("conflict-fix-toggle");
+  if (!toggle) return;
+  conflictFixToggleBound = true;
+  toggle.addEventListener("click", () => {
+    conflictFixExpanded = !conflictFixExpanded;
+    syncConflictFixSectionUI();
+    if (conflictFixExpanded) renderConflictFixRows();
+  });
+}
+
+// renderConflictFixRows 只在展开时渲染（50 条长文案没必要在收起时进 DOM）。
+function renderConflictFixRows() {
   const list = document.getElementById("conflict-fix-list");
-  if (!section || !list) return;
-
-  currentConflictFixSuggestions = await loadConflictFixSuggestions();
-  if (!currentConflictFixSuggestions.length) {
-    section.classList.add("hidden");
+  if (!list) return;
+  if (!conflictFixExpanded) {
     list.replaceChildren();
     return;
   }
-
-  section.classList.remove("hidden");
-  const countEl = document.getElementById("conflict-fix-count");
-  if (countEl) countEl.textContent = `${currentConflictFixSuggestions.length} 条`;
-
   list.replaceChildren();
-  currentConflictFixSuggestions.slice(0, CONFLICT_FIX_LIMIT).forEach((suggestion, index) => {
+  currentConflictFixSuggestions.forEach((suggestion, index) => {
     const row = document.createElement("div");
     row.className = "conflict-fix-item";
     const text = document.createElement("span");
@@ -961,13 +1011,31 @@ async function renderConflictFixSection() {
     }
     list.appendChild(row);
   });
+}
 
-  if (currentConflictFixSuggestions.length > CONFLICT_FIX_LIMIT) {
-    const more = document.createElement("div");
-    more.className = "conflict-fix-more";
-    more.textContent = `仅显示前 ${CONFLICT_FIX_LIMIT} 条，共 ${currentConflictFixSuggestions.length} 条`;
-    list.appendChild(more);
+// renderConflictFixSection 展示变更驱动复检给出的"建议"。
+// 采纳按钮只保存分层（priority.json），不会重排 addonlist.txt。
+async function renderConflictFixSection() {
+  const section = document.getElementById("conflict-fix-section");
+  const list = document.getElementById("conflict-fix-list");
+  if (!section || !list) return;
+
+  bindConflictFixToggle();
+  currentConflictFixSuggestions = await loadConflictFixSuggestions();
+  if (!currentConflictFixSuggestions.length) {
+    section.classList.add("hidden");
+    conflictFixExpanded = false;
+    list.replaceChildren();
+    syncConflictFixSectionUI();
+    return;
   }
+
+  section.classList.remove("hidden");
+  const countEl = document.getElementById("conflict-fix-count");
+  if (countEl) countEl.textContent = `${currentConflictFixSuggestions.length} 条`;
+
+  syncConflictFixSectionUI();
+  renderConflictFixRows();
 
   list.onclick = async (event) => {
     const button = event.target.closest("[data-fix-index]");
@@ -1117,6 +1185,10 @@ function createConflictGroupElement(group, renderOptions = {}) {
   groupEl.className = `conflict-group ${severity}${isOverride ? " override" : ""}`;
 
   const orderedVpkFiles = sortConflictVPKs(group.vpk_files || []);
+  // 能参与拖拽排序的行：有有效 addonlist 顺序号，且不在 disabled 目录。
+  const movableVpkFiles = orderedVpkFiles.filter(
+    (vpk) => vpk.location !== "disabled" && Number.isInteger(getConflictPriority(vpk)),
+  );
   // 命中片段在 Mod 名里高亮（highlightMatches 自己负责转义，与 Mod 列表同一套）。
   const highlightSpec = conflictHighlightSpec(currentConflictSearch);
   const highlightOrEscape = (text) => (highlightSpec ? highlightMatches(text, highlightSpec) : escapeHtml(text));
@@ -1145,7 +1217,7 @@ function createConflictGroupElement(group, renderOptions = {}) {
       const gameStateText = file?.gameStateKnown ? (file.gameEnabled ? "游戏开关：开" : "游戏开关：关") : "游戏开关：未记录";
 
       return `
-        <div class="conflict-vpk-item">
+        <div class="conflict-vpk-item" data-path="${escapeHtml(vpk.path)}" data-location="${escapeHtml(vpk.location || "")}">
           <div class="conflict-vpk-info">
             <span class="conflict-vpk-title" title="${escapeHtml(vpk.title || vpk.name)}">${highlightOrEscape(displayName)}</span>
             <span class="conflict-vpk-filename" title="${escapeHtml(vpk.name)}">${highlightOrEscape(fileName)}</span>
@@ -1181,6 +1253,11 @@ function createConflictGroupElement(group, renderOptions = {}) {
                             : ""
                         }
                         <span class="conflict-file-count">${fileCount} ${isOverride ? "个覆盖文件" : "个冲突文件"}</span>
+                        ${
+                          movableVpkFiles.length >= 2
+                            ? '<span class="conflict-drag-hint" title="长按任意一行并上下拖动即可调整加载顺序（优先级）；也可以继续用行内的「提前 / 延后」按钮">长按拖动可排序</span>'
+                            : ""
+                        }
                     </div>
                     <div class="conflict-vpk-names">
                         ${vpkListHtml}
@@ -1202,6 +1279,27 @@ function createConflictGroupElement(group, renderOptions = {}) {
       }
       details.classList.toggle("expanded");
     });
+
+    // 长按卡片 → 拖动 → 调优先级：与「提前 / 延后」共用 applyConflictOrderMove，
+    // 保证落点语义（相对哪一行、放前还是放后）与按钮完全一致。
+    const vpkNamesEl = groupEl.querySelector(".conflict-vpk-names");
+    if (vpkNamesEl && movableVpkFiles.length >= 2) {
+      const movablePaths = new Set(movableVpkFiles.map((vpk) => vpk.path));
+      attachConflictRowDrag(vpkNamesEl, {
+        canDrag: (row) => movablePaths.has(String(row?.dataset?.path || "")),
+        onDrop: ({ path, targetPath, direction }) => {
+          void (async () => {
+            try {
+              await applyConflictOrderMove(path, targetPath, direction, { source: "drag" });
+            } catch (error) {
+              showError?.("拖动调整优先级失败: " + error);
+              // 失败时也要把 DOM 顺序还原成真实顺序
+              renderConflictResults(currentConflictResult);
+            }
+          })();
+        },
+      });
+    }
 
     // 添加冲突 Mod 的详情、游戏开关和文件启用/禁用操作
     groupEl.querySelectorAll(".btn-conflict-action").forEach((btn) => {
@@ -1233,32 +1331,7 @@ function createConflictGroupElement(group, renderOptions = {}) {
             return;
           }
           if (action === "order") {
-            const direction = btn.dataset.orderDirection;
-            const targetPath = btn.dataset.targetPath;
-            // 覆盖关系卡片同样提供“提前/延后”，因此两类分组都要参与查找。
-            const targetVpk = [
-              ...(currentConflictResult?.conflict_groups || []),
-              ...(currentConflictResult?.override_groups || []),
-            ]
-              .flatMap((item) => item.vpk_files || [])
-              .find((item) => item.path === targetPath);
-            if (!targetVpk || (direction !== "before" && direction !== "after")) {
-              throw new Error("未找到对应的冲突目标 Mod，请刷新冲突分析后重试");
-            }
-            const nextPriority = getConflictRelativeDestination(path, targetVpk, direction);
-            if (!Number.isInteger(nextPriority)) {
-              throw new Error("冲突目标 Mod 尚未取得有效的 addonlist.txt 优先级");
-            }
-            await SetVPKLoadOrder(path, nextPriority);
-            await refreshConflictOrderMap();
-            renderFileList?.();
-            renderConflictResults(currentConflictResult);
-            showNotification?.(
-              direction === "before"
-                ? "Mod 已提前到上方冲突 Mod 之前"
-                : "Mod 已延后到下方冲突 Mod 之后，覆盖优先级通常更高",
-              "success",
-            );
+            await applyConflictOrderMove(path, btn.dataset.targetPath, btn.dataset.orderDirection);
             return;
           }
 

@@ -24,6 +24,10 @@ var errFileOperationBusy = errors.New("另一个文件操作正在进行（移�
 
 // beginFileOperation 尝试进入"文件操作"临界区；已被占用时返回可读错误。
 func (a *App) beginFileOperation() error {
+	// 沙箱只读闸门：移动 / 删除 / 打包 / 归档都从这里进。
+	if err := rejectReadonlyLibraryWrite("移动/删除 Mod 文件"); err != nil {
+		return err
+	}
 	if !a.fileOpsMu.TryLock() {
 		return errFileOperationBusy
 	}

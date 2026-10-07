@@ -894,3 +894,41 @@ func TestGetServerStorageBackfillsMissingServerIDs(t *testing.T) {
 		t.Fatalf("磁盘上的 id = %q，期望 %q（应写回）", stored.Servers[0].ID, id)
 	}
 }
+
+// 「分类侧边栏」的展开偏好要能落盘：前端把它放进 config.json，
+// Go 端结构体缺字段时会被静默丢弃（与策略组浮动那次是同一类缺陷）。
+func TestSaveAppConfigPersistsCategorySidebarVisible(t *testing.T) {
+	app := newConfigTestApp(t)
+	app.loadConfig()
+
+	// 没设置过 → 保持 nil（前端据此走默认：收起，不占列表空间）。
+	if got := app.GetAppConfig().CategorySidebarVisible; got != nil {
+		t.Fatalf("没设置过时应保持 nil: %#v", got)
+	}
+
+	visible := true
+	if err := app.SaveAppConfig(ConfigFile{CategorySidebarVisible: &visible}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if got := app.GetAppConfig().CategorySidebarVisible; got == nil || !*got {
+		t.Fatalf("展开偏好应落盘为 true: %#v", got)
+	}
+
+	// 重新读盘（模拟重启）后仍然记得：清掉内存状态再 loadConfig。
+	app.categorySidebarVisible = nil
+	app.loadConfig()
+	if got := app.GetAppConfig().CategorySidebarVisible; got == nil || !*got {
+		t.Fatalf("重启后应读回 true: %#v", got)
+	}
+
+	// 收起也要能记住：false 不能被当成"没设置过"。
+	hidden := false
+	if err := app.SaveAppConfig(ConfigFile{CategorySidebarVisible: &hidden}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	app.categorySidebarVisible = nil
+	app.loadConfig()
+	if got := app.GetAppConfig().CategorySidebarVisible; got == nil || *got {
+		t.Fatalf("重启后应读回 false: %#v", got)
+	}
+}

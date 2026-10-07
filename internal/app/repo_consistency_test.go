@@ -55,7 +55,9 @@ func TestFireaxeParityDocReferencesExist(t *testing.T) {
 // TestHealthIssueKindsHaveLabelAndDocRow：体检类型三层一致 ——
 // Go 常量（后端会产生哪些 kind）→ 前端中文标签 → 用户文档表格。
 func TestHealthIssueKindsHaveLabelAndDocRow(t *testing.T) {
-	goFiles := []string{"internal/app/health_check.go", "internal/app/dependencies.go"}
+	// 体检类型可能散在多个文件里：新增 health_check_xdr.go 后如果这里只列老文件，
+	// 前端新标签会被判成"后端已经没有对应常量"。
+	goFiles := []string{"internal/app/health_check.go", "internal/app/health_check_xdr.go", "internal/app/dependencies.go"}
 	constPattern := regexp.MustCompile(`modHealthKind[A-Za-z]+\s*=\s*"([a-z_]+)"`)
 	kinds := map[string]bool{}
 	for _, file := range goFiles {

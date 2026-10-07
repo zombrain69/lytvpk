@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"vpk-manager/internal/network"
-
 )
 
 const configMigrationVersion = 2
@@ -168,6 +167,10 @@ func (a *App) loadConfig() {
 		value := *config.AutoDetectWorkshopLink
 		a.autoDetectWorkshopLink = &value
 	}
+	if config.CategorySidebarVisible != nil {
+		value := *config.CategorySidebarVisible
+		a.categorySidebarVisible = &value
+	}
 	a.openWithProgram = strings.TrimSpace(config.OpenWithProgram)
 	a.openWithArguments = strings.TrimSpace(config.OpenWithArguments)
 	// 主窗口几何：只接受合理范围，避免手改配置把窗口变成 0×0 或超大。
@@ -240,6 +243,12 @@ func (a *App) snapshotConfig() ConfigFile {
 		value := *a.strategyGroupFloating
 		strategyGroupFloating = &value
 	}
+	// categorySidebarVisible 同样保持"没设置过就是 nil"，前端据此走默认值（收起）。
+	var categorySidebarVisible *bool
+	if a.categorySidebarVisible != nil {
+		value := *a.categorySidebarVisible
+		categorySidebarVisible = &value
+	}
 	// autoDetectWorkshopLink 同理：没设置过就保持 nil，前端走默认（开启）。
 	var autoDetectWorkshopLink *bool
 	if a.autoDetectWorkshopLink != nil {
@@ -288,6 +297,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		ConflictIgnoreFiles:             conflictIgnoreFiles,
 		StrategyGroupFloating:           strategyGroupFloating,
 		AutoDetectWorkshopLink:          autoDetectWorkshopLink,
+		CategorySidebarVisible:          categorySidebarVisible,
 		OpenWithProgram:                 a.openWithProgram,
 		OpenWithArguments:               a.openWithArguments,
 		MainWindowWidth:                 mainWindowWidth,
@@ -376,6 +386,10 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	if config.AutoDetectWorkshopLink != nil {
 		value := *config.AutoDetectWorkshopLink
 		a.autoDetectWorkshopLink = &value
+	}
+	if config.CategorySidebarVisible != nil {
+		value := *config.CategorySidebarVisible
+		a.categorySidebarVisible = &value
 	}
 	// 主窗口几何（宽 / 高 / 最大化）：前端在 config.json 里带这三个字段，
 	// 这里必须写回内存，否则保存等于丢弃 —— GetAppConfig 永远返回 null，

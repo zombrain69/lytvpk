@@ -74,6 +74,13 @@ func (a *App) loadVPKScanCache() (map[string]vpkScanCacheEntry, bool) {
 	if path == "" {
 		return nil, false
 	}
+	// 上次退出时可能正好卡在"写完临时文件、还没改名"之间（例如窗口被强制结束），
+	// 留下一个半截 .tmp。它是纯垃圾，启动时清掉，别让它一直躺在配置目录里。
+	if temp := path + ".tmp"; fileExists(temp) {
+		if err := os.Remove(temp); err == nil {
+			log.Printf("清理上次遗留的扫描缓存临时文件: %s", temp)
+		}
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, false

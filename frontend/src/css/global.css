@@ -469,6 +469,52 @@
   max-width: 100%;
 }
 
+/* 长按拖拽排序：只有挂了手势的组才显示"可抓"光标，避免误导。 */
+.conflict-vpk-names.is-drag-enabled .conflict-vpk-item {
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.conflict-vpk-names.is-reordering,
+.conflict-vpk-names.is-reordering .conflict-vpk-item {
+  cursor: grabbing;
+}
+
+.conflict-vpk-item.is-dragging {
+  z-index: 60;
+  pointer-events: none;
+  cursor: grabbing;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+  opacity: 0.97;
+}
+
+.conflict-drag-placeholder {
+  width: min(100%, 52rem);
+  box-sizing: border-box;
+  border: 1px dashed rgba(79, 70, 229, 0.45);
+  border-radius: var(--radius-md);
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.conflict-drag-hint {
+  padding: 1px var(--spacing-2);
+  border: 1px dashed rgba(79, 70, 229, 0.35);
+  border-radius: var(--radius-full);
+  color: var(--primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body.conflict-row-dragging {
+  cursor: grabbing;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .conflict-vpk-info {
   display: flex;
   align-items: baseline;

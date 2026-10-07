@@ -202,12 +202,15 @@ func buildXDRInfo(index archivePathIndex, vpkFile *VPKFile) {
 		if evidence.character == "未指定角色/模型" || evidence.scope == "未知" {
 			confidence = "中"
 		}
+		designation := XDRSlotDesignationFor(evidence.slot)
 		entries = append(entries, XDRSlotInfo{
 			Character:  evidence.character,
 			Model:      evidence.model,
 			Scope:      evidence.scope,
 			Slot:       evidence.slot,
 			SlotLabel:  evidence.slotLabel,
+			SlotName:   designation.Name,
+			SlotGroup:  designation.Group,
 			Actions:    actions,
 			Evidence:   evidenceFiles,
 			Confidence: confidence,
@@ -228,10 +231,13 @@ func buildXDRInfo(index archivePathIndex, vpkFile *VPKFile) {
 		strings.Contains(strings.ToLower(vpkFile.Title), "xdr") || strings.Contains(strings.ToLower(vpkFile.Title), "reanims")
 	if !marker {
 		vpkFile.XDRSummary = ""
+		// 只带 slot 证据、不带 xdr 字样的包（少见）也要能筛出来。
+		applyXDRTags(index, vpkFile, len(entries) > 0)
 		return
 	}
 	if len(entries) == 0 {
 		vpkFile.XDRSummary = "XDR 动画相关：未发现具体角色/模型 slot 文件"
+		applyXDRTags(index, vpkFile, false)
 		return
 	}
 	// XDR 路径本身通常不落在 models/survivors 或 models/infected 下，旧的
@@ -249,12 +255,54 @@ func buildXDRInfo(index archivePathIndex, vpkFile *VPKFile) {
 	parts := make([]string, 0, len(entries))
 	for _, entry := range entries {
 		part := fmt.Sprintf("%s（%s）· slot %s", entry.Character, entry.Model, entry.SlotLabel)
+		if entry.SlotName != "" {
+			part += "（官方建议 " + entry.SlotName + "）"
+		}
 		if len(entry.Actions) > 0 {
 			part += " · " + strings.Join(entry.Actions, "、")
 		}
 		parts = append(parts, part)
 	}
-	vpkFile.XDRSummary = "XDR：" + strings.Join(parts, "；") + "（同一动作冲突时 slot 数字越小优先级越高）"
+	// 冲突规则来自基础包作者：同一角色同一 slot 只会随机生效一个；两个 Mod 替换同一动作时，
+	// slot 数字小的那个优先（与 addonlist 顺序无关）。
+	vpkFile.XDRSummary = "XDR：" + strings.Join(parts, "；") +
+		"（同角色同 slot 只会随机生效一个；替换同一动作时 slot 数字小的优先）"
+	applyXDRTags(index, vpkFile, true)
+}
+
+// applyXDRTags 给 XDR 相关 Mod 补上筛选细分标签。
+//
+// 根级聚合标签是既有的「XDR动画」（parser.go 在 XDRSummary 非空时写入，覆盖所有相关 Mod），
+// 这里只补两个细分：槽位动作与基础包 —— 让「筛选预设 → 动作（XDR）」能一层层收窄。
+func applyXDRTags(index archivePathIndex, vpkFile *VPKFile, hasSlots bool) {
+	base := isXDReanimsBaseVPK(vpkFile)
+	if !hasSlots && !base {
+		return
+	}
+	tags := make(map[string]bool, len(vpkFile.SecondaryTags)+3)
+	for _, tag := range vpkFile.SecondaryTags {
+		tags[tag] = true
+	}
+	add := func(tag string, source string) {
+		if tags[tag] {
+			return
+		}
+		tags[tag] = true
+		index.evidence.record(tag, source, EvidenceLevelPattern, vpkFile.Name)
+	}
+	if hasSlots {
+		add("XDR槽位动作", "xdr:slot")
+	}
+	if base {
+		add("XDR基础包", "xdr:base")
+	}
+	vpkFile.SecondaryTags = sortedTagSet(tags)
+}
+
+// isXDReanimsBaseVPK 判断是不是 XDR 基础包（xdReanimsBase / 工坊 2121557118）。
+func isXDReanimsBaseVPK(vpkFile *VPKFile) bool {
+	haystack := strings.ToLower(vpkFile.Name + " " + vpkFile.Title)
+	return strings.Contains(haystack, "xdreanimsbase") || strings.Contains(haystack, "2121557118")
 }
 
 func uniqueStrings(values []string) []string {

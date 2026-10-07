@@ -106,7 +106,10 @@ func TestHistoricalWeaponPathsStaySpecificAndDeterministic(t *testing.T) {
 		{name: "Chrome shotgun", path: "models/weapons/shotgun_chrome.mdl", want: "铁喷"},
 		{name: "Uzi", path: "models/weapons/w_smg_uzi.mdl", want: "乌兹"},
 		{name: "Silenced SMG", path: "models/weapons/smg_silenced.mdl", want: "消音"},
-		{name: "Fixed gun", path: "models/w_models/50cal/50cal.mdl", want: "固定机关枪"},
+		// 固定机枪按本体模型分代：50cal 是 L4D2 的 Heavy MG（二代），
+		// w_minigun 是 L4D1 的 Minigun（一代）；聚合标签「固定机关枪」由 addWeaponTag 补。
+		{name: "Fixed gun (L4D2 HMG)", path: "models/w_models/50cal/50cal.mdl", want: "二代固定机枪"},
+		{name: "Fixed gun (L4D1 Minigun)", path: "models/w_models/weapons/w_minigun.mdl", want: "一代固定机枪"},
 		{name: "Riot shield", path: "models/weapons/melee/riot_shield.mdl", want: "防爆盾"},
 	}
 

@@ -9,14 +9,47 @@ type ChapterInfo struct {
 // XDRSlotInfo describes one xdReanimsBase-compatible animation model and the
 // slot it occupies for a survivor or infected character.
 type XDRSlotInfo struct {
-	Character  string   `json:"character"`
-	Model      string   `json:"model"`
-	Scope      string   `json:"scope"`
-	Slot       int      `json:"slot"`
-	SlotLabel  string   `json:"slotLabel"`
+	Character string `json:"character"`
+	Model     string `json:"model"`
+	Scope     string `json:"scope"`
+	Slot      int    `json:"slot"`
+	SlotLabel string `json:"slotLabel"`
+	// SlotName / SlotGroup 是官方建议用途（见 xdr_slots.go）。
+	// 作者可能自选其它槽位，所以只能当参考，不能当事实。
+	SlotName   string   `json:"slotName,omitempty"`
+	SlotGroup  string   `json:"slotGroup,omitempty"`
 	Actions    []string `json:"actions"`
 	Evidence   []string `json:"evidence"`
 	Confidence string   `json:"confidence"`
+}
+
+// XDRSlotRival 是"同一个角色同一个槽"上的另一个 Mod。
+//
+// 官方规则（xdReanimsBase 作者）：同角色同槽只会**随机生效一个**，不是按加载顺序。
+// 所以同槽的 Mod 都要被标出来，用户才知道自己看到的动作可能是哪一个。
+type XDRSlotRival struct {
+	Name  string `json:"name"`
+	Title string `json:"title,omitempty"`
+}
+
+// XDRSlotStatus 描述"这个 Mod 的某个角色/槽位会不会真的播出来"。
+// State 取值：active（该槽只有它，会按预期播放）/ random（同槽有别人，游戏随机选一个）。
+type XDRSlotStatus struct {
+	Character string         `json:"character"`
+	Slot      int            `json:"slot"`
+	SlotLabel string         `json:"slotLabel"`
+	SlotName  string         `json:"slotName,omitempty"`
+	State     string         `json:"state"`
+	Rivals    []XDRSlotRival `json:"rivals,omitempty"`
+}
+
+// XDRPriorityInfo 汇总一个 Mod 的 XDR 动作生效情况。
+// State 取值：active（全部槽位唯一）/ random（全部槽位都被同槽占用）/ partial（部分唯一）。
+type XDRPriorityInfo struct {
+	State       string          `json:"state"`
+	ActiveSlots int             `json:"activeSlots"`
+	RandomSlots int             `json:"randomSlots"`
+	Slots       []XDRSlotStatus `json:"slots,omitempty"`
 }
 
 // VPKFile 表示一个VPK文件的信息
@@ -33,6 +66,8 @@ type VPKFile struct {
 	SubjectConfidence string        `json:"subjectConfidence"` // 主体证据置信度：高/中/低
 	XDRSlots          []XDRSlotInfo `json:"xdrSlots"`          // xdReanimsBase 角色/模型与 slot 证据
 	XDRSummary        string        `json:"xdrSummary"`        // 面向用户的 XDR 精确摘要
+	// XDRPriority 是"这些动作到底会不会播"的结论（跨 Mod 计算，扫描后按需附加）。
+	XDRPriority *XDRPriorityInfo `json:"xdrPriority,omitempty"`
 	// VPK 内部结构摘要（扫描时顺带统计，供分组推导与外部智能体分析使用）。
 	StructureTopDirs     []string `json:"structureTopDirs"`     // 顶层目录及条目数（按名称排序）
 	StructureFileCount   int      `json:"structureFileCount"`   // 条目总数

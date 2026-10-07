@@ -18,6 +18,9 @@ const HEALTH_ISSUE_KIND_LABELS = {
   duplicate_vpk_copy: "工坊作品有多份副本",
   duplicate_disabled_copy: "根目录与 disabled 各一份",
   subfolder_vpks: "子目录里的 VPK 不会被加载",
+  xdr_slot_collision: "XDR 同槽冲突",
+  xdr_missing_base: "缺少 XDR 基础包",
+  xdr_variant_pack: "XDR 多版本动作包",
 };
 
 export function formatHealthIssueKind(kind) {

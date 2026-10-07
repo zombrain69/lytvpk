@@ -206,6 +206,10 @@ func (a *App) createAddonListBackupLocked(kind string, content []byte) (AddonLis
 
 // CreateAddonListBackup 创建一份当前 addonlist.txt 的历史备份。
 func (a *App) CreateAddonListBackup() (AddonListBackup, error) {
+	// 沙箱只读闸门：备份会往游戏目录写文件；只读实例一律不落盘。
+	if err := rejectReadonlyLibraryWrite("创建 addonlist.txt 备份"); err != nil {
+		return AddonListBackup{}, err
+	}
 	a.addonListGuardMu.Lock()
 	defer a.addonListGuardMu.Unlock()
 
@@ -279,6 +283,10 @@ func validAddonListBackupName(name string) bool {
 
 // RestoreAddonListBackup 恢复一个历史备份，并同步更新受保护版本，避免自动监控将其回滚。
 func (a *App) RestoreAddonListBackup(name string) (AddonListInfo, error) {
+	// 沙箱只读闸门：恢复备份会覆盖 addonlist.txt。
+	if err := rejectReadonlyLibraryWrite("恢复 addonlist.txt 备份"); err != nil {
+		return AddonListInfo{}, err
+	}
 	if !validAddonListBackupName(name) {
 		return AddonListInfo{}, fmt.Errorf("无效的 addonlist.txt 备份名称")
 	}
@@ -315,6 +323,9 @@ func (a *App) RestoreAddonListBackup(name string) (AddonListInfo, error) {
 
 // DeleteAddonListBackup 删除一份历史备份。受保护版本和首次编辑备份不会受影响。
 func (a *App) DeleteAddonListBackup(name string) error {
+	if err := rejectReadonlyLibraryWrite("删除 addonlist.txt 备份"); err != nil {
+		return err
+	}
 	if !validAddonListBackupName(name) {
 		return fmt.Errorf("无效的 addonlist.txt 备份名称")
 	}
@@ -333,6 +344,10 @@ func (a *App) DeleteAddonListBackup(name string) error {
 
 // DeleteAddonList 删除当前 addonlist.txt；删除前会自动创建 before-delete 备份。
 func (a *App) DeleteAddonList() error {
+	// 沙箱只读闸门：删除 addonlist.txt 属于破坏性写盘。
+	if err := rejectReadonlyLibraryWrite("删除 addonlist.txt"); err != nil {
+		return err
+	}
 	a.addonListGuardMu.Lock()
 	path, err := a.addonListPath()
 	if err != nil {
@@ -435,6 +450,11 @@ func (a *App) syncManagedAddonListSnapshotLocked(path string) error {
 }
 
 func writeAddonListBytesAtomically(path string, content []byte) error {
+	// 沙箱只读闸门：这是 addonlist.txt / 受保护快照的底层写入口，
+	// 覆盖"恢复备份""保存快照""监控自动回滚"这些绕过事务函数的路径。
+	if err := rejectReadonlyLibraryWrite("写入 addonlist.txt"); err != nil {
+		return err
+	}
 	temporary, err := os.CreateTemp(filepath.Dir(path), ".lytvpk-addonlist-*")
 	if err != nil {
 		return err

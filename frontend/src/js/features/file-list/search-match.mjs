@@ -166,7 +166,20 @@ const SEARCHABLE_FIELDS = [
 	{ label: "子标签", read: (file) => file?.secondaryTags || [] },
 	{ label: "主体", read: (file) => [file?.subjectSummary, ...(file?.contentSubjects || [])] },
 	{ label: "发音角色", read: (file) => file?.voiceCharacters || [] },
-	{ label: "动作槽", read: (file) => [file?.xdrSummary] },
+	{
+		label: "动作槽",
+		read: (file) => {
+			const priority = file?.xdrPriority;
+			const stateText = priority?.state === "active"
+				? "动作生效"
+				: priority?.state === "random"
+					? "动作随机生效 同槽冲突"
+					: priority?.state === "partial"
+						? "动作部分生效"
+						: "";
+			return [file?.xdrSummary, stateText];
+		},
+	},
 ];
 
 /** fileTags 返回该 Mod 的全部标签（一级 + 二级）。 */

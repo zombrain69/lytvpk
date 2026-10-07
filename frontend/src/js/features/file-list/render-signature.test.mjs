@@ -74,3 +74,24 @@ test("对比范围角标的文案同时反映冲突与覆盖", () => {
     "需要区分“没有重叠”和“不满足对比范围、根本没参与分析”",
   );
 });
+
+// XDR 动作生效角标（官方规则：同角色同槽只会随机生效一个）同样是"渲染出来的值"，
+// 漏进签名会让卡片复用后角标停在旧状态 —— 切开关、装/卸动作 Mod 后看不出来。
+test("卡片签名覆盖 XDR 动作生效角标", () => {
+  const body = functionBody("getFileCardRenderSignature");
+  assert.ok(body.includes("xdrPriority"), "签名必须包含 XDR 动作生效结论");
+  assert.ok(body.includes("randomSlots"), "签名要记录同槽（随机生效）槽位数量");
+
+  const badge = functionBody("buildXDRPriorityBadge");
+  assert.ok(badge.includes("xdr-priority-badge"), "角标要有独立 class，方便样式与检索");
+  for (const state of ["is-active", "is-random", "is-partial"]) {
+    assert.ok(badge.includes(state), `角标必须覆盖状态 ${state}`);
+  }
+  assert.ok(
+    badge.includes("同角色同槽只会随机生效一个"),
+    "随机生效的说明必须写清官方规则，并点明与加载顺序无关",
+  );
+
+  const card = functionBody("createFileCard");
+  assert.ok(card.includes("buildXDRPriorityBadge(file)"), "卡片要渲染 XDR 动作生效角标");
+});

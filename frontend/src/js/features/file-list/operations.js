@@ -152,6 +152,13 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
       // 组内其它成员的开关状态已经变化，重新扫描一次让列表同步。
       await refreshFilesKeepFilter();
     }
+
+    // XDR 动作的"会不会播"取决于同槽的其它 Mod 是否也会被游戏挂载：
+    // 有动作槽位的 Mod 一开关，它和同槽对手的角标都该跟着变。
+    // 只对这类 Mod 付一次后台静默刷新，普通 Mod 开关的零刷新路径不受影响。
+    if ((file?.xdrSlots?.length || 0) > 0 && !enforcementNotice) {
+      void refreshFilesKeepFilter({ silent: true });
+    }
   } catch (error) {
     console.error("切换游戏内开关失败:", error);
     const message = String(error || "");

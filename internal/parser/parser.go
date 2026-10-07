@@ -168,6 +168,11 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 中文二级标签。纯“其他”内容无需调整前端即可按这些标签筛选；混合包
 	// 也会保留其附加内容证据。
 	mergeTagSet(secondaryTags, index.contentTags)
+	if vpkType == "地图" {
+		// 地图包口径：资源名巧合（token / 槽位通道）不参与武器·物品归属，
+		// 只保留本体精确锚点、标题与内容标签（见 map_resource_tags.go）。
+		dropCoincidenceOnlyTags(secondaryTags, index.evidence)
+	}
 	delete(secondaryTags, vpkFile.PrimaryTag)
 
 	// 设置最终的标签

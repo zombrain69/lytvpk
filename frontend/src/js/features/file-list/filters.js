@@ -12,6 +12,8 @@ import { resetBoxSelection } from "./box-selection.js";
 import { scheduleScopedConflictAnalysis } from "../conflicts/conflicts.js";
 import { fileMatchesGroupFilter } from "../mod-groups/group-view.mjs";
 import { refreshModGroupMembershipState } from "../mod-groups/group-state.mjs";
+import { refreshCategorySidebar, syncCategorySidebarSelection } from "./category-tree.js";
+import { PRESET_GROUPS as SECONDARY_TAG_PRESET_GROUPS } from "./category-tree.mjs";
 import { GetPrimaryTags, GetSecondaryTags, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
 
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
@@ -33,186 +35,6 @@ let searchRequestId = 0;
 let tagFilterRenderId = 0;
 let secondaryTagRenderId = 0;
 
-// 这些预设不依赖当前目录恰好扫描到哪些二级标签。这样即使某个目录暂时没有
-// 例如 MP5 或草叉，用户也能看到完整的游戏内物品分类，并可直接切换筛选。
-// 根级“查看全部”使用后端已经写入 VPK 的聚合标签；展开后则可以精确勾选到单件。
-const SECONDARY_TAG_PRESET_GROUPS = [
-  {
-    id: "firearms",
-    label: "枪械",
-    allTag: "所有枪械",
-    description: "19 把便携枪械 + 固定机关枪",
-    groups: [
-      { label: "手枪", allTag: "手枪", tags: ["小手枪", "马格南"] },
-      { label: "步枪", allTag: "步枪", tags: ["AK47", "M16", "三连发", "sg552"] },
-      { label: "冲锋枪", allTag: "冲锋枪", tags: ["乌兹", "消音", "MP5"] },
-      { label: "狙击枪", allTag: "狙击枪", tags: ["大狙", "猎枪", "军狙", "鸟狙"] },
-      { label: "霰弹枪", allTag: "霰弹枪", tags: ["木喷", "一代连喷", "铁喷", "二代连喷"] },
-      { label: "特殊 / 重型", tags: ["M60", "榴弹发射器", "固定机关枪"] },
-    ],
-  },
-  {
-    id: "official-melee",
-    label: "官方近战",
-    allTag: "所有官方近战",
-    description: "13 把官方近战；隐藏近战单独保留",
-    groups: [
-      { label: "钝器", tags: ["棒球棍", "板球拍", "吉他", "平底锅", "高尔夫球杆", "警棍"] },
-      { label: "锐器", tags: ["消防斧", "砍刀", "武士刀", "撬棍"] },
-      { label: "工具", tags: ["电锯", "草叉", "铁铲"] },
-      { label: "隐藏近战", tags: ["匕首", "防爆盾"] },
-    ],
-  },
-  {
-    id: "throwables",
-    label: "投掷物品",
-    allTag: "所有投掷物品",
-    groups: [
-      { label: "全部投掷物", allTag: "投掷物", tags: ["土制炸弹", "燃烧瓶", "胆汁"] },
-    ],
-  },
-  {
-    id: "medical-items",
-    label: "医疗物品",
-    allTag: "所有医疗物品",
-    groups: [
-      { label: "全部医疗物品", allTag: "医疗物品", tags: ["医疗包", "电击器", "止痛药", "肾上腺"] },
-    ],
-  },
-  {
-    id: "supply-boxes",
-    label: "补给盒",
-    allTag: "盒子",
-    description: "弹药堆、升级弹药与激光瞄准盒",
-    groups: [
-      { label: "弹药堆", allTag: "弹药堆", tags: ["一代子弹堆", "二代子弹堆"] },
-      { label: "燃烧弹", allTag: "燃烧弹", tags: ["燃烧弹盒"] },
-      { label: "高爆弹", allTag: "高爆弹", tags: ["高爆弹盒"] },
-      { label: "镭射", allTag: "镭射", tags: ["激光瞄准盒"] },
-    ],
-  },
-  {
-    id: "survivors",
-    label: "八位幸存者",
-    allTag: "幸存者",
-    description: "一代四人和二代四人；按游戏角色资源路径自动识别",
-    groups: [
-      {
-        label: "一代幸存者",
-        tags: ["Bill", "Zoey", "Louis", "Francis"],
-        tagLabels: {
-          Bill: "比尔 · Bill",
-          Zoey: "佐伊 · Zoey",
-          Louis: "路易斯 · Louis",
-          Francis: "弗朗西斯 · Francis",
-        },
-      },
-      {
-        label: "二代幸存者",
-        tags: ["Nick", "Rochelle", "Coach", "Ellis"],
-        tagLabels: {
-          Nick: "尼克 · Nick",
-          Rochelle: "萝雪儿 · Rochelle",
-          Coach: "教练 · Coach",
-          Ellis: "艾利斯 · Ellis",
-        },
-      },
-    ],
-  },
-  {
-    id: "special-infected",
-    label: "特殊感染者",
-    allTag: "特殊感染者",
-    description: "八种特殊感染者；可按牵制、范围和高威胁角色细分",
-    groups: [
-      {
-        label: "牵制与突袭",
-        tags: ["smoker", "hunter", "jockey"],
-        tagLabels: {
-          smoker: "舌头 · Smoker",
-          hunter: "猎人 · Hunter",
-          jockey: "猴子 · Jockey",
-        },
-      },
-      {
-        label: "爆炸、地面与冲撞",
-        tags: ["boomer", "spitter", "charger"],
-        tagLabels: {
-          boomer: "胖子 · Boomer",
-          spitter: "口水 · Spitter",
-          charger: "牛 · Charger",
-        },
-      },
-      {
-        label: "高威胁",
-        tags: ["tank", "witch"],
-        tagLabels: {
-          tank: "坦克 · Tank",
-          witch: "女巫 · Witch",
-        },
-      },
-    ],
-  },
-  {
-    id: "common-infected",
-    label: "普通感染者",
-    allTag: "普通感染者",
-    description: "常见感染者与罕见感染者的角色资源",
-    groups: [
-      {
-        label: "感染者种类",
-        tags: ["common", "uncommon_infected"],
-        tagLabels: {
-          common: "常见感染者 · Common",
-          uncommon_infected: "罕见感染者 · Uncommon",
-        },
-      },
-    ],
-  },
-  {
-    id: "interface-and-audio",
-    label: "界面与声音",
-    description: "主菜单、HUD、提示元素，以及语音和环境音效",
-    groups: [
-      {
-        label: "游戏界面",
-        allTag: "UI",
-        tags: ["主菜单", "HUD", "准星", "血条", "伤害指示器", "人物语音表"],
-      },
-      {
-        label: "语音与声音",
-        allTag: "声音",
-        tags: ["语音包", "人物语音表", "尸潮", "警报", "唱片机"],
-      },
-      {
-        label: "资源类型",
-        tags: ["模型", "贴图", "脚本"],
-      },
-    ],
-  },
-  {
-    id: "world-and-props",
-    label: "场景与道具",
-    description: "关卡画面、交互元素和常用场景模型；可展开精确勾选",
-    groups: [
-      { label: "关卡画面", tags: ["天空", "过场画面", "载入画面"] },
-      { label: "交互与动态元素", tags: ["手电筒", "梯子", "动态箭头", "警报", "尸潮", "唱片机"] },
-      { label: "可搬运物与容器", tags: ["汽油桶", "煤气罐", "氧气罐", "烟花盒"] },
-      { label: "常用场景道具", tags: ["侏儒", "直升机", "海报", "船", "售货机", "电视", "屏幕", "货车", "面包车", "雕像"] },
-    ],
-  },
-  {
-    id: "map-game-modes",
-    label: "地图游戏模式",
-    description: "仅匹配从战役 mission 文件中解析出的模式标签；建议与主标签“地图”联用",
-    groups: [
-      {
-        label: "支持的游戏模式",
-        tags: ["战役模式", "对抗模式", "生存模式", "清道夫模式", "写实模式", "突变模式"],
-      },
-    ],
-  },
-];
 
 function getGameStateDisplayName(state) {
   switch (state) {
@@ -319,33 +141,8 @@ function syncSecondaryTagFilterUI() {
     trigger.classList.toggle("has-selection", selected.size > 0);
     trigger.setAttribute("aria-label", selected.size > 0 ? `子标签筛选，已选 ${selected.size} 项` : "子标签筛选，未选择");
   });
-  document.querySelectorAll(".secondary-preset-dropdown .preset-filter-trigger").forEach((trigger) => {
-    const prefix = trigger.closest(".filter-layout-classic") ? "内容预设" : "预设";
-    const text = selected.size > 0 ? `${prefix} · 已选 ${selected.size}` : prefix;
-    // 只改文字节点：直接写 trigger.textContent 会把按钮里的图标一起抹掉
-    // （「内容预设」按钮的图标就是这么消失的）。
-    const label = trigger.querySelector(".preset-filter-trigger-label");
-    if (label) {
-      label.textContent = text;
-    } else {
-      trigger.textContent = text;
-    }
-    trigger.classList.toggle("has-selection", selected.size > 0);
-    trigger.setAttribute("aria-label", selected.size > 0 ? `内容预设，已选 ${selected.size} 项` : "内容预设，未选择");
-  });
   document.querySelectorAll(".secondary-match-mode-btn").forEach((button) => {
     button.textContent = `匹配方式：${getSecondaryMatchModeLabel()}`;
-  });
-
-  SECONDARY_TAG_PRESET_GROUPS.forEach((group) => {
-    const groupTags = getPresetGroupTags(group);
-    const selectedCount = groupTags.filter((tag) => selected.has(tag)).length;
-    document.querySelectorAll(`[data-preset-group="${group.id}"]`).forEach((element) => {
-      element.classList.toggle("has-selection", selectedCount > 0);
-      element.querySelectorAll(".preset-group-selected-count").forEach((count) => {
-        count.textContent = selectedCount ? `已选 ${selectedCount}` : "未选择";
-      });
-    });
   });
   renderActiveFilterSummary();
 }
@@ -695,40 +492,6 @@ function createFilterFlyoutHeader(title, description) {
   return header;
 }
 
-function renderSecondaryTagPresets(container) {
-  if (!container) return;
-  container.querySelectorAll(".secondary-preset-dropdown").forEach((dropdown) => dropdown.remove());
-
-  const dropdown = document.createElement("div");
-  dropdown.className = "multi-select-dropdown secondary-preset-dropdown";
-  const triggerLabel = appState.filterLayoutMode === "classic" ? "内容预设" : "预设";
-  dropdown.innerHTML = `
-    <button type="button" class="preset-filter-trigger" title="打开角色、感染者、枪械、近战、物品、界面与场景的快捷预设">
-      <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9"/><path d="M17 6h3"/><circle cx="15" cy="6" r="2"/><path d="M4 12h3"/><path d="M11 12h9"/><circle cx="9" cy="12" r="2"/><path d="M4 18h9"/><path d="M17 18h3"/><circle cx="15" cy="18" r="2"/></svg>
-      <span class="preset-filter-trigger-label">${triggerLabel}</span>
-    </button>
-    <div class="select-menu multi-select-menu filter-flyout-menu preset-filter-menu hidden" role="dialog" aria-label="内容预设筛选"></div>
-  `;
-
-  const trigger = dropdown.querySelector(".preset-filter-trigger");
-  const menu = dropdown.querySelector(".preset-filter-menu");
-  menu.appendChild(createFilterFlyoutHeader("内容预设", "角色、感染者、武器、物品、界面和场景均可展开筛选"));
-  const help = document.createElement("p");
-  help.className = "preset-filter-help";
-  help.textContent = "点“查看全部”一键筛选；展开后可勾选具体项目，并与任一 / 全部匹配联动。";
-  menu.appendChild(help);
-  SECONDARY_TAG_PRESET_GROUPS.forEach((group) => menu.appendChild(createPresetGroup(group)));
-
-  trigger.addEventListener("click", (event) => {
-    event.stopPropagation();
-    toggleFilterMenu(trigger, menu);
-  });
-  menu.addEventListener("click", (event) => event.stopPropagation());
-
-  container.appendChild(dropdown);
-  syncSecondaryTagFilterUI();
-}
-
 document.addEventListener("app:page-change", (event) => {
   if (event.detail?.page === "mods") {
     requestAnimationFrame(updateClassicSecondaryTagsCollapse);
@@ -812,6 +575,9 @@ function renderSelectBasedFilters(tagContainer, locationContainer, primaryTags) 
   });
 
   primaryGroup.appendChild(dropdown);
+
+  // 标签筛选控件重建 = 一次扫描/刷新完成：分类树这时重算数量（分组并集，不重复计数）。
+  refreshCategorySidebar();
   tagContainer.appendChild(primaryGroup);
   updatePrimaryTagDropdownUI();
 
@@ -982,7 +748,6 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId) {
       emptyHint.textContent = "没有匹配的子标签";
       tagsSlot.appendChild(emptyHint);
 
-      renderSecondaryTagPresets(actionSlot);
       addSecondaryMatchModeControl(actionSlot);
 
       filterClassicSecondaryTagButtons();
@@ -996,7 +761,6 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId) {
       emptyHint.className = "classic-secondary-empty-hint";
       emptyHint.textContent = "当前目录没有已识别的子标签，可使用右侧预设筛选。";
       tagsSlot.appendChild(emptyHint);
-      renderSecondaryTagPresets(actionSlot);
       addSecondaryMatchModeControl(actionSlot);
       syncSecondaryTagFilterUI();
     }
@@ -1040,73 +804,93 @@ function filterClassicSecondaryTagButtons(filterText) {
   updateClassicSecondaryTagsCollapse();
 }
 
-function scheduleSecondaryTagsCollapse(container, actionSlot) {
-  const run = () => updateSecondaryTagsCollapse(container, actionSlot);
-  requestAnimationFrame(() => {
-    if (!run()) {
-      setTimeout(run, 80);
-    }
+// 子标签默认只占一行，右侧给「展开全部 N 项」；展开状态在同一次运行里保持。
+let secondaryTagsExpanded = false;
+let secondaryTagsResizeObserver = null;
+
+function createSecondaryTagsExpandButton(container, actionSlot) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "expand-tags-btn";
+  button.addEventListener("click", () => {
+    secondaryTagsExpanded = !secondaryTagsExpanded;
+    syncSecondaryTagsCollapse(container, actionSlot);
+    // 展开/收起后行高变化大，下一帧再量一次，避免按钮状态与真实行数不一致。
+    requestAnimationFrame(() => syncSecondaryTagsCollapse(container, actionSlot));
   });
+  actionSlot.appendChild(button);
+  return button;
+}
+
+// syncSecondaryTagsCollapse 是折叠/展开的唯一同步点：
+// 1) 无论布局有没有就绪，先把容器落到用户要的状态（默认收起 = 一行）；
+// 2) 只有"收起后确实会被截断"才显示「展开全部 N 项」按钮；
+// 3) 量不到尺寸时返回 false，让调用方稍后重试（旧实现只重试一次，布局慢时就会整片铺开）。
+function syncSecondaryTagsCollapse(container, actionSlot) {
+  if (!document.body.contains(container)) return true;
+
+  const visibleButtons = Array.from(container.children).filter((button) => !button.hidden);
+  let expandBtn = actionSlot.querySelector(".expand-tags-btn");
+  if (visibleButtons.length === 0) {
+    container.classList.remove("collapsed");
+    container.dataset.expanded = "";
+    expandBtn?.remove();
+    return true;
+  }
+  if (container.getBoundingClientRect().width <= 0) return false;
+
+  expandBtn = expandBtn || createSecondaryTagsExpandButton(container, actionSlot);
+
+  // 展开态没有 max-height，量不出"收起会不会截断"，所以先强制收起量一次。
+  const wantCollapsed = !secondaryTagsExpanded;
+  container.classList.add("collapsed");
+  const overflows = container.scrollHeight > container.clientHeight + 1;
+  container.classList.toggle("collapsed", wantCollapsed);
+  container.dataset.expanded = secondaryTagsExpanded ? "true" : "false";
+
+  expandBtn.hidden = !overflows;
+  syncExpandButton(expandBtn, secondaryTagsExpanded, visibleButtons.length);
+  return true;
 }
 
 function updateClassicSecondaryTagsCollapse() {
   const container = document.querySelector(".filter-row-filters.filter-layout-classic .secondary-tags-container");
   const actionSlot = document.querySelector(".filter-row-filters.filter-layout-classic .classic-secondary-action-slot");
   if (container && actionSlot) {
-    updateSecondaryTagsCollapse(container, actionSlot);
+    syncSecondaryTagsCollapse(container, actionSlot);
   }
 }
 
-function updateSecondaryTagsCollapse(container, actionSlot) {
-  if (!document.body.contains(container)) return true;
-
-  const rect = container.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return false;
-
-  let expandBtn = actionSlot.querySelector(".expand-tags-btn");
-  const tagButtons = Array.from(container.children).filter((button) => !button.hidden);
-  if (tagButtons.length === 0) {
-    container.classList.remove("collapsed");
-    container.dataset.expanded = "";
-    expandBtn?.remove();
-    return true;
-  }
-
-  const firstRowTop = tagButtons[0]?.offsetTop ?? 0;
-  const hasMultipleRows = tagButtons.some((button) => button.offsetTop > firstRowTop);
-
-  if (!hasMultipleRows) {
-    container.classList.remove("collapsed");
-    container.dataset.expanded = "";
-    expandBtn?.remove();
-    return true;
-  }
-
-  if (!expandBtn) {
-    container.classList.add("collapsed");
-    container.dataset.expanded = "false";
-
-    expandBtn = document.createElement("button");
-    expandBtn.className = "expand-tags-btn";
-    expandBtn.onclick = () => {
-      const willExpand = container.classList.contains("collapsed");
-      container.classList.toggle("collapsed", !willExpand);
-      container.dataset.expanded = willExpand ? "true" : "false";
-      syncExpandButton(expandBtn, willExpand);
-    };
-    actionSlot.appendChild(expandBtn);
-  } else if (container.dataset.expanded !== "true") {
-    container.classList.add("collapsed");
-  }
-
-  syncExpandButton(expandBtn, container.dataset.expanded === "true");
-  return true;
+function attachSecondaryTagsResizeObserver(container, actionSlot) {
+  if (typeof ResizeObserver !== "function") return;
+  secondaryTagsResizeObserver?.disconnect();
+  secondaryTagsResizeObserver = new ResizeObserver(() => {
+    if (!document.body.contains(container)) {
+      secondaryTagsResizeObserver?.disconnect();
+      return;
+    }
+    syncSecondaryTagsCollapse(container, actionSlot);
+  });
+  secondaryTagsResizeObserver.observe(container);
 }
 
-function syncExpandButton(button, isExpanded) {
+function scheduleSecondaryTagsCollapse(container, actionSlot) {
+  let attempts = 0;
+  const run = () => {
+    attempts += 1;
+    if (!syncSecondaryTagsCollapse(container, actionSlot)) {
+      if (attempts < 12) setTimeout(run, 80);
+      return;
+    }
+    attachSecondaryTagsResizeObserver(container, actionSlot);
+  };
+  requestAnimationFrame(run);
+}
+
+function syncExpandButton(button, isExpanded, count = 0) {
   button.innerHTML = isExpanded
     ? '<span class="icon">▲</span> 收起'
-    : '<span class="icon">▼</span> 展开';
+    : `<span class="icon">▼</span> 展开全部${count ? ` ${count} 项` : ""}`;
 }
 
 async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) {
@@ -1130,7 +914,6 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
       emptyTrigger.textContent = "暂无已识别标签";
       emptyTrigger.disabled = true;
       secondaryGroup.appendChild(emptyTrigger);
-      renderSecondaryTagPresets(secondaryGroup);
       syncSecondaryTagFilterUI();
       return;
     }
@@ -1216,7 +999,6 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
     });
 
     secondaryGroup.appendChild(dropdown);
-    renderSecondaryTagPresets(secondaryGroup);
     syncSecondaryTagFilterUI();
   } catch (error) {
     if (!isCurrentSecondaryTagRender(secondaryGroup, renderId)) return;
@@ -1583,12 +1365,73 @@ export async function performSearch() {
     // 组归属是异步附加信息：刷新完成后由 group-state 通知重绘徽标，不阻塞列表渲染。
     void refreshModGroupMembershipState({ silent: true });
 
+    // 分类树的高亮跟着实际筛选状态走（工具栏标签菜单、筛选芯片等改了筛选时也要同步）。
+    syncCategorySidebarSelection();
     console.log(`搜索完成，显示 ${appState.vpkFiles.length} 个文件`);
   } catch (error) {
     if (requestId !== searchRequestId || !filterStateStillMatches(filters)) return;
     console.error("搜索失败:", error);
     showError("搜索失败: " + error);
   }
+}
+
+// toggleCategoryFilterSelection 给分类侧边栏用：与「内容预设」同一语义 ——
+// 点一下「加上这一类」，再点一下取消，可以同时选多类；不动其它维度的既有筛选。
+// 树只描述"选什么"，真正的筛选状态与联动（芯片、摘要、下拉框同步）仍然由这里统一处理。
+export async function toggleCategoryFilterSelection(selection = {}) {
+  const tags = Array.isArray(selection?.tags) ? selection.tags : [];
+  const locations = Array.isArray(selection?.locations) ? selection.locations : [];
+  const gameStates = Array.isArray(selection?.gameStates) ? selection.gameStates : [];
+
+  if (tags.length > 0) {
+    setSelectedSecondaryTags(toggleFilterValues(appState.selectedSecondaryTags, tags));
+    syncSecondaryTagFilterUI();
+  }
+  if (locations.length > 0) {
+    appState.selectedLocations = toggleFilterValues(appState.selectedLocations, locations);
+    updateLocationFilterDropdownUI();
+  }
+  if (gameStates.length > 0) {
+    appState.selectedGameStates = toggleFilterValues(appState.selectedGameStates, gameStates);
+    updateGameStateFilterDropdownUI();
+  }
+  await performSearch();
+}
+
+// clearCategoryFilterSelection 只清「分类」这一层：标签 + 位置 + 游戏内状态。
+export async function clearCategoryFilterSelection() {
+  setSelectedSecondaryTags([]);
+  syncSecondaryTagFilterUI();
+  appState.selectedLocations = [];
+  updateLocationFilterDropdownUI();
+  appState.selectedGameStates = [];
+  updateGameStateFilterDropdownUI();
+  await performSearch();
+}
+
+// 分类树上的「查看全部」：选中该组/子组的聚合标签（与旧内容预设菜单同一个函数）。
+export async function applyPresetAggregateTag(tag) {
+  if (!tag) return;
+  selectPresetAggregate(tag);
+}
+
+// 分类树上的「清空本组」：只取消这一组挂着的标签，其它选择保持不动。
+export async function clearPresetGroupTags(tags) {
+  const targets = Array.isArray(tags) ? tags : [];
+  if (targets.length === 0) return;
+  setSelectedSecondaryTags((appState.selectedSecondaryTags || []).filter((tag) => !targets.includes(tag)));
+  syncSecondaryTagFilterUI();
+  await performSearch();
+}
+
+function toggleFilterValues(current, values) {
+  const list = Array.isArray(current) ? current : [];
+  const targets = Array.isArray(values) ? values : [];
+  if (targets.length === 0) return [...list];
+  const allSelected = targets.every((value) => list.includes(value));
+  return allSelected
+    ? list.filter((value) => !targets.includes(value))
+    : [...new Set([...list, ...targets])];
 }
 
 export function toggleFilterMenu(trigger, menu) {

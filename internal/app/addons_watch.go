@@ -168,6 +168,7 @@ func (aw *addonsWatcher) stop() {
 		if aw.watcher != nil {
 			_ = aw.watcher.Close()
 		}
+		log.Printf("已停止监听 Mod 目录外部改动（目录句柄已释放）")
 	})
 	select {
 	case <-aw.doneCh:

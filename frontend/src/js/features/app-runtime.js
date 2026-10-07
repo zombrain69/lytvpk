@@ -114,6 +114,10 @@ import {
   resetFilters,
   renderTagFilters,
   refreshFilesKeepFilter,
+  toggleCategoryFilterSelection,
+  clearCategoryFilterSelection,
+  applyPresetAggregateTag,
+  clearPresetGroupTags,
 } from "./file-list/filters.js";
 import { setupSortEvents } from "./file-list/sorting.js";
 import {
@@ -135,6 +139,7 @@ import {
 import { setupFileListEventDelegation } from "./file-list/events.js";
 import { initBoxSelection, waitForBoxSelectionIdle } from "./file-list/box-selection.js";
 import { createExternalRefreshScheduler } from "./file-list/external-refresh.mjs";
+import { setupCategorySidebar } from "./file-list/category-tree.js";
 import { showServerSubmenu } from "./file-list/context-menu.js";
 import { shareSelectedWorkshopItems } from "./file-list/share.js";
 import {
@@ -911,6 +916,23 @@ async function initializeApp() {
     await initWorkshopState();
   }
   initBoxSelection();
+  // 分类侧边栏：树上的点击全部走 filters.js 已有的筛选路径（不复制过滤逻辑）。
+  setupCategorySidebar({
+    toggleSelection: toggleCategoryFilterSelection,
+    clearSelection: clearCategoryFilterSelection,
+    selectAggregate: applyPresetAggregateTag,
+    clearGroup: clearPresetGroupTags,
+    // 展开/收起状态持久化：没设置过 → 默认收起；用户点过之后记住他的选择。
+    loadVisible: () => {
+      const value = getConfig().categorySidebarVisible;
+      return typeof value === "boolean" ? value : null;
+    },
+    saveVisible: (visible) => {
+      const config = getConfig();
+      config.categorySidebarVisible = Boolean(visible);
+      saveConfig(config);
+    },
+  });
   initUpdateCheck();
   await initProblemModScanAutoRestore();
 

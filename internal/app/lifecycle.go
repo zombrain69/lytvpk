@@ -15,6 +15,8 @@ import (
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	// 沙箱只读闸门：启动时先把状态写进日志（只读沙箱实例一眼可辨）。
+	logReadonlyLibraryMode()
 	// 尽早安装崩溃上报：之后的启动步骤（协议注册、目录恢复、任务扫描）
 	// 一旦 panic，都会留下带版本与日志尾部的本地报告。
 	a.InstallCrashReporter()
@@ -170,29 +172,64 @@ func (a *App) ForceExit() {
 // beforeClose is called when the application is about to close
 func (a *App) beforeClose() (prevent bool) {
 	if a.forceClose {
-		a.stopAddonListMonitor()
-		a.stopAddonsWatcher()
-		// 关闭单例监听器
-		if a.singletonMgr != nil {
-			a.singletonMgr.Close()
-		}
-		a.CloseCrashReporter()
+		a.stopBackgroundResources()
 		return false
 	}
 
 	if a.HasActiveDownloads() || a.HasActivePanelUploads() {
-		runtime.EventsEmit(a.ctx, "show_exit_confirmation", nil)
+		// 与后台路径同一约定：没有 Wails 上下文（CLI / 测试）时只能记日志，不能直接调用
+		// runtime（它会报 "An invalid context was passed" 并把进程带走）。
+		a.emitEvent("show_exit_confirmation", nil)
 		return true
 	}
 
-	// 关闭单例监听器
+	a.stopBackgroundResources()
+	return false
+}
+
+// stopBackgroundResources 关闭所有"只在前端窗口显示期间才允许存在"的后台资源。
+//
+// 约定（用户明确要求）：窗口关掉之后，进程里不允许再留着任何常驻监听/线程/端口 ——
+// 包括 Mod 目录监听（fsnotify）、addonlist 守护轮询、图片代理 HTTP 监听、单例 TCP 监听
+// 与崩溃上报管道。每一项都必须幂等：beforeClose 可能因为多次退出请求被调用两次，
+// 「重启应用」也会先调用一次再走退出流程。
+func (a *App) stopBackgroundResources() {
 	a.stopAddonListMonitor()
 	a.stopAddonsWatcher()
+	a.stopImageProxy()
 	if a.singletonMgr != nil {
-		a.singletonMgr.Close()
+		_ = a.singletonMgr.Close()
+		a.singletonMgr = nil
 	}
 	a.CloseCrashReporter()
-	return false
+	log.Printf("已释放后台监听与端口（Mod 目录监听 / addonlist 守护 / 图片代理 / 单例端口）")
+}
+
+// stopImageProxy 关闭本地图片代理（它是唯一一个 HTTP 监听型后台资源）。
+func (a *App) stopImageProxy() {
+	if a.proxyServer != nil {
+		a.proxyServer.Close()
+	}
+}
+
+// restartBackgroundResources 把 stopBackgroundResources 关掉的资源重新拉起来。
+// 只用在"重启应用时新进程启动失败"这条路径上，避免应用停在半残状态。
+func (a *App) restartBackgroundResources() {
+	a.restartAddonListMonitor()
+	a.restartAddonsWatcher()
+	if a.proxyServer != nil {
+		if err := a.proxyServer.Start(); err != nil {
+			log.Printf("恢复图片代理失败: %v", err)
+		}
+	}
+	if a.ctx != nil {
+		if manager, err := StartSingletonListener(a); err != nil {
+			log.Printf("恢复单例监听失败: %v", err)
+		} else {
+			a.singletonMgr = manager
+		}
+	}
+	a.InstallCrashReporter()
 }
 
 func (a *App) BeforeClose(ctx context.Context) (prevent bool) {

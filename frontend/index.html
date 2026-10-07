@@ -368,6 +368,16 @@
                 <span class="icon">⚙</span> 对比范围
               </button>
               <button
+                id="category-sidebar-toggle"
+                class="btn btn-small btn-outline active"
+                type="button"
+                title="显示/隐藏分类树（按角色、武器、动作 XDR、音画场景等分类）"
+                aria-expanded="true"
+                aria-controls="category-sidebar"
+              >
+                <span class="icon">🗂</span><span class="category-sidebar-toggle-label">分类</span>
+              </button>
+              <button
                 id="mod-rotation-btn"
                 class="btn btn-small btn-outline"
                 title="Mod随机轮换"
@@ -570,7 +580,23 @@
           <div id="active-filter-summary" class="active-filter-summary hidden" aria-live="polite"></div>
         </div>
 
-        <!-- 文件列表 -->
+        <!-- 分类侧边栏（默认收起）+ 文件列表：两者由 category-tree.js 在运行时包进
+             .mods-workspace 的 flex 行里 —— 不再依赖手工嵌套层级（嵌套写错会把整页挤到下半屏）。 -->
+        <aside id="category-sidebar" class="category-sidebar hidden" aria-label="分类导航">
+            <div class="category-sidebar-header">
+              <input
+                id="category-search"
+                class="category-search"
+                type="search"
+                placeholder="搜索分类…"
+                aria-label="搜索分类"
+              />
+            </div>
+            <div id="category-tree" class="category-tree" role="tree" aria-label="Mod 分类"></div>
+            <div class="category-sidebar-footer">
+              <button id="category-clear-btn" class="btn btn-small btn-outline" type="button">清除分类</button>
+            </div>
+        </aside>
         <div class="file-list-container">
           <div class="file-list-header">
             <div class="column-header checkbox-column"></div>
@@ -2807,12 +2833,21 @@
                 <span class="severity-badge info">建议</span>
                 <span class="conflict-fix-title">修复建议（需要你确认）</span>
                 <span id="conflict-fix-count" class="conflict-fix-count">0 条</span>
+                <button
+                  type="button"
+                  id="conflict-fix-toggle"
+                  class="btn btn-small btn-secondary conflict-fix-toggle"
+                  aria-expanded="false"
+                  aria-controls="conflict-fix-body"
+                >展开建议</button>
               </div>
-              <p class="conflict-fix-hint">
-                这些建议只写入 <code>priority.json</code>；真正重排 <code>addonlist.txt</code> 仍需要你在
-                “编辑加载顺序”里点“按分层应用”。应用不会自动改动任何 Mod 文件。
-              </p>
-              <div id="conflict-fix-list" class="conflict-fix-list"></div>
+              <div id="conflict-fix-body" class="conflict-fix-body hidden">
+                <p class="conflict-fix-hint">
+                  这些建议只写入 <code>priority.json</code>；真正重排 <code>addonlist.txt</code> 仍需要你在
+                  “编辑加载顺序”里点“按分层应用”。应用不会自动改动任何 Mod 文件。
+                </p>
+                <div id="conflict-fix-list" class="conflict-fix-list"></div>
+              </div>
             </div>
           </div>
 

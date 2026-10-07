@@ -595,7 +595,8 @@ func stripListOnlyEvidence(files []VPKFile) []VPKFile {
 }
 
 func (a *App) GetVPKFiles() []VPKFile {
-	return stripListOnlyEvidence(a.allVPKFilesSnapshot())
+	files := stripListOnlyEvidence(a.allVPKFilesSnapshot())
+	return attachXDRPriority(files, a.xdrPriorityIndex())
 }
 
 func (a *App) SearchVPKFiles(query string, primaryTag string, secondaryTags []string) []VPKFile {
@@ -652,7 +653,8 @@ func (a *App) SearchVPKFiles(query string, primaryTag string, secondaryTags []st
 		return true
 	})
 
-	return result
+	// 搜索结果同样要带"XDR 动作会不会播"的结论：对手来自全量列表，不是当前筛出来的这一批。
+	return attachXDRPriority(result, a.xdrPriorityIndex())
 }
 
 // GetPrimaryTags 获取所有主要标签

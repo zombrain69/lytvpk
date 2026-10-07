@@ -201,6 +201,9 @@ type App struct {
 	conflictIgnoreFiles             []string
 	// strategyGroupFloating 记录「策略组管理」窗口是否以浮动模式打开（nil 表示从未设置过）。
 	strategyGroupFloating *bool
+	// categorySidebarVisible 记录「分类侧边栏」是否展开（nil 表示从未设置过 → 默认收起）。
+	// 与 strategyGroupFloating 一样属于前端窗口状态，必须用 *bool 才能区分"没设置过"。
+	categorySidebarVisible *bool
 	// autoDetectWorkshopLink 是"剪贴板里的工坊链接自动识别"开关（nil 表示从未设置过 → 默认开启）。
 	autoDetectWorkshopLink *bool
 	// openWithProgram / openWithArguments 是「打开文件方式」的自定义外部程序（空 = 系统默认）。
@@ -321,6 +324,8 @@ type ConfigFile struct {
 	// AutoDetectWorkshopLink 控制"复制了工坊链接后切回应用自动提示"（对齐 FireAxe 的
 	// AppSettings.IsAutoDetectWorkshopItemLinkInClipboard）。nil 同样表示"没设置过"，默认开启。
 	AutoDetectWorkshopLink *bool `json:"autoDetectWorkshopLink,omitempty"`
+	// CategorySidebarVisible 是「分类侧边栏」的展开偏好。nil = 没设置过，前端按默认（收起）处理。
+	CategorySidebarVisible *bool `json:"categorySidebarVisible,omitempty"`
 	// OpenWithProgram / OpenWithArguments 是自定义外部打开程序（对齐 FireAxe v0.7.2 的
 	// process file customization）。两个都为空表示用系统默认（explorer /select 等）。
 	OpenWithProgram   string `json:"openWithProgram,omitempty"`

@@ -192,15 +192,48 @@ export function showFileDetail(filePath) {
   if (subjectElement) {
     const xdrSummary = String(file.xdrSummary || "").trim();
     const xdrSlots = Array.isArray(file.xdrSlots) ? file.xdrSlots : [];
+    const xdrPriority = file.xdrPriority || null;
+    // 每个槽位的"会不会播"结论（后端按同槽占用算好）：随机=有别的 Mod 抢同一槽。
+    const slotStatusByKey = new Map(
+      (xdrPriority?.slots || []).map((entry) => [`${entry.character || ""}|${entry.slot ?? 0}`, entry]),
+    );
+    const xdrPriorityHtml = (() => {
+      if (!xdrPriority?.state) return "";
+      const randomCount = Number(xdrPriority.randomSlots || 0);
+      const activeCount = Number(xdrPriority.activeSlots || 0);
+      if (xdrPriority.state === "active") {
+        return `<div class="detail-xdr-priority is-active">▶ 动作生效：${activeCount} 个槽位都没有同槽竞争者，游戏里会按预期播放</div>`;
+      }
+      if (xdrPriority.state === "random") {
+        return `<div class="detail-xdr-priority is-random">⚠ 动作随机生效：${randomCount} 个槽位被其它 Mod 同槽占用 —— 官方规则是同角色同槽只会随机生效一个（与加载顺序无关），要确定播哪个就把其中一个改到空槽</div>`;
+      }
+      return `<div class="detail-xdr-priority is-partial">◐ 动作部分生效：${activeCount} 个槽位会播放，${randomCount} 个槽位与其它 Mod 同槽、游戏随机生效</div>`;
+    })();
     const xdrRows = xdrSlots
       .map((slot) => {
         const actions = Array.isArray(slot.actions) && slot.actions.length > 0
           ? ` · 动作：${slot.actions.join("、")}`
           : "";
-        return `<div class="detail-xdr-slot"><strong>${escapeHtml(slot.character || "未指定角色/模型")}</strong> · ${escapeHtml(slot.model || "未知模型")} · slot ${escapeHtml(slot.slotLabel || String(slot.slot ?? "?"))}${escapeHtml(actions)}</div>`;
+        // 槽位用途只是官方建议（作者可以自选别的槽），所以写成"官方建议"而不是断言。
+        const designation = slot.slotName
+          ? ` · 官方建议：${escapeHtml(slot.slotName)}${slot.slotGroup ? `（${escapeHtml(slot.slotGroup)}）` : ""}`
+          : "";
+        const status = slotStatusByKey.get(`${slot.character || ""}|${slot.slot ?? 0}`);
+        let stateHtml = "";
+        if (status?.state === "active") {
+          stateHtml = `<span class="detail-xdr-state is-active">▶ 会生效</span>`;
+        } else if (status?.state === "random") {
+          const rivals = (status.rivals || [])
+            .map((rival) => String(rival.title || rival.name || "").trim())
+            .filter(Boolean)
+            .slice(0, 3)
+            .join("、");
+          stateHtml = `<span class="detail-xdr-state is-random" title="同槽只会随机生效一个">⚠ 随机${rivals ? `（同槽：${escapeHtml(rivals)}）` : ""}</span>`;
+        }
+        return `<div class="detail-xdr-slot"><strong>${escapeHtml(slot.character || "未指定角色/模型")}</strong> · ${escapeHtml(slot.model || "未知模型")} · slot ${escapeHtml(slot.slotLabel || String(slot.slot ?? "?"))}${designation}${escapeHtml(actions)}${stateHtml}</div>`;
       })
       .join("");
-    subjectElement.innerHTML = `${xdrSummary ? `<div class="detail-xdr-summary">${escapeHtml(xdrSummary)}</div>` : ""}${xdrRows}${subjectSummary ? `<div class="detail-subject-text">${escapeHtml(subjectSummary)}</div>` : ""}` || "主体：未识别";
+    subjectElement.innerHTML = `${xdrSummary ? `<div class="detail-xdr-summary">${escapeHtml(xdrSummary)}</div>` : ""}${xdrPriorityHtml}${xdrRows}${subjectSummary ? `<div class="detail-subject-text">${escapeHtml(subjectSummary)}</div>` : ""}` || "主体：未识别";
     subjectElement.dataset.confidence = String(file.subjectConfidence || "低");
   }
 

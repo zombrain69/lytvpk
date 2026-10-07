@@ -35,6 +35,10 @@ func extractZipFile(file *zip.File, decodedName string, destDir string) error {
 
 // ExtractVPKFromZip 从ZIP文件中解压所有VPK文件到指定目录（多协程并行解压）
 func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
+	// 沙箱只读闸门：解压会往目标目录写文件。
+	if err := rejectReadonlyLibraryWrite("解压归档到库目录"); err != nil {
+		return err
+	}
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return describeArchiveOpenFailure(zipPath, "zip", err)
@@ -152,6 +156,9 @@ func (a *App) ExtractVPKFromZip(zipPath string, destDir string) error {
 
 // ExtractVPKFromRar 从RAR文件中解压所有VPK文件到指定目录（串行解压，rardecode库不支持并发读取）
 func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
+	if err := rejectReadonlyLibraryWrite("解压归档到库目录"); err != nil {
+		return err
+	}
 	// 第一次遍历：收集所有文件名
 	f, err := os.Open(rarPath)
 	if err != nil {
@@ -274,6 +281,9 @@ func (a *App) ExtractVPKFromRar(rarPath string, destDir string) error {
 
 // ExtractVPKFrom7z 从7z文件中解压所有VPK文件到指定目录（多协程并行解压）
 func (a *App) ExtractVPKFrom7z(sevenZPath string, destDir string) error {
+	if err := rejectReadonlyLibraryWrite("解压归档到库目录"); err != nil {
+		return err
+	}
 	r, err := sevenzip.OpenReader(sevenZPath)
 	if err != nil {
 		return describeArchiveOpenFailure(sevenZPath, "7z", err)

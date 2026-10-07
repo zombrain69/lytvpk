@@ -16,6 +16,10 @@ import (
 //
 // 调用方必须已经持有 `addonListGuardMu`（与现有写盘路径一致）。
 func runAddonListTransaction(path string, write func() error, afterWrite func(), sync func() error) error {
+	// 沙箱只读闸门：所有 addonlist.txt 写盘（列表式 / 文档式）都汇聚到这里。
+	if err := rejectReadonlyLibraryWrite("写入 addonlist.txt"); err != nil {
+		return err
+	}
 	original, readErr := os.ReadFile(path)
 	hadOriginal := readErr == nil
 

@@ -49,6 +49,10 @@ type WorkshopTransferProgress struct {
 // It deduplicates paths, skips non-workshop files, preserves workshop sources,
 // copies sidecars, updates addonlist.txt, and reports per-item progress.
 func (a *App) MoveWorkshopFilesToAddons(filePaths []string) (WorkshopTransferResult, error) {
+	// 沙箱只读闸门：批量工坊转移同样会往真实库写文件。
+	if err := rejectReadonlyLibraryWrite("批量把工坊 Mod 转移到插件目录"); err != nil {
+		return WorkshopTransferResult{}, err
+	}
 	paths := uniqueWorkshopTransferPaths(filePaths)
 	result := WorkshopTransferResult{
 		Total: len(paths),

@@ -49,9 +49,22 @@ type ContentRule struct {
 }
 
 // MatchRule 是"关键词 → 标签"的简单映射（武器路径规则）。
+//
+// Match 控制匹配口径：
+//   - ""/"substring"（默认）：关键词出现在路径里就算命中；
+//   - "token"：关键词两侧不能再是 [a-z0-9]（`m60` 命中 w_m60.mdl / m60_box5.wav，
+//     但不再命中 hk416 材质里的 `m600v.vmt`）。
+//
+// Scope 控制生效通道：
+//   - ""/"any"（默认）：武器资源路径与标题/描述推断都能用；
+//   - "path"：只给"武器资源路径"通道用，标题/描述里出现同名英文单词不推断
+//     （`minigun` / `50cal` 这类"模型名"关键词：作者标题写 "Minigun 替换 M60" 说的
+//     是他做的模型长什么样，不代表这个包改的是固定机枪）。
 type MatchRule struct {
 	Keyword string `json:"keyword"`
 	Tag     string `json:"tag"`
+	Match   string `json:"match,omitempty"`
+	Scope   string `json:"scope,omitempty"`
 }
 
 // CharacterRules 汇总角色侧的六张表。

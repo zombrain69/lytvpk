@@ -303,6 +303,11 @@ func previewSourceSignature(filePath string) (time.Time, int64, time.Time, error
 // ToggleVPKFile 切换VPK文件的启用状态（智能缓存版本）
 // 注意：workshop文件不能直接启用/禁用，需要先转移到root目录
 func (a *App) ToggleVPKFile(filePath string) error {
+	// 沙箱只读闸门：启用/禁用会把文件移进/移出 disabled 目录（这是 10-03 事故里
+	// "批量禁用"按钮真正走的路径，必须一起拦住）。
+	if err := rejectReadonlyLibraryWrite("移动 Mod 文件（游戏内启用/禁用）"); err != nil {
+		return err
+	}
 	a.mu.Lock()
 
 	// 从缓存中获取文件信息
@@ -430,6 +435,10 @@ func (a *App) MoveWorkshopToAddonsWithConflictAction(filePath, action string) (M
 
 func (a *App) moveWorkshopToAddonsWithConflictAction(filePath, action string) (MoveResult, error) {
 	result := MoveResult{}
+	// 沙箱只读闸门：工坊 → 插件目录的转移会往真实库根目录写文件。
+	if err := rejectReadonlyLibraryWrite("把工坊 Mod 转移到插件目录"); err != nil {
+		return result, err
+	}
 	var err error
 	if action, err = normalizeMoveConflictAction(action); err != nil {
 		return result, err
@@ -524,6 +533,10 @@ func (a *App) moveWorkshopToAddonsWithConflictAction(filePath, action string) (M
 }
 
 func (a *App) ToggleVPKVisibility(filePath string) (string, error) {
+	// 沙箱只读闸门：隐藏/显示会改文件名。
+	if err := rejectReadonlyLibraryWrite("重命名（隐藏/显示）Mod 文件"); err != nil {
+		return "", err
+	}
 	// 隐藏 / 显示会真的改文件名，先确认它属于受管目录（对齐 FireAxe 的路径守卫）。
 	if problem := managedFilePathProblem(a.rootDirectorySnapshot(), filePath); problem != "" {
 		return "", fmt.Errorf("%s", problem)
@@ -785,6 +798,10 @@ func (a *App) setWorkshopVPKTagsLocked(filePath, primaryTag string, secondaryTag
 
 // RenameVPKFile 重命名VPK文件
 func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error) {
+	// 沙箱只读闸门：重命名会改真实库里的文件名。
+	if err := rejectReadonlyLibraryWrite("重命名 Mod 文件"); err != nil {
+		return "", err
+	}
 	// 用户输入的首尾空白一律先去掉：既避免生成 "name .vpk" 这种怪名，
 	// 也让后面的合法性校验看到的是用户真正的意图。
 	newFilename = strings.TrimSpace(newFilename)

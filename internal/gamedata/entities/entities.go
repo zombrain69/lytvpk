@@ -47,7 +47,18 @@ type Entity struct {
 	Script string `json:"script,omitempty"`
 	// Anchors 是本体规范路径（小写、"/" 分隔）。
 	Anchors []string `json:"anchors"`
-	Note    string   `json:"note,omitempty"`
+	// Slots 是显式"槽位"表（开发文档 §4.2）：每个 slot = 类别 + 本体前缀 + 该前缀在
+	// 本体索引里的命中数。由 `--generate-entity-table` 推导产出并随表提交，人工可逐条 review；
+	// `--validate-entity-slots` 会拿当前本体索引复验（0 命中 = 错误）。
+	Slots []Slot `json:"slots,omitempty"`
+	Note  string `json:"note,omitempty"`
+}
+
+// Slot 是一个可独立替换的资源槽位（worldmodel / viewmodel / script / sound / material / ui）。
+type Slot struct {
+	Kind   string `json:"kind"`
+	Prefix string `json:"prefix"`
+	Hits   int    `json:"hits"`
 }
 
 // Hit 是一次锚点命中的结果。

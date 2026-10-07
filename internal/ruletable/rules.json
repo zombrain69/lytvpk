@@ -557,6 +557,48 @@
       "keywords": [
         "statue"
       ]
+    },
+    {
+      "tag": "音乐",
+      "prefixes": [
+        "sound/music/"
+      ]
+    },
+    {
+      "tag": "贴花",
+      "prefixes": [
+        "materials/decals/"
+      ]
+    },
+    {
+      "tag": "载具",
+      "prefixes": [
+        "models/props_vehicles/"
+      ]
+    },
+    {
+      "tag": "粒子特效",
+      "prefixes": [
+        "materials/particle/"
+      ]
+    },
+    {
+      "tag": "匕首",
+      "prefixes": [
+        "scripts/melee/"
+      ],
+      "keywords": [
+        "knife"
+      ]
+    },
+    {
+      "tag": "匕首",
+      "prefixes": [
+        "materials/vgui/hud/"
+      ],
+      "keywords": [
+        "icon_knife"
+      ]
     }
   ],
   "weaponPathRules": [
@@ -618,7 +660,8 @@
     },
     {
       "keyword": "scar",
-      "tag": "三连发"
+      "tag": "三连发",
+      "match": "token"
     },
     {
       "keyword": "rifle_ak47",
@@ -662,7 +705,8 @@
     },
     {
       "keyword": "m60",
-      "tag": "M60"
+      "tag": "M60",
+      "match": "token"
     },
     {
       "keyword": "sniper_awp",
@@ -806,11 +850,15 @@
     },
     {
       "keyword": "50cal",
-      "tag": "固定机关枪"
+      "tag": "二代固定机枪",
+      "match": "token",
+      "scope": "path"
     },
     {
       "keyword": "minigun",
-      "tag": "固定机关枪"
+      "tag": "一代固定机枪",
+      "match": "token",
+      "scope": "path"
     },
     {
       "keyword": "baseball_bat",
@@ -878,14 +926,24 @@
     },
     {
       "keyword": "melee_knife",
-      "tag": "匕首"
+      "tag": "匕首",
+      "match": "token"
     },
     {
       "keyword": "w_knife_t",
+      "tag": "匕首",
+      "match": "token"
+    },
+    {
+      "keyword": "materials/models/weapons/v_models/knife_t/",
       "tag": "匕首"
     },
     {
-      "keyword": "knife",
+      "keyword": "materials/models/weapons/w_models/w_knife_t/",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "sound/weapons/knife/",
       "tag": "匕首"
     },
     {
@@ -936,7 +994,8 @@
     },
     {
       "keyword": "scar",
-      "tag": "三连发"
+      "tag": "三连发",
+      "match": "token"
     },
     {
       "keyword": "combat rifle",
@@ -956,7 +1015,8 @@
     },
     {
       "keyword": "m60",
-      "tag": "M60"
+      "tag": "M60",
+      "match": "token"
     },
     {
       "keyword": "uzi",
@@ -1091,7 +1151,23 @@
       "tag": "棒球棍"
     },
     {
-      "keyword": "knife",
+      "keyword": "匕首",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "小刀",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "combat knife",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "butterfly knife",
+      "tag": "匕首"
+    },
+    {
+      "keyword": "karambit",
       "tag": "匕首"
     },
     {
@@ -1137,6 +1213,30 @@
     {
       "keyword": "pitchfork",
       "tag": "草叉"
+    },
+    {
+      "keyword": "固定机枪",
+      "tag": "固定机关枪"
+    },
+    {
+      "keyword": "固定机关枪",
+      "tag": "固定机关枪"
+    },
+    {
+      "keyword": "一代固定机枪",
+      "tag": "一代固定机枪"
+    },
+    {
+      "keyword": "二代固定机枪",
+      "tag": "二代固定机枪"
+    },
+    {
+      "keyword": "heavy machine gun",
+      "tag": "固定机关枪"
+    },
+    {
+      "keyword": "mounted machine gun",
+      "tag": "固定机关枪"
     }
   ],
   "characterRules": {

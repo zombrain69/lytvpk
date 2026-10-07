@@ -2007,6 +2007,82 @@ requested=2 updated=2 failed=[] errors=[]
 
 本轮没有"计划内但完全未验证"的项目。
 
+## 第三十五轮：武器子标签精度修正 + 固定机枪分代（2026-10-07，真机 2962–2965 个 Mod）
+
+**用户反馈**：「匕首」标签下面混进大量错误条目；「固定机关枪」没像霰弹枪那样分代；
+顺带把同类"关键词太宽"的标签一起修准（可以多包含，但不能漏包含）。
+
+### 根因（都用真机证据定位，不是猜）
+
+| 现象 | 根因 |
+| --- | --- |
+| 「匕首」104 个里 40+ 是误标 | `weaponPathRules` 里有一条**裸关键词 `knife`**：任何路径子串命中就算匕首，于是作者把材质放在 `materials/weapons/oe/knife_reborn-a6/…`（三角洲「重塑/暗星/怜悯/影锋/信条」等，实际替换警棍/撬棍/高尔夫/消防斧），以及地图自带的刀具道具模型（`models/weapons/melee/w_leon_knife.vvd`）都被算成匕首 |
+| 「M60」把 HK416/铁喷/97-1 式标成 M60 | `m60` 是子串匹配，命中材质名 `m600v.vmt` / `m600ib_scout_n.vtf` |
+| 「固定机关枪」没分代 | 只有 `50cal` / `minigun` 两条规则都映射到同一个标签 |
+| 地图被标「固定机枪/电锯」 | 本体 token 通道在地图自带音乐目录里命中素材名（`sound/music_new/…/50cal_metalimpact.wav`、`chainsaw_opened.wav`） |
+
+### 修改
+
+1. 规则表新增两个字段（`internal/ruletable/ruletable.go` + `rules.json`）：
+   `match:"token"`（词边界匹配，`m60` 命中 `w_m60.mdl`/`m60_box5.wav`，不再命中 `m600v`）、
+   `scope:"path"`（只做武器资源路径证据，不参与标题/描述推断）。
+2. 「匕首」改为只认本体小刀证据：`entity:melee.knife`（`models/v_models/v_knife_t.mdl`、
+   `models/w_models/weapons/w_knife_t.mdl`）、`w_knife_t` / `melee_knife` / `sound/weapons/knife/`、
+   本体小刀材质目录，以及两条前缀限定内容规则（`scripts/melee/` + `knife`、`materials/vgui/hud/` + `icon_knife`）。
+3. 固定机枪按本体模型分代：`w_minigun` → **一代固定机枪**（L4D1 Minigun）、
+   `50cal` → **二代固定机枪**（L4D2 Heavy MG）；「固定机关枪」保留为聚合标签（`weaponCategoryTag`），
+   分类树在「枪械 → 固定机枪」下新增两个叶子，父节点仍按聚合标签筛。
+4. 本体 token 通道跳过 `sound/music*`（地图自带音乐/彩蛋），其余 `sound/**` 不受影响
+   （一度一刀切跳过整个 `sound/`，把 8 个音频包的「医疗包/可乐」等标签误删，已回退成只跳音乐目录）。
+5. 内容规则命中武器标签时改走 `addWeaponTag`，补齐「近战 / 所有武器」聚合。
+
+### 验证（真机数据 + CLI 护栏）
+
+```text
+--validate-tag-rules             ok=true（前缀与锚点全部有效）
+--check-tag-regression 旧基线     新增 +14，消失 0（allowlist 放行 56 条已确认误标）
+重新全量解析后的标签数量（同一库 2962 个 Mod）
+  匕首        104 → 66      近战 304 → 311
+  M60          25 → 20
+  固定机关枪     8 → 6（聚合，仅剩标题写 Minigun 但替换 M60 的两例已剔除）
+  一代固定机枪   0 → 2       二代固定机枪 0 → 4
+```
+
+镜像沙箱界面验证（分类树）：`枪械 → 固定机枪 → 一代固定机枪` 点开正好 2 张卡
+（「【甘城猫猫】Oerlikon 20MM Single (Minigun)一代固定机枪」「Minigun Rainbow Transparent」）；
+`二代固定机枪` 5 张（含 50cal 特效弹道包）；`匕首` 叶子筛选出的都是小刀/蝴蝶刀/刺刀类包。
+
+### 已知残余（下一轮可继续收紧）
+
+地图包（如广西-南宁）仍可能因为**道具模型**带上武器标签（`models/nanningcity/props/50cal_easter.vvd`
+→ 二代固定机枪）。要彻底清掉需要一条"主类型=地图 时不做 token 武器标签"的策略，属于口径变更，未在本轮动。
+
+### 追加：实体槽位（本体独占资源前缀，W7）
+
+按开发文档 `mod-tag-recognition-v2.md` §4.2 的槽位计划补齐"非模型资源归属"：
+`--generate-entity-table` 现在会读本体索引，把"只属于一个实体"的本体目录 / 文件 stem 写成
+`entities.json` 的 `prefixes`（真机 **110 条 / 38 个实体**），解析器新增通道
+`stockOwnerPrefixHits`（证据 `stock:<entityID>`）。实测：
+
+```text
+sound/weapons/knife/**            → 匕首          （此前靠手写关键词）
+sound/weapons/pan/**              → 平底锅        （此前完全没有）
+sound/weapons/machinegun_m60/**   → M60           （目录名与脚本名不同，此前靠 token 侥幸命中）
+sound/weapons/shotgun/**          → 不归属        （共用目录，D1 教训）
+materials/weapons/oe/knife_*/**   → 不归属        （作者命名空间，不在本体索引里）
+--check-tag-regression            +54 / −0        （allowlist 放行 56 条已登记误标修正）
+```
+
+收紧过程三次（都写进了代码注释）：文件 stem 只信 `materials/vgui/**`（否则一条
+`…rifle_fire_1_incendiary.wav` 把 217 个包标成「燃烧弹盒」）；实体词只取 token 末词
+（`weapon_pain_pills` → `pills`，避免 `sound/npc/witch/voice/pain/**` 被判成止痛药）；
+前缀必须落在武器资源根 / UI 根并沿用泛词黑名单（`shotgun`/`rifle`/`smg`…）。
+
+### 仍未验证
+
+HUD 图标包（一个包含多把武器图标的 Mod）会同时拿到多条武器标签——按"可以多包含"的口径保留；
+若要"只给主图标"，需要一条按图标数量取舍的策略，未动。
+
 ## 16. 外部改动自动发现（Mod 目录 fsnotify 监听）
 
 后端常驻监听 Mod 目录，外部（资源管理器 / Steam / 游戏）增删文件后推
@@ -2050,6 +2126,87 @@ requested=2 updated=2 failed=[] errors=[]
 
 - 数小时连续外部写入下的事件缓冲区溢出兜底：只有单测覆盖，未在真机制造该场景。
 - 网络驱动器 / 非 NTFS 卷上的 `ReadDirectoryChangesW` 行为（本机所有测试都在本地 NTFS）。
+
+## 17. XDR（xdReanimsBase）动作管理
+
+规则与槽位表的出处见 `docs/development/xdr-reanimations.md`（基础包作者的说明页与指南）。
+
+### 已经自动化覆盖的部分
+
+- 官方槽位表：`internal/parser/xdr_slots_test.go`（抽查代表槽位 + 越界返回空 + 证据带 `slotName/slotGroup`
+  + 摘要必须同时写"同槽随机"和"小号优先"两条规则）。
+- 体检三项：`internal/app/health_check_xdr_test.go`（同槽冲突、多角色聚合、根/工坊副本与 disabled 不误报、
+  缺基础包与"基础包被游戏内关闭"两种文案、动作包识别与去重）。
+- 三层一致：`TestHealthIssueKindsHaveLabelAndDocRow` 覆盖新类型的前端标签与用户文档表格。
+
+### 真机验证记录（2026-10-07，本机 2958 个 Mod，只读）
+
+用独立进程（`app.NewApp()` + `SetRootDirectory` + `ScanVPKFiles` + `RunModHealthCheck`）跑真实库：
+
+| 场景 | 结果 |
+| --- | --- |
+| 带槽位证据的 Mod | 68 个 |
+| 同槽冲突 | 9 组，按"槽位 + Mod 组合"聚合（例：slot 040 影响 9 个角色、slot 029 影响 6 个角色 + Zoey 单列） |
+| 基础包 | `xdReanimsBase`（2121557118）存在但游戏内被关闭 → 报"68 个动作都不会生效" |
+| 动作包（深扫描） | `3006131197.vpk`（202 个模型）、`3006559778.vpk`（13 个模型）各报一次，根/工坊副本已去重 |
+
+### 只能人工验证的部分
+
+- [ ] 在应用里点「开始体检」（工具箱），确认结果表里能看到「XDR 同槽冲突 / 缺少 XDR 基础包」，
+      并且「详情」面板的 XDR 行显示"官方建议：xxx"。
+- [ ] 在 Mod 管理页看动作 Mod 的卡片角标：绿色「▶ 动作生效」/ 琥珀「⚠ 动作随机生效」/ 蓝色「◐ 动作部分生效」，
+      悬停能看到同槽的是哪个 Mod；打开详情面板确认每个槽位都带 `会生效` / `随机（同槽：…）`。
+- [ ] 打开筛选预设（搜索框旁的预设菜单）：确认有「动作（XDR）」与「音画与场景」两组，
+      点「查看全部」能一次列出 51 / 287 个 Mod（数字随库变化），细分按钮能再收窄。
+- [ ] 左侧分类树：**默认收起**，「🗂 分类」按钮展开/收起，**重启后保持上次状态**；数量与列表一致；
+      点「动作（XDR）→ 槽位动作」显示槽位动作，**再点「音画与场景 → 音乐」应叠加**（芯片出现两条），
+      再点一次「槽位动作」只取消这一类；组/子组右侧「全部」= 该组聚合筛选、「清空」= 只清该组；
+      底部「其它标签（N）」里能点到没进分类的标签；「清除分类」回到全部。
+- [ ] 布局回归：筛选栏在最上、卡片列表铺满中间、状态栏贴住窗口底部；
+      **上半屏不应出现大片空白**（曾因手工嵌套把 `.mods-workspace` 提到顶层而整页下沉）。
+- [ ] 想把冲突 Mod 改槽时的手工流程（解包 → 把 `_slot_NNN` 改名 → 重打包）是否顺畅；目前工具只提供
+      通用解包/打包，没有"一键换槽"。
+
+### 仍未验证
+
+- 序列级冲突（不同槽替换同一序列 → 低槽优先）无法自动判定：v44+ 的 `.mdl` 序列标签是指针，
+  本机编译产物里没有明文序列名，只有部分 Mod 带 `.qc`。当前只做槽位级判定。
+
+## 18. 生命周期：关窗之后不留常驻资源
+
+约定：所有监听/轮询只在前端窗口显示期间运行；窗口关掉后不允许留下监听端口、目录句柄或后台线程。
+
+### 已经自动化覆盖的部分
+
+- `internal/app/lifecycle_background_test.go`：`beforeClose()` 之后 Mod 目录监听、addonlist 守护、
+  图片代理端口必须全部停止；且 `beforeClose` 可重复调用（幂等）。
+- 关窗路径统一走 `stopBackgroundResources()`（正常关窗与强制退出共用一条），
+  包含图片代理（HTTP）、单例监听（TCP）、目录监听（fsnotify 句柄）、守护 ticker 与崩溃上报管道。
+
+### 真机验证记录（2026-10-07，沙箱 + 镜像库）
+
+| 退出路径 | 结果 |
+| --- | --- |
+| 点窗口 X（`CloseMainWindow`，等价 WM_CLOSE） | 进程立即退出；19527 / 图片代理端口 / 调试桥端口全释放；该进程的 WebView2 子进程 0 残留 |
+| `ForceExit`（强制退出，`-tags cua` 桥调用） | 同上；日志出现"已停止监听 Mod 目录外部改动（目录句柄已释放）" |
+| `RestartApplication`（更新后重启） | 旧进程退出、新进程启动并持有 19527（修复前的竞态会让新进程自杀） |
+
+### 只能人工验证的部分
+
+- [ ] 关掉窗口后打开任务管理器确认没有 `LytVPK*` 残留；再启动一次确认能正常成为单例
+      （若报"已有实例在跑"说明上次没退干净）。
+- [ ] 更新后点「重启应用」确认新窗口真的起来了（不是"点了没反应"）。
+
+### 与"动作生效"角标对应的真机数据（2026-10-07，只读）
+
+`GetVPKFiles` 的数据在真实库上的分布：**生效 27 / 随机 2 / 部分生效 2**（其余 37 个带槽位的 Mod 是
+基础包/无槽位证据或未记录状态）。典型样本：
+
+| Mod | 结论 | 细节 |
+| --- | --- | --- |
+| `[xdR] Mixamo Kick Animations`（2987309192） | 部分生效 6/7 | Bill·Coach·Ellis·Francis·Nick·Rochelle 生效；Zoey slot 029 被 `「xdR」No Sniper Zoomed Stretches`（2991679673）同槽占用 |
+| `[xdR] Alpha Smoker choke animations`（3731342507） | 全部随机（8 个角色 slot 041） | 同槽对手：`3128595987.vpk` |
+| `3128595987.vpk` | 部分生效 1/9 | Smoker slot 041 唯一 → 会生效，其余 8 个角色被上面的 Mod 同槽占用 |
 
 ## 第二十一轮：界面性能（2026-10-01，只读沙箱 + 应用内 JS 桥，真实 2904 个 Mod）
 

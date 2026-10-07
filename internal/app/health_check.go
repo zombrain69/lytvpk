@@ -457,14 +457,23 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 		deepPaths := collectConflictFilesystemPaths(rootDir)
 		// 深度扫描同样会解析每个 VPK：容量也要跟随候选数，否则大库每轮都重解析。
 		a.evaluateConflictIndexCapacity(len(deepPaths))
+		variantPackSeen := make(map[string]bool)
 		for _, diskPath := range deepPaths {
 			if location := a.getLocationFromPath(diskPath); location == "disabled" {
 				continue
 			}
-			if _, parseErr := a.getConflictFileList(diskPath); parseErr != nil {
+			entries, parseErr := a.getConflictFileList(diskPath)
+			if parseErr != nil {
 				report.addIssue(modHealthKindInvalidVPK, "critical", filepath.Base(diskPath), diskPath, a.getLocationFromPath(diskPath),
 					fmt.Sprintf("%s 无法解析：文件可能已损坏或被截断（%v）", filepath.Base(diskPath), parseErr))
+				continue
 			}
+			// 深度扫描顺手识别"动作包"（loader + 变体，见 health_check_xdr.go）。
+			size := int64(0)
+			if info, statErr := os.Stat(diskPath); statErr == nil {
+				size = info.Size()
+			}
+			a.checkXDRVariantPack(filepath.Base(diskPath), diskPath, a.getLocationFromPath(diskPath), size, entries, variantPackSeen, &report)
 		}
 	}
 
@@ -476,6 +485,9 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 	checkDuplicateDisabledCopies(rootDir, &report)
 	// 4.3) addons 子目录里的 VPK：游戏不会加载（真实库里 1363 个 / 约 9.2 GB）。
 	checkSubfolderVPKs(rootDir, &report)
+
+	// 4.4) XDR（xdReanimsBase）动作：同角色同槽冲突、缺基础包（复用已解析的扫描缓存，不额外扫盘）。
+	a.checkXDRHealth(a.GetVPKFiles(), &report)
 
 	// 5) 用户声明的依赖：依赖被关闭或依赖文件缺失。
 	a.checkModDependencies(rootDir, addonListStateMap(list), &report)

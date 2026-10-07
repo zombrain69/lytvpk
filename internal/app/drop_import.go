@@ -75,6 +75,10 @@ type drop7zEntry struct {
 }
 
 func (a *App) HandleFileDrop(paths []string) (DropImportResult, error) {
+	// 沙箱只读闸门：拖入导入会往库目录里写文件。
+	if err := rejectReadonlyLibraryWrite("导入 Mod 文件到库目录"); err != nil {
+		return DropImportResult{}, err
+	}
 	result := DropImportResult{
 		Total: len(paths),
 		Items: make([]DropImportItemResult, 0, len(paths)),

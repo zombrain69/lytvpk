@@ -14,6 +14,438 @@
       "tag": "木喷",
       "reason": "已确认的错误标签：models/w_models/weapons/w_pumpshotgun_A.mdl 是 Chrome 连喷（铁喷）的世界模型，不是木喷；另外本体把 sound/weapons/shotgun/** 与 materials/**/weapons/shotgun/** 当作多把霰弹枪的共享目录（泵动/Chrome/连喷共用），从这些目录判成「木喷」同样只是猜测。W3 引入本体实体锚点后由锚点给出「铁喷」，此处放行「木喷」在整库范围内被移除（真机 23 例）。",
       "evidence": "scripts/weapon_shotgun_chrome.txt → playermodel = models/w_models/weapons/w_pumpshotgun_A.mdl；scripts/weapon_pumpshotgun.txt → models/w_models/weapons/w_shotgun.mdl；共享目录证据：sound/weapons/shotgun/gunother/shotgun_pump_1.wav 与 materials/models/v_models/weapons/shotgun/qx.vmt 都被多个霰弹枪变体加载"
+    },
+    {
+      "scope": "global",
+      "tag": "匕首",
+      "reason": "已确认的错误标签：旧规则用裸关键词 knife 在任意路径子串匹配，把作者把材质放在 knife_* 目录、实际替换警棍/撬棍/高尔夫/消防斧的包（三角洲『重塑/暗星/怜悯/影锋/信条』等 40+ 例）以及地图自带的刀具道具模型都判成匕首。改为只认本体小刀证据：entity:melee.knife（models/v_models/v_knife_t.mdl / models/w_models/weapons/w_knife_t.mdl）、w_knife_t / melee_knife / sound/weapons/knife/、本体小刀材质目录，以及 scripts/melee/ + icon_knife 两条前缀限定规则。",
+      "evidence": "scripts/melee/knife.txt → viewmodel models/v_models/v_knife_t.mdl、playermodel models/w_models/weapons/w_knife_t.mdl；误标证据示例 materials/weapons/oe/knife_reborn-a6/zw.vmt（三角洲『重塑』，实际替换 models/w_models/weapons/w_tonfa.mdl 警棍）、models/weapons/melee/w_leon_knife.vvd（RE3 地图自带刀具道具）"
+    },
+    {
+      "scope": "global",
+      "tag": "M60",
+      "reason": "已确认的错误标签：关键词 m60 用子串匹配，命中了材质名 m600v / m600ib（HK416 与 97-1 式霰弹枪的材质），把 7 个『替换 M16 / 铁喷』的包错标成 M60。改为词边界匹配后只命中 w_m60.mdl、m60_box*.wav 这类真正的 M60 资源。",
+      "evidence": "误标证据：materials/models/weapons/hk416d/m600v.vmt（HK416，目标 models/w_models/weapons/w_rifle_m16a2.mdl）、materials/models/weapons/97-1/surefire_m600ib_scout_n.vtf（Chrome 连喷）；正确证据：models/w_models/weapons/w_m60.mdl（entity:weapon_rifle_m60）"
+    },
+    {
+      "scope": "global",
+      "tag": "固定机关枪",
+      "reason": "固定机枪按本体模型细分为一代/二代：w_minigun = L4D1 Minigun（一代）、50cal = L4D2 Heavy MG（二代），聚合标签「固定机关枪」由 addWeaponTag 自动补。消失的 2 例是标题写 'Minigun 替换 M60' 的 M60 包——标题描述的是模型外观，不代表改的是固定机枪；minigun/50cal 关键词已改为 scope=path（不做标题推断）。",
+      "evidence": "官方 wiki（left4dead.fandom.com）：Minigun 是 Left 4 Dead 的固定武器、Heavy Machine Gun 是 Left 4 Dead 2 的固定武器；本体路径 models/w_models/weapons/w_minigun.mdl 与 models/w_models/weapons/50cal.mdl"
+    },
+    {
+      "scope": "global",
+      "tag": "可乐",
+      "reason": "已确认的错误标签：本体 token 通道在地图自带音乐目录里命中素材名 sound/music/gasrun/gasrunpart2/3no_cola.wav（曲名里的 no_cola），把音乐包标成可乐。现在该通道跳过 sound/music* 目录。",
+      "evidence": "误标证据 sound/music/gasrun/gasrunpart2/3no_cola.wav；本体可乐证据是 scripts/weapon_cola_bottles.txt"
+    },
+    {
+      "entryId": "workshop/workshop\\2574058534.vpk",
+      "tag": "武器",
+      "reason": "地图包（音讯全无重制版）自带一把刀具道具模型 models/weapons/bjrtcre/melee/w_kitchen_knife.vvd，旧规则靠裸 knife 子串把它算成『武器资源』；主类型仍是地图，副标签『武器』属于误标。",
+      "evidence": "models/weapons/bjrtcre/melee/w_kitchen_knife.vvd（地图自带道具，不是替换本体武器）"
+    },
+    {
+      "entryId": "workshop/workshop\\2990150379.vpk",
+      "tag": "武器",
+      "reason": "同上：Resident Evil 3 地图自带刀具道具 models/weapons/melee/w_leon_knife.vvd，被裸 knife 关键词算成武器资源；主类型仍是地图。",
+      "evidence": "models/weapons/melee/w_leon_knife.vvd（地图自带道具）"
+    },
+    {
+      "entryId": "workshop/workshop\\343285762.vpk",
+      "tag": "物品",
+      "reason": "该包是音乐/音频包（Overkill v1），『物品』来自 sound/music/gasrun/gasrunpart2/3no_cola.wav 曲名里的 no_cola 被本体 token 通道误判成可乐后带出的聚合标签；同一处误标已在全局放行『可乐』，这里只补它带出的『物品』。",
+      "evidence": "sound/music/gasrun/gasrunpart2/3no_cola.wav（曲名，不是本体可乐资源）"
+    },
+    {
+      "entryId": "root/2748125283.vpk",
+      "tag": "官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/2748125283.vpk",
+      "tag": "所有官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/2748125283.vpk",
+      "tag": "武士刀",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/2748125283.vpk",
+      "tag": "砍刀",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/2748125283.vpk",
+      "tag": "近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/3756981818.repaired.vpk",
+      "tag": "物品",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/3789962788.vpk",
+      "tag": "官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/3789962788.vpk",
+      "tag": "所有官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/3789962788.vpk",
+      "tag": "武士刀",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "MP5",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "sg552",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "二代连喷",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "冲锋枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "大狙",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "所有枪械",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "手枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "榴弹发射器",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "步枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "消音",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "狙击枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "铁喷",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "霰弹枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "马格南",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/469986973.vpk",
+      "tag": "鸟狙",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/716528597.vpk",
+      "tag": "所有投掷物品",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/716528597.vpk",
+      "tag": "投掷物",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/716528597.vpk",
+      "tag": "燃烧瓶",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "root/716528597.vpk",
+      "tag": "物品",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2748125283.vpk",
+      "tag": "官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2748125283.vpk",
+      "tag": "所有官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2748125283.vpk",
+      "tag": "武士刀",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2748125283.vpk",
+      "tag": "砍刀",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2748125283.vpk",
+      "tag": "近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2755063790.vpk",
+      "tag": "官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2755063790.vpk",
+      "tag": "所有官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2755063790.vpk",
+      "tag": "消防斧",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2755063790.vpk",
+      "tag": "近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\2802325803.vpk",
+      "tag": "所有枪械",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3115675033.vpk",
+      "tag": "官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3115675033.vpk",
+      "tag": "所有官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3115675033.vpk",
+      "tag": "所有枪械",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3115675033.vpk",
+      "tag": "撬棍",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3115675033.vpk",
+      "tag": "电锯",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3115675033.vpk",
+      "tag": "近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3115675033.vpk",
+      "tag": "防爆盾",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3578078027.vpk",
+      "tag": "官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3578078027.vpk",
+      "tag": "所有官方近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3578078027.vpk",
+      "tag": "撬棍",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3578078027.vpk",
+      "tag": "近战",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\3583374422.vpk",
+      "tag": "所有枪械",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "MP5",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "sg552",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "二代连喷",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "冲锋枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "大狙",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "所有枪械",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "手枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "榴弹发射器",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "步枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "消音",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "狙击枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "铁喷",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "霰弹枪",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "马格南",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "entryId": "workshop/workshop\\469986973.vpk",
+      "tag": "鸟狙",
+      "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
+      "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
     }
   ]
 }

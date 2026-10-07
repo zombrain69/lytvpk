@@ -37,6 +37,8 @@ const DEFAULT_CONFIG = {
   lastActiveDirectory: "",
   displayMode: "list",
   filterLayoutMode: "compact",
+  // 分类侧边栏是否展开：null = 从未设置过 → 前端默认收起（不占列表空间）。
+  categorySidebarVisible: null,
   boxSelectionEnabled: true,
   ctrlClickSelectionEnabled: true,
   uiScale: DEFAULT_UI_SCALE,

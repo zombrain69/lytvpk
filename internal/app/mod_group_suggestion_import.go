@@ -1311,6 +1311,8 @@ func catalogXDRSlots(file parser.VPKFile) []groupingCatalogXDRSlot {
 			Scope:      strings.TrimSpace(slot.Scope),
 			Slot:       slot.Slot,
 			SlotLabel:  strings.TrimSpace(slot.SlotLabel),
+			SlotName:   strings.TrimSpace(slot.SlotName),
+			SlotGroup:  strings.TrimSpace(slot.SlotGroup),
 			Actions:    slot.Actions,
 			Confidence: strings.TrimSpace(slot.Confidence),
 		})
@@ -1884,6 +1886,8 @@ type groupingCatalogXDRSlot struct {
 	Scope      string   `json:"scope,omitempty"`
 	Slot       int      `json:"slot,omitempty"`
 	SlotLabel  string   `json:"slotLabel,omitempty"`
+	SlotName   string   `json:"slotName,omitempty"`
+	SlotGroup  string   `json:"slotGroup,omitempty"`
 	Actions    []string `json:"actions,omitempty"`
 	Confidence string   `json:"confidence,omitempty"`
 }

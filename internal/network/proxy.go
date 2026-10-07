@@ -58,6 +58,25 @@ func (s *ImageProxyServer) GetProxyUrl(originalUrl string) string {
 	return fmt.Sprintf("http://127.0.0.1:%d/proxy?url=%s", s.port, url.QueryEscape(originalUrl))
 }
 
+// Close 停止图片代理并释放端口。
+//
+// 这个代理是"随窗口存在"的后台资源：窗口关掉以后不允许还留着监听端口/线程。
+// 可以重复调用（第二次起直接返回），因为关闭窗口与"重启应用"都会走一遍。
+func (s *ImageProxyServer) Close() {
+	if s == nil || s.server == nil {
+		return
+	}
+	port := s.port
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.server.Shutdown(ctx); err != nil {
+		_ = s.server.Close()
+	}
+	s.server = nil
+	s.port = 0
+	fmt.Printf("[Proxy] Stopped image proxy on port %d\n", port)
+}
+
 func (s *ImageProxyServer) handleProxy(w http.ResponseWriter, r *http.Request) {
 	targetUrlStr := r.URL.Query().Get("url")
 	if targetUrlStr == "" {

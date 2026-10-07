@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-30T21:35:49+08:00",
-  "source": "scripts/weapon_*.txt + scripts/melee/*.txt（游戏本体脚本）",
+  "generatedAt": "2026-10-07T07:56:52+08:00",
+  "source": "scripts/weapon_*.txt + scripts/melee/*.txt（游戏本体脚本）；资源槽位 110 条（覆盖 38 个实体）",
   "entities": [
     {
       "id": "arms.bill",
@@ -117,6 +117,18 @@
       "anchors": [
         "models/weapons/melee/v_crowbar.mdl",
         "models/weapons/melee/w_crowbar.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_crowbar",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/crowbar/",
+          "hits": 7
+        }
       ]
     },
     {
@@ -129,6 +141,18 @@
       "anchors": [
         "models/weapons/melee/v_electric_guitar.mdl",
         "models/weapons/melee/w_electric_guitar.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_electric_guitar",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/guitar/",
+          "hits": 20
+        }
       ]
     },
     {
@@ -141,6 +165,18 @@
       "anchors": [
         "models/weapons/melee/v_fireaxe.mdl",
         "models/weapons/melee/w_fireaxe.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/melee/fireaxe/",
+          "hits": 3
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_fireaxe",
+          "hits": 2
+        }
       ]
     },
     {
@@ -153,6 +189,23 @@
       "anchors": [
         "models/weapons/melee/v_frying_pan.mdl",
         "models/weapons/melee/w_frying_pan.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_frying_pan",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/tools/ifm/icon_grapheditor_pan",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/pan/",
+          "hits": 11
+        }
       ]
     },
     {
@@ -165,6 +218,13 @@
       "anchors": [
         "models/weapons/melee/v_golfclub.mdl",
         "models/weapons/melee/w_golfclub.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_golfclub",
+          "hits": 2
+        }
       ]
     },
     {
@@ -177,6 +237,18 @@
       "anchors": [
         "models/weapons/melee/v_katana.mdl",
         "models/weapons/melee/w_katana.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_katana",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/katana/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -188,6 +260,28 @@
       "anchors": [
         "models/v_models/v_knife_t.mdl",
         "models/w_models/weapons/w_knife_t.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/v_models/knife_t/",
+          "hits": 3
+        },
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/w_models/w_knife_t/",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_knife",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/knife/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -200,6 +294,18 @@
       "anchors": [
         "models/weapons/melee/v_machete.mdl",
         "models/weapons/melee/w_machete.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_machete",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/machete/",
+          "hits": 7
+        }
       ]
     },
     {
@@ -212,6 +318,23 @@
       "anchors": [
         "models/weapons/melee/v_pitchfork.mdl",
         "models/weapons/melee/w_pitchfork.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/melee/pitchfork/",
+          "hits": 4
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_pitchfork",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/pitchfork/",
+          "hits": 11
+        }
       ]
     },
     {
@@ -224,6 +347,23 @@
       "anchors": [
         "models/weapons/melee/v_shovel.mdl",
         "models/weapons/melee/w_shovel.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/melee/shovel/",
+          "hits": 4
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_shovel",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/shovel/",
+          "hits": 9
+        }
       ]
     },
     {
@@ -236,6 +376,18 @@
       "anchors": [
         "models/weapons/melee/v_tonfa.mdl",
         "models/weapons/melee/w_tonfa.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_tonfa",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/tonfa/",
+          "hits": 7
+        }
       ]
     },
     {
@@ -248,6 +400,28 @@
       "anchors": [
         "models/v_models/v_adrenaline.mdl",
         "models/w_models/weapons/w_eq_adrenaline.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_adrenaline/",
+          "hits": 7
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/ach_speed_revive_with_adrenaline",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_adrenaline",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/adrenaline/",
+          "hits": 4
+        }
       ]
     },
     {
@@ -271,6 +445,13 @@
       "anchors": [
         "models/v_models/v_autoshotgun.mdl",
         "models/w_models/weapons/w_autoshot_m4super.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_autoshotgun",
+          "hits": 2
+        }
       ]
     },
     {
@@ -292,6 +473,33 @@
       "anchors": [
         "models/weapons/melee/v_chainsaw.mdl",
         "models/weapons/melee/w_chainsaw.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/v_chainsaw/",
+          "hits": 5
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/ach_kill_infected_with_chainsaw",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/blog/chainsaw_massacre",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_chainsaw",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/chainsaw/",
+          "hits": 5
+        }
       ]
     },
     {
@@ -312,6 +520,13 @@
       "anchors": [
         "models/v_models/v_cola.mdl",
         "models/w_models/weapons/w_cola.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_cola/",
+          "hits": 6
+        }
       ]
     },
     {
@@ -324,6 +539,23 @@
       "anchors": [
         "models/v_models/v_defibrillator.mdl",
         "models/w_models/weapons/w_eq_defibrillator.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_defibrillator/",
+          "hits": 3
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_defibrillator",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/defibrillator/",
+          "hits": 3
+        }
       ]
     },
     {
@@ -346,6 +578,33 @@
       "anchors": [
         "models/v_models/v_medkit.mdl",
         "models/w_models/weapons/w_eq_medkit.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_medkit/",
+          "hits": 1
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/asset_med_kit",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_first_aid_kit",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_medkit",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/terror/medkit_icon",
+          "hits": 2
+        }
       ]
     },
     {
@@ -367,6 +626,43 @@
       "anchors": [
         "models/props_junk/gnome.mdl",
         "models/weapons/melee/v_gnome.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/ach_gnome_rescue",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/asset_gnome",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/global_gnome_alone",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/blog/gnome",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/blog/healing_gnome",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/logos/spray_stencil_gnome_01",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/logos/ui/spray_stencil_gnome_01",
+          "hits": 1
+        }
       ]
     },
     {
@@ -379,6 +675,23 @@
       "anchors": [
         "models/v_models/v_grenade_launcher.mdl",
         "models/w_models/weapons/w_grenade_launcher.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/grenade_launcher/",
+          "hits": 3
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_grenade_launcher",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/grenade_launcher/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -421,6 +734,28 @@
       "anchors": [
         "models/v_models/v_molotov.mdl",
         "models/w_models/weapons/w_eq_molotov.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_molotov/",
+          "hits": 6
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_molotov",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/terror/molotov_icon",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/molotov/",
+          "hits": 15
+        }
       ]
     },
     {
@@ -443,6 +778,23 @@
       "anchors": [
         "models/v_models/v_painpills.mdl",
         "models/w_models/weapons/w_eq_painpills.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_painpills/",
+          "hits": 1
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_painpills",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/terror/l4d360ui/hud/inventory_painpills",
+          "hits": 2
+        }
       ]
     },
     {
@@ -455,6 +807,28 @@
       "anchors": [
         "models/v_models/v_pipebomb.mdl",
         "models/w_models/weapons/w_eq_pipebomb.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_pipebomb/",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_pipebomb",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/terror/l4d360ui/hud/inventory_pipebomb",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/terror/pipebomb_icon",
+          "hits": 2
+        }
       ]
     },
     {
@@ -479,6 +853,18 @@
       "anchors": [
         "models/v_models/v_desert_eagle.mdl",
         "models/w_models/weapons/w_desert_eagle.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_pistol_magnum",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/magnum/",
+          "hits": 9
+        }
       ]
     },
     {
@@ -525,6 +911,23 @@
       "anchors": [
         "models/v_models/v_rifle_ak47.mdl",
         "models/w_models/weapons/w_rifle_ak47.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/gfx/vgui/ak47",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_rifle_ak47",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/rifle_ak47/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -537,6 +940,18 @@
       "anchors": [
         "models/v_models/v_desert_rifle.mdl",
         "models/w_models/weapons/w_desert_rifle.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_rifle_desert",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/rifle_desert/",
+          "hits": 10
+        }
       ]
     },
     {
@@ -549,6 +964,28 @@
       "anchors": [
         "models/v_models/v_m60.mdl",
         "models/w_models/weapons/w_m60.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/m60/",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/ach_kills_with_m60",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_rifle_m60",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/machinegun_m60/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -561,6 +998,33 @@
       "anchors": [
         "models/v_models/v_rif_sg552.mdl",
         "models/w_models/weapons/w_rifle_sg552.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/v_models/rif_sg552/",
+          "hits": 3
+        },
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/w_models/w_rif_sg552/",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/gfx/vgui/sg552",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_rifle_sg552",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/sg552/",
+          "hits": 7
+        }
       ]
     },
     {
@@ -573,6 +1037,18 @@
       "anchors": [
         "models/v_models/v_shotgun_chrome.mdl",
         "models/w_models/weapons/w_pumpshotgun_a.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_shotgun_chrome",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/shotgun_chrome/",
+          "hits": 6
+        }
       ]
     },
     {
@@ -585,6 +1061,18 @@
       "anchors": [
         "models/v_models/v_shotgun_spas.mdl",
         "models/w_models/weapons/w_shotgun_spas.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_shotgun_spas",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/auto_shotgun_spas/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -597,6 +1085,13 @@
       "anchors": [
         "models/v_models/v_smg.mdl",
         "models/w_models/weapons/w_smg_uzi.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/terror/l4d360ui/hud/inventory_uzi",
+          "hits": 2
+        }
       ]
     },
     {
@@ -609,6 +1104,28 @@
       "anchors": [
         "models/v_models/v_smg_mp5.mdl",
         "models/w_models/weapons/w_smg_mp5.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/v_models/smg_mp5/",
+          "hits": 3
+        },
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/w_models/w_smg_mp5/",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/gfx/vgui/mp5",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_smg_mp5",
+          "hits": 2
+        }
       ]
     },
     {
@@ -621,6 +1138,18 @@
       "anchors": [
         "models/v_models/v_silenced_smg.mdl",
         "models/w_models/weapons/w_smg_a.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_smg_silenced",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/smg_silenced/",
+          "hits": 9
+        }
       ]
     },
     {
@@ -642,6 +1171,33 @@
       "anchors": [
         "models/v_models/v_snip_awp.mdl",
         "models/w_models/weapons/w_sniper_awp.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/v_models/snip_awp/",
+          "hits": 6
+        },
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/w_models/w_snip_awp/",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/gfx/vgui/awp",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_sniper_awp",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/awp/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -654,6 +1210,18 @@
       "anchors": [
         "models/v_models/v_sniper_military.mdl",
         "models/w_models/weapons/w_sniper_military.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_sniper_military",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/sniper_military/",
+          "hits": 10
+        }
       ]
     },
     {
@@ -666,6 +1234,33 @@
       "anchors": [
         "models/v_models/v_snip_scout.mdl",
         "models/w_models/weapons/w_sniper_scout.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/v_models/snip_scout/",
+          "hits": 3
+        },
+        {
+          "kind": "material",
+          "prefix": "materials/models/weapons/w_models/w_snip_scout/",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/gfx/vgui/scout",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_sniper_scout",
+          "hits": 2
+        },
+        {
+          "kind": "sound",
+          "prefix": "sound/weapons/scout/",
+          "hits": 8
+        }
       ]
     },
     {
@@ -695,6 +1290,13 @@
       "anchors": [
         "models/v_models/v_explosive_ammopack.mdl",
         "models/w_models/weapons/w_eq_explosive_ammopack.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_upgradepack_explosive",
+          "hits": 2
+        }
       ]
     },
     {
@@ -706,6 +1308,18 @@
       "anchors": [
         "models/v_models/v_incendiary_ammopack.mdl",
         "models/w_models/weapons/w_eq_incendiary_ammopack.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/achievements/ach_incendiary_clown_posse",
+          "hits": 2
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_upgradepack_incendiary",
+          "hits": 2
+        }
       ]
     },
     {
@@ -718,6 +1332,18 @@
       "anchors": [
         "models/v_models/v_bile_flask.mdl",
         "models/w_models/weapons/w_eq_bile_flask.mdl"
+      ],
+      "slots": [
+        {
+          "kind": "material",
+          "prefix": "materials/models/v_models/weapons/eq_bile_flask/",
+          "hits": 4
+        },
+        {
+          "kind": "ui",
+          "prefix": "materials/vgui/hud/icon_vomitjar",
+          "hits": 2
+        }
       ]
     }
   ]

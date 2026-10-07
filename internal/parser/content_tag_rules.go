@@ -56,18 +56,46 @@ func collectContentTagsWithEvidence(name string, tags map[string]bool, evidence 
 	if applyStockTokenEvidence(name, tags, evidence) {
 		isItem = true
 	}
+	// 本体独占资源前缀：实体表里由本体索引推导的槽位（音效 / 贴图 / 图标目录）。
+	// 只认"全表唯一属于一个实体"的前缀，作者命名空间不会命中。
+	for _, hit := range stockOwnerPrefixHits(name) {
+		if hit.IsItem {
+			tags[hit.Tag] = true
+			applyItemAggregateTags(hit.Tag, tags)
+			isItem = true
+		} else {
+			addWeaponTag(hit.Tag, tags)
+		}
+		evidence.record(hit.Tag, "stock:"+hit.EntityID, EvidenceLevelPattern, name)
+	}
 	for _, rule := range contentTagRules {
 		if !rule.matches(name) {
 			continue
 		}
-		tags[rule.tag] = true
 		evidence.record(rule.tag, "content:"+rule.tag, EvidenceLevelPattern, name)
 		if rule.isItem {
+			tags[rule.tag] = true
 			applyItemAggregateTags(rule.tag, tags)
+		} else {
+			// 非物品规则也可能是武器标签（匕首 / 防爆盾 …）：走 addWeaponTag 才会补
+			// 「近战 / 所有枪械」这类聚合标签；普通内容标签在这里等价于直接置位。
+			addWeaponTag(rule.tag, tags)
 		}
 		isItem = isItem || rule.isItem
 	}
+	applyMediaSceneAggregateTags(tags)
 	return isItem
+}
+
+// applyMediaSceneAggregateTags 把"音画与场景"这一族标签汇总成一个聚合标签，
+// 让筛选预设的「查看全部」只靠一个标签就能一次列全（音乐 / 贴花 / 载具 / 粒子特效）。
+func applyMediaSceneAggregateTags(tags map[string]bool) {
+	for _, member := range []string{"音乐", "贴花", "载具", "粒子特效"} {
+		if tags[member] {
+			tags["音画场景"] = true
+			return
+		}
+	}
 }
 
 // recordContentCategoryEvidence 记录文件类别标签的来源（UI / 声音 / 粒子特效 …）。

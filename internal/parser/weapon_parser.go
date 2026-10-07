@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"regexp"
 	"strings"
 
 	"vpk-manager/internal/ruletable"
@@ -43,6 +42,10 @@ func collectWeaponPathTags(index archivePathIndex, secondaryTags map[string]bool
 type weaponMatchRule struct {
 	keyword string
 	tag     string
+	// tokenMatch：关键词两侧必须是词边界（见 ruletable.MatchRule.Match）。
+	tokenMatch bool
+	// pathOnly：只参与"武器资源路径"通道，不做标题/描述推断（见 ruletable.MatchRule.Scope）。
+	pathOnly bool
 }
 
 var weaponPathRules = buildWeaponMatchRules(ruletable.MustLoad().WeaponPathRules)
@@ -55,7 +58,12 @@ var weaponMetadataRules = buildWeaponMatchRules(ruletable.MustLoad().WeaponMetad
 func buildWeaponMatchRules(rules []ruletable.MatchRule) []weaponMatchRule {
 	out := make([]weaponMatchRule, 0, len(rules))
 	for _, rule := range rules {
-		out = append(out, weaponMatchRule{keyword: rule.Keyword, tag: rule.Tag})
+		out = append(out, weaponMatchRule{
+			keyword:    rule.Keyword,
+			tag:        rule.Tag,
+			tokenMatch: strings.EqualFold(strings.TrimSpace(rule.Match), "token"),
+			pathOnly:   strings.EqualFold(strings.TrimSpace(rule.Scope), "path"),
+		})
 	}
 	return out
 }
@@ -65,19 +73,28 @@ func DetectWeaponTypeFromMetadata(text string, secondaryTags map[string]bool) {
 	lowerText := strings.ToLower(text)
 
 	for _, rule := range weaponMetadataRules {
-		isMatch := false
-		if rule.keyword == "scar" {
-			// 特殊处理 scar，防止匹配到 oscar 等词
-			isMatch, _ = regexp.MatchString(`\bscar\b`, lowerText)
-		} else {
-			isMatch = strings.Contains(lowerText, rule.keyword)
+		if rule.pathOnly {
+			continue
 		}
-
-		if isMatch {
+		if metadataRuleMatchesWeaponRule(lowerText, rule) {
 			// D7：不再「命中即 return」——标题里写了多个型号时，每个型号都要出标签。
 			addWeaponTag(rule.tag, secondaryTags)
 		}
 	}
+}
+
+// metadataRuleMatchesWeaponRule 按规则自己的匹配口径判断标题/描述命中。
+// token 规则的边界口径与解析器其它通道保持一致（`\b` 在 PowerShell 之外不可移植，
+// 这里直接复用 textContainsToken）。
+func metadataRuleMatchesWeaponRule(lowerText string, rule weaponMatchRule) bool {
+	if rule.tokenMatch {
+		return textContainsToken(lowerText, rule.keyword)
+	}
+	if rule.keyword == "scar" {
+		// 历史特例：scar 必须整词，否则 oscar 会命中。
+		return textContainsToken(lowerText, rule.keyword)
+	}
+	return strings.Contains(lowerText, rule.keyword)
 }
 
 // DetectWeaponType 检测武器类型
@@ -161,7 +178,9 @@ func weaponCategoryTag(tag string) string {
 		return "榴弹发射器"
 	case "M60":
 		return "M60"
-	case "固定机关枪":
+	case "固定机关枪", "一代固定机枪", "二代固定机枪":
+		// 固定机枪按本体模型细分成一代（Minigun，L4D1）/ 二代（Heavy MG，L4D2），
+		// 「固定机关枪」保留为聚合标签：筛"固定机关枪"仍然两代都能看到。
 		return "固定机关枪"
 	case "棒球棍", "板球拍", "吉他", "平底锅", "高尔夫球杆", "消防斧", "砍刀", "武士刀", "电锯", "撬棍", "草叉", "铁铲", "警棍", "防爆盾", "匕首":
 		return "近战"
@@ -190,7 +209,7 @@ func weaponPathTag(filename string) string {
 		if sharedShotgunPath && rule.tag == "木喷" {
 			continue
 		}
-		if weaponRuleMatches(lowerFilename, rule.keyword) {
+		if weaponRuleMatchesWithMode(lowerFilename, rule) {
 			return rule.tag
 		}
 	}
@@ -198,15 +217,42 @@ func weaponPathTag(filename string) string {
 }
 
 func weaponRuleMatches(path string, keyword string) bool {
-	if keyword != "scar" {
-		return strings.Contains(path, keyword)
+	return weaponRuleMatchesWithMode(path, weaponMatchRule{keyword: keyword})
+}
+
+// weaponRuleMatchesWithMode 是带匹配口径的版本：token 规则要求关键词两侧是
+// 词边界，避免 `m60` 命中 `m600v`、`knife` 命中作者命名空间里的 `knife_annihil`。
+func weaponRuleMatchesWithMode(path string, rule weaponMatchRule) bool {
+	if !rule.tokenMatch && rule.keyword != "scar" {
+		return strings.Contains(path, rule.keyword)
 	}
-	for _, part := range strings.FieldsFunc(path, func(r rune) bool {
-		return !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9')
-	}) {
-		if part == "scar" {
+	return pathContainsToken(path, rule.keyword)
+}
+
+// pathContainsToken 要求 token 两侧不是 [a-z0-9]（`_` / `.` / `/` / `-` 都算边界，
+// 于是 w_m60.mdl、m60_box5.wav 命中，而 m600v.vmt 不命中）。
+func pathContainsToken(path, token string) bool {
+	token = strings.ToLower(strings.TrimSpace(token))
+	if token == "" {
+		return false
+	}
+	from := 0
+	for {
+		index := strings.Index(path[from:], token)
+		if index < 0 {
+			return false
+		}
+		start := from + index
+		end := start + len(token)
+		leftOK := start == 0 || !isTokenBoundaryRune(rune(path[start-1]))
+		rightOK := end >= len(path) || !isTokenBoundaryRune(rune(path[end]))
+		if leftOK && rightOK {
 			return true
 		}
+		from = start + 1
 	}
-	return false
+}
+
+func isTokenBoundaryRune(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
 }

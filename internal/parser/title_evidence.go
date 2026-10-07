@@ -28,7 +28,10 @@ func applyTitleEvidenceWithRecorder(title, desc, fileName string, tags map[strin
 	}
 
 	for _, rule := range weaponMetadataRules {
-		if metadataRuleMatches(text, rule.keyword) {
+		if rule.pathOnly {
+			continue
+		}
+		if metadataRuleMatches(text, rule) {
 			addWeaponTag(rule.tag, tags)
 			evidence.record(rule.tag, "title:"+rule.keyword, EvidenceLevelInferred, fileName)
 		}
@@ -37,6 +40,11 @@ func applyTitleEvidenceWithRecorder(title, desc, fileName string, tags map[strin
 	// 路径规则里也有一批"标题里常写"的型号（riot shield / katana / nightstick …），
 	// 只挑足够独特的，避免 chrome / rifle 这类通用词在标题里误伤。
 	for _, rule := range weaponPathRules {
+		// pathOnly（minigun / 50cal 这类"模型名"）不做标题推断：
+		// 标题写 "Minigun 替换 M60" 说的是模型长什么样，不代表改的是固定机枪。
+		if rule.pathOnly {
+			continue
+		}
 		if !isDistinctiveTokenKeyword(rule.keyword) {
 			continue
 		}
@@ -80,12 +88,13 @@ func applyTitleEvidenceWithRecorder(title, desc, fileName string, tags map[strin
 	}
 }
 
-// metadataRuleMatches 复刻 DetectWeaponTypeFromMetadata 的匹配口径（scar 用词边界）。
-func metadataRuleMatches(lowerText, keyword string) bool {
-	if keyword == "scar" {
-		return textContainsToken(lowerText, "scar")
+// metadataRuleMatches 复刻 DetectWeaponTypeFromMetadata 的匹配口径：
+// token 规则与 scar 特例都要求整词，其余按子串。
+func metadataRuleMatches(lowerText string, rule weaponMatchRule) bool {
+	if rule.tokenMatch || rule.keyword == "scar" {
+		return textContainsToken(lowerText, rule.keyword)
 	}
-	return strings.Contains(lowerText, keyword)
+	return strings.Contains(lowerText, rule.keyword)
 }
 
 // textContainsKeyword 对 ASCII 关键词用"整词"匹配（避免 oscar 命中 scar、
