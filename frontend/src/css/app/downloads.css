@@ -701,3 +701,14 @@
   color: var(--text-tertiary);
   font-size: var(--text-xs);
 }
+
+/* 合集解析：正文没有可显示成员时的占位（合集本体不再渲染成"不可下载"卡片）。 */
+.workshop-group-empty {
+  margin: var(--spacing-3) 0;
+  padding: var(--spacing-3);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-align: center;
+}

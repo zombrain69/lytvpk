@@ -433,8 +433,9 @@ export async function showUpdateModal(info) {
       );
     }
 
-    // Start async test
-    TestMirrorsLatency();
+    // 打开弹框时先预热再测：第一次探测会触发镜像站回源 GitHub，数值明显偏高，
+    // 预热丢弃第一次结果、上报第二次，才接近实际下载体验（对齐上游 e9069c8）。
+    TestMirrorsLatency(true);
 
     // Listen for updates
     cancelLatencyListener = EventsOn("mirror_latency_result", (result) => {

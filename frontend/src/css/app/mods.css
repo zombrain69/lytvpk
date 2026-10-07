@@ -1950,6 +1950,21 @@
   background: #ffedd5;
 }
 
+/* 「新增」条目：磁盘上有、addonlist.txt 里还没写进去。 */
+.load-order-preview-status.is-unrecorded {
+  color: #14532d;
+  background: #dcfce7;
+}
+
+.load-order-preview-state.unrecorded {
+  color: #14532d;
+  background: #dcfce7;
+}
+
+.load-order-preview-item.is-unrecorded .load-order-preview-key {
+  font-style: italic;
+}
+
 .load-order-policy-actions {
   margin-top: var(--spacing-5);
   padding-top: var(--spacing-4);

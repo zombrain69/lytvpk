@@ -1,3 +1,27 @@
+// fetchOfficialDetails 走官方 IPublishedFileService/GetDetails（需要 STEAM_API_KEY），
+// 返回子项 / 依赖项的 ID 数组。任何失败都由调用方回退到页面抓取。
+async function fetchOfficialDetails(publishedFileId, apiKey) {
+  const params = new URLSearchParams();
+  params.set("key", apiKey);
+  params.set("includechildren", "true");
+  params.set("publishedfileids[0]", String(publishedFileId));
+  const response = await fetch(
+    `https://api.steampowered.com/IPublishedFileService/GetDetails/v1/?${params.toString()}`,
+  );
+  if (!response.ok) {
+    throw new Error(`GetDetails failed: ${response.status}`);
+  }
+  const data = await response.json();
+  const details = data?.response?.publishedfiledetails || [];
+  const children =
+    details.find(
+      (item) => String(item.publishedfileid) === String(publishedFileId),
+    )?.children || [];
+  return children
+    .map((child) => String(child.publishedfileid || "").trim())
+    .filter((id) => id !== "");
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
@@ -56,8 +80,23 @@ export default {
       let scrapedDependencies = [];
       let fetchPagePromise = Promise.resolve(null);
 
-      // 如果只请求了一个 ID，则尝试爬取该页面的依赖信息
-      if (payload.length === 1) {
+      // 官方接口优先（对齐上游 8b9dc8b）：IPublishedFileService/GetDetails 带 includechildren=true
+      // 时，合集会返回子项、普通物品会返回依赖项——Steam 正在灰度新版页面，
+      // 新版 HTML 里没有 collectionChildren / requiredItemsContainer，抓取会失效。
+      //
+      // 但官方接口需要 STEAM_API_KEY（Worker 的 Settings → Variables 里配置）。
+      // 本项目刻意保留"没配 key 就回退到页面抓取"的行为：宁可拿旧办法的不完整结果，
+      // 也不要把没配 key 的部署直接变成不可用（这是与上游的唯一差异，属于能力保留）。
+      let officialChildrenPromise = Promise.resolve(null);
+      if (payload.length === 1 && env?.STEAM_API_KEY) {
+        officialChildrenPromise = fetchOfficialDetails(
+          payload[0],
+          env.STEAM_API_KEY,
+        ).catch(() => null);
+      }
+
+      // 如果只请求了一个 ID，且官方接口不可用，则尝试爬取该页面的依赖信息
+      if (payload.length === 1 && !env?.STEAM_API_KEY) {
         const targetId = payload[0];
         fetchPagePromise = fetch(
           `https://steamcommunity.com/sharedfiles/filedetails/?id=${targetId}`,
@@ -85,6 +124,10 @@ export default {
         ),
         fetchPagePromise,
       ]);
+      const officialChildren = await officialChildrenPromise;
+      if (Array.isArray(officialChildren) && officialChildren.length > 0) {
+        scrapedDependencies = officialChildren;
+      }
 
       // 处理 HTML 获取依赖
       let debugInfo = {

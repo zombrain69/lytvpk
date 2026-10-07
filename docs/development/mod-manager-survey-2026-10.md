@@ -19,13 +19,13 @@
 | P0 | VPK 列表排序设置持久化 | 上游 `7b0818c` | **已实现（2.7.1-community.65）**（config `sortType` / `sortOrder`） |
 | P0 | 工坊 DNS 设置（列表/详情/链接解析单独选 DNS） | 上游 `5ce7ef5` | **已实现（2.7.1-community.66）**：系统 / 自定义两档 + 前后端校验 |
 | P0 | Mod 快照（文件名快照 + 含文件内容的完整备份 + 恢复预览） | 上游 `ba20411` | **已实现（2.7.1-community.66）**：最小闭环（names/full + 恢复计划 + 执行前备份） |
-| P1 | 加载顺序编辑器：失效/新增条目标记 + 保存时清理 | 上游 `1b74507` `a50cf4f` | **已实现清理 + 提示（2.7.1-community.66）**；条目级角标仍可再补 |
+| P1 | 加载顺序编辑器：失效/新增条目标记 + 保存时清理 | 上游 `1b74507` `a50cf4f` | **已全部实现**：清理 + 提示（.66）、条目级「文件不存在 / 文件在 disabled / 新增」角标（.67） |
 | P1 | 工坊直连弹窗自动填入剪贴板地址 | 上游 `a17e39a` | **已实现（2.7.1-community.66）** |
 | P1 | GitHub 加速源列表更新 | 上游 `d367670` | **已实现（2.7.1-community.66）** |
 | P1 | 用户自定义分类规则（正则 + 布尔表达式 + 规则编辑器） | `xavier-cai/L4D2ModManager` | **部分实现（2.7.1-community.66）**：JSON 规则（文件名/标题/标签/单条正则）+ 预览命中；未做可视化表达式编辑器 |
 | P1 | 开启 Mod 时的"同类互斥"提示（SingletonResource 思路） | `xavier-cai/L4D2ModManager` | **已实现（2.7.1-community.66）**：三选一提示，判定只认具体角色/武器型号 |
 | P1 | 按分类随机（每次启动从每个分类随机选一个） | `pukmajster/funky` | **已实现（2.7.1-community.66）**：轮换新增自定义分类输入 |
-| P1 | VPK 内容内联预览（不解包直接看文本/KeyValues/贴图/模型） | `craftablescience/VPKEdit` | **已实现文本/KeyValues/图片/VTF（2.7.1-community.66）**；BS3/模型预览仍未做 |
+| P1 | VPK 内容内联预览（不解包直接看文本/KeyValues/贴图/模型） | `craftablescience/VPKEdit` | **已实现文本/KeyValues/图片/VTF（.66）+ 模型（MDL）与地图（BSP）信息卡（.67）**；3D 渲染仍未做（需要 VVD/VTX 与渲染管线） |
 | P2 | addoninfo `addonContent_*` 兜底分类 | `fdklgbh/L4D2Mod-Manager` 已知问题 | **真机验证收益低，建议不做**（见 §5.4） |
 | P2 | 多分片地图识别（part 包没有 maps/ 或 missions/） | `fdklgbh/L4D2Mod-Manager` 已知问题 | 待观察（真机样本少） |
 | P2 | 把多个 VPK 合并成一个 pak01_dir.vpk | `kublay-tayro/Mods4Versus` | 建议只做"导出整合包"，不替代 addonlist |
@@ -76,15 +76,15 @@ git clone --depth 1 https://github.com/pukmajster/funky.git
 | 1 | `d0d406b` | 创意工坊批量转移 + 自动 meta 获取 | 已自研对齐（`internal/app/workshop_transfer.go` + `meta.go`，v2.5.14-community.58 发布） |
 | 2 | `5f2eb49` | 窗口保持关闭前大小 | 已覆盖（config `mainWindowWidth/Height/Maximised`，真机 config.json 实测有值） |
 | 3 | `c1b4972` | `favoriteServer` 外部协议 | 已对齐（`internal/platform/protocol/url_protocol.go` 有 `对齐上游 c1b4972` 注释） |
-| 4 | `cd93ea6` | CF 工坊接口 IP 令牌桶 | **未覆盖**：`worker/steam_workshop_worker.js` 无令牌桶（只影响自建 worker 的限流，不影响桌面端） |
-| 5 | `8b9dc8b` | 服务端依赖/合集改用官方 API | 未逐行对比（我们 `worker/steam_api_worker.js` 10931 字节 vs 上游重写；功能面已由 `required_items`/`child_items` 覆盖） |
-| 6 | `3008a30` | 详情接口默认不带图集 | 未采用：我们 `WorkshopItemDetail.Previews` 只有 URL（无二进制），收益低 |
-| 7 | `c9e8a25` | 合集解析不显示无法下载的主物品 | 未覆盖（合集解析展示细节；非核心） |
+| 4 | `cd93ea6` | CF 工坊接口 IP 令牌桶 | **已实现（2.7.1-community.67）**：`worker/steam_workshop_worker.js` 入口处按 `CF-Connecting-IP` 限流（突发 500 / 持续 50 每分钟，闲置桶回收），缓存命中也计数 |
+| 5 | `8b9dc8b` | 服务端依赖/合集改用官方 API | **已实现（2.7.1-community.67，带兜底）**：配置 `STEAM_API_KEY` 时走官方 `IPublishedFileService/GetDetails?includechildren=true`；**没配 key 时回退页面抓取**（上游是直接 503，我们保留能力） |
+| 6 | `3008a30` | 详情接口默认不带图集 | **仍不采纳**：我们 `WorkshopItemDetail.Previews` 只有 URL（无二进制），去掉"图集"省不下什么；上游的收益来自他们自己的 worker 结构 |
+| 7 | `c9e8a25` | 合集解析不显示无法下载的主物品 | **已实现（2.7.1-community.67）**：合集本体不再渲染成"不可下载"卡片（标题栏已有合集名/ID），成员按下标渲染；正文为空时给占位说明 |
 | 8 | `361dc9a` | 工坊详情显示依赖物品 | 已对齐（`workshop_browser.go` 的 `RequiredItems`） |
 | 9 | `ce2b268` | 工坊 ID 直达按钮 | 已对齐（`frontend/src/js/features/workshop/id-jump.js`） |
 | 10 | `b635ea3` | 工坊解析历史 | 已对齐（`internal/app/workshop_history.go` + `downloads/workshop-history.js`） |
 | 11 | `d367670` | GitHub 加速源列表更新 + 下拉自动关闭 | **部分未覆盖**：我们的 `MirrorList` 仍是旧 4 条（含上游已移除的 `gh.llkk.cc`） |
-| 12 | `e9069c8` | 更新弹框资源预热 | 未覆盖（更新弹框首次延迟；体验问题） |
+| 12 | `e9069c8` | 更新弹框资源预热 | **已实现（2.7.1-community.67）**：`TestMirrorsLatency(warmup)` 先预热再测（上报第二次），探测统一走协程池 |
 | 13 | `932d5bc` | 文档更新 | 无需 |
 | 14 | `8c171c6` | addonlist 写入编码问题（288 行重写） | **我们更强**：`writeAddonList` 保留 GBK/ANSI/UTF-16 与 BOM + 原子写 + 黄金回归测试 |
 | 15 | `1b74507` | 全新的加载顺序编辑器 | 部分覆盖：我们有加载顺序弹窗 + 约束/策略/分层/预览（`load-order-policy.js`、`addon_list_load_order.go`），但**没有失效/新增条目标记** |
@@ -92,7 +92,7 @@ git clone --depth 1 https://github.com/pukmajster/funky.git
 | 17 | `ba20411` | Mod 快照（文件名快照 + 完整备份 + 恢复预览） | **未覆盖**（最大缺口，见 §5.2） |
 | 18 | `074fe3d` | 文档更新 | 无需 |
 | 19 | `da4a71b` | parser：界面资源角色误判 + 关键词优先级 | **已覆盖且更严**：我们的 `isCharacterAssetPath`（`archive_index.go`）只认角色资源根 + 语音目录，且武器/角色规则来自 `ruletable`（有序切片，无 Go map 随机序） |
-| 20 | `be3edfc` | CI：GitHub Actions 依赖版本 | 未核对（发布工作流本地验证过：`scripts/verify-release.ps1`） |
+| 20 | `be3edfc` | CI：GitHub Actions 依赖版本 | 已核对：我们的三个工作流已在 `checkout@v7` / `setup-go@v7` / `setup-node@v7`（含 `upload-artifact@v7`、`configure-pages@v6` 等），无需要改 |
 | 21 | `1d581aa` | IP 直连服务器 | 已对齐（`direct-connect.js` + 接线守卫测试） |
 | 22 | `a17e39a` | 直连弹窗自动填入剪贴板地址 | **未覆盖**（小功能，见 §5.3） |
 | 23 | `5ce7ef5` | 工坊 DNS 设置 | **未覆盖**（1316 行含测试，见 §5.1） |

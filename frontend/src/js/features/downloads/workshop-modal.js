@@ -9,6 +9,10 @@ import {
   IsSelectingIP,
 } from "../../../../wailsjs/go/app/App";
 import { closeWorkshopHistory, recordWorkshopHistory } from "./workshop-history.js";
+import {
+  isCollectionGroup,
+  shouldRenderWorkshopGroupItem,
+} from "./workshop-group-items.mjs";
 
 const DOWNLOAD_ICON_SVG = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -313,16 +317,28 @@ function renderWorkshopGroup(group, groupIndex) {
   `;
 
   const body = groupDiv.querySelector(".workshop-group-body");
+  const collectionGroup = isCollectionGroup(group);
+  let renderedCount = 0;
   getGroupItems(group).forEach((details, itemIndex) => {
-    body.appendChild(renderWorkshopItem(details, groupIndex, itemIndex));
+    // 合集本体不是文件：标题栏已经展示合集名与 ID，正文只列成员（对齐上游 c9e8a25）。
+    if (!shouldRenderWorkshopGroupItem(group, details, itemIndex)) return;
+    body.appendChild(renderWorkshopItem(details, groupIndex, itemIndex, collectionGroup));
+    renderedCount += 1;
   });
+  if (renderedCount === 0) {
+    const empty = document.createElement("p");
+    empty.className = "workshop-group-empty";
+    empty.textContent = "该合集内暂无可显示的文件";
+    body.appendChild(empty);
+  }
 
   return groupDiv;
 }
 
-function renderWorkshopItem(details, groupIndex, itemIndex) {
+function renderWorkshopItem(details, groupIndex, itemIndex, collectionGroup = false) {
   const itemDiv = document.createElement("div");
-  const isMain = itemIndex === 0;
+  // 合集里没有"主物品"卡片，成员一律按子物品显示。
+  const isMain = !collectionGroup && itemIndex === 0;
   const downloadable = isDownloadableDetail(details);
   itemDiv.className = `workshop-info workshop-group-item${isMain ? " workshop-main-item" : ""}`;
 

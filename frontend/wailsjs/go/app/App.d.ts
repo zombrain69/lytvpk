@@ -602,7 +602,7 @@ export function SubmitProblemModScanResult(arg1:string):Promise<app.ProblemModSc
 
 export function SuggestModGroups():Promise<Array<app.ModGroupSuggestion>>;
 
-export function TestMirrorsLatency():Promise<void>;
+export function TestMirrorsLatency(arg1:boolean):Promise<void>;
 
 export function ToggleVPKFile(arg1:string):Promise<void>;
 

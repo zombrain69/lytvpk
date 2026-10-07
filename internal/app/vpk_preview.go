@@ -31,6 +31,8 @@ import (
 const (
 	vpkPreviewTextLimit  = 256 * 1024
 	vpkPreviewImageLimit = 8 * 1024 * 1024
+	// 地图（.bsp）比贴图大得多：只读取到上限做"信息卡"，不做 3D 渲染。
+	vpkPreviewMapLimit   = 128 * 1024 * 1024
 	vpkPreviewMaxEntries = 20000
 )
 
@@ -155,6 +157,27 @@ func (a *App) PreviewVPKEntry(filePath string, entryPath string) (VPKPreviewResu
 		result.Kind = "image"
 		result.DataURL = dataURL
 		result.Note = note
+		return result, nil
+	case ext == ".mdl":
+		raw, readErr := readVPKEntryBytes(opener, target)
+		if readErr != nil {
+			return result, fmt.Errorf("读取条目失败: %w", readErr)
+		}
+		result.Kind = "model"
+		result.Text = buildModelPreview(raw, normalized)
+		return result, nil
+	case ext == ".bsp":
+		if target.Size() > vpkPreviewMapLimit {
+			result.Kind = "binary"
+			result.Note = fmt.Sprintf("地图超过 %dMB，已跳过预览（可在游戏里直接进图查看）", vpkPreviewMapLimit/1024/1024)
+			return result, nil
+		}
+		raw, readErr := readVPKEntryBytes(opener, target)
+		if readErr != nil {
+			return result, fmt.Errorf("读取条目失败: %w", readErr)
+		}
+		result.Kind = "map"
+		result.Text = buildMapPreview(raw, normalized)
 		return result, nil
 	default:
 		result.Kind = "binary"

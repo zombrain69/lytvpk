@@ -494,7 +494,7 @@ function renderPreview(entries, summary) {
   if (!container) return;
   detachPreviewWindow();
   // 失效条目（文件不存在 / 在 disabled）与未记录 Mod 是排查加载顺序时最常用的两条线索。
-  const { statuses, invalidCount, unrecorded } = classifyLoadOrderEntries(
+  const { statuses, invalidCount, unrecorded, unrecordedEntries } = classifyLoadOrderEntries(
     entries,
     appState.allVpkFiles || appState.vpkFiles || [],
   );
@@ -527,15 +527,29 @@ function renderPreview(entries, summary) {
       targetKeys.add(constraint.after);
     }
   });
+  // 「新增」条目（磁盘上有、addonlist 里没有）追加在末尾：它们本来就还没进加载顺序，
+  // 默认位置与「未记录 Mod 首次开启时放在末尾」的设置一致。
+  const displayEntries = [
+    ...entries,
+    ...(unrecordedEntries || []).map((item) => ({
+      key: item.key,
+      value: "",
+      order: 0,
+      isWorkshop: item.location === "workshop",
+      isRoot: item.location === "root",
+      isUnrecorded: true,
+    })),
+  ];
   const token = ++previewRenderToken;
   const buildRow = (entry) => {
     const row = document.createElement("div");
     row.className = "load-order-preview-item";
+    if (entry.isUnrecorded) row.classList.add("is-unrecorded");
     if (sourceKeys.has(entry.key)) row.classList.add("is-rule-source");
     if (targetKeys.has(entry.key)) row.classList.add("is-rule-target");
     const order = document.createElement("span");
     order.className = "load-order-preview-number";
-    order.textContent = String(entry.order);
+    order.textContent = entry.isUnrecorded ? "—" : String(entry.order);
     const type = document.createElement("span");
     const location = entry.isWorkshop ? "workshop" : entry.isRoot ? "root" : "other";
     type.className = `load-order-preview-type ${location}`;
@@ -546,9 +560,19 @@ function renderPreview(entries, summary) {
     key.textContent = entryDisplayName(entry.key);
     const state = document.createElement("span");
     const enabled = entry.value === "1";
-    state.className = `load-order-preview-state ${enabled ? "enabled" : "disabled"}`;
-    state.textContent = enabled ? "游戏内开启" : "游戏内关闭";
+    state.className = entry.isUnrecorded
+      ? "load-order-preview-state unrecorded"
+      : `load-order-preview-state ${enabled ? "enabled" : "disabled"}`;
+    state.textContent = entry.isUnrecorded ? "未写入 addonlist" : enabled ? "游戏内开启" : "游戏内关闭";
     row.append(order, type, key, state);
+
+    if (entry.isUnrecorded) {
+      const badge = document.createElement("span");
+      badge.className = "load-order-preview-status is-unrecorded";
+      badge.textContent = "新增";
+      badge.title = "扫描到但还没写进 addonlist.txt；在 Mod 列表里开启它会按设置的位置写入";
+      row.appendChild(badge);
+    }
 
     const status = statuses.get(normalizeLoadOrderKey(entry.key));
     if (status && status !== LOAD_ORDER_ENTRY_STATUS.existing) {
@@ -579,7 +603,7 @@ function renderPreview(entries, summary) {
   const state = {
     container,
     token,
-    entries,
+    entries: displayEntries,
     buildRow,
     nodes: new Map(),
     start: 0,

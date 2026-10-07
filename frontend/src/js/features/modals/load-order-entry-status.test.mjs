@@ -43,10 +43,21 @@ test("classifyLoadOrderEntries 统计未记录的新 Mod", () => {
   const entries = [entry("a.vpk")];
   const files = [rootFile("a.vpk"), rootFile("b.vpk"), workshopFile("c.vpk")];
 
-  const { statuses, unrecorded, invalidCount } = classifyLoadOrderEntries(entries, files);
+  const { statuses, unrecorded, invalidCount, unrecordedEntries } = classifyLoadOrderEntries(entries, files);
   assert.equal(statuses.get("a.vpk"), LOAD_ORDER_ENTRY_STATUS.existing);
   assert.equal(unrecorded, 2);
   assert.equal(invalidCount, 0);
+  // 新增条目的明细（key/name/location）要能拿到，加载顺序预览靠它渲染「新增」角标。
+  assert.deepEqual(
+    unrecordedEntries.map((item) => item.key).sort(),
+    ["b.vpk", "workshop\\c.vpk"],
+  );
+  const workshopItem = unrecordedEntries.find((item) => item.key === "workshop\\c.vpk");
+  assert.equal(workshopItem.location, "workshop");
+  assert.equal(workshopItem.name, "c.vpk");
+  // disabled 里的文件不算「新增」：它已经有一条（或应该有一条）addonlist 记录，只是被禁用。
+  const { unrecordedEntries: withDisabled } = classifyLoadOrderEntries([], [disabledFile("d.vpk")]);
+  assert.deepEqual(withDisabled, []);
 });
 
 test("classifyLoadOrderEntries 容忍空条目 / 重复键 / 缺文件名", () => {

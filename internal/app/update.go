@@ -132,8 +132,19 @@ type MirrorWithLatency struct {
 	Latency int64  `json:"latency"` // 毫秒，-1 表示超时或错误
 }
 
-// checkLatency 检测镜像源延迟
-func checkLatency(url string) int64 {
+// checkLatency 检测镜像源延迟。
+//
+// warmup 为 true 时先发一次预热请求并丢弃结果（对齐上游 e9069c8）：
+// 首次请求会触发镜像站回源 GitHub，耗时明显高于后续请求，第二次的结果才接近实际下载体验。
+func checkLatency(url string, warmup bool) int64 {
+	if warmup {
+		probeLatency(url)
+	}
+	return probeLatency(url)
+}
+
+// probeLatency 发送一次探测请求并返回耗时（毫秒，-1 表示超时或失败）。
+func probeLatency(url string) int64 {
 	start := time.Now()
 	client := http.Client{
 		Timeout: 3 * time.Second,
@@ -302,32 +313,37 @@ func (a *App) GetMirrorsInitial() []MirrorWithLatency {
 	return results
 }
 
-// TestMirrorsLatency 异步测试镜像源延迟，通过事件返回结果
-func (a *App) TestMirrorsLatency() {
+// TestMirrorsLatency 异步测试镜像源延迟，通过事件返回结果。
+//
+// warmup 为 true 时每个源先发一次预热请求（结果丢弃），上报第二次的延迟：
+// 首次请求会触发镜像站回源 GitHub，数值明显偏高，第二次才接近实际下载体验。
+// 探测统一走协程池（a.submitProbe），避免一次性对十几个镜像站开无界 goroutine。
+func (a *App) TestMirrorsLatency(warmup bool) {
 	// 1. 直连检测
-	go func() {
+	a.submitPoolTask(func() {
 		target := pendingUpdateURL
 		if target == "" {
 			target = "https://github.com"
 		}
-		latency := checkLatency(target)
+		latency := checkLatency(target, warmup)
 		a.emitEvent("mirror_latency_result", MirrorWithLatency{URL: "", Latency: latency})
-	}()
+	})
 
 	// 2. 镜像源检测
 	for _, mirror := range MirrorList {
-		go func(m string) {
-			target := m
+		mirror := mirror
+		a.submitPoolTask(func() {
+			target := mirror
 			if pendingUpdateURL != "" {
-				prefix := m
+				prefix := mirror
 				if !strings.HasSuffix(prefix, "/") {
 					prefix += "/"
 				}
 				target = prefix + pendingUpdateURL
 			}
-			latency := checkLatency(target)
-			a.emitEvent("mirror_latency_result", MirrorWithLatency{URL: m, Latency: latency})
-		}(mirror)
+			latency := checkLatency(target, warmup)
+			a.emitEvent("mirror_latency_result", MirrorWithLatency{URL: mirror, Latency: latency})
+		})
 	}
 }
 
@@ -346,7 +362,8 @@ func (a *App) GetMirrorsWithLatency() []MirrorWithLatency {
 			// 如果没有待更新的 URL，检测 GitHub 主站作为参考
 			target = "https://github.com"
 		}
-		latency := checkLatency(target)
+		// 旧同步接口不做预热：它本来就会阻塞等待，保持一致的老行为。
+		latency := checkLatency(target, false)
 		mu.Lock()
 		// 直连的 URL 为空字符串，与 DoUpdate 逻辑保持一致
 		results = append(results, MirrorWithLatency{URL: "", Latency: latency})
@@ -368,7 +385,7 @@ func (a *App) GetMirrorsWithLatency() []MirrorWithLatency {
 				target = prefix + pendingUpdateURL
 			}
 
-			latency := checkLatency(target)
+			latency := checkLatency(target, false)
 			mu.Lock()
 			results = append(results, MirrorWithLatency{URL: m, Latency: latency})
 			mu.Unlock()

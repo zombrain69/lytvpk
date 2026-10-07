@@ -29,7 +29,12 @@ func TestVPKPreviewReadsTextAndImage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(srcDir, "materials", "icon.png"), pngBuffer.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "materials", "model.mdl"), []byte{0x01, 0x02, 0x03}, 0o644); err != nil {
+	// .phy 属于"没有预览通道"的二进制类型（.mdl/.bsp 现在各自有信息卡）。
+	if err := os.WriteFile(filepath.Join(srcDir, "materials", "model.phy"), []byte{0x01, 0x02, 0x03}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 假模型：不是 IDST 头 → 走"信息卡 + 可读说明"分支，而不是 binary。
+	if err := os.WriteFile(filepath.Join(srcDir, "materials", "fake.mdl"), []byte{0x01, 0x02, 0x03}, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -43,8 +48,8 @@ func TestVPKPreviewReadsTextAndImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("列条目失败: %v", err)
 	}
-	if list.TotalCount != 3 {
-		t.Fatalf("条目数 = %d，期望 3（%#v）", list.TotalCount, list.Entries)
+	if list.TotalCount != 4 {
+		t.Fatalf("条目数 = %d，期望 4（%#v）", list.TotalCount, list.Entries)
 	}
 	if list.Entries[0].Path > list.Entries[1].Path {
 		t.Fatalf("条目应按路径排序: %#v", list.Entries)
@@ -66,12 +71,21 @@ func TestVPKPreviewReadsTextAndImage(t *testing.T) {
 		t.Fatalf("图片预览不对: kind=%s prefix=%s", imagePreview.Kind, imagePreview.DataURL[:min(24, len(imagePreview.DataURL))])
 	}
 
-	binaryPreview, err := app.PreviewVPKEntry(packed.OutputPath, "materials/model.mdl")
+	binaryPreview, err := app.PreviewVPKEntry(packed.OutputPath, "materials/model.phy")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if binaryPreview.Kind != "binary" || binaryPreview.Note == "" {
 		t.Fatalf("二进制条目应只给说明: %#v", binaryPreview)
+	}
+
+	// 模型条目：即使不是合法 IDST 头，也要给"模型信息卡 + 说明"，不能是 binary。
+	modelPreview, err := app.PreviewVPKEntry(packed.OutputPath, "materials/fake.mdl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if modelPreview.Kind != "model" || !strings.Contains(modelPreview.Text, "无法解析模型头部") {
+		t.Fatalf("模型条目应给信息卡与说明: %#v", modelPreview)
 	}
 
 	if _, err := app.PreviewVPKEntry(packed.OutputPath, "materials/missing.txt"); err == nil {

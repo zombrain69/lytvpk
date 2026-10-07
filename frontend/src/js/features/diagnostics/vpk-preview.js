@@ -112,7 +112,8 @@ async function loadEntry(entryPath) {
   meta.textContent = `${entryPath} · ${sizeText}${result.note ? ` · ${result.note}` : ""}`;
   body.appendChild(meta);
 
-  if (result.kind === "text") {
+  // 文本 / 模型信息卡 / 地图信息卡都用等宽文本渲染（后两者是后端格式化好的报告）。
+  if (result.kind === "text" || result.kind === "model" || result.kind === "map") {
     const pre = document.createElement("pre");
     pre.className = "vpk-preview-text";
     pre.textContent = result.text || "";

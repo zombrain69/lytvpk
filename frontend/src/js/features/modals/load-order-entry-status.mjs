@@ -4,7 +4,7 @@
 // - disabled：条目对应的文件被放进了 disabled 目录（不会参与加载）
 // - missing：条目还在 addonlist.txt 里，但磁盘上已经找不到文件
 //
-// 另外统计「扫描到、但还没写进 addonlist.txt」的 Mod 数量（未记录）。
+// 另外统计「扫描到、但还没写进 addonlist.txt」的 Mod（未记录 / 新增条目）。
 
 export const LOAD_ORDER_ENTRY_STATUS = {
   existing: "existing",
@@ -66,7 +66,19 @@ export function classifyLoadOrderEntries(entries, files) {
     if (status !== LOAD_ORDER_ENTRY_STATUS.existing) invalidCount += 1;
   });
 
-  const unrecorded = [...activeKeys.keys()].filter((key) => !statuses.has(key)).length;
+  // 「新增条目」= 磁盘上存在、但 addonlist.txt 里没有记录的 Mod。
+  // 以前只统计数量，现在把条目本身也带出去：加载顺序预览会在末尾渲染它们并打「新增」角标，
+  // 用户一眼就能看出"这个 Mod 还没进 addonlist"（对齐上游 a50cf4f 的失效/新增标记）。
+  const unrecordedEntries = [];
+  activeKeys.forEach((file, key) => {
+    if (statuses.has(key)) return;
+    unrecordedEntries.push({
+      key,
+      name: file?.name || key,
+      location: file?.location || "root",
+    });
+  });
+  const unrecorded = unrecordedEntries.length;
 
-  return { statuses, invalidCount, unrecorded };
+  return { statuses, invalidCount, unrecorded, unrecordedEntries };
 }
