@@ -134,6 +134,7 @@ export namespace app {
 	}
 	export class AddonListLoadOrderPreview {
 	    entries: AddonListLoadOrderEntry[];
+	    removedStale?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new AddonListLoadOrderPreview(source);
@@ -142,6 +143,7 @@ export namespace app {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.entries = this.convertValues(source["entries"], AddonListLoadOrderEntry);
+	        this.removedStale = source["removedStale"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -439,6 +441,7 @@ export namespace app {
 	export class RotationConfig {
 	    enableCharacters: boolean;
 	    enableWeapons: boolean;
+	    tags?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new RotationConfig(source);
@@ -448,6 +451,7 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.enableCharacters = source["enableCharacters"];
 	        this.enableWeapons = source["enableWeapons"];
+	        this.tags = source["tags"];
 	    }
 	}
 	export class ConfigFile {
@@ -462,6 +466,7 @@ export namespace app {
 	    workshopTranslateCustomBaseURL?: string;
 	    workshopTranslateCustomAPIKey?: string;
 	    workshopTranslateCustomModelId?: string;
+	    workshopDNS?: network.WorkshopDNSConfig;
 	    defaultDirectory: string;
 	    savedDirectories: SavedDirectory[];
 	    lastActiveDirectory: string;
@@ -508,6 +513,7 @@ export namespace app {
 	        this.workshopTranslateCustomBaseURL = source["workshopTranslateCustomBaseURL"];
 	        this.workshopTranslateCustomAPIKey = source["workshopTranslateCustomAPIKey"];
 	        this.workshopTranslateCustomModelId = source["workshopTranslateCustomModelId"];
+	        this.workshopDNS = this.convertValues(source["workshopDNS"], network.WorkshopDNSConfig);
 	        this.defaultDirectory = source["defaultDirectory"];
 	        this.savedDirectories = this.convertValues(source["savedDirectories"], SavedDirectory);
 	        this.lastActiveDirectory = source["lastActiveDirectory"];
@@ -896,6 +902,73 @@ export namespace app {
 	        this.extra = source["extra"];
 	    }
 	}
+	export class CustomTagRuleIssue {
+	    index: number;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CustomTagRuleIssue(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.index = source["index"];
+	        this.message = source["message"];
+	    }
+	}
+	export class CustomTagRulePreviewItem {
+	    index: number;
+	    tag: string;
+	    matchCount: number;
+	    samples?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CustomTagRulePreviewItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.index = source["index"];
+	        this.tag = source["tag"];
+	        this.matchCount = source["matchCount"];
+	        this.samples = source["samples"];
+	    }
+	}
+	export class CustomTagRulePreview {
+	    ruleCount: number;
+	    items: CustomTagRulePreviewItem[];
+	    issues?: CustomTagRuleIssue[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CustomTagRulePreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ruleCount = source["ruleCount"];
+	        this.items = this.convertValues(source["items"], CustomTagRulePreviewItem);
+	        this.issues = this.convertValues(source["issues"], CustomTagRuleIssue);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class DownloadTask {
 	    id: string;
 	    workshop_id: string;
@@ -1379,6 +1452,57 @@ export namespace app {
 	        this.source = source["source"];
 	    }
 	}
+	export class ModEnableConflictItem {
+	    path: string;
+	    name: string;
+	    tag: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModEnableConflictItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.name = source["name"];
+	        this.tag = source["tag"];
+	    }
+	}
+	export class ModEnableConflict {
+	    key: string;
+	    label: string;
+	    conflicts: ModEnableConflictItem[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ModEnableConflict(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.label = source["label"];
+	        this.conflicts = this.convertValues(source["conflicts"], ModEnableConflictItem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ModPriorityEntry {
 	    key: string;
 	    name: string;
@@ -1825,6 +1949,114 @@ export namespace app {
 	        this.name = source["name"];
 	        this.from = source["from"];
 	        this.to = source["to"];
+	    }
+	}
+	export class ModSnapshotMeta {
+	    id: string;
+	    name: string;
+	    mode: string;
+	    createdAt: string;
+	    modCount: number;
+	    totalSize: number;
+	    backupSize: number;
+	    addonListEntries: number;
+	    addonsRoot?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModSnapshotMeta(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.mode = source["mode"];
+	        this.createdAt = source["createdAt"];
+	        this.modCount = source["modCount"];
+	        this.totalSize = source["totalSize"];
+	        this.backupSize = source["backupSize"];
+	        this.addonListEntries = source["addonListEntries"];
+	        this.addonsRoot = source["addonsRoot"];
+	    }
+	}
+	export class ModSnapshotRestoreItem {
+	    action: string;
+	    key: string;
+	    detail?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModSnapshotRestoreItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.action = source["action"];
+	        this.key = source["key"];
+	        this.detail = source["detail"];
+	    }
+	}
+	export class ModSnapshotRestorePlan {
+	    snapshot: ModSnapshotMeta;
+	    items: ModSnapshotRestoreItem[];
+	    addonListItems: number;
+	    blocked?: string;
+	    counts: Record<string, number>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModSnapshotRestorePlan(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.snapshot = this.convertValues(source["snapshot"], ModSnapshotMeta);
+	        this.items = this.convertValues(source["items"], ModSnapshotRestoreItem);
+	        this.addonListItems = source["addonListItems"];
+	        this.blocked = source["blocked"];
+	        this.counts = source["counts"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ModSnapshotRestoreResult {
+	    enabled: number;
+	    disabled: number;
+	    restored: number;
+	    overwritten: number;
+	    skipped: number;
+	    missing: number;
+	    addonListWrote: boolean;
+	    addonListBefore: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModSnapshotRestoreResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.disabled = source["disabled"];
+	        this.restored = source["restored"];
+	        this.overwritten = source["overwritten"];
+	        this.skipped = source["skipped"];
+	        this.missing = source["missing"];
+	        this.addonListWrote = source["addonListWrote"];
+	        this.addonListBefore = source["addonListBefore"];
 	    }
 	}
 	
@@ -2980,6 +3212,56 @@ export namespace app {
 	        this.error = source["error"];
 	    }
 	}
+	export class VPKEntryInfo {
+	    path: string;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new VPKEntryInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.size = source["size"];
+	    }
+	}
+	export class VPKEntryList {
+	    filePath: string;
+	    entries: VPKEntryInfo[];
+	    totalCount: number;
+	    truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new VPKEntryList(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filePath = source["filePath"];
+	        this.entries = this.convertValues(source["entries"], VPKEntryInfo);
+	        this.totalCount = source["totalCount"];
+	        this.truncated = source["truncated"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class VPKIntegrityBatchResult {
 	    path: string;
 	    report: parser.VPKIntegrityReport;
@@ -3013,6 +3295,26 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class VPKMergeResult {
+	    outputPath: string;
+	    sourceCount: number;
+	    totalEntries: number;
+	    overwritten: number;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new VPKMergeResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.outputPath = source["outputPath"];
+	        this.sourceCount = source["sourceCount"];
+	        this.totalEntries = source["totalEntries"];
+	        this.overwritten = source["overwritten"];
+	        this.size = source["size"];
+	    }
 	}
 	export class VPKModelMetric {
 	    path: string;
@@ -3070,6 +3372,30 @@ export namespace app {
 	        this.totalFiles = source["totalFiles"];
 	        this.packedFiles = source["packedFiles"];
 	        this.outputIsAddons = source["outputIsAddons"];
+	    }
+	}
+	export class VPKPreviewResult {
+	    path: string;
+	    kind: string;
+	    text?: string;
+	    dataUrl?: string;
+	    size: number;
+	    truncated?: boolean;
+	    note?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new VPKPreviewResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.kind = source["kind"];
+	        this.text = source["text"];
+	        this.dataUrl = source["dataUrl"];
+	        this.size = source["size"];
+	        this.truncated = source["truncated"];
+	        this.note = source["note"];
 	    }
 	}
 	export class VPKRepairBatchResult {
@@ -4842,6 +5168,20 @@ export namespace network {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ip = source["ip"];
 	        this.category = source["category"];
+	    }
+	}
+	export class WorkshopDNSConfig {
+	    mode: string;
+	    customAddress?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkshopDNSConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.customAddress = source["customAddress"];
 	    }
 	}
 

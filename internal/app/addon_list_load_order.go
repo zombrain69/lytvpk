@@ -2,6 +2,9 @@ package app
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -47,6 +50,10 @@ type AddonListLoadOrderPolicy struct {
 // AddonListLoadOrderPreview 既用于预览，也作为应用成功后的最终顺序返回值。
 type AddonListLoadOrderPreview struct {
 	Entries []AddonListLoadOrderEntry `json:"entries"`
+	// RemovedStale 是保存时被清理掉的失效条目（文件已不在根目录/workshop，或只在 disabled 里）。
+	// 对齐上游 a50cf4f：保存加载顺序顺手清理，addonlist.txt 不会越滚越大；
+	// 清理前一定会先留一份历史备份（kind=stale-cleanup）。
+	RemovedStale []string `json:"removedStale,omitempty"`
 }
 
 // GetAddonListLoadOrderEntries 返回当前 addonlist.txt 的完整顺序。
@@ -88,11 +95,70 @@ func (a *App) ApplyAddonListLoadOrderPolicy(policy AddonListLoadOrderPolicy) (Ad
 	if err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
+	ordered, removedStale := a.dropStaleAddonListItems(ordered)
+	if len(removedStale) > 0 {
+		// 沙箱只读闸门：备份也会往游戏目录写文件，必须在落盘前拦住。
+		if gateErr := rejectReadonlyLibraryWrite("清理 addonlist.txt 失效条目"); gateErr != nil {
+			return AddonListLoadOrderPreview{}, gateErr
+		}
+		// 任何删除都要可恢复：清理前先按原文件内容留一份历史备份。
+		if raw, readErr := os.ReadFile(path); readErr == nil {
+			if backup, backupErr := a.createAddonListBackupLocked("stale-cleanup", raw); backupErr != nil {
+				log.Printf("清理失效条目前的备份失败: %v", backupErr)
+			} else {
+				log.Printf("清理失效条目前的备份: %s（%d 条）", backup.Name, len(removedStale))
+			}
+		}
+	}
 	// 事务化提交：写盘 + 快照同步一起成功，快照同步失败时回滚到写前内容。
 	if err := a.commitAddonListItemsLocked(path, ordered, nil); err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
-	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered)}, nil
+	return AddonListLoadOrderPreview{
+		Entries:      makeAddonListLoadOrderEntries(ordered),
+		RemovedStale: removedStale,
+	}, nil
+}
+
+// dropStaleAddonListItems 丢掉 addonlist.txt 里"游戏已经不会加载"的条目：
+//   - 文件既不在 addons 根目录、也不在 workshop 目录（含被移动/改名/删除的）；
+//   - 只存在于 disabled 目录的条目（游戏不会加载禁用目录）。
+//
+// 返回保留下来的条目与被清理的原始键（保持原拼写，便于界面提示）。
+// 目录未知时一律不清理，宁可留着也不误删。
+func (a *App) dropStaleAddonListItems(list []AddonListItem) ([]AddonListItem, []string) {
+	root := strings.TrimSpace(a.rootDirectorySnapshot())
+	if root == "" {
+		return list, nil
+	}
+	kept := make([]AddonListItem, 0, len(list))
+	removed := make([]string, 0, 4)
+	for _, item := range list {
+		if a.addonListEntryStillLoadable(root, item.Name) {
+			kept = append(kept, item)
+			continue
+		}
+		removed = append(removed, item.Name)
+	}
+	if len(removed) == 0 {
+		return list, nil
+	}
+	return kept, removed
+}
+
+// addonListEntryStillLoadable 判断一个 addonlist 键在磁盘上是否还有会被加载的文件。
+func (a *App) addonListEntryStillLoadable(root, name string) bool {
+	normalized := normalizeAddonListKey(name)
+	if normalized == "" {
+		return false
+	}
+	// disabled 目录不会被游戏加载：那里的条目按失效处理。
+	if strings.HasPrefix(normalized, "disabled\\") {
+		return false
+	}
+	candidate := filepath.Join(root, filepath.FromSlash(normalized))
+	info, err := os.Stat(candidate)
+	return err == nil && !info.IsDir()
 }
 
 func makeAddonListLoadOrderEntries(list []AddonListItem) []AddonListLoadOrderEntry {

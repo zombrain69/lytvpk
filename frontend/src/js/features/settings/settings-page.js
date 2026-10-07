@@ -45,6 +45,7 @@ import { copyTextToClipboard } from "../file-list/share.js";
 import { openStrategyGroupManager } from "../mod-groups/strategy-group-manager.js";
 import { confirmInApp, showConfirmModal } from "../modals/confirm.js";
 import { showPromptModal } from "../modals/prompt.js";
+import { isValidDNSAddress } from "./workshop-dns.mjs";
 
 const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
@@ -193,6 +194,21 @@ export async function renderSettingsPage(deps) {
   const enabled = await readSetting("优选 IP", GetWorkshopPreferredIP, Boolean(config.workshopPreferredIP));
   const fixedIP = await readSetting("固定 IP", GetWorkshopFixedIP, config.workshopFixedIP || "");
   const useFixedIP = enabled && fixedIP !== "";
+  // 工坊 DNS（对齐上游 5ce7ef5 的最小版本）：配置缺省/非法时按"系统 DNS"显示。
+  const workshopDNS = config.workshopDNS && typeof config.workshopDNS === "object" ? config.workshopDNS : {};
+  const workshopDNSMode = workshopDNS.mode === "custom" ? "custom" : "system";
+  const workshopDNSAddress = workshopDNSMode === "custom" ? String(workshopDNS.customAddress || "") : "";
+  const workshopDNSStatus = workshopDNSMode === "custom"
+    ? `当前：自定义 DNS ${workshopDNSAddress}`
+    : "当前：系统 DNS";
+  // 自定义标签规则：读不到就显示空模板（读取失败不该让整页渲染失败）。
+  let customTagRulesText = "";
+  try {
+    customTagRulesText = (await deps.GetCustomTagRules?.()) || "";
+  } catch (error) {
+    console.warn("读取自定义标签规则失败:", error);
+    customTagRulesText = "";
+  }
   const metaEnabled = await readSetting("工坊信息存储", GetWorkshopMetaEnabled, Boolean(config.workshopMetaEnabled));
   // 更新检测依赖工坊信息存储。旧配置可能留下两者不一致的组合；渲染时
   // 以实际可执行的状态为准，避免禁用的开关仍显示内容和操作入口。
@@ -916,10 +932,58 @@ export async function renderSettingsPage(deps) {
                   Mod 文件与 addonlist.txt 都不受影响。
                 </div>
               </div>
-              <div class="addonlist-action-row settings-profile-capture-row">
-                <button type="button" id="settings-reset-suite-inheritance" class="trigger-check-btn addonlist-action-btn">重置套件继承快照</button>
-                <span id="settings-suite-inheritance-status" class="setting-row-status"></span>
+            <div class="addonlist-action-row settings-profile-capture-row">
+              <button type="button" id="settings-reset-suite-inheritance" class="trigger-check-btn addonlist-action-btn">重置套件继承快照</button>
+              <span id="settings-suite-inheritance-status" class="setting-row-status"></span>
+            </div>
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">自定义标签规则</div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">规则文件（JSON）</div>
+                <div class="setting-row-desc">
+                  按<strong>文件名 / 标题 / 已识别标签</strong>再补一层自定义标签，用于你自己的命名习惯（例如"三角洲""写实包"）。
+                  口径与内置规则一致：<strong>只增不减</strong>，不改动也不删除自动识别结果，也不参与冲突/优先级判定。
+                  保存后会重新扫描一次全库。
+                  <br>示例：
+                  <code>{"version":1,"rules":[{"tag":"三角洲","nameContains":["三角洲","delta"]},{"tag":"贴图包","anyTags":["贴图"]}]}</code>
+                </div>
               </div>
+              <textarea id="settings-custom-tag-rules" class="settings-conflict-ignore-editor" rows="6" spellcheck="false" placeholder='{"version":1,"rules":[{"tag":"我的分类","nameContains":["关键词"]}]}'>${escapeHtml(customTagRulesText)}</textarea>
+              <div class="addonlist-action-row">
+                <button type="button" id="settings-custom-tag-rules-preview" class="trigger-check-btn addonlist-secondary-btn">校验并预览命中</button>
+                <button type="button" id="settings-custom-tag-rules-save" class="trigger-check-btn addonlist-action-btn">保存并重扫</button>
+                <span id="settings-custom-tag-rules-status" class="setting-row-status"></span>
+              </div>
+              <div id="settings-custom-tag-rules-preview-list" class="settings-health-issues"></div>
+            </div>
+          </div>
+        </div>
+          <div class="setting-card">
+            <div class="setting-card-title">工坊 DNS</div>
+            <div class="setting-row-desc">
+              工坊列表、详情与链接解析打不开时，多数是域名解析问题（优选 IP 解决不了）。
+              这里可以只给"工坊数据请求"换一个 DNS：不改系统 DNS，也不影响 Mod 文件下载与图片加速。
+              保存后立刻对新请求生效，不需要重启。
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">解析方式</div>
+                <div class="setting-row-desc">默认跟随系统 DNS；填自定义地址会覆盖工坊请求的域名解析。</div>
+              </div>
+              <div class="setting-radio-group">
+                <label class="setting-radio-label"><input type="radio" name="settings-workshop-dns-mode" value="system" ${workshopDNSMode === "custom" ? "" : "checked"}><span>系统 DNS</span></label>
+                <label class="setting-radio-label"><input type="radio" name="settings-workshop-dns-mode" value="custom" ${workshopDNSMode === "custom" ? "checked" : ""}><span>自定义 DNS</span></label>
+              </div>
+            </div>
+            <div id="settings-workshop-dns-section" class="setting-indent" style="${workshopDNSMode === "custom" ? "" : "display:none"}">
+              <div class="setting-row-label">自定义 DNS 地址</div>
+              <input type="text" id="settings-workshop-dns-address" class="form-input" value="${escapeAttr(workshopDNSAddress)}" placeholder="例如 119.29.29.29 或 223.5.5.5（只填地址，不带端口）" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="addonlist-action-row">
+              <button type="button" id="settings-workshop-dns-save" class="trigger-check-btn addonlist-action-btn">保存 DNS 设置</button>
+              <span id="settings-workshop-dns-status" class="setting-row-status">${escapeHtml(workshopDNSStatus)}</span>
             </div>
           </div>
         </div>
@@ -1841,6 +1905,108 @@ function bindSettingsPage(deps) {
       deps.showNotification("更新固定 IP 设置失败: " + error, "error");
     } finally {
       fixedInput.disabled = false;
+    }
+  });
+
+  // ---- 自定义标签规则（导入 JSON + 预览命中 + 保存并重扫） ----
+  const customRulesEditor = document.getElementById("settings-custom-tag-rules");
+  const customRulesStatus = document.getElementById("settings-custom-tag-rules-status");
+  const customRulesPreviewList = document.getElementById("settings-custom-tag-rules-preview-list");
+
+  const renderCustomRulesPreview = (preview) => {
+    if (!customRulesPreviewList) return;
+    customRulesPreviewList.innerHTML = "";
+    (preview?.issues || []).forEach((issue) => {
+      const row = document.createElement("div");
+      row.className = "addonlist-status-error";
+      row.textContent = `规则 #${Number(issue.index) + 1}：${issue.message}`;
+      customRulesPreviewList.appendChild(row);
+    });
+    (preview?.items || []).forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "setting-row-desc";
+      const samples = (item.samples || []).slice(0, 3).join("、");
+      row.textContent = `「${item.tag}」命中 ${item.matchCount} 个 Mod${samples ? ` · 例如：${samples}` : ""}`;
+      customRulesPreviewList.appendChild(row);
+    });
+    if ((preview?.items || []).length === 0 && (preview?.issues || []).length === 0) {
+      const row = document.createElement("div");
+      row.className = "setting-row-desc";
+      row.textContent = "还没有规则。";
+      customRulesPreviewList.appendChild(row);
+    }
+  };
+
+  document.getElementById("settings-custom-tag-rules-preview")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    if (customRulesStatus) customRulesStatus.textContent = "正在试算命中…";
+    try {
+      const preview = await deps.PreviewCustomTagRules(customRulesEditor?.value || "");
+      if (customRulesStatus) {
+        customRulesStatus.textContent = `共 ${preview?.ruleCount || 0} 条规则${(preview?.issues || []).length ? `，${preview.issues.length} 条有问题` : ""}`;
+      }
+      renderCustomRulesPreview(preview);
+    } catch (error) {
+      if (customRulesStatus) customRulesStatus.textContent = "";
+      deps.showNotification("校验规则失败: " + error, "error");
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("settings-custom-tag-rules-save")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    if (customRulesStatus) customRulesStatus.textContent = "正在保存并重扫…";
+    try {
+      const count = await deps.SaveCustomTagRules(customRulesEditor?.value || "");
+      await deps.ScanVPKFiles();
+      await deps.refreshFilesKeepFilter?.({ silent: true });
+      if (customRulesStatus) customRulesStatus.textContent = `已保存 ${count} 条规则并重新扫描`;
+      deps.showNotification(`自定义标签规则已生效（${count} 条），已重新扫描`, "success");
+    } catch (error) {
+      if (customRulesStatus) customRulesStatus.textContent = "";
+      deps.showNotification("保存自定义标签规则失败: " + error, "error");
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  // ---- 工坊 DNS（对齐上游 5ce7ef5） ----
+  const dnsModeInputs = document.querySelectorAll('input[name="settings-workshop-dns-mode"]');
+  const dnsAddressInput = document.getElementById("settings-workshop-dns-address");
+  const dnsSection = document.getElementById("settings-workshop-dns-section");
+  const dnsSaveButton = document.getElementById("settings-workshop-dns-save");
+  const syncDNSSectionVisibility = () => {
+    const mode = document.querySelector('input[name="settings-workshop-dns-mode"]:checked')?.value || "system";
+    if (dnsSection) dnsSection.style.display = mode === "custom" ? "" : "none";
+  };
+  dnsModeInputs.forEach((input) => input.addEventListener("change", syncDNSSectionVisibility));
+  dnsSaveButton?.addEventListener("click", async () => {
+    const mode = document.querySelector('input[name="settings-workshop-dns-mode"]:checked')?.value === "custom" ? "custom" : "system";
+    const address = (dnsAddressInput?.value || "").trim();
+    // 前端先做一次同样的校验：错误立刻提示，不用等后端往返。
+    if (mode === "custom" && !isValidDNSAddress(address)) {
+      deps.showNotification("自定义 DNS 地址不合法：只填一个 IPv4 或 IPv6 地址，不要带端口或域名", "error");
+      dnsAddressInput?.focus();
+      return;
+    }
+    const status = document.getElementById("settings-workshop-dns-status");
+    dnsSaveButton.disabled = true;
+    try {
+      const saved = await deps.SetWorkshopDNSConfig({ mode, customAddress: mode === "custom" ? address : "" });
+      // 后端已经持久化，这里同步前端缓存（saveConfig 会合并进缓存），
+      // 避免后续其它设置保存时把旧值写回去。
+      await deps.saveConfig({ workshopDNS: saved });
+      if (status) {
+        status.textContent = saved?.mode === "custom" ? `当前：自定义 DNS ${saved.customAddress}` : "当前：系统 DNS";
+      }
+      deps.showNotification(saved?.mode === "custom" ? `工坊 DNS 已切换为 ${saved.customAddress}（立即生效）` : "工坊 DNS 已切回系统 DNS（立即生效）", "success");
+    } catch (error) {
+      deps.showNotification("保存工坊 DNS 失败: " + error, "error");
+    } finally {
+      dnsSaveButton.disabled = false;
     }
   });
 

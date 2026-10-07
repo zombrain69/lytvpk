@@ -973,3 +973,141 @@ html.dark-mode .autoexec-analysis.is-warning {
   font-weight: 600;
   word-break: break-all;
 }
+
+/* Mod 快照（工具箱）：恢复计划的逐项清单。 */
+.mod-snapshot-plan {
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.mod-snapshot-plan-items {
+  max-height: 18rem;
+  overflow: auto;
+  margin: var(--spacing-2) 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.mod-snapshot-plan-item {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: baseline;
+  padding: 0.25rem var(--spacing-2);
+  font-size: var(--text-xs);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.mod-snapshot-plan-item:last-child {
+  border-bottom: none;
+}
+
+.mod-snapshot-plan-action {
+  flex: 0 0 3.2rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.mod-snapshot-plan-item.is-enable .mod-snapshot-plan-action { color: #16a34a; }
+.mod-snapshot-plan-item.is-disable .mod-snapshot-plan-action { color: #dc2626; }
+.mod-snapshot-plan-item.is-restore .mod-snapshot-plan-action { color: #2563eb; }
+.mod-snapshot-plan-item.is-overwrite .mod-snapshot-plan-action { color: #d97706; }
+.mod-snapshot-plan-item.is-missing .mod-snapshot-plan-action { color: #dc2626; }
+
+.mod-snapshot-plan-key {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-snapshot-plan-detail {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+/* VPK 内容预览：左边条目列表、右边预览面板。 */
+.vpk-preview-layout {
+  display: flex;
+  gap: var(--spacing-3);
+  min-height: 24rem;
+}
+
+.vpk-preview-side {
+  flex: 0 0 22rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.vpk-preview-entries {
+  flex: 1 1 auto;
+  overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  max-height: 26rem;
+}
+
+.vpk-preview-entry {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: baseline;
+  width: 100%;
+  padding: 0.25rem var(--spacing-2);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vpk-preview-entry:hover {
+  background: var(--bg-hover);
+}
+
+.vpk-preview-entry.active {
+  background: var(--primary-100, rgba(79, 70, 229, 0.14));
+  font-weight: 700;
+}
+
+.vpk-preview-entry-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vpk-preview-entry-size {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.vpk-preview-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-2);
+  max-height: 26rem;
+}
+
+.vpk-preview-text {
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.vpk-preview-image {
+  max-width: 100%;
+  image-rendering: pixelated;
+  background:
+    repeating-conic-gradient(#00000010 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+}

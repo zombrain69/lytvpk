@@ -170,6 +170,14 @@ func (a *App) loadConfig() {
 	a.workshopTranslateCustomBaseURL = config.WorkshopTranslateCustomBaseURL
 	a.workshopTranslateCustomAPIKey = config.WorkshopTranslateCustomAPIKey
 	a.workshopTranslateCustomModelId = config.WorkshopTranslateCustomModelId
+	if config.WorkshopDNS != nil {
+		if dnsConfig, dnsErr := network.NormalizeWorkshopDNSConfig(*config.WorkshopDNS); dnsErr == nil {
+			a.workshopDNSConfig = dnsConfig
+		} else {
+			log.Printf("读取工坊 DNS 配置失败，使用系统 DNS: %v", dnsErr)
+			a.workshopDNSConfig = network.DefaultWorkshopDNSConfig()
+		}
+	}
 	a.defaultDirectory = config.DefaultDirectory
 	a.savedDirectories = cloneSavedDirectories(config.SavedDirectories)
 	a.lastActiveDirectory = config.LastActiveDirectory
@@ -232,6 +240,15 @@ func (a *App) loadConfig() {
 	a.migrationVersion = config.MigrationVersion
 	a.mu.Unlock()
 
+	// 工坊 DNS 是"进程级"设置：解析器缓存在 network 包里，配置载入后立刻生效。
+	a.applyWorkshopDNSResolver()
+	// 自定义标签规则同样是"进程级"的：扫描时逐条应用。
+	// 注意：loadCustomTagRules 内部自己会取读锁，这里不能再持有 a.mu（RWMutex 不可重入）。
+	if rules := a.loadCustomTagRules(); len(rules) > 0 {
+		a.mu.Lock()
+		a.customTagRules = rules
+		a.mu.Unlock()
+	}
 	log.Printf("已加载配置: 优选IP=%v, 固定IP=%s, 轮换=%v, 迁移版本=%d, meta存储=%v, 浏览器目标=%s", a.workshopPreferredIP, a.workshopFixedIP, a.modRotationConfig, a.migrationVersion, a.workshopMetaEnabled, a.workshopBrowserTarget)
 }
 
@@ -299,6 +316,12 @@ func (a *App) snapshotConfig() ConfigFile {
 		autoDetectWorkshopLink = &value
 	}
 	// 主窗口几何同样保持"没记录过就是 nil"，让前端继续用 Wails 默认尺寸。
+	// 工坊 DNS 同理：没设置过就保持 nil，前端按"系统 DNS"显示。
+	var workshopDNS *network.WorkshopDNSConfig
+	if normalized, dnsErr := network.NormalizeWorkshopDNSConfig(a.workshopDNSConfig); dnsErr == nil && normalized.Mode != network.WorkshopDNSModeSystem {
+		dnsCopy := normalized
+		workshopDNS = &dnsCopy
+	}
 	var mainWindowWidth, mainWindowHeight *int
 	var mainWindowMaximised *bool
 	if a.mainWindowWidth != nil && a.mainWindowHeight != nil {
@@ -324,6 +347,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		WorkshopTranslateCustomBaseURL:  a.workshopTranslateCustomBaseURL,
 		WorkshopTranslateCustomAPIKey:   a.workshopTranslateCustomAPIKey,
 		WorkshopTranslateCustomModelId:  a.workshopTranslateCustomModelId,
+		WorkshopDNS:                     workshopDNS,
 		DefaultDirectory:                a.defaultDirectory,
 		SavedDirectories:                cloneSavedDirectories(a.savedDirectories),
 		LastActiveDirectory:             a.lastActiveDirectory,
@@ -387,9 +411,11 @@ func (a *App) GetAppConfig() ConfigFile {
 
 func (a *App) SaveAppConfig(config ConfigFile) error {
 	a.mu.Lock()
-	// ModRotationConfig 是值类型，为兼容旧的部分配置调用，空配置表示
-	// “未提供”而不是主动关闭；真正关闭由 SetModRotation 先更新后端状态。
-	if config.ModRotationConfig != (RotationConfig{}) || a.modRotationConfig == (RotationConfig{}) {
+	// ModRotationConfig 为兼容旧的部分配置调用：空配置表示“未提供”而不是主动关闭，
+	// 真正关闭由 SetModRotation 先更新后端状态。
+	// 注意：加了 Tags 之后结构体不再可比较（[]string），所以用"是否为零值"的显式判断。
+	if !rotationConfigIsZero(config.ModRotationConfig) || rotationConfigIsZero(a.modRotationConfig) {
+		config.ModRotationConfig.Tags = NormalizeRotationTags(config.ModRotationConfig.Tags)
 		a.modRotationConfig = config.ModRotationConfig
 	}
 	if config.WorkshopPreferredIP != nil {
@@ -486,11 +512,24 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	}
 	a.workshopTranslateCustomBaseURL = config.WorkshopTranslateCustomBaseURL
 	a.workshopTranslateCustomModelId = config.WorkshopTranslateCustomModelId
+	// 工坊 DNS 校验失败时保留旧值，并在解锁后把错误返回给前端（锁内不能直接 return）。
+	var workshopDNSErr error
+	if config.WorkshopDNS != nil {
+		if dnsConfig, dnsErr := network.NormalizeWorkshopDNSConfig(*config.WorkshopDNS); dnsErr == nil {
+			a.workshopDNSConfig = dnsConfig
+		} else {
+			workshopDNSErr = dnsErr
+		}
+	}
 	if config.MigrationVersion > a.migrationVersion {
 		a.migrationVersion = config.MigrationVersion
 	}
 	a.mu.Unlock()
 
+	a.applyWorkshopDNSResolver()
+	if workshopDNSErr != nil {
+		return workshopDNSErr
+	}
 	if fixedIPChanged {
 		network.GlobalIPSelector.SetFixedIP(strings.TrimSpace(*config.WorkshopFixedIP))
 	}

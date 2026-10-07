@@ -38,6 +38,9 @@ import {
   openModelStatsScanModal,
 } from "./diagnostics/model-stats-scan.js";
 import { renderSettingsPage } from "./settings/settings-page.js";
+import { configureModSnapshotTool, openModSnapshotTool } from "./diagnostics/snapshot-tool.js";
+import { configureVPKMerge, openVPKMergeTool } from "./diagnostics/vpk-merge.js";
+import { configureVPKPreview, openVPKPreviewTool } from "./diagnostics/vpk-preview.js";
 import {
   configureServers,
   setupServerModalListeners,
@@ -246,6 +249,10 @@ import {
   SetWorkshopUpdateCheckEnabled,
   SetWorkshopBrowserTarget,
   SetWorkshopTranslateProvider,
+  SetWorkshopDNSConfig,
+  GetCustomTagRules,
+  PreviewCustomTagRules,
+  SaveCustomTagRules,
   SetWorkshopTranslateCustomBaseURL,
   SetWorkshopTranslateCustomModelId,
   SetWorkshopTranslateCustomAPIKey,
@@ -302,6 +309,17 @@ import {
   GetCrashReportDirectory,
   ListCrashReports,
   RunModHealthCheck,
+  ListModSnapshots,
+  CreateModSnapshot,
+  DeleteModSnapshot,
+  PreviewModSnapshotRestore,
+  RestoreModSnapshot,
+  OpenModSnapshotsFolder,
+  SelectVPKMergeOutputFile,
+  MergeVPKFiles,
+  ListVPKEntries,
+  PreviewVPKEntry,
+  SelectVPKFile,
   RemoveDuplicateAddonListEntries,
   RemoveMissingFileAddonListEntries,
   ListModDependencies,
@@ -434,6 +452,27 @@ configureModelStatsScan({
   showError,
 });
 
+configureModSnapshotTool({
+  ListModSnapshots,
+  CreateModSnapshot,
+  DeleteModSnapshot,
+  PreviewModSnapshotRestore,
+  RestoreModSnapshot,
+  OpenModSnapshotsFolder,
+  refreshFilesKeepFilter,
+});
+
+configureVPKMerge({
+  SelectVPKMergeOutputFile,
+  MergeVPKFiles,
+});
+
+configureVPKPreview({
+  SelectVPKFile,
+  ListVPKEntries,
+  PreviewVPKEntry,
+});
+
 configureDropImport({
   EventsOn,
   HandleFileDrop,
@@ -482,6 +521,10 @@ configureSettings({
   SetWorkshopUpdateCheckEnabled,
   SetWorkshopBrowserTarget,
   SetWorkshopTranslateProvider,
+  SetWorkshopDNSConfig,
+  GetCustomTagRules,
+  PreviewCustomTagRules,
+  SaveCustomTagRules,
   SetWorkshopTranslateCustomBaseURL,
   SetWorkshopTranslateCustomModelId,
   SetWorkshopTranslateCustomAPIKey,
@@ -997,6 +1040,9 @@ function setupSettingsAndAboutListeners() {
         openVPKPackTool,
         openArchiveManager,
         openAutoexecTool,
+        openModSnapshotTool,
+        openVPKMergeTool,
+        openVPKPreviewTool,
         openSprayTool,
         refreshFilesKeepFilter,
       });

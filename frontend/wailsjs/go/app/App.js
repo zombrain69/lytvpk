@@ -106,6 +106,10 @@ export function CheckFileMoveConflicts(arg1, arg2) {
   return window['go']['app']['App']['CheckFileMoveConflicts'](arg1, arg2);
 }
 
+export function CheckModEnableConflict(arg1) {
+  return window['go']['app']['App']['CheckModEnableConflict'](arg1);
+}
+
 export function CheckModStrategyGroupApply(arg1, arg2) {
   return window['go']['app']['App']['CheckModStrategyGroupApply'](arg1, arg2);
 }
@@ -162,6 +166,10 @@ export function CreateAddonListBackup() {
   return window['go']['app']['App']['CreateAddonListBackup']();
 }
 
+export function CreateModSnapshot(arg1, arg2) {
+  return window['go']['app']['App']['CreateModSnapshot'](arg1, arg2);
+}
+
 export function CreateModStrategyGroupChild(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CreateModStrategyGroupChild'](arg1, arg2, arg3, arg4);
 }
@@ -192,6 +200,10 @@ export function DeleteModEnableProfile(arg1) {
 
 export function DeleteModIgnoreFiles(arg1) {
   return window['go']['app']['App']['DeleteModIgnoreFiles'](arg1);
+}
+
+export function DeleteModSnapshot(arg1) {
+  return window['go']['app']['App']['DeleteModSnapshot'](arg1);
 }
 
 export function DeleteModStrategyGroup(arg1) {
@@ -394,6 +406,10 @@ export function GetCurrentBestIPOption() {
   return window['go']['app']['App']['GetCurrentBestIPOption']();
 }
 
+export function GetCustomTagRules() {
+  return window['go']['app']['App']['GetCustomTagRules']();
+}
+
 export function GetDownloadTasks() {
   return window['go']['app']['App']['GetDownloadTasks']();
 }
@@ -544,6 +560,10 @@ export function GetWorkshopAutoRedownload() {
 
 export function GetWorkshopBrowserTarget() {
   return window['go']['app']['App']['GetWorkshopBrowserTarget']();
+}
+
+export function GetWorkshopDNSConfig() {
+  return window['go']['app']['App']['GetWorkshopDNSConfig']();
 }
 
 export function GetWorkshopDetails(arg1) {
@@ -698,12 +718,20 @@ export function ListModPriorities() {
   return window['go']['app']['App']['ListModPriorities']();
 }
 
+export function ListModSnapshots() {
+  return window['go']['app']['App']['ListModSnapshots']();
+}
+
 export function ListModStrategyGroupTree() {
   return window['go']['app']['App']['ListModStrategyGroupTree']();
 }
 
 export function ListModStrategyGroups() {
   return window['go']['app']['App']['ListModStrategyGroups']();
+}
+
+export function ListVPKEntries(arg1) {
+  return window['go']['app']['App']['ListVPKEntries'](arg1);
 }
 
 export function ListWorkshopCollections() {
@@ -720,6 +748,10 @@ export function LogError(arg1, arg2, arg3) {
 
 export function ManualRotateMods(arg1) {
   return window['go']['app']['App']['ManualRotateMods'](arg1);
+}
+
+export function MergeVPKFiles(arg1, arg2) {
+  return window['go']['app']['App']['MergeVPKFiles'](arg1, arg2);
 }
 
 export function MigrateLocalStorageConfig(arg1) {
@@ -766,6 +798,14 @@ export function OpenFileLocation(arg1) {
   return window['go']['app']['App']['OpenFileLocation'](arg1);
 }
 
+export function OpenModSnapshotsFolder() {
+  return window['go']['app']['App']['OpenModSnapshotsFolder']();
+}
+
+export function OpenVPKPreviewInExplorer(arg1) {
+  return window['go']['app']['App']['OpenVPKPreviewInExplorer'](arg1);
+}
+
 export function PackVPKDirectory(arg1, arg2, arg3) {
   return window['go']['app']['App']['PackVPKDirectory'](arg1, arg2, arg3);
 }
@@ -792,6 +832,18 @@ export function PreviewAddonListLoadOrderPolicy(arg1) {
 
 export function PreviewAddonListMerge(arg1) {
   return window['go']['app']['App']['PreviewAddonListMerge'](arg1);
+}
+
+export function PreviewCustomTagRules(arg1) {
+  return window['go']['app']['App']['PreviewCustomTagRules'](arg1);
+}
+
+export function PreviewModSnapshotRestore(arg1) {
+  return window['go']['app']['App']['PreviewModSnapshotRestore'](arg1);
+}
+
+export function PreviewVPKEntry(arg1, arg2) {
+  return window['go']['app']['App']['PreviewVPKEntry'](arg1, arg2);
 }
 
 export function QueryStockIndex(arg1, arg2) {
@@ -870,6 +922,10 @@ export function RestoreAddonListBackup(arg1) {
   return window['go']['app']['App']['RestoreAddonListBackup'](arg1);
 }
 
+export function RestoreModSnapshot(arg1) {
+  return window['go']['app']['App']['RestoreModSnapshot'](arg1);
+}
+
 export function RestoreProblemModScan() {
   return window['go']['app']['App']['RestoreProblemModScan']();
 }
@@ -904,6 +960,10 @@ export function SaveAppConfig(arg1) {
 
 export function SaveAutoexecConfig(arg1) {
   return window['go']['app']['App']['SaveAutoexecConfig'](arg1);
+}
+
+export function SaveCustomTagRules(arg1) {
+  return window['go']['app']['App']['SaveCustomTagRules'](arg1);
 }
 
 export function SaveGroupSuggestionAgentPrompt(arg1) {
@@ -980,6 +1040,10 @@ export function SelectPanelMapUploadFiles() {
 
 export function SelectVPKFile() {
   return window['go']['app']['App']['SelectVPKFile']();
+}
+
+export function SelectVPKMergeOutputFile(arg1) {
+  return window['go']['app']['App']['SelectVPKMergeOutputFile'](arg1);
 }
 
 export function SelectVPKPackSourceDirectory() {
@@ -1066,6 +1130,10 @@ export function SetWorkshopBrowserTarget(arg1) {
   return window['go']['app']['App']['SetWorkshopBrowserTarget'](arg1);
 }
 
+export function SetWorkshopDNSConfig(arg1) {
+  return window['go']['app']['App']['SetWorkshopDNSConfig'](arg1);
+}
+
 export function SetWorkshopFixedIP(arg1) {
   return window['go']['app']['App']['SetWorkshopFixedIP'](arg1);
 }
@@ -1144,6 +1212,10 @@ export function TranslateWorkshopDescription(arg1) {
 
 export function UnpackVPKFile(arg1, arg2) {
   return window['go']['app']['App']['UnpackVPKFile'](arg1, arg2);
+}
+
+export function ValidateCustomTagRules(arg1) {
+  return window['go']['app']['App']['ValidateCustomTagRules'](arg1);
 }
 
 export function ValidateDirectory(arg1) {

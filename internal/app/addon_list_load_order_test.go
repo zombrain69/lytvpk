@@ -22,7 +22,29 @@ func newLoadOrderTestApp(t *testing.T, content string) (*App, string) {
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	return &App{rootDir: addonsDir}, path
+	app := &App{rootDir: addonsDir}
+	createAddonListFixtureFiles(t, app, content)
+	return app, path
+}
+
+// createAddonListFixtureFiles 按 addonlist 内容把对应 VPK 文件建出来。
+// 真实环境里每个条目都有文件；保存加载顺序会清理失效条目（对齐上游 a50cf4f），
+// 所以夹具不建文件时，测到的是"清理"而不是"排序"。
+func createAddonListFixtureFiles(t *testing.T, app *App, content string) {
+	t.Helper()
+	for _, item := range parseAddonListItems(content) {
+		key := normalizeAddonListKey(item.Name)
+		if key == "" {
+			continue
+		}
+		target := filepath.Join(app.rootDir, filepath.FromSlash(key))
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, []byte("fixture"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func loadOrderKeys(entries []AddonListLoadOrderEntry) []string {
@@ -123,6 +145,65 @@ func TestGetAddonListLoadOrderEntriesDeduplicatesSameStateEntries(t *testing.T) 
 	}
 	if want := []string{"root-a.vpk", "workshop\\123.vpk"}; !reflect.DeepEqual(loadOrderKeys(entries), want) {
 		t.Fatalf("current entries = %#v, want %#v", loadOrderKeys(entries), want)
+	}
+}
+
+// 保存加载顺序时清理失效条目（对齐上游 a50cf4f）：
+//   - 文件已删除的条目；
+//   - 只存在于 disabled 目录的条目（游戏不会加载禁用目录）。
+//
+// 清理属于删除操作，必须先留一份 kind=stale-cleanup 的历史备份。
+func TestApplyAddonListLoadOrderPolicyDropsStaleEntries(t *testing.T) {
+	app, path := newLoadOrderTestApp(t, "")
+	// 只创建"仍然会被游戏加载"的 root-a.vpk；ghost.vpk 故意不存在。
+	content := "\"AddonList\"\n{\n\t\"root-a.vpk\"\t\t\"1\"\n\t\"ghost.vpk\"\t\t\"1\"\n\t\"only-disabled.vpk\"\t\t\"1\"\n}\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(app.rootDir, "root-a.vpk"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(app.rootDir, "disabled"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(app.rootDir, "disabled", "only-disabled.vpk"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	preview, err := app.ApplyAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{RootFirst: true})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if want := []string{"root-a.vpk"}; !reflect.DeepEqual(loadOrderKeys(preview.Entries), want) {
+		t.Fatalf("entries = %#v, want %#v", loadOrderKeys(preview.Entries), want)
+	}
+	if want := []string{"ghost.vpk", "only-disabled.vpk"}; !reflect.DeepEqual(preview.RemovedStale, want) {
+		t.Fatalf("removedStale = %#v, want %#v", preview.RemovedStale, want)
+	}
+	written, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(written), "ghost.vpk") || strings.Contains(string(written), "only-disabled.vpk") {
+		t.Fatalf("失效条目应被清理，实际写回：%s", written)
+	}
+	if !strings.Contains(string(written), "root-a.vpk") {
+		t.Fatalf("有效条目必须保留，实际写回：%s", written)
+	}
+
+	backups, err := app.ListAddonListBackups()
+	if err != nil {
+		t.Fatalf("list backups: %v", err)
+	}
+	found := false
+	for _, backup := range backups {
+		if backup.Kind == "stale-cleanup" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("清理前必须留一份 stale-cleanup 备份，实际 %#v", backups)
 	}
 }
 
@@ -283,6 +364,7 @@ func TestApplyAddonListLoadOrderPolicyPreservesGBKEncoding(t *testing.T) {
 	if err := os.WriteFile(path, encoded, 0644); err != nil {
 		t.Fatal(err)
 	}
+	createAddonListFixtureFiles(t, app, content)
 
 	preview, err := app.ApplyAddonListLoadOrderPolicy(AddonListLoadOrderPolicy{RootFirst: true})
 	if err != nil {

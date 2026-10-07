@@ -13,6 +13,8 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"vpk-manager/internal/network"
 )
 
 // WorkshopBrowserService 处理创意工坊浏览相关的逻辑
@@ -113,13 +115,12 @@ const workshopCacheMaxEntries = 128
 
 func getWorkshopClient() *resty.Client {
 	workshopClientOnce.Do(func() {
-		dialer := &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}
 		transport := &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return dialer.DialContext(ctx, "tcp4", addr)
+			// 每次拨号都取一次当前工坊 DNS 设置（network.NewWorkshopDialer 内部读原子值），
+			// 这样设置页保存后立刻对新请求生效，不需要重启或重建客户端。
+			// 注意：闭包参数名不能再叫 network，否则会遮住 network 包。
+			DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
+				return network.NewWorkshopDialer(30*time.Second, 30*time.Second).DialContext(ctx, "tcp4", addr)
 			},
 		}
 		workshopClient = resty.New()

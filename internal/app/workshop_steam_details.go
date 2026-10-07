@@ -121,7 +121,7 @@ func fetchSteamPublishedFileDetailsOfficial(client *http.Client, ids []string) (
 		return result, nil
 	}
 	if client == nil {
-		client = &http.Client{Timeout: steamPublishedFileDetailsTimeout}
+		client = newWorkshopDataClient(steamPublishedFileDetailsTimeout)
 	}
 
 	form := url.Values{}
@@ -390,7 +390,7 @@ func (a *App) EnrichWorkshopMetadata(workshopIDs []string) (WorkshopEnrichResult
 		return result, nil
 	}
 
-	client := &http.Client{Timeout: steamPublishedFileDetailsTimeout}
+	client := newWorkshopDataClient(steamPublishedFileDetailsTimeout)
 	details := make(map[string]steamPublishedFileDetail, len(targets))
 	for start := 0; start < len(targets); start += steamPublishedFileDetailsBatch {
 		end := min(start+steamPublishedFileDetailsBatch, len(targets))

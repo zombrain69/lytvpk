@@ -479,6 +479,10 @@ func (a *App) processVPKFileWithCacheAndPersisted(
 	}
 
 	// 存入缓存
+	// 自定义标签规则放在最后一步：它读的是"文件名 + 标题 + 已识别标签"，必须在
+	// addoninfo/.meta 都写进 vpkFile 之后执行（对齐"只增不减"的口径）。
+	a.applyCustomTagRulesFor(vpkFile)
+
 	cache := &VPKFileCache{
 		File:         *vpkFile,
 		ModTime:      modTime,

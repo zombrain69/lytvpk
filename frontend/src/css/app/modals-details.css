@@ -1470,3 +1470,20 @@ html.dark-mode .toast-close:hover {
   opacity: 0.6;
 }
 
+
+/* 同类互斥提示：列出已经在生效的同类 Mod。 */
+.singleton-conflict-list {
+  margin: var(--spacing-2) 0;
+  padding-left: 1.15rem;
+  max-height: 10rem;
+  overflow: auto;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.singleton-conflict-footer {
+  display: flex;
+  gap: var(--spacing-2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}

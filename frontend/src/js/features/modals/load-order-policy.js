@@ -447,12 +447,18 @@ async function applyLoadOrderPolicy(options = {}) {
     currentEntries = result.entries || [];
     prepareEntryMetadata();
     renderRuleSelectors();
-    renderPreview(currentEntries, "已写入 addonlist.txt，并同步保护快照");
+    // 保存时后端会顺手清理"文件已不存在/只在 disabled 里"的失效条目（对齐上游 a50cf4f），
+    // 清理前已自动留一份历史备份；这里把结果说清楚，避免用户以为条目"凭空消失"。
+    const removedStale = Array.isArray(result.removedStale) ? result.removedStale : [];
+    const staleNote = removedStale.length > 0
+      ? `已顺手清理 ${removedStale.length} 条失效记录（已自动备份）：${removedStale.slice(0, 3).join("、")}${removedStale.length > 3 ? " 等" : ""}`
+      : "";
+    renderPreview(currentEntries, staleNote || "已写入 addonlist.txt，并同步保护快照");
     currentOrder = order;
     renderCurrentOrder();
     renderActivePolicy();
     showNotification(
-      options.successMessage || "加载顺序已写入 addonlist.txt，所有 Mod 开关状态保持不变",
+      options.successMessage || `加载顺序已写入 addonlist.txt，所有 Mod 开关状态保持不变${staleNote ? `；${staleNote}` : ""}`,
       "success"
     );
   } catch (err) {

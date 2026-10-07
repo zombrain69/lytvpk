@@ -16,6 +16,9 @@ export async function renderDiagnosticsPage({
   openArchiveManager,
   openSprayTool,
   openAutoexecTool,
+  openModSnapshotTool,
+  openVPKMergeTool,
+  openVPKPreviewTool,
   refreshFilesKeepFilter,
 } = {}) {
   const container = document.getElementById("diagnostics-page-content");
@@ -189,6 +192,51 @@ export async function renderDiagnosticsPage({
               选择文件夹
             </button>
           </section>
+
+          <section class="diagnostics-tool-card">
+            <div class="diagnostics-tool-icon is-integrity">${integrityIcon()}</div>
+            <div class="diagnostics-tool-main">
+              <div class="diagnostics-tool-title-row">
+                <h3>Mod 快照</h3>
+                <span class="diagnostics-status">可整体回滚</span>
+              </div>
+              <p>保存某一时刻的启用状态与加载顺序（文件名快照），或把 VPK 与同名图片/.meta 一起备份（完整备份）。
+                 恢复前会给出逐项计划，执行前自动备份 addonlist.txt。</p>
+            </div>
+            <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-mod-snapshot-btn">
+              打开快照工具
+            </button>
+          </section>
+
+          <section class="diagnostics-tool-card">
+            <div class="diagnostics-tool-icon is-pack">${packIcon()}</div>
+            <div class="diagnostics-tool-main">
+              <div class="diagnostics-tool-title-row">
+                <h3>合并为整合包</h3>
+                <span class="diagnostics-status">导出，不替代 addonlist</span>
+              </div>
+              <p>把当前勾选的多个 Mod 合并成一个 VPK：后一个包的同名文件覆盖前一个。
+                 合并只是导出，原 Mod、addonlist.txt 与优先级都不受影响。</p>
+            </div>
+            <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-merge-btn">
+              合并选中的 Mod
+            </button>
+          </section>
+
+          <section class="diagnostics-tool-card">
+            <div class="diagnostics-tool-icon is-unpack">${unpackIcon()}</div>
+            <div class="diagnostics-tool-main">
+              <div class="diagnostics-tool-title-row">
+                <h3>VPK 内容预览</h3>
+                <span class="diagnostics-status">不解包直接看</span>
+              </div>
+              <p>列出 VPK 里的全部条目，就地预览文本 / KeyValues / 图片 / VTF 贴图——
+                 想确认"这个包里装了什么"时不用先解包。</p>
+            </div>
+            <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-preview-btn">
+              选择 VPK 预览
+            </button>
+          </section>
         </div>
       </section>
     </div>
@@ -217,6 +265,24 @@ export async function renderDiagnosticsPage({
     .getElementById("diagnostics-model-stats-btn")
     ?.addEventListener("click", () => {
       openModelStatsScanModal?.();
+    });
+
+  document
+    .getElementById("toolbox-mod-snapshot-btn")
+    ?.addEventListener("click", () => {
+      openModSnapshotTool?.();
+    });
+
+  document
+    .getElementById("toolbox-vpk-merge-btn")
+    ?.addEventListener("click", () => {
+      openVPKMergeTool?.();
+    });
+
+  document
+    .getElementById("toolbox-vpk-preview-btn")
+    ?.addEventListener("click", () => {
+      openVPKPreviewTool?.();
     });
 
   document

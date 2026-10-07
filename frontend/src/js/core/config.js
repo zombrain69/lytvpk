@@ -5,6 +5,7 @@ import {
   SaveAppConfig,
 } from "../../../wailsjs/go/app/App";
 import { DEFAULT_UI_SCALE, normalizeUIScale } from "./ui-scale.js";
+import { normalizeWorkshopDNSConfig } from "../features/settings/workshop-dns.mjs";
 
 const LEGACY_STORAGE_KEYS = {
   config: "vpk-manager-config",
@@ -32,6 +33,8 @@ const DEFAULT_CONFIG = {
   openWithArguments: "",
   workshopBrowserTarget: "mirror",
   workshopTranslateProvider: "microsoft",
+  // 工坊 DNS：默认系统 DNS；自定义地址只影响工坊数据请求（对齐上游 5ce7ef5）。
+  workshopDNS: { mode: "system", customAddress: "" },
   defaultDirectory: "",
   savedDirectories: [],
   lastActiveDirectory: "",
@@ -165,6 +168,7 @@ function normalizeConfig(config = {}) {
     next.filterLayoutMode === "classic" ? "classic" : DEFAULT_CONFIG.filterLayoutMode;
   next.workshopBrowserTarget =
     next.workshopBrowserTarget || DEFAULT_CONFIG.workshopBrowserTarget;
+  next.workshopDNS = normalizeWorkshopDNSConfig(next.workshopDNS);
   next.workshopTranslateProvider =
     next.workshopTranslateProvider === "yandex" || next.workshopTranslateProvider === "custom"
       ? next.workshopTranslateProvider

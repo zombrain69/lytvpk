@@ -58,6 +58,8 @@ export function CheckConflictsWithOptions(arg1:app.ConflictAnalysisOptions):Prom
 
 export function CheckFileMoveConflicts(arg1:Array<string>,arg2:string):Promise<Array<app.FileMoveConflict>>;
 
+export function CheckModEnableConflict(arg1:string):Promise<app.ModEnableConflict>;
+
 export function CheckModStrategyGroupApply(arg1:string,arg2:app.ModStrategyGroupApplyOptions):Promise<app.ModStrategyGroupApplyCheck>;
 
 export function CheckModUpdates():Promise<app.UpdateCheckResult>;
@@ -86,6 +88,8 @@ export function ConnectToServer(arg1:string):Promise<void>;
 
 export function CreateAddonListBackup():Promise<app.AddonListBackup>;
 
+export function CreateModSnapshot(arg1:string,arg2:string):Promise<app.ModSnapshotMeta>;
+
 export function CreateModStrategyGroupChild(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<app.ModStrategyGroup>;
 
 export function CreateModStrategyGroupFromKeys(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<app.ModStrategyGroup>;
@@ -101,6 +105,8 @@ export function DeleteModDependencies(arg1:string):Promise<void>;
 export function DeleteModEnableProfile(arg1:string):Promise<void>;
 
 export function DeleteModIgnoreFiles(arg1:string):Promise<void>;
+
+export function DeleteModSnapshot(arg1:string):Promise<void>;
 
 export function DeleteModStrategyGroup(arg1:string):Promise<void>;
 
@@ -202,6 +208,8 @@ export function GetCurrentBestIP():Promise<string>;
 
 export function GetCurrentBestIPOption():Promise<network.IPOption>;
 
+export function GetCustomTagRules():Promise<string>;
+
 export function GetDownloadTasks():Promise<Array<app.DownloadTask>>;
 
 export function GetEntityTableStatus():Promise<app.EntityTableStatus>;
@@ -277,6 +285,8 @@ export function GetVPKPreviewImage(arg1:string):Promise<string>;
 export function GetWorkshopAutoRedownload():Promise<boolean>;
 
 export function GetWorkshopBrowserTarget():Promise<string>;
+
+export function GetWorkshopDNSConfig():Promise<network.WorkshopDNSConfig>;
 
 export function GetWorkshopDetails(arg1:string):Promise<Array<app.WorkshopFileDetails>>;
 
@@ -354,9 +364,13 @@ export function ListModIgnoreRecords():Promise<Array<app.ModIgnoreRecord>>;
 
 export function ListModPriorities():Promise<Array<app.ModPriorityEntry>>;
 
+export function ListModSnapshots():Promise<Array<app.ModSnapshotMeta>>;
+
 export function ListModStrategyGroupTree():Promise<Array<app.ModStrategyGroupTreeNode>>;
 
 export function ListModStrategyGroups():Promise<Array<app.ModStrategyGroup>>;
+
+export function ListVPKEntries(arg1:string):Promise<app.VPKEntryList>;
 
 export function ListWorkshopCollections():Promise<Array<app.WorkshopCollectionLink>>;
 
@@ -365,6 +379,8 @@ export function LoadSprayImportFiles(arg1:Array<string>):Promise<Array<app.Spray
 export function LogError(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ManualRotateMods(arg1:app.RotationConfig):Promise<void>;
+
+export function MergeVPKFiles(arg1:Array<string>,arg2:string):Promise<app.VPKMergeResult>;
 
 export function MigrateLocalStorageConfig(arg1:app.LocalStorageMigrationPayload):Promise<void>;
 
@@ -388,6 +404,10 @@ export function OpenArchivePackage(arg1:string):Promise<void>;
 
 export function OpenFileLocation(arg1:string):Promise<void>;
 
+export function OpenModSnapshotsFolder():Promise<void>;
+
+export function OpenVPKPreviewInExplorer(arg1:string):Promise<void>;
+
 export function PackVPKDirectory(arg1:string,arg2:string,arg3:boolean):Promise<app.VPKPackResult>;
 
 export function ParseMDMPFile(arg1:string):Promise<minidump.Report>;
@@ -401,6 +421,12 @@ export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
 export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
 
 export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
+
+export function PreviewCustomTagRules(arg1:string):Promise<app.CustomTagRulePreview>;
+
+export function PreviewModSnapshotRestore(arg1:string):Promise<app.ModSnapshotRestorePlan>;
+
+export function PreviewVPKEntry(arg1:string,arg2:string):Promise<app.VPKPreviewResult>;
 
 export function QueryStockIndex(arg1:string,arg2:number):Promise<app.StockIndexQueryResult>;
 
@@ -440,6 +466,8 @@ export function RestartPanelServer(arg1:string):Promise<string>;
 
 export function RestoreAddonListBackup(arg1:string):Promise<app.AddonListInfo>;
 
+export function RestoreModSnapshot(arg1:string):Promise<app.ModSnapshotRestoreResult>;
+
 export function RestoreProblemModScan():Promise<app.ProblemModScanSession>;
 
 export function ResumeDownloadTask(arg1:string):Promise<void>;
@@ -457,6 +485,8 @@ export function SaveAddonListManagedSnapshot():Promise<app.AddonListInfo>;
 export function SaveAppConfig(arg1:app.ConfigFile):Promise<void>;
 
 export function SaveAutoexecConfig(arg1:string):Promise<void>;
+
+export function SaveCustomTagRules(arg1:string):Promise<number>;
 
 export function SaveGroupSuggestionAgentPrompt(arg1:string):Promise<void>;
 
@@ -495,6 +525,8 @@ export function SelectMDMPFile():Promise<string>;
 export function SelectPanelMapUploadFiles():Promise<Array<string>>;
 
 export function SelectVPKFile():Promise<string>;
+
+export function SelectVPKMergeOutputFile(arg1:string):Promise<string>;
 
 export function SelectVPKPackSourceDirectory():Promise<string>;
 
@@ -538,6 +570,8 @@ export function SetWorkshopAutoRedownload(arg1:boolean):Promise<void>;
 
 export function SetWorkshopBrowserTarget(arg1:string):Promise<void>;
 
+export function SetWorkshopDNSConfig(arg1:network.WorkshopDNSConfig):Promise<network.WorkshopDNSConfig>;
+
 export function SetWorkshopFixedIP(arg1:string):Promise<void>;
 
 export function SetWorkshopMetaEnabled(arg1:boolean):Promise<void>;
@@ -577,6 +611,8 @@ export function ToggleVPKVisibility(arg1:string):Promise<string>;
 export function TranslateWorkshopDescription(arg1:string):Promise<app.WorkshopTranslationResult>;
 
 export function UnpackVPKFile(arg1:string,arg2:string):Promise<app.VPKUnpackResult>;
+
+export function ValidateCustomTagRules(arg1:string):Promise<app.CustomTagRulePreview>;
 
 export function ValidateDirectory(arg1:string):Promise<void>;
 

@@ -184,6 +184,10 @@ type App struct {
 	workshopTranslateCustomBaseURL string
 	workshopTranslateCustomAPIKey  string
 	workshopTranslateCustomModelId string
+	// workshopDNSConfig 是工坊数据请求的 DNS 设置（系统 / 自定义），对齐上游 5ce7ef5。
+	workshopDNSConfig network.WorkshopDNSConfig
+	// customTagRules 是用户导入的自定义标签规则（只增不减地补标签）。
+	customTagRules []CustomTagRule
 	migrationVersion               int
 	defaultDirectory               string
 	savedDirectories               []SavedDirectory
@@ -299,6 +303,8 @@ type ConfigFile struct {
 	WorkshopTranslateCustomBaseURL string           `json:"workshopTranslateCustomBaseURL,omitempty"`
 	WorkshopTranslateCustomAPIKey  string           `json:"workshopTranslateCustomAPIKey,omitempty"`
 	WorkshopTranslateCustomModelId string           `json:"workshopTranslateCustomModelId,omitempty"`
+	// WorkshopDNS：工坊列表/详情/链接解析使用的 DNS（nil = 没设置过 → 系统 DNS）。
+	WorkshopDNS *network.WorkshopDNSConfig `json:"workshopDNS,omitempty"`
 	DefaultDirectory               string           `json:"defaultDirectory"`
 	SavedDirectories               []SavedDirectory `json:"savedDirectories"`
 	LastActiveDirectory            string           `json:"lastActiveDirectory"`
@@ -348,6 +354,9 @@ type ConfigFile struct {
 type RotationConfig struct {
 	EnableCharacters bool `json:"enableCharacters"`
 	EnableWeapons    bool `json:"enableWeapons"`
+	// Tags 是"自定义分类轮换"：每个标签下随机保留一个 Mod（与官方武器/人物分类同一套逻辑）。
+	// 空值 = 只用人物/武器两个开关，保持旧配置的行为完全不变。
+	Tags []string `json:"tags,omitempty"`
 }
 
 type SavedDirectory struct {
@@ -469,6 +478,8 @@ func NewApp() *App {
 		workshopMetaEnabled:             true,     // 默认开启工坊meta信息存储
 		workshopBrowserTarget:           "mirror", // 默认使用镜像站
 		workshopTranslateProvider:       workshopTranslateProviderMicrosoft,
+		// 工坊 DNS 默认跟随系统（不改任何现有行为）。
+		workshopDNSConfig:               network.DefaultWorkshopDNSConfig(),
 		displayMode:                     "list",
 		// 默认按优先级排序（与前端 sortType 默认值一致）：改过排序的用户会在 config.json 里记住。
 		sortType:                        fileSortTypeLoadOrder,

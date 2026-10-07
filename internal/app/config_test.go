@@ -109,6 +109,51 @@ func TestFileSortPreferenceRoundTrip(t *testing.T) {
 	}
 }
 
+// 工坊 DNS 设置要能持久化、重启恢复，并保持"系统 DNS 不写进配置文件"的干净口径。
+func TestWorkshopDNSConfigRoundTrip(t *testing.T) {
+	first := newConfigTestApp(t)
+	first.loadConfig()
+
+	saved, err := first.SetWorkshopDNSConfig(network.WorkshopDNSConfig{
+		Mode:          "custom",
+		CustomAddress: " 119.29.29.29 ",
+	})
+	if err != nil {
+		t.Fatalf("保存工坊 DNS 失败: %v", err)
+	}
+	if saved.Mode != "custom" || saved.CustomAddress != "119.29.29.29" {
+		t.Fatalf("归一化结果不对: %#v", saved)
+	}
+
+	second := configTestAppAtDir(first.configDir)
+	second.loadConfig()
+	got := second.GetAppConfig()
+	if got.WorkshopDNS == nil || got.WorkshopDNS.Mode != "custom" || got.WorkshopDNS.CustomAddress != "119.29.29.29" {
+		t.Fatalf("重启后应恢复自定义 DNS，实际 %#v", got.WorkshopDNS)
+	}
+
+	// 非法地址必须被拒绝，且不能覆盖已经生效的设置。
+	if _, err := second.SetWorkshopDNSConfig(network.WorkshopDNSConfig{Mode: "custom", CustomAddress: "dns.alidns.com"}); err == nil {
+		t.Fatal("非法 DNS 地址必须报错")
+	}
+	if got := second.GetWorkshopDNSConfig(); got.CustomAddress != "119.29.29.29" {
+		t.Fatalf("非法设置不该覆盖旧值，实际 %#v", got)
+	}
+
+	// 切回系统 DNS：配置文件里应该不再保留 workshopDNS 字段（保持旧配置干净）。
+	if _, err := second.SetWorkshopDNSConfig(network.WorkshopDNSConfig{Mode: "system"}); err != nil {
+		t.Fatalf("切回系统 DNS 失败: %v", err)
+	}
+	third := configTestAppAtDir(first.configDir)
+	third.loadConfig()
+	if got := third.GetAppConfig().WorkshopDNS; got != nil {
+		t.Fatalf("系统 DNS 不应写进配置文件，实际 %#v", got)
+	}
+	if got := third.GetWorkshopDNSConfig(); got.Mode != network.WorkshopDNSModeSystem {
+		t.Fatalf("重启后应回到系统 DNS，实际 %#v", got)
+	}
+}
+
 // 非法 / 缺失的排序值必须回落成合法值：旧配置没有这两个字段，手改配置也可能写错。
 func TestNormalizeFileSort(t *testing.T) {
 	cases := []struct {
@@ -209,7 +254,7 @@ func TestSaveAppConfigPersistsSettingsAndPreservesSecret(t *testing.T) {
 	if config.WorkshopTranslateProvider == nil || *config.WorkshopTranslateProvider != provider {
 		t.Fatalf("translate provider = %#v, want %q", config.WorkshopTranslateProvider, provider)
 	}
-	if config.ModRotationConfig != (RotationConfig{EnableWeapons: true}) {
+	if config.ModRotationConfig.EnableCharacters || !config.ModRotationConfig.EnableWeapons {
 		t.Fatalf("rotation config = %#v", config.ModRotationConfig)
 	}
 	if config.AddonListGuardEnabled == nil || !*config.AddonListGuardEnabled {

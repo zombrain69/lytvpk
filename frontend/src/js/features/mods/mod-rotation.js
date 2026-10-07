@@ -4,6 +4,7 @@ import { getConfig, saveConfig } from "../../core/config.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import { GetModRotation, ManualRotateMods, SetModRotation } from "../../../../wailsjs/go/app/App";
+import { escapeHtml } from "../../core/utils.js";
 
 const ROTATION_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg">
   <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
@@ -80,7 +81,8 @@ export function updateModRotationUI(config) {
 
   const charEnabled = config.enableCharacters;
   const weaponEnabled = config.enableWeapons;
-  const anyEnabled = charEnabled || weaponEnabled;
+  const customCount = Array.isArray(config.tags) ? config.tags.length : 0;
+  const anyEnabled = charEnabled || weaponEnabled || customCount > 0;
 
   if (anyEnabled) {
     btn.classList.add("btn-rotation-enabled");
@@ -93,6 +95,8 @@ export function updateModRotationUI(config) {
       text = "人物轮换已启用";
     } else if (weaponEnabled) {
       text = "武器轮换已启用";
+    } else if (customCount > 0) {
+      text = `分类轮换已启用（${customCount} 类）`;
     }
 
     btn.innerHTML = `<span class="icon">${ROTATION_ICON_SVG}</span> ${text}`;
@@ -137,6 +141,15 @@ export async function toggleModRotation() {
             <span class="rotation-slider round"></span>
           </div>
         </label>
+        <label class="rotation-option-item" style="display:block">
+          <span class="option-label">按分类随机（可选）</span>
+          <input type="text" id="rotation-tags-input" class="form-input" style="margin-top:6px"
+                 placeholder="用逗号分隔，例如：贴图,HUD,载具"
+                 value="${escapeHtml((currentConfig.tags || []).join(","))}">
+          <div style="font-size:0.8em;color:var(--text-tertiary);margin-top:4px">
+            每个分类下随机保留一个 Mod；分类只要求"当前至少有一个启用中的 Mod"。
+          </div>
+        </label>
         <div style="margin-top: 8px; border-top: 1px solid var(--border-light); padding-top: 12px; display: flex; gap: 10px;">
            <button onclick="window.manualRotate('character')" class="btn btn-outline btn-small" style="flex: 1; justify-content: center;">
              <span class="icon">
@@ -166,21 +179,27 @@ export async function toggleModRotation() {
     async () => {
       const charCheck = document.getElementById("rotation-char-check");
       const weaponCheck = document.getElementById("rotation-weapon-check");
+      const tagsInput = document.getElementById("rotation-tags-input");
+      const tags = String(tagsInput?.value || "")
+        .split(/[,，、]/)
+        .map((tag) => tag.trim())
+        .filter((tag, index, list) => tag && list.indexOf(tag) === index);
 
       const newConfig = {
         enableCharacters: charCheck ? charCheck.checked : false,
         enableWeapons: weaponCheck ? weaponCheck.checked : false,
+        tags,
       };
 
       try {
         config.modRotationConfig = newConfig;
         config.modRotationEnabled =
-          newConfig.enableCharacters || newConfig.enableWeapons;
+          newConfig.enableCharacters || newConfig.enableWeapons || tags.length > 0;
         saveConfig(config);
         await SetModRotation(newConfig);
         updateModRotationUI(newConfig);
 
-        if (newConfig.enableCharacters || newConfig.enableWeapons) {
+        if (newConfig.enableCharacters || newConfig.enableWeapons || tags.length > 0) {
           showNotification("Mod随机轮换设置已更新", "success");
         } else {
           showNotification("Mod随机轮换已关闭", "info");

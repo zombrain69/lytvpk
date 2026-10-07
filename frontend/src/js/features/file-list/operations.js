@@ -28,6 +28,40 @@ import { moveWorkshopFileWithConflictResolution } from "./file-move-conflicts.js
 import { confirmVPKIntegrityWarning } from "./vpk-risk-warning.js";
 import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 import { formatFileGroupImpact, normalizeGroupKey } from "../mod-groups/group-view.mjs";
+import { promptSingletonConflict } from "../conflicts/singleton-conflict.js";
+
+// checkSingletonConflict 调后端判定"同类已启用"，失败时按"没有冲突"处理：
+// 这只是体验增强，不能因为它把启用流程整个挡住。
+async function checkSingletonConflict(filePath) {
+  try {
+    const conflict = await getBackendMethod("CheckModEnableConflict")(filePath);
+    return conflict && Array.isArray(conflict.conflicts) && conflict.conflicts.length > 0 ? conflict : null;
+  } catch (error) {
+    console.warn("同类互斥检查失败（已跳过提示）:", error);
+    return null;
+  }
+}
+
+// disableSingletonConflicts 把用户选择"关闭旧的"落实到游戏内开关上。
+async function disableSingletonConflicts(conflict) {
+  const setGameEnabled = getBackendMethod("SetVPKGameEnabled");
+  for (const item of conflict.conflicts || []) {
+    try {
+      await setGameEnabled(item.path, false);
+      [appState.allVpkFiles, appState.vpkFiles].forEach((files) => {
+        files.forEach((file) => {
+          if (file.path === item.path) {
+            file.gameStateKnown = true;
+            file.gameEnabled = false;
+          }
+        });
+      });
+    } catch (error) {
+      showError(`关闭同类 Mod 失败：${item.name || item.path}（${error}）`);
+    }
+  }
+  await refreshLoadOrderMap({ silent: true });
+}
 
 function getBackendMethod(name) {
   const method = window?.go?.app?.App?.[name];
@@ -102,6 +136,18 @@ export async function setGameState(filePath, state) {
 
 async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   if (nextEnabled && !(await confirmVPKOperationWarning(filePath, "启用游戏内 Mod"))) return;
+  // 同类互斥：同一角色/同一把武器的替换只会生效一个。启用前先问一次，
+  // 避免"启用了却没生效"的困惑（借鉴其它管理器的 SingletonResource 思路）。
+  if (nextEnabled) {
+    const conflict = await checkSingletonConflict(filePath);
+    if (conflict) {
+      const choice = await promptSingletonConflict(conflict);
+      if (choice === "cancel") return;
+      if (choice === "replace") {
+        await disableSingletonConflicts(conflict);
+      }
+    }
+  }
   try {
     // 返回值是策略组自动联动改动的其它成员数量（0 表示没有联动）。
     const enforcedCount = await getBackendMethod("SetVPKGameEnabled")(filePath, nextEnabled);

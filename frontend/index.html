@@ -1368,6 +1368,82 @@
 
     <!-- 服务器收藏对话框 -->
     <!-- 工坊 ID 直达（对齐上游 ce2b268）：输入 ID 或链接直接进详情 -->
+    <!-- 同类互斥提示：启用第二个同角色/同武器替换时的三选一 -->
+    <div id="singleton-conflict-modal" class="modal hidden">
+      <div class="modal-content modal-small">
+        <div class="modal-header">
+          <h3>同类的 Mod 已经在生效</h3>
+          <button class="close-btn" id="singleton-conflict-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="singleton-conflict-message" class="setting-row-desc"></p>
+          <ul id="singleton-conflict-list" class="singleton-conflict-list"></ul>
+          <p class="setting-row-desc">
+            游戏里同一角色/同一把武器只会生效一个替换（后加载覆盖或随机生效）。
+          </p>
+        </div>
+        <div class="modal-footer singleton-conflict-footer">
+          <button type="button" id="singleton-conflict-cancel" class="btn btn-secondary">取消</button>
+          <button type="button" id="singleton-conflict-coexist" class="btn btn-outline">两者共存</button>
+          <button type="button" id="singleton-conflict-replace" class="btn btn-primary">关闭旧的并启用</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VPK 内容预览（工具箱）：条目列表 + 文本/图片/VTF 就地预览 -->
+    <div id="vpk-preview-modal" class="modal hidden">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2 id="vpk-preview-title">VPK 内容预览</h2>
+          <button class="close-btn" id="vpk-preview-close-btn">&times;</button>
+        </div>
+        <div class="modal-body vpk-preview-layout">
+          <div class="vpk-preview-side">
+            <p id="vpk-preview-summary" class="setting-row-desc"></p>
+            <div id="vpk-preview-entries" class="vpk-preview-entries"></div>
+          </div>
+          <div id="vpk-preview-body" class="vpk-preview-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mod 快照（工具箱）：文件名快照 / 完整备份 + 恢复计划 -->
+    <div id="mod-snapshot-modal" class="modal hidden">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>Mod 快照</h2>
+          <button class="close-btn" id="mod-snapshot-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="setting-row-desc">
+            在批量启用/禁用、整理文件、更新或删除 Mod 之前留一个可整体回滚的状态。
+            快照只保存在本机；<strong>完整备份</strong>会复制 VPK 与同名图片/.meta，占用更大。
+            workshop 目录里的 Mod 只记录启停状态、不复制文件。
+          </p>
+          <div class="addonlist-action-row">
+            <input type="text" id="mod-snapshot-name" class="form-input settings-profile-name-input" maxlength="60" placeholder="快照名称，例如 整理前 / 写实包">
+            <select id="mod-snapshot-mode" class="form-input" style="max-width: 12rem">
+              <option value="names">文件名快照（快）</option>
+              <option value="full">完整备份（含文件）</option>
+            </select>
+            <button type="button" id="mod-snapshot-create-btn" class="trigger-check-btn addonlist-action-btn">创建快照</button>
+            <button type="button" id="mod-snapshot-open-folder-btn" class="trigger-check-btn addonlist-secondary-btn">打开存放位置</button>
+          </div>
+          <p id="mod-snapshot-status" class="setting-row-status"></p>
+          <div id="mod-snapshot-list" class="settings-profile-list"></div>
+          <div id="mod-snapshot-plan" class="mod-snapshot-plan hidden">
+            <h3>恢复计划</h3>
+            <p id="mod-snapshot-plan-summary" class="setting-row-desc"></p>
+            <div id="mod-snapshot-plan-items" class="mod-snapshot-plan-items"></div>
+            <div class="addonlist-action-row">
+              <button type="button" id="mod-snapshot-restore-btn" class="trigger-check-btn addonlist-action-btn">确认并执行恢复</button>
+              <button type="button" id="mod-snapshot-plan-cancel" class="trigger-check-btn addonlist-secondary-btn">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="workshop-id-jump-modal" class="modal hidden">
       <div class="modal-content modal-small">
         <div class="modal-header">

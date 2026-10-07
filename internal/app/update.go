@@ -109,12 +109,21 @@ func (a *App) GetForkInfo() ForkInfo {
 	return info
 }
 
-// MirrorList 镜像源列表 (与前端保持一致)
+// MirrorList 镜像源列表（对齐上游 d367670）
+//
+// 收录标准是"能否真的取回文件字节"：仅凭 HTTP 状态码判断会误判——页面代理型站点对
+// releases/latest 之类的网页请求返回 403 属正常策略（响应体是
+// "Web page content is not allowed. This service is for resource downloads only."），
+// gh-proxy 系列属于仅资源下载型，无法用于版本检测，遍历时会自动跳过。
 var MirrorList = []string{
-	"https://hk.gh-proxy.com/",
 	"https://gh-proxy.com/",
-	"https://gh.llkk.cc/",
 	"https://ghfast.top/",
+	"https://gh.xxooo.cf/",
+	"https://ghproxy.net/",
+	"https://gh.acmsz.top/",
+	"https://gh.felicity.ac.cn/",
+	"https://ghproxy.cxkpro.top/",
+	"https://hk.gh-proxy.com/",
 }
 
 // MirrorWithLatency 带有延迟信息的镜像源

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"path/filepath"
+	"strings"
 	"time"
-
 )
 
 // 官方标签白名单（只允许这些标签参与随机轮换）
@@ -70,7 +70,8 @@ func (a *App) ManualRotateMods(config RotationConfig) error {
 
 // rotateModsInternal 内部轮换逻辑
 func (a *App) rotateModsInternal(config RotationConfig) error {
-	if !config.EnableCharacters && !config.EnableWeapons {
+	config.Tags = NormalizeRotationTags(config.Tags)
+	if !config.EnableCharacters && !config.EnableWeapons && len(config.Tags) == 0 {
 		return nil
 	}
 
@@ -85,30 +86,14 @@ func (a *App) rotateModsInternal(config RotationConfig) error {
 	files := a.allVPKFilesSnapshot()
 
 	// 2. 识别当前启用的武器和人物Mod，并收集二级标签
-	targetTags := make(map[string]bool)
 	enabledMods := make(map[string]VPKFile) // Path -> File
 
 	for _, file := range files {
 		if file.Enabled {
 			enabledMods[file.Path] = file
-			if file.PrimaryTag == "武器" || file.PrimaryTag == "人物" {
-				// 根据配置过滤
-				if file.PrimaryTag == "人物" && !config.EnableCharacters {
-					continue
-				}
-				if file.PrimaryTag == "武器" && !config.EnableWeapons {
-					continue
-				}
-
-				for _, tag := range file.SecondaryTags {
-					// 只收集官方标签，忽略自定义标签
-					if tag != "" && officialTags[tag] {
-						targetTags[tag] = true
-					}
-				}
-			}
 		}
 	}
+	targetTags := collectRotationTargetTags(files, config)
 
 	if len(targetTags) == 0 {
 		logMsg("未发现启用的官方武器或人物Mod（符合当前配置），跳过轮换")
@@ -252,4 +237,69 @@ func (a *App) rotateModsInternal(config RotationConfig) error {
 	logMsg("Mod轮换完成")
 
 	return nil
+}
+
+// rotationConfigIsZero 判断轮换配置是不是"完全没设置过"（用于兼容旧的部分配置调用）。
+func rotationConfigIsZero(config RotationConfig) bool {
+	return !config.EnableCharacters && !config.EnableWeapons && len(config.Tags) == 0
+}
+
+// NormalizeRotationTags 归一化"自定义分类轮换"标签：去空白、去重、保持输入顺序。
+func NormalizeRotationTags(tags []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(tags))
+	result := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		trimmed := strings.TrimSpace(tag)
+		if trimmed == "" {
+			continue
+		}
+		key := strings.ToLower(trimmed)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, trimmed)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// collectRotationTargetTags 计算本次轮换要处理的标签集合。
+//
+// 口径（与既有行为一致，只是扩展了来源）：
+//   - 人物/武器开关：只认官方标签白名单（避免自定义标签污染随机池）；
+//   - config.Tags（按分类随机）：用户显式写的标签，不再要求在白名单里——这就是"按分类随机"；
+//   - **只有当前至少有一个启用 Mod 的标签才参与**（旧口径：不启用就不参与，避免"启用了却永远选不上"）。
+func collectRotationTargetTags(files []VPKFile, config RotationConfig) map[string]bool {
+	extra := make(map[string]bool, len(config.Tags))
+	for _, tag := range config.Tags {
+		extra[strings.ToLower(tag)] = true
+	}
+	targets := make(map[string]bool)
+	for _, file := range files {
+		if !file.Enabled {
+			continue
+		}
+		primaryAllowed := (file.PrimaryTag == "人物" && config.EnableCharacters) ||
+			(file.PrimaryTag == "武器" && config.EnableWeapons)
+		for _, tag := range file.SecondaryTags {
+			if tag == "" {
+				continue
+			}
+			if primaryAllowed && officialTags[tag] {
+				targets[tag] = true
+				continue
+			}
+			// 自定义分类：不限制主类型（贴图/特效包也能按分类随机）。
+			if extra[strings.ToLower(tag)] {
+				targets[tag] = true
+			}
+		}
+	}
+	return targets
 }

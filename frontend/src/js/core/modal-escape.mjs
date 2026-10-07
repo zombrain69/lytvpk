@@ -39,6 +39,9 @@ export const ESC_CLOSABLE_MODAL_IDS = [
   "file-conflict-modal",
   "exit-confirm-modal",
   "info-modal",
+  "mod-snapshot-modal",
+  "vpk-preview-modal",
+  "singleton-conflict-modal",
 ];
 
 /**
