@@ -56,8 +56,8 @@ $h = @{ 'User-Agent' = 'codex-survey'; 'Accept' = 'application/vnd.github+json' 
 Invoke-RestMethod -Headers $h 'https://api.github.com/search/repositories?q=l4d2+mod+manager&sort=stars&per_page=15'
 Invoke-RestMethod -Headers $h 'https://api.github.com/search/repositories?q=topic:l4d2&sort=stars&per_page=10'
 
-# 上游缺口分析
-cd 'E:\SteamLibrary\steamapps\common\Left 4 Dead 2\program\lytvpk'
+# 上游缺口分析（在仓库根目录执行）
+cd <仓库根目录>
 git fetch upstream --tags
 git log --date=short --pretty='%h %ad %s' HEAD..upstream/master
 
