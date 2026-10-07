@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.7.1-community.65 — 2026-10-07
+
+本轮：地图道具口径细化 + 子标签可用性 + 套件继承重置入口 + 排序设置持久化，
+并把"其它求生之路 Mod 管理器生态"的调研落成文档（`docs/development/mod-manager-survey-2026-10.md`）。
+
+- **地图口径再细化**：主类型 = 地图 时，`models/props*` / `materials/props*` / 任意 `/props/` 路径上的
+  **本体精确锚点**也按"搭场景"处理——广西-南宁/宜昌市/死亡山谷这类自带 `models/props_junk/gascan001a.mdl`、
+  `propanecanister001a.mdl`、`models/props_equipment/oxygentank01.mdl` 的地图不再挂「汽油桶 / 煤气罐 / 氧气罐」。
+  只影响 `entity:` 通道；内容/类别标签（模型 / 贴图 / 脚本…）不受影响。
+- **筛选条不再有本地化 token**：任务文件的 `DisplayTitle "#L4D360UI_CampaignName_C1"` 一度被当成战役名写进标签，
+  筛选条里出现 14 个 `#L4D360UI_*` 子标签。现在 `#` 开头 / `L4D360UI_` / `L4D_` 前缀对所有主类型一律不是标签；
+  token 战役名改为用任务文件名兜底展示（章节名是 token 时退回章节代码），**导出清单里 `L4D360UI` 出现次数 14 → 0**。
+- **子标签按"常用度"排**：新增后端 `GetSecondaryTagCounts`（按 Mod 去重），筛选条与下拉都按命中 Mod 数降序
+  （同分按字典序），标签带命中数角标与"N 个 Mod"提示——默认收起一行时先看到的是最常用的那批
+  （真机"地图"主标签下 120 项：战役模式 54 / 贴图 49 / UI 48 / 脚本 46 / VScript 44 / 载入画面 36）。
+- **套件继承快照手动重置**：设置 → 游戏配置 → 「分类与标签维护 → 套件继承快照」，确认后清空
+  `suite_inheritance.json` 并按当前 Mod 重新扫描（重置只会少继承、不会少标；Mod 文件与 addonlist.txt 不受影响）。
+- **排序设置持久化**（对齐上游 `7b0818c`）：名称/日期/大小/模型复杂度/优先级五种排序与升序/降序都写进 `config.json`，
+  下次启动恢复；非法值一律回落"优先级 + 顺序"。
+- 标签回归：冷启动全量重解析 2962 个 Mod，`--check-tag-regression` = **+54 / −0**（新增 allowlist 登记 18 条，逐条带 reason/evidence）。
+
 ## 2.7.1-community.64 — 2026-10-07
 
 本轮把「标签识别」的三处能力补齐，并修掉两类误标（详见 `docs/development/mod-tag-recognition-v2.md` 的 W7 行、`docs/development/manual-verification.md` 第三十五轮）：
@@ -10,6 +31,8 @@
 - **套件继承快照**：跨 Mod 的命名空间继承改为「并集持久化」（`%APPDATA%\LytVPK\suite_inheritance.json`）：经常增删改 Mod 时已继承的标签不再抖动，命名空间消失才清理，删文件即可重置。
 
 ## 未发布 — XDR（xdReanimsBase）动作 Mod 管理增强
+
+> 注：本节内容已随 `2.7.1-community.64`（提交 `6a9b670`）发布，标题保留原样仅为记录。
 
 把第三方动作框架 xdReanimsBase 的官方规则固化进产品：**槽位语义**、**优先级**、**同槽冲突提示**。
 调研记录（含官方槽位表 1–48、每条规则的原文出处、与其它管理器的对比）见

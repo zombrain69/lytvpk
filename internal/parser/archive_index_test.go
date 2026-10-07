@@ -166,6 +166,37 @@ func TestSortedTagSetAndSecondaryTagsAreStable(t *testing.T) {
 	}
 }
 
+// 常用子标签排序的数据源：计数必须按 Mod 去重（同一个 Mod 里同一个标签只算一次），
+// 并且和 GetSecondaryTags 一样跳过主标签本身、忽略大小写差异。
+func TestSecondaryTagCountsCountsModsNotOccurrences(t *testing.T) {
+	files := []VPKFile{
+		{PrimaryTag: "武器", SecondaryTags: []string{"AK47", "步枪", "武器", "HUD"}},
+		{PrimaryTag: "武器", SecondaryTags: []string{"ak47", "步枪"}},
+		{PrimaryTag: "武器", SecondaryTags: []string{"AK47", "贴图"}},
+		{PrimaryTag: "地图", SecondaryTags: []string{"贴图"}},
+	}
+
+	counts := SecondaryTagCounts(files, "武器")
+	if got, want := counts["ak47"], 3; got != want {
+		t.Fatalf("AK47 计数 = %d，期望 %d（大小写合并 + 每个 Mod 只算一次）", got, want)
+	}
+	if got, want := counts["步枪"], 2; got != want {
+		t.Fatalf("步枪 计数 = %d，期望 %d", got, want)
+	}
+	// 主标签本身不是子标签；别的 Mod 不能算进来。
+	if got := counts["武器"]; got != 0 {
+		t.Fatalf("主标签不该出现在子标签计数里，实际 %d", got)
+	}
+	if got := counts["贴图"]; got != 1 {
+		t.Fatalf("贴图 计数 = %d，期望 1（只统计主标签=武器的 Mod）", got)
+	}
+
+	all := SecondaryTagCounts(files, "")
+	if got := all["贴图"]; got != 2 {
+		t.Fatalf("空主标签应统计全部 Mod，贴图 计数 = %d，期望 2", got)
+	}
+}
+
 func testArchive(dir, base, ext string) *vpk.Archive {
 	return testArchiveFiles(vpk.File{Dir: dir, Base: base, Ext: ext})
 }

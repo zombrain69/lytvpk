@@ -904,6 +904,24 @@ export async function renderSettingsPage(deps) {
             </div>
             <div id="settings-health-issues" class="settings-health-issues"></div>
           </div>
+          <div class="setting-card">
+            <div class="setting-card-title">分类与标签维护</div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">套件继承快照</div>
+                <div class="setting-row-desc">
+                  同一个作者命名空间（套件）里的标签继承结果会记在本机的 <code>suite_inheritance.json</code>：
+                  只增不减，所以你删掉几个同套件的 Mod 也不会突然掉标签。
+                  重置会清空这份记录，下一次扫描按当前 Mod 重新推导；重置只会少继承、不会少标，
+                  Mod 文件与 addonlist.txt 都不受影响。
+                </div>
+              </div>
+              <div class="addonlist-action-row settings-profile-capture-row">
+                <button type="button" id="settings-reset-suite-inheritance" class="trigger-check-btn addonlist-action-btn">重置套件继承快照</button>
+                <span id="settings-suite-inheritance-status" class="setting-row-status"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         </div>
@@ -2558,6 +2576,35 @@ function bindSettingsPage(deps) {
 
   document.getElementById("settings-addonlist-create-backup")?.addEventListener("click", (event) => {
     void runAddonListAction(event.currentTarget, () => deps.CreateAddonListBackup(), "已创建 addonlist.txt 历史备份", "创建备份失败");
+  });
+
+  // 套件继承快照的手动重置入口（用户口径：唯一会"少继承"的操作，所以必须显式确认）。
+  // 重置后立刻重扫一次，否则当前列表还是旧快照算出来的标签。
+  document.getElementById("settings-reset-suite-inheritance")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (button.disabled) return;
+    const confirmed = await confirmInApp(
+      "重置套件继承快照？这会清空本机记录的「套件 → 继承标签」结果，然后按当前 Mod 重新扫描。它只会少继承、不会少标，Mod 文件与 addonlist.txt 都不受影响。",
+      { title: "重置套件继承快照" },
+    );
+    if (!confirmed) return;
+
+    const status = document.getElementById("settings-suite-inheritance-status");
+    button.disabled = true;
+    if (status) status.textContent = "正在重置并按当前 Mod 重新扫描…";
+    try {
+      const namespaces = await deps.ResetSuiteInheritanceSnapshot();
+      await deps.ScanVPKFiles();
+      await deps.refreshFilesKeepFilter?.({ silent: true });
+      const detail = namespaces > 0 ? `，原有 ${namespaces} 个命名空间记录` : "";
+      if (status) status.textContent = `已重置套件继承快照${detail}，并按当前 Mod 重新扫描。`;
+      deps.showNotification(`已重置套件继承快照${detail}`, "success");
+    } catch (error) {
+      if (status) status.textContent = "";
+      deps.showNotification("重置套件继承快照失败: " + error, "error");
+    } finally {
+      button.disabled = false;
+    }
   });
 
   document.getElementById("settings-addonlist-open")?.addEventListener("click", async () => {

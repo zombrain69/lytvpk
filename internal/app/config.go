@@ -23,6 +23,47 @@ const (
 	maxUIScale     = 1.4
 )
 
+// VPK 列表排序设置的取值（与前端 sorting.js / priority-sort.mjs 一致）：
+// 名称 / 日期 / 大小 / 模型复杂度 / 加载顺序（优先级）。
+const (
+	fileSortTypeName            = "name"
+	fileSortTypeDate            = "date"
+	fileSortTypeSize            = "size"
+	fileSortTypeModelComplexity = "modelComplexity"
+	fileSortTypeLoadOrder       = "loadOrder"
+
+	fileSortOrderAsc  = "asc"
+	fileSortOrderDesc = "desc"
+)
+
+// normalizeFileSort 把配置里的排序设置归一化成合法值。
+//
+// 为什么要做：排序设置会被写进 config.json 并在下次启动时恢复（对齐上游 7b0818c），
+// 旧配置没有这两个字段（空串）、手改配置也可能写错值——一律回落到默认的
+// 「优先级排序 / 顺序」，绝不让非法值传到前端把列表排成随机顺序。
+// 方向默认值跟前端 nextSortState 保持一致：日期 / 大小 / 模型复杂度默认从大到小。
+func normalizeFileSort(sortType, sortOrder string) (string, string) {
+	sortType = strings.TrimSpace(sortType)
+	switch sortType {
+	case fileSortTypeName, fileSortTypeDate, fileSortTypeSize, fileSortTypeModelComplexity, fileSortTypeLoadOrder:
+	default:
+		sortType = fileSortTypeLoadOrder
+	}
+
+	sortOrder = strings.TrimSpace(strings.ToLower(sortOrder))
+	switch sortOrder {
+	case fileSortOrderAsc, fileSortOrderDesc:
+	default:
+		switch sortType {
+		case fileSortTypeDate, fileSortTypeSize, fileSortTypeModelComplexity:
+			sortOrder = fileSortOrderDesc
+		default:
+			sortOrder = fileSortOrderAsc
+		}
+	}
+	return sortType, sortOrder
+}
+
 type legacyFrontendConfig struct {
 	DefaultDirectory          *string          `json:"defaultDirectory"`
 	SavedDirectories          []SavedDirectory `json:"savedDirectories"`
@@ -135,6 +176,7 @@ func (a *App) loadConfig() {
 	if config.DisplayMode != "" {
 		a.displayMode = config.DisplayMode
 	}
+	a.sortType, a.sortOrder = normalizeFileSort(config.SortType, config.SortOrder)
 	if config.FilterLayoutMode != "" {
 		a.filterLayoutMode = config.FilterLayoutMode
 	}
@@ -232,6 +274,7 @@ func (a *App) snapshotConfig() ConfigFile {
 	}
 	boxSelectionEnabled := a.boxSelectionEnabled
 	ctrlClickSelectionEnabled := a.ctrlClickSelectionEnabled
+	sortType, sortOrder := normalizeFileSort(a.sortType, a.sortOrder)
 	addonListGuardEnabled := a.addonListGuardEnabled
 	unrecordedModLoadOrderPlacement := normalizeAddonListUnrecordedPlacement(a.unrecordedModLoadOrderPlacement)
 	conflictPriorityAware := a.conflictPriorityAware
@@ -285,6 +328,8 @@ func (a *App) snapshotConfig() ConfigFile {
 		SavedDirectories:                cloneSavedDirectories(a.savedDirectories),
 		LastActiveDirectory:             a.lastActiveDirectory,
 		DisplayMode:                     defaultString(a.displayMode, "list"),
+		SortType:                        sortType,
+		SortOrder:                       sortOrder,
 		FilterLayoutMode:                defaultString(a.filterLayoutMode, "compact"),
 		BoxSelectionEnabled:             &boxSelectionEnabled,
 		CtrlClickSelectionEnabled:       &ctrlClickSelectionEnabled,
@@ -417,6 +462,7 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	a.savedDirectories = cloneSavedDirectories(config.SavedDirectories)
 	a.lastActiveDirectory = config.LastActiveDirectory
 	a.displayMode = defaultString(config.DisplayMode, "list")
+	a.sortType, a.sortOrder = normalizeFileSort(config.SortType, config.SortOrder)
 	a.filterLayoutMode = defaultString(config.FilterLayoutMode, "compact")
 	if config.BoxSelectionEnabled != nil {
 		a.boxSelectionEnabled = *config.BoxSelectionEnabled

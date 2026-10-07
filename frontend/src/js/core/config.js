@@ -36,6 +36,10 @@ const DEFAULT_CONFIG = {
   savedDirectories: [],
   lastActiveDirectory: "",
   displayMode: "list",
+  // VPK 列表排序：默认按优先级（加载顺序）；改过之后写进 config.json，下次启动恢复
+  // （对齐上游 7b0818c，避免"每次重启都回到默认排序"）。
+  sortType: "loadOrder",
+  sortOrder: "asc",
   filterLayoutMode: "compact",
   // 分类侧边栏是否展开：null = 从未设置过 → 前端默认收起（不占列表空间）。
   categorySidebarVisible: null,
@@ -148,6 +152,15 @@ function normalizeConfig(config = {}) {
     ? config.savedDirectories
     : [];
   next.displayMode = next.displayMode || DEFAULT_CONFIG.displayMode;
+  // 排序设置：只接受白名单取值；方向缺省与排序菜单一致（日期/大小/复杂度默认倒序）。
+  next.sortType = ["name", "date", "size", "modelComplexity", "loadOrder"].includes(next.sortType)
+    ? next.sortType
+    : DEFAULT_CONFIG.sortType;
+  next.sortOrder = ["asc", "desc"].includes(next.sortOrder)
+    ? next.sortOrder
+    : ["date", "size", "modelComplexity"].includes(next.sortType)
+      ? "desc"
+      : DEFAULT_CONFIG.sortOrder;
   next.filterLayoutMode =
     next.filterLayoutMode === "classic" ? "classic" : DEFAULT_CONFIG.filterLayoutMode;
   next.workshopBrowserTarget =

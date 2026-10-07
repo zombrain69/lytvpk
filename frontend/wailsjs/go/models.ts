@@ -466,6 +466,8 @@ export namespace app {
 	    savedDirectories: SavedDirectory[];
 	    lastActiveDirectory: string;
 	    displayMode: string;
+	    sortType: string;
+	    sortOrder: string;
 	    filterLayoutMode: string;
 	    boxSelectionEnabled?: boolean;
 	    ctrlClickSelectionEnabled?: boolean;
@@ -510,6 +512,8 @@ export namespace app {
 	        this.savedDirectories = this.convertValues(source["savedDirectories"], SavedDirectory);
 	        this.lastActiveDirectory = source["lastActiveDirectory"];
 	        this.displayMode = source["displayMode"];
+	        this.sortType = source["sortType"];
+	        this.sortOrder = source["sortOrder"];
 	        this.filterLayoutMode = source["filterLayoutMode"];
 	        this.boxSelectionEnabled = source["boxSelectionEnabled"];
 	        this.ctrlClickSelectionEnabled = source["ctrlClickSelectionEnabled"];

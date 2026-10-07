@@ -1308,6 +1308,27 @@ html.dark-mode .toast-close:hover {
   line-height: 1.5;
 }
 
+/* 子标签角标：标签命中了多少个 Mod（筛选条按常用度排序，收起时先看到最常用的）。 */
+.secondary-tag-btn .secondary-tag-label {
+  pointer-events: none;
+}
+
+.secondary-tag-btn .secondary-tag-count {
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.12);
+  color: var(--primary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.secondary-tag-btn.active .secondary-tag-count {
+  background: rgba(255, 255, 255, 0.24);
+  color: white;
+}
+
 .secondary-tag-btn:hover {
   background: var(--bg-hover);
   border-color: var(--primary-light);

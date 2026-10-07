@@ -256,6 +256,19 @@ test("bindSettingsPage 整体透传 deps（不再维护第二份绑定清单）"
   );
 });
 
+// 套件继承快照的手动重置入口（2026-10-07 用户要求）。
+// 它是唯一会"少继承"的操作：必须确认弹窗 + 重置后立刻重扫，否则列表里还是旧快照的标签。
+test("设置页有「重置套件继承快照」入口，并真的重新扫描", () => {
+  const page = readFileSync(SETTINGS_PAGE_URL, "utf8");
+  const runtime = readFileSync(APP_RUNTIME_URL, "utf8");
+  assert.match(page, /id="settings-reset-suite-inheritance"/, "缺少重置按钮");
+  assert.match(page, /deps\.ResetSuiteInheritanceSnapshot\(\)/, "按钮要真的调用后端");
+  assert.match(page, /deps\.ScanVPKFiles\(\)/, "重置后必须重扫，否则标签还是旧快照");
+  assert.match(page, /confirmInApp\(/, "重置要有确认弹窗");
+  assert.match(runtime, /ResetSuiteInheritanceSnapshot/, "app-runtime 必须注入该绑定");
+  assert.match(runtime, /ScanVPKFiles/, "app-runtime 必须注入重扫绑定");
+});
+
 test("设置页有「抓取工坊官方标签与统计」入口，并真的调用后端", () => {
   // 对齐 FireAxe PublishedFileUtils.GetPublishedFileDetailsAsync：官方标签/统计要走 Steam 官方接口，
   // 入口放在「设置 → 工坊数据」，抓完写进 .meta，供分组建议材料与智能体使用。

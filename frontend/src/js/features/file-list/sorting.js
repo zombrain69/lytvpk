@@ -1,5 +1,6 @@
 import { appState } from "../state.js";
 import { showNotification, showError } from "../../core/toast.js";
+import { saveConfig } from "../../core/config.js";
 import { renderFileList, revealFileByPath } from "./render.js";
 import { GetAddonListOrder, GetModPriorityPlan } from "../../../../wailsjs/go/app/App";
 import { buildPriorityPlanMap } from "./priority-label.mjs";
@@ -7,6 +8,18 @@ import { applySortOrder, compareByPriority, compareNames, nextSortState } from "
 import { modelMetricScanTargets } from "./model-metric-targets.mjs";
 
 let loadOrderHighlightTimer = null;
+
+// saveSortPreference 把当前排序写进 config.json（对齐上游 7b0818c）。
+// 排序是"用户习惯"：不持久化的话每次重启都回到默认排序，用户得重新点一遍。
+// 写盘失败只提示、不打断排序本身（本次会话内的排序已经生效）。
+export function saveSortPreference() {
+  return saveConfig({
+    sortType: appState.sortType,
+    sortOrder: appState.sortOrder,
+  }).catch((error) => {
+    showError("保存排序设置失败: " + error);
+  });
+}
 
 export function setupSortEvents() {
   const sortBtn = document.getElementById("sort-btn");
@@ -121,6 +134,7 @@ export async function handleLoadOrderSort() {
     const next = nextSortState(appState.sortType, appState.sortOrder, "loadOrder");
     appState.sortType = next.type;
     appState.sortOrder = next.order;
+    saveSortPreference();
 
     updateSortButtonUI();
     applySort(appState.vpkFiles);
@@ -140,6 +154,7 @@ export function handleSortChange(type) {
   const next = nextSortState(appState.sortType, appState.sortOrder, type);
   appState.sortType = next.type;
   appState.sortOrder = next.order;
+  saveSortPreference();
 
   updateSortButtonUI();
   document.getElementById("sort-dropdown-content")?.classList.add("hidden");
@@ -251,6 +266,7 @@ export async function handleModelComplexitySort() {
     const next = nextSortState(appState.sortType, appState.sortOrder, "modelComplexity");
     appState.sortType = next.type;
     appState.sortOrder = next.order;
+    saveSortPreference();
 
     updateSortButtonUI();
     applySort(appState.vpkFiles);

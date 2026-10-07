@@ -27,6 +27,20 @@ func collectMissionEvidence(opener *vpk.Opener, index archivePathIndex, vpkFile 
 	modesSet := make(map[string]bool)
 	var firstMode string
 
+	// appendCampaignTitle 去重后追加战役名（保持既有"多战役用 / 连接"的显示口径）。
+	appendCampaignTitle := func(title string) {
+		title = strings.TrimSpace(title)
+		if title == "" {
+			return
+		}
+		for _, existing := range campaignTitles {
+			if existing == title {
+				return
+			}
+		}
+		campaignTitles = append(campaignTitles, title)
+	}
+
 	// 查找mission文件并解析战役和章节信息
 	log.Printf("开始解析mission文件，候选数: %d", len(index.missionFiles))
 	for _, file := range index.missionFiles {
@@ -38,20 +52,14 @@ func collectMissionEvidence(opener *vpk.Opener, index archivePathIndex, vpkFile 
 		campaign := ParseMissionFile(opener, file)
 		if campaign != nil {
 			log.Printf("解析到战役: %s, 章节数: %d", campaign.Title, len(campaign.Chapters))
-			// 收集战役名
-			if campaign.Title != "" {
-				// 避免重复的战役名
-				isDuplicate := false
-				for _, title := range campaignTitles {
-					if title == campaign.Title {
-						isDuplicate = true
-						break
-					}
-				}
-				if !isDuplicate {
-					campaignTitles = append(campaignTitles, campaign.Title)
-					secondaryTags[campaign.Title] = true
-				}
+			// 收集战役名。DisplayTitle 是本地化 token（#L4D360UI_CampaignName_C9）时，
+			// convertMissionCampaign 会把它清空：这里用任务文件名兜底**只做展示**，
+			// 既不把 token 当标签，也不把文件名当标签（真实案例：2239816060.vpk 的 14 章）。
+			if title := strings.TrimSpace(campaign.Title); title != "" {
+				appendCampaignTitle(title)
+				secondaryTags[title] = true
+			} else if fallback := missionFileStem(name); fallback != "" {
+				appendCampaignTitle(fallback)
 			}
 
 			// 合并章节信息
@@ -153,8 +161,14 @@ func convertMissionCampaign(mission *vpkmission.Campaign) *Campaign {
 		return nil
 	}
 
+	title := strings.TrimSpace(mission.Title)
+	if isLocalizationTokenTag(title) {
+		// 本地化 token 不是战役名：留空，让调用方用任务文件名兜底展示，
+		// 同时保证它不会作为标签进入筛选条。
+		title = ""
+	}
 	campaign := &Campaign{
-		Title:    mission.Title,
+		Title:    title,
 		Chapters: make([]*Chapter, 0, len(mission.Chapters)),
 	}
 
@@ -162,14 +176,38 @@ func convertMissionCampaign(mission *vpkmission.Campaign) *Campaign {
 		if missionChapter == nil || missionChapter.Code == "" {
 			continue
 		}
+		chapterTitle := strings.TrimSpace(missionChapter.Title)
+		if isLocalizationTokenTag(chapterTitle) {
+			// 章节名同样是 token 时退回章节代码（BSP 名），至少可辨认。
+			chapterTitle = missionChapter.Code
+		}
 		campaign.Chapters = append(campaign.Chapters, &Chapter{
 			Code:  missionChapter.Code,
-			Title: missionChapter.Title,
+			Title: chapterTitle,
 			Modes: translateGameModes(missionChapter.Modes),
 		})
 	}
 
 	return campaign
+}
+
+// missionFileStem 取任务文件名的 stem（missions/campaign9.txt → campaign9），
+// 用于 DisplayTitle 是本地化 token 时的展示兜底。
+func missionFileStem(name string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return ""
+	}
+	if slash := strings.LastIndex(trimmed, "/"); slash >= 0 {
+		trimmed = trimmed[slash+1:]
+	}
+	if slash := strings.LastIndex(trimmed, "\\"); slash >= 0 {
+		trimmed = trimmed[slash+1:]
+	}
+	if dot := strings.LastIndex(trimmed, "."); dot > 0 {
+		trimmed = trimmed[:dot]
+	}
+	return strings.TrimSpace(trimmed)
 }
 
 func translateGameModes(modes []string) []string {

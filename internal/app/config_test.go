@@ -15,7 +15,12 @@ import (
 
 func newConfigTestApp(t *testing.T) *App {
 	t.Helper()
-	dir := t.TempDir()
+	return configTestAppAtDir(t.TempDir())
+}
+
+// configTestAppAtDir 用指定配置目录建一个测试用 App：排序设置的持久化用例需要
+// "第二次启动"读同一个 config.json，所以不能每次都新建临时目录。
+func configTestAppAtDir(dir string) *App {
 	return &App{
 		configDir:                       dir,
 		configPath:                      filepath.Join(dir, "config.json"),
@@ -26,6 +31,8 @@ func newConfigTestApp(t *testing.T) *App {
 		workshopBrowserTarget:           "mirror",
 		workshopTranslateProvider:       workshopTranslateProviderMicrosoft,
 		displayMode:                     "list",
+		sortType:                        fileSortTypeLoadOrder,
+		sortOrder:                       fileSortOrderAsc,
 		filterLayoutMode:                "compact",
 		boxSelectionEnabled:             true,
 		ctrlClickSelectionEnabled:       true,
@@ -78,6 +85,50 @@ func TestConfigDefaultsWithoutFile(t *testing.T) {
 	}
 	if config.UnrecordedModLoadOrderPlacement == nil || *config.UnrecordedModLoadOrderPlacement != addonListUnrecordedPlacementEnd {
 		t.Fatalf("expected unrecorded Mod placement to default to end, got %#v", config.UnrecordedModLoadOrderPlacement)
+	}
+}
+
+// 排序设置要能写进 config.json 并在重启后恢复（对齐上游 7b0818c）。
+func TestFileSortPreferenceRoundTrip(t *testing.T) {
+	first := newConfigTestApp(t)
+	first.loadConfig()
+
+	config := first.GetAppConfig()
+	config.SortType = fileSortTypeModelComplexity
+	config.SortOrder = fileSortOrderAsc
+	if err := first.SaveAppConfig(config); err != nil {
+		t.Fatalf("保存排序设置失败: %v", err)
+	}
+
+	// 模拟重启：同一个配置目录再建一个 App 读盘。
+	second := configTestAppAtDir(first.configDir)
+	second.loadConfig()
+	got := second.GetAppConfig()
+	if got.SortType != fileSortTypeModelComplexity || got.SortOrder != fileSortOrderAsc {
+		t.Fatalf("重启后应恢复排序设置，实际 %q/%q", got.SortType, got.SortOrder)
+	}
+}
+
+// 非法 / 缺失的排序值必须回落成合法值：旧配置没有这两个字段，手改配置也可能写错。
+func TestNormalizeFileSort(t *testing.T) {
+	cases := []struct {
+		inType, inOrder   string
+		wantType, wantOrd string
+	}{
+		{"", "", fileSortTypeLoadOrder, fileSortOrderAsc},
+		{"bogus", "desc", fileSortTypeLoadOrder, fileSortOrderDesc},
+		{fileSortTypeDate, "", fileSortTypeDate, fileSortOrderDesc},
+		{fileSortTypeName, "", fileSortTypeName, fileSortOrderAsc},
+		{fileSortTypeLoadOrder, "DESC", fileSortTypeLoadOrder, fileSortOrderDesc},
+		{fileSortTypeSize, "asc", fileSortTypeSize, fileSortOrderAsc},
+		{fileSortTypeModelComplexity, " x ", fileSortTypeModelComplexity, fileSortOrderDesc},
+	}
+	for _, c := range cases {
+		gotType, gotOrder := normalizeFileSort(c.inType, c.inOrder)
+		if gotType != c.wantType || gotOrder != c.wantOrd {
+			t.Fatalf("normalizeFileSort(%q,%q) = %q/%q，期望 %q/%q",
+				c.inType, c.inOrder, gotType, gotOrder, c.wantType, c.wantOrd)
+		}
 	}
 }
 

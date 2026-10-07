@@ -675,6 +675,19 @@ func (a *App) GetSecondaryTags(primaryTag string) []string {
 	return parser.GetSecondaryTags(vpkFiles, primaryTag)
 }
 
+// GetSecondaryTagCounts 获取指定主标签下每个二级标签的 Mod 命中数（key 为小写标签）。
+// 筛选条默认收起一行：按"常用度"排序才能让收起时看到的是真正高频的子标签。
+func (a *App) GetSecondaryTagCounts(primaryTag string) map[string]int {
+	vpkFiles := make([]VPKFile, 0)
+	a.vpkCache.Range(func(key, value interface{}) bool {
+		cache := value.(*VPKFileCache)
+		vpkFiles = append(vpkFiles, cache.File)
+		return true
+	})
+
+	return parser.SecondaryTagCounts(vpkFiles, primaryTag)
+}
+
 func fuzzyMatch(source, target string) bool {
 	// 转换为 rune 数组以支持 Unicode
 	srcRunes := []rune(source)

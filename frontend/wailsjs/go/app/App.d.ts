@@ -252,6 +252,8 @@ export function GetRootDirectory():Promise<string>;
 
 export function GetScanStats():Promise<app.ScanStats>;
 
+export function GetSecondaryTagCounts(arg1:string):Promise<Record<string, number>>;
+
 export function GetSecondaryTags(arg1:string):Promise<Array<string>>;
 
 export function GetServerStorage():Promise<app.ServerStorage>;
@@ -429,6 +431,8 @@ export function RepairVPKIntegrityBatch(arg1:Array<string>):Promise<Array<app.VP
 export function ReportFrontendError(arg1:string,arg2:string):Promise<string>;
 
 export function ResetGroupSuggestionAgentPrompt():Promise<void>;
+
+export function ResetSuiteInheritanceSnapshot():Promise<number>;
 
 export function RestartApplication():Promise<void>;
 

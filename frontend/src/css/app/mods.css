@@ -3026,6 +3026,28 @@
   box-shadow: 0 3px 9px rgba(79, 70, 229, 0.18);
 }
 
+/* 经典布局下的子标签按钮：文字 + 常用度角标（按命中 Mod 数排序，收起时先看最常用的）。 */
+.filter-row-filters.filter-layout-classic .secondary-tag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05rem;
+}
+
+.filter-row-filters.filter-layout-classic .secondary-tag-btn .secondary-tag-count {
+  margin-left: 0.25rem;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-full);
+  background: rgba(79, 70, 229, 0.14);
+  color: var(--primary);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.filter-row-filters.filter-layout-classic .secondary-tag-btn.active .secondary-tag-count {
+  background: rgba(255, 255, 255, 0.24);
+  color: white;
+}
+
 .filter-row-filters.filter-layout-classic .expand-tags-btn {
   height: 1.8rem;
   min-height: 1.8rem;
@@ -3429,6 +3451,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 子标签下拉里的常用度角标（命中多少个 Mod），排在最常用的标签后面。 */
+.multi-select-option .multi-select-option-count {
+  margin-left: auto;
+  padding: 0 0.35rem;
+  border-radius: var(--radius-full);
+  background: rgba(79, 70, 229, 0.12);
+  color: var(--primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  flex: 0 0 auto;
 }
 
 .multi-select-option input:hover {

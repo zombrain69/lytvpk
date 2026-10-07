@@ -1,7 +1,9 @@
 package app
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -83,6 +85,22 @@ func (a *App) saveSuiteInheritanceStore(store *suiteInheritanceStore) {
 	if err := writeJSONFile(filepath.Dir(path), path, store); err != nil {
 		log.Printf("保存套件继承快照失败: %v", err)
 	}
+}
+
+// ResetSuiteInheritanceSnapshot 删除套件继承快照（设置页的"手动重置"入口）。
+// 返回删除前快照里的命名空间数量；文件不存在时返回 0。删除后下一轮扫描会按当前
+// 成员重新推导（并集语义：重置只会少继承，不会少标）。
+func (a *App) ResetSuiteInheritanceSnapshot() (int, error) {
+	path := a.suiteInheritanceStorePath()
+	if path == "" {
+		return 0, fmt.Errorf("配置目录不可用，无法重置套件继承快照")
+	}
+	store := a.loadSuiteInheritanceStore()
+	count := len(store.Namespaces)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return 0, fmt.Errorf("删除套件继承快照失败: %w", err)
+	}
+	return count, nil
 }
 
 // mergeSuiteInheritanceTags 把当轮算出的特征标签并入已持久化的集合：并集、去重、按小写排序。

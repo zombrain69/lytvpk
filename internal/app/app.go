@@ -189,6 +189,8 @@ type App struct {
 	savedDirectories               []SavedDirectory
 	lastActiveDirectory            string
 	displayMode                    string
+	sortType                       string
+	sortOrder                      string
 	filterLayoutMode               string
 	boxSelectionEnabled            bool
 	ctrlClickSelectionEnabled      bool
@@ -301,6 +303,10 @@ type ConfigFile struct {
 	SavedDirectories               []SavedDirectory `json:"savedDirectories"`
 	LastActiveDirectory            string           `json:"lastActiveDirectory"`
 	DisplayMode                    string           `json:"displayMode"`
+	// SortType / SortOrder：VPK 列表排序设置（对齐上游 7b0818c）。
+	// 取值由 normalizeFileSort 归一化，frontend 的排序菜单直接读写这两个字段。
+	SortType                       string           `json:"sortType"`
+	SortOrder                      string           `json:"sortOrder"`
 	FilterLayoutMode               string           `json:"filterLayoutMode"`
 	BoxSelectionEnabled            *bool            `json:"boxSelectionEnabled,omitempty"`
 	CtrlClickSelectionEnabled      *bool            `json:"ctrlClickSelectionEnabled,omitempty"`
@@ -464,6 +470,9 @@ func NewApp() *App {
 		workshopBrowserTarget:           "mirror", // 默认使用镜像站
 		workshopTranslateProvider:       workshopTranslateProviderMicrosoft,
 		displayMode:                     "list",
+		// 默认按优先级排序（与前端 sortType 默认值一致）：改过排序的用户会在 config.json 里记住。
+		sortType:                        fileSortTypeLoadOrder,
+		sortOrder:                       fileSortOrderAsc,
 		filterLayoutMode:                "compact",
 		boxSelectionEnabled:             true,
 		ctrlClickSelectionEnabled:       true,

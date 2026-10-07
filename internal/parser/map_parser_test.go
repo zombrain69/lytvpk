@@ -7,7 +7,51 @@ import (
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
+	"l4d2-manager-next/pkg/vpkmission"
 )
+
+// 本地化 token 不是战役名/章节名（真机案例 2239816060.vpk：14 个 mission 文件的
+// DisplayTitle 都是 #L4D360UI_CampaignName_C*，筛选条里多出 14 个"子标签"）。
+func TestConvertMissionCampaignDropsLocalizationTokens(t *testing.T) {
+	mission := &vpkmission.Campaign{
+		Title: "#L4D360UI_CampaignName_C9",
+		Chapters: []*vpkmission.Chapter{
+			{Code: "c9m1_city", Title: "#L4D360UI_ChapterName_C9M1", Modes: []string{"coop"}},
+			{Code: "c9m2_town", Title: "主街", Modes: []string{"coop"}},
+		},
+	}
+
+	campaign := convertMissionCampaign(mission)
+	if campaign == nil {
+		t.Fatal("expected campaign")
+	}
+	if campaign.Title != "" {
+		t.Fatalf("token 战役名应被清空（留给调用方用文件名兜底），实际 %q", campaign.Title)
+	}
+	if len(campaign.Chapters) != 2 {
+		t.Fatalf("expected two chapters, got %d", len(campaign.Chapters))
+	}
+	if campaign.Chapters[0].Title != "c9m1_city" {
+		t.Fatalf("token 章节名应退回章节代码，实际 %q", campaign.Chapters[0].Title)
+	}
+	if campaign.Chapters[1].Title != "主街" {
+		t.Fatalf("正常章节名必须保留，实际 %q", campaign.Chapters[1].Title)
+	}
+}
+
+func TestMissionFileStem(t *testing.T) {
+	cases := map[string]string{
+		"missions/campaign9.txt":            "campaign9",
+		"missions\\sub\\nanningcity_m1.txt": "nanningcity_m1",
+		"campaign14.txt":                    "campaign14",
+		"":                                  "",
+	}
+	for input, want := range cases {
+		if got := missionFileStem(input); got != want {
+			t.Fatalf("missionFileStem(%q) = %q，期望 %q", input, got, want)
+		}
+	}
+}
 
 func TestParseMissionContentHandlesInlineModeBrace(t *testing.T) {
 	mission := `"mission"

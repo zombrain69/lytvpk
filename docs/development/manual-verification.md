@@ -2999,6 +2999,71 @@ re:[           → 「正则表达式无效：…」
 
 本轮没有"计划内但完全未验证"的项目。
 
+## 第三十六轮：地图道具口径细化 + 套件继承重置入口 + 常用子标签（2026-10-07，真实库硬链接镜像沙箱 + 应用内 JS 桥，2962 个 Mod）
+
+**用户反馈**：① 给「套件继承」加一个手动重置入口（设置页按钮）；② 地图口径再细化到
+`models/props_*` 之类的地图专属目录；③ 子标签筛选条里全是 `#L4D360UI_CampaignName_C*` 这种
+"有一点点用但没有"的子标签，这一行应该换成有用的东西。
+
+### 根因（真机取证，不是猜）
+
+| # | 现象 | 根因 | 修正 |
+| --- | --- | --- | --- |
+| 1 | 筛选条里 14 个 `#L4D360UI_CampaignName_C1…C14` 子标签 | `missions/campaign1.txt` … `campaign14.txt`（workshop 2239816060.vpk，missions-only 包）的 `DisplayTitle` 是本地化 token，`collectMissionEvidence` 把 `campaign.Title` 直接 `secondaryTags[...] = true` | 新增 `isLocalizationTokenTag`：`#` 开头 / `L4D360UI_` / `L4D_` 前缀一律不是标签（对所有主类型生效）；token 战役名改为"不进标签 + 用任务文件名兜底展示"，token 章节名退回章节代码 |
+| 2 | 地图包挂着「汽油桶 / 煤气罐 / 氧气罐」 | 地图自带整道具模型，路径正好等于本体锚点（`models/props_junk/gascan001a.mdl`、`propanecanister001a.mdl`、`models/props_equipment/oxygentank01.mdl`），通道判成"替换了本体物品" | 主类型=地图 时，`entity:` 精确锚点只要路径落在 `models/props*` / `materials/props*` / 任意 `/props/`，也按"搭场景"处理；内容/类别证据不受影响 |
+| 3 | 只显示一行的子标签是字典序取前几个 | 后端只给标签集合，没有命中数 | 新增 `GetSecondaryTagCounts`（按 Mod 去重、key 小写）+ 前端按常用度降序排、同分字典序、带角标 |
+| 4 | 套件继承只在文档里，没法重置 | 缺设置入口 | 设置 → 游戏配置 → 「分类与标签维护」里的「重置套件继承快照」：应用内确认弹窗 → `ResetSuiteInheritanceSnapshot()` → `ScanVPKFiles()` → 刷新列表 → 成功提示 |
+
+### 本次已经自动化覆盖的部分
+
+| 语义 | 覆盖测试 |
+| --- | --- |
+| 地图包只砍 token/槽位证据与"地图专属目录里的精确锚点"，**内容标签（模型/贴图）必须保留** | `internal/parser/weapon_tag_precision_test.go`（`TestMapPackDropsResourceCoincidenceTags`，第一版把 `category:模型` 一起删掉就是被它抓到的） |
+| 本地化 token 不当战役名/章节名，章节名退回代码；任务文件名兜底 | `internal/parser/map_parser_test.go`（`TestConvertMissionCampaignDropsLocalizationTokens`、`TestMissionFileStem`） |
+| 子标签计数按 Mod 去重、忽略大小写、跳过主标签本身 | `internal/parser/archive_index_test.go`（`TestSecondaryTagCountsCountsModsNotOccurrences`） |
+| 常用度排序（同分字典序、缺计数退回字典序、大小写不敏感） | `frontend/src/js/features/file-list/secondary-tag-usage.test.mjs` |
+| 设置页重置入口：按钮存在 + 真的调后端 + 必须重扫 + 有确认弹窗 + app-runtime 注入绑定 | `frontend/src/js/features/settings/settings-bindings.test.mjs` |
+
+### 本次真机验证（打包 EXE + 临时调试桥，验收后已重建产物）
+
+```text
+标签回归（release 构建，冷启动全量重解析）
+  扫描完成：共 2962 个 Mod（0 个未变化、2962 个重新解析，耗时 642ms）
+  标签回归检查：基线 2960 个 Mod / 当前 2960 个 Mod
+  新增标签 +54，消失标签 -0（allowlist 放行 148）
+
+对外清单（--export-grouping-catalog）
+  L4D360UI 出现次数：14 → 0
+  missions-only 包的 campaign 字段：由 14 个 token 变成 missions 文件名（campaign9 / campaign8 / …）
+
+沙箱（镜像库，应用内 JS 桥）子标签条：切到「地图」主标签
+  子标签总数 120；按命中 Mod 数降序 = true
+  首 6 项：战役模式 54、贴图 49、UI 48、脚本 46、VScript 44、载入画面 36
+  token 子标签：0 个；收起状态 collapsed=true，按钮文案「▼ 展开全部 120 项」
+
+沙箱 设置 → 游戏配置 → 「重置套件继承快照」
+  按钮文案/说明渲染正常；点击后弹出应用内确认框（标题「重置套件继承快照」）
+  确认后：状态行「已重置套件继承快照，原有 142 个命名空间记录，并按当前 Mod 重新扫描。」
+  成功通知同文案；按钮恢复可用；列表刷新（卡片数 21 → 58，随筛选变化）
+  沙箱 APPDATA：suite_inheritance.json 被删后由重扫重建（17479 字节 / 142 个命名空间）
+  真实 APPDATA 的 suite_inheritance.json 未被触碰（仍是 08:21 的旧文件）
+```
+
+### 只能人工验证的部分
+
+1. **"常用子标签"是否符合你的直觉**：自动化只能证明"按命中数降序"，至于战役模式/贴图/UI
+   这几个高频项是不是你想第一眼看到的，只能你自己用一段时间再定（要不要改 Top N 或换成
+   "最近使用"都可以再说）。
+2. **重置套件继承快照后的继承标签变化**：真机验证只覆盖了"快照被清空 + 重扫成功"，
+   具体某几个套件包少继承了哪些标签，需要你在自己的库里对比（重置=只少继承，不会少标）。
+3. **地图自带道具的取舍**：本轮按你的口径把 `models/props*` 等地图专属目录里的本体锚点
+   也收掉了（真机 4 条：汽油桶 / 煤气罐 / 氧气罐）。如果将来你发现某张地图确实是想改这个
+   道具模型，需要在 allowlist 里反向登记。
+
+### 仍未验证
+
+本轮没有"计划内但完全未验证"的项目。
+
 ## 第三十五轮：排序方向（顺序/逆序）回归修复（2026-10-07，真实库硬链接镜像沙箱 + 应用内 JS 桥，2912 个 Mod）
 
 **用户反馈**：模型复杂度排序、优先级排序"只有顺序了"，希望顺序/逆序都能选。

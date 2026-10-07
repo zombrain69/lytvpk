@@ -31,9 +31,10 @@ export const appState = {
   isLoading: false,
   showHidden: false,
   // 默认按优先级排序：有效分层（显式分层/策略组权重）优先，同层按 addonlist 顺序，
-  // 未写入 addonlist 的 Mod 排末尾。用户可在排序菜单里切换，切换后本次会话内生效。
-  sortType: "loadOrder",
-  sortOrder: "asc",
+  // 未写入 addonlist 的 Mod 排末尾。用户可在排序菜单里切换，切换后会写进 config.json
+  // 并在下次启动恢复（对齐上游 7b0818c）。
+  sortType: getConfig().sortType || "loadOrder",
+  sortOrder: getConfig().sortOrder || "asc",
   loadOrderMap: new Map(),
   // priorityPlanMap: addonlist 归一化键 -> GetModPriorityPlan 的有效分层明细。
   // 未加载时为 null，列表退回只显示顺序号。
@@ -74,6 +75,8 @@ export const appState = {
 };
 
 export function applyConfigToAppState(config = getConfig()) {
+  appState.sortType = config.sortType || "loadOrder";
+  appState.sortOrder = config.sortOrder || "asc";
   appState.displayMode = config.displayMode || "list";
   appState.boxSelectionEnabled = config.boxSelectionEnabled || false;
   appState.ctrlClickSelectionEnabled =

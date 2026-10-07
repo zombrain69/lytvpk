@@ -5,6 +5,7 @@ import { getLocationDisplayName, escapeHtml } from "../../core/utils.js";
 import {
   applySort,
   ensureVisibleModelMetrics,
+  saveSortPreference,
   updateSortButtonUI,
   refreshLoadOrderMap,
 } from "./sorting.js";
@@ -14,7 +15,8 @@ import { fileMatchesGroupFilter } from "../mod-groups/group-view.mjs";
 import { refreshModGroupMembershipState } from "../mod-groups/group-state.mjs";
 import { refreshCategorySidebar, syncCategorySidebarSelection } from "./category-tree.js";
 import { PRESET_GROUPS as SECONDARY_TAG_PRESET_GROUPS } from "./category-tree.mjs";
-import { GetPrimaryTags, GetSecondaryTags, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
+import { GetPrimaryTags, GetSecondaryTags, GetSecondaryTagCounts, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
+import { compareSecondaryTagsByUsage } from "./secondary-tag-usage.mjs";
 
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
 const GAME_STATE_FILTERS = ["enabled", "disabled", "unknown"];
@@ -725,11 +727,16 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId) {
   secondaryGroup.querySelectorAll(".secondary-match-mode-btn").forEach((button) => button.remove());
 
   try {
-    const secondaryTags = await GetSecondaryTags(primaryTag || "");
+    // 子标签默认只显示一行：按"命中 Mod 数"排序，收起时看到的就是最常用的那批
+    // （过去按字典序，显示的是偶然项，用户反馈"只显示一些些子标签没什么用"）。
+    const [secondaryTags, tagCounts] = await Promise.all([
+      GetSecondaryTags(primaryTag || ""),
+      loadSecondaryTagCounts(primaryTag),
+    ]);
     if (!isCurrentSecondaryTagRender(secondaryGroup, renderId)) return;
 
     if (secondaryTags.length > 0) {
-      secondaryTags.sort((a, b) => a.localeCompare(b, "zh-CN"));
+      secondaryTags.sort((a, b) => compareSecondaryTagsByUsage(a, b, tagCounts));
       secondaryGroup.style.display = "flex";
       setClassicSecondarySearchVisible(true);
 
@@ -737,7 +744,7 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId) {
       container.className = "secondary-tags-container";
 
       secondaryTags.forEach((tag) => {
-        const tagBtn = createSecondaryTagButton(tag);
+        const tagBtn = createSecondaryTagButton(tag, tagCounts[tag.toLowerCase()] || 0);
         container.appendChild(tagBtn);
       });
 
@@ -905,7 +912,10 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
 
   try {
     // 后端已支持空 primaryTag，返回所有二级标签去重
-    const secondaryTags = await GetSecondaryTags(primaryTag || "");
+    const [secondaryTags, tagCounts] = await Promise.all([
+      GetSecondaryTags(primaryTag || ""),
+      loadSecondaryTagCounts(primaryTag),
+    ]);
     if (!isCurrentSecondaryTagRender(secondaryGroup, renderId)) return;
     if (!secondaryTags.length) {
       const emptyTrigger = document.createElement("button");
@@ -918,7 +928,8 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
       return;
     }
 
-    secondaryTags.sort((a, b) => a.localeCompare(b, "zh-CN"));
+    // 下拉布局同样按常用度排：搜索框在，但列表第一屏先给最常用的标签。
+    secondaryTags.sort((a, b) => compareSecondaryTagsByUsage(a, b, tagCounts));
 
     const dropdown = document.createElement("div");
     dropdown.className = "multi-select-dropdown secondary-filter-dropdown";
@@ -955,11 +966,13 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
         : secondaryTags;
 
       filteredTags.forEach((tag) => {
+        const optionCount = tagCounts[tag.toLowerCase()] || 0;
         const label = document.createElement("label");
         label.className = "multi-select-option";
         label.innerHTML = `
           <input type="checkbox" value="${escapeHtml(tag)}" ${appState.selectedSecondaryTags.includes(tag) ? "checked" : ""}>
           <span>${escapeHtml(tag)}</span>
+          ${optionCount > 0 ? `<span class="multi-select-option-count">${optionCount}</span>` : ""}
         `;
         const tagInput = label.querySelector("input");
         tagInput.dataset.secondaryTag = tag;
@@ -1009,11 +1022,38 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
   }
 }
 
-function createSecondaryTagButton(tag) {
+// loadSecondaryTagCounts 取"每个子标签命中了多少个 Mod"。绑定缺失或后端报错时退回空表：
+// 排序与角标是增强，不该让整条筛选条渲染失败（失败时仍然按字典序展示全部标签）。
+async function loadSecondaryTagCounts(primaryTag) {
+  if (typeof GetSecondaryTagCounts !== "function") return {};
+  try {
+    const counts = await GetSecondaryTagCounts(primaryTag || "");
+    return counts && typeof counts === "object" ? counts : {};
+  } catch (error) {
+    console.warn("获取子标签计数失败，退回字典序:", error);
+    return {};
+  }
+}
+
+function createSecondaryTagButton(tag, count = 0) {
   const button = document.createElement("button");
   button.className = "secondary-tag-btn";
-  button.textContent = tag;
   button.dataset.tag = tag;
+  button.dataset.secondaryTag = tag;
+
+  const label = document.createElement("span");
+  label.className = "secondary-tag-label";
+  label.textContent = tag;
+  button.appendChild(label);
+  if (count > 0) {
+    const badge = document.createElement("span");
+    badge.className = "secondary-tag-count";
+    badge.textContent = String(count);
+    button.appendChild(badge);
+    button.title = `${tag}：${count} 个 Mod`;
+  } else {
+    button.title = tag;
+  }
 
   if (appState.selectedSecondaryTags.includes(tag)) {
     button.classList.add("active");
@@ -1258,6 +1298,7 @@ export async function resetFilters() {
 
     appState.sortType = "name";
     appState.sortOrder = "asc";
+    saveSortPreference();
     updateSortButtonUI();
 
     await performSearch();

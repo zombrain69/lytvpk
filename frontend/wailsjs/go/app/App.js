@@ -494,6 +494,10 @@ export function GetScanStats() {
   return window['go']['app']['App']['GetScanStats']();
 }
 
+export function GetSecondaryTagCounts(arg1) {
+  return window['go']['app']['App']['GetSecondaryTagCounts'](arg1);
+}
+
 export function GetSecondaryTags(arg1) {
   return window['go']['app']['App']['GetSecondaryTags'](arg1);
 }
@@ -848,6 +852,10 @@ export function ReportFrontendError(arg1, arg2) {
 
 export function ResetGroupSuggestionAgentPrompt() {
   return window['go']['app']['App']['ResetGroupSuggestionAgentPrompt']();
+}
+
+export function ResetSuiteInheritanceSnapshot() {
+  return window['go']['app']['App']['ResetSuiteInheritanceSnapshot']();
 }
 
 export function RestartApplication() {

@@ -168,6 +168,9 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 中文二级标签。纯“其他”内容无需调整前端即可按这些标签筛选；混合包
 	// 也会保留其附加内容证据。
 	mergeTagSet(secondaryTags, index.contentTags)
+	// 本地化 token（`#L4D360UI_CampaignName_C1`）一律不是标签；地图任务文件的
+	// DisplayTitle 会把它们带进来，筛选条里会多出上百个"子标签"。
+	dropLocalizationTokenTags(secondaryTags)
 	if vpkType == "地图" {
 		// 地图包口径：资源名巧合（token / 槽位通道）不参与武器·物品归属，
 		// 只保留本体精确锚点、标题与内容标签（见 map_resource_tags.go）。
@@ -389,6 +392,34 @@ func sortedTagSet(tagSet map[string]bool) []string {
 		result = append(result, tag)
 	}
 	return result
+}
+
+// SecondaryTagCounts 统计指定主标签下每个二级标签命中了多少个 Mod。
+//
+// 用途：筛选条默认只显示一行的"子标签"，过去按字典序取前几个，显示的其实是偶然项；
+// 有了计数就能按"常用度"排，收起时看到的就是最常用的那批标签。key 统一是小写标签，
+// 前端用 tag.toLowerCase() 取值（与 GetSecondaryTags 的展示形式解耦）。
+func SecondaryTagCounts(vpkFiles []VPKFile, primaryTag string) map[string]int {
+	counts := make(map[string]int)
+	for _, vpkFile := range vpkFiles {
+		if primaryTag != "" && vpkFile.PrimaryTag != primaryTag {
+			continue
+		}
+		seen := make(map[string]struct{}, len(vpkFile.SecondaryTags))
+		for _, tag := range vpkFile.SecondaryTags {
+			canonical := CanonicalTag(tag)
+			if canonical == "" || canonical == primaryTag {
+				continue
+			}
+			key := strings.ToLower(canonical)
+			if _, dup := seen[key]; dup {
+				continue
+			}
+			seen[key] = struct{}{}
+			counts[key]++
+		}
+	}
+	return counts
 }
 
 func mergeTagSet(destination map[string]bool, source map[string]bool) {

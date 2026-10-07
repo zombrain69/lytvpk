@@ -70,11 +70,15 @@ test("入参不会被修改", () => {
 // 并确认排序实现确实使用了有效分层（而不是只按文件名）。
 test("默认排序是优先级排序，且排序键包含有效分层", () => {
   const stateSource = readFileSync(new URL("../state.js", import.meta.url), "utf8");
+  // 排序设置现在会被持久化（对齐上游 7b0818c）：默认值来自 config，
+  // 但"没设置过"时的兜底仍然必须是 loadOrder。
   assert.match(
     stateSource,
-    /sortType:\s*"loadOrder"/,
-    "appState.sortType 默认值必须是 loadOrder（优先级排序）",
+    /sortType:\s*getConfig\(\)\.sortType\s*\|\|\s*"loadOrder"/,
+    "appState.sortType 必须从配置读取，缺省回落到 loadOrder（优先级排序）",
   );
+  const configSource = readFileSync(new URL("../../core/config.js", import.meta.url), "utf8");
+  assert.match(configSource, /sortType:\s*"loadOrder"/, "配置默认排序必须是 loadOrder");
 
   const sortingSource = readFileSync(new URL("./sorting.js", import.meta.url), "utf8");
   // 只看 applySort 内部，避免命中「更新排序按钮文案」那处同名判断。
@@ -130,6 +134,23 @@ test("applySortOrder：降序取反、平局保持 0、升序原样", () => {
   assert.equal(applySortOrder(3, "desc"), -3);
   assert.equal(applySortOrder(-2, "desc"), 2);
   assert.equal(Object.is(applySortOrder(0, "desc"), 0), true, "平局必须保持 0（稳定排序依赖它）");
+});
+
+// 排序设置持久化（对齐上游 7b0818c）：改排序 → 写 config.json → 下次启动恢复。
+// 上游踩过的坑就是"排序只在本次会话生效"，重启又回到默认排序。
+test("排序设置会持久化并在启动时恢复", () => {
+  const here = new URL("./", import.meta.url);
+  const sorting = readFileSync(new URL("./sorting.js", here), "utf8");
+  const state = readFileSync(new URL("../state.js", here), "utf8");
+  const config = readFileSync(new URL("../../core/config.js", here), "utf8");
+
+  assert.match(sorting, /export function saveSortPreference\(\)/, "排序变化要有统一的持久化入口");
+  assert.match(sorting, /saveConfig\(\{[\s\S]{0,120}sortType/, "持久化要真的写 sortType / sortOrder");
+  const calls = sorting.match(/saveSortPreference\(\);/g) || [];
+  assert.ok(calls.length >= 3, `名称/日期/大小、优先级、模型复杂度三类排序入口都要持久化，实际 ${calls.length} 处`);
+  assert.match(state, /sortType: getConfig\(\)\.sortType/, "appState 启动时要读配置里的排序");
+  assert.match(state, /appState\.sortType = config\.sortType/, "applyConfigToAppState 要同步排序设置");
+  assert.match(config, /sortType: "loadOrder"/, "默认排序保持「优先级」");
 });
 
 test("优先级降序：compareByPriority + applySortOrder 组合真的反转", () => {

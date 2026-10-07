@@ -446,6 +446,118 @@
       "tag": "鸟狙",
       "reason": "地图主类型口径（2026-10-07 用户确认）：主类型=地图 时，token 通道与本体独占资源槽位通道不参与武器·物品归属，只保留本体精确锚点、标题/描述证据与内容/类别标签。该条目的此标签证据只有 token/槽位（地图自带道具、招牌、素材包命名），属于已确认误标；真替换本体武器模型的包会由 entity 锚点继续给出标签。",
       "evidence": "map_resource_tags.go 的 dropCoincidenceOnlyTags；判定依据：该 Mod 主类型=地图 且该标签证据规则全部以 token:/stock: 开头"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C1",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C2",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C3",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C4",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C5",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C6",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C7",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C8",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C9",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C10",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C11",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C12",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C13",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "scope": "global",
+      "tag": "#L4D360UI_CampaignName_C14",
+      "reason": "本地化 token 不是标签：任务文件把 \"DisplayTitle\" \"#L4D360UI_CampaignName_C1\" 这类字符串当战役名读进来，于是筛选条里出现十几个 #L4D360UI_* 的\"子标签\"（真机案例 2239816060.vpk 的 14 章）。parser 现在对所有主类型统一丢弃以 # 开头、或 L4D360UI_ / L4D_ 前缀的本地化 token。",
+      "evidence": "internal/parser/map_resource_tags.go 的 dropLocalizationTokenTags / isLocalizationTokenTag；解析入口 internal/parser/parser.go 在 mergeTagSet 后无条件调用"
+    },
+    {
+      "entryId": "root/3198378537.vpk",
+      "name": "3198378537.vpk",
+      "tag": "氧气罐",
+      "reason": "地图主类型口径再细化（2026-10-07 用户确认）：主类型=地图 时，models/props* / materials/props* / 任意 /props/ 路径下的\"本体精确锚点\"也只算搭场景的道具，不再给整张地图挂物品标签（map_resource_tags.go 的 allSourcesMapOnly）。同一目录里的内容/类别标签（模型、贴图…）不受影响。该包证据：entity 锚点 models/props_equipment/oxygentank01.mdl（主类型=地图）。死亡山谷 Death Mountain 地图自带整套氧气罐道具模型（mdl/vvd/vtx/phy），属于场景道具。",
+      "evidence": "真机探针（internal/parser 临时探针 + ParseVPKFileMetadata）实测：该 VPK 内的锚点路径为 models/props_equipment/oxygentank01.mdl，主类型=地图；判定规则见 internal/parser/map_resource_tags.go"
+    },
+    {
+      "entryId": "root/3198378537.vpk",
+      "name": "3198378537.vpk",
+      "tag": "煤气罐",
+      "reason": "地图主类型口径再细化（2026-10-07 用户确认）：主类型=地图 时，models/props* / materials/props* / 任意 /props/ 路径下的\"本体精确锚点\"也只算搭场景的道具，不再给整张地图挂物品标签（map_resource_tags.go 的 allSourcesMapOnly）。同一目录里的内容/类别标签（模型、贴图…）不受影响。该包证据：entity 锚点 models/props_junk/propanecanister001a.mdl（主类型=地图）。同一张地图自带整套煤气罐道具模型，属于场景道具。",
+      "evidence": "真机探针（internal/parser 临时探针 + ParseVPKFileMetadata）实测：该 VPK 内的锚点路径为 models/props_junk/propanecanister001a.mdl，主类型=地图；判定规则见 internal/parser/map_resource_tags.go"
+    },
+    {
+      "entryId": "workshop/workshop\\2802325803.vpk",
+      "name": "2802325803.vpk",
+      "tag": "汽油桶",
+      "reason": "地图主类型口径再细化（2026-10-07 用户确认）：主类型=地图 时，models/props* / materials/props* / 任意 /props/ 路径下的\"本体精确锚点\"也只算搭场景的道具，不再给整张地图挂物品标签（map_resource_tags.go 的 allSourcesMapOnly）。同一目录里的内容/类别标签（模型、贴图…）不受影响。该包证据：entity 锚点 models/props_junk/gascan001a.mdl（主类型=地图）。宜昌市 V5.01 地图自带汽油桶道具模型，属于场景道具。",
+      "evidence": "真机探针（internal/parser 临时探针 + ParseVPKFileMetadata）实测：该 VPK 内的锚点路径为 models/props_junk/gascan001a.mdl，主类型=地图；判定规则见 internal/parser/map_resource_tags.go"
+    },
+    {
+      "entryId": "workshop/workshop\\3578078027.vpk",
+      "name": "3578078027.vpk",
+      "tag": "煤气罐",
+      "reason": "地图主类型口径再细化（2026-10-07 用户确认）：主类型=地图 时，models/props* / materials/props* / 任意 /props/ 路径下的\"本体精确锚点\"也只算搭场景的道具，不再给整张地图挂物品标签（map_resource_tags.go 的 allSourcesMapOnly）。同一目录里的内容/类别标签（模型、贴图…）不受影响。该包证据：entity 锚点 models/props_junk/propanecanister001a.mdl（主类型=地图）。宜昌市2 地图自带煤气罐道具模型，属于场景道具。",
+      "evidence": "真机探针（internal/parser 临时探针 + ParseVPKFileMetadata）实测：该 VPK 内的锚点路径为 models/props_junk/propanecanister001a.mdl，主类型=地图；判定规则见 internal/parser/map_resource_tags.go"
     }
   ]
 }
