@@ -1,5 +1,10 @@
 # 启动"沙箱 APPDATA + CUA 桥"的调试实例：真实配置只读、Mod 目录沿用真实库（只读扫描）。
 #
+# 只读保证（2026-10-07 起）：子进程会带上 LYTVPK_READONLY_LIBRARY=1，后端会拒绝
+# 一切写盘类调用（写 addonlist.txt、移动/重命名/删除 Mod 文件、导入），
+# 所以即使探针误点"批量游戏内关闭"也改不动真实库。要跑写盘验证请用
+# scripts/devtools/launch-cua-copy-sandbox.ps1 或 .tmp-cua/refresh-check/launch-mirror-sandbox.ps1。
+#
 # 前提：先构建带桥的 EXE：pwsh -File scripts/devtools/build-cua.ps1
 #
 # 用法：
@@ -79,12 +84,15 @@ $savedEnv = @{
     LOCALAPPDATA      = $env:LOCALAPPDATA
     LYTVPK_CUA_BRIDGE = $env:LYTVPK_CUA_BRIDGE
     LYTVPK_CUA_PORT   = $env:LYTVPK_CUA_PORT
+    LYTVPK_READONLY_LIBRARY = $env:LYTVPK_READONLY_LIBRARY
 }
 try {
     $env:APPDATA = $SandboxRoot
     $env:LOCALAPPDATA = $sandboxLocal
     $env:LYTVPK_CUA_BRIDGE = '1'
     $env:LYTVPK_CUA_PORT = [string]$Port
+    # 本脚本沿用真实 addons 目录 → 强制只读闸门。
+    $env:LYTVPK_READONLY_LIBRARY = '1'
     $process = Start-Process -FilePath $exePath -PassThru -NoNewWindow `
         -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 }
@@ -93,8 +101,10 @@ finally {
     $env:LOCALAPPDATA = $savedEnv.LOCALAPPDATA
     $env:LYTVPK_CUA_BRIDGE = $savedEnv.LYTVPK_CUA_BRIDGE
     $env:LYTVPK_CUA_PORT = $savedEnv.LYTVPK_CUA_PORT
+    $env:LYTVPK_READONLY_LIBRARY = $savedEnv.LYTVPK_READONLY_LIBRARY
 }
 Write-Host "started pid=$($process.Id) exe=$ExeName port=$Port sandbox=$SandboxRoot"
+Write-Host "只读闸门：LYTVPK_READONLY_LIBRARY=1（后端拒绝写 addonlist / 移动 Mod 文件）"
 Write-Host "日志：$stderrLog"
 
 $deadline = (Get-Date).AddSeconds(300)

@@ -125,12 +125,15 @@ $savedEnv = @{
     LOCALAPPDATA      = $env:LOCALAPPDATA
     LYTVPK_CUA_BRIDGE = $env:LYTVPK_CUA_BRIDGE
     LYTVPK_CUA_PORT   = $env:LYTVPK_CUA_PORT
+    LYTVPK_READONLY_LIBRARY = $env:LYTVPK_READONLY_LIBRARY
 }
 try {
     $env:APPDATA = $SandboxRoot
     $env:LOCALAPPDATA = Join-Path $SandboxRoot 'LocalAppData'
     $env:LYTVPK_CUA_BRIDGE = '1'
     $env:LYTVPK_CUA_PORT = [string]$Port
+    # 副本沙箱允许写盘：显式关掉只读闸门（防止父 shell 里残留 =1）。
+    $env:LYTVPK_READONLY_LIBRARY = '0'
     $process = Start-Process -FilePath $exePath -PassThru -NoNewWindow `
         -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 }
@@ -139,6 +142,7 @@ finally {
     $env:LOCALAPPDATA = $savedEnv.LOCALAPPDATA
     $env:LYTVPK_CUA_BRIDGE = $savedEnv.LYTVPK_CUA_BRIDGE
     $env:LYTVPK_CUA_PORT = $savedEnv.LYTVPK_CUA_PORT
+    $env:LYTVPK_READONLY_LIBRARY = $savedEnv.LYTVPK_READONLY_LIBRARY
 }
 
 Write-Host "started pid=$($process.Id) port=$Port"
