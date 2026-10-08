@@ -1,7 +1,7 @@
 # Mod 标签识别 v2（维护者开发文档）
 
-> 状态：**待开发**（Codex 目标模式已启动）
-> 基线版本：`2.7.1-community.42`（`d224707`）
+> 状态：**已完成**（W0–W8 全部收口于 2026-10-07；后续标签改动必须通过 `--check-tag-regression` 护栏，删标签须登记 `tools/tag-regression-allowlist.json`）
+> 基线版本：`2.7.1-community.42`（`d224707`）；收口版本：`2.7.1-community.67`（`cc79e92`）
 > 本文是维护者文档，不进入公开文档站侧边栏。
 
 ## 进度
@@ -66,7 +66,7 @@
 ## 2. 已确认缺陷（本轮真机取证，全部来自游戏本体脚本/路径）
 
 证据来源：`left4dead2/pak01_dir.vpk` 与 dlc1/2/3、update 的 `scripts/weapon_*.txt`、`scripts/melee/*.txt`
-（用只读探针 `vpkprobe --cat` 读出，原始记录见 `.tmp-tag-audit/weapon_script_map.txt`）。
+（用只读探针 `vpkprobe --cat` 读出，原始记录见工作区归档 `archive/scratch/tmp-tag-audit/weapon_script_map.txt`）。
 
 | # | 症状 | 本体权威证据 | 影响 | 归属工作包 |
 | --- | --- | --- | --- | --- |
@@ -288,7 +288,7 @@ type TagEvidence struct {
 - 不因"看起来更准"而删除任何现有标签；需要区分强弱时用 `EvidenceLevel`，不用删标签表达。
 - 不把用户的真实 Mod 清单/基线提交进公开仓库。
 
-## 9. 附录：本体权威映射（节选，完整记录见 `.tmp-tag-audit/weapon_script_map.txt`）
+## 9. 附录：本体权威映射（节选，完整记录见工作区归档 `archive/scratch/tmp-tag-audit/weapon_script_map.txt`）
 
 | weapon 脚本 | playermodel（世界模型） | viewmodel | 当前标签 | 状态 |
 | --- | --- | --- | --- | --- |
