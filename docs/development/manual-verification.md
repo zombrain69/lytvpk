@@ -223,6 +223,8 @@ $real = "<真实>\left4dead2\addonlist.txt"
 | `%TEMP%\lytvpk-copy-sandbox-<port>.{out,err}.log` | 副本库沙箱子进程 stdout/stderr | 启动脚本 |
 | `%APPDATA%\LytVPK\` | 应用真实配置（config / groups / priority / stock_index / grouping_catalog）；沙箱只用它的**副本** | 应用 |
 
+> 整理动态（2026-10-09）：已完成任务的调试产物已归档到工作区 `archive/scratch/repo-tmp-cua/`（`shots/` 截图、`refresh-check/` 事故与复核资料、各 `zz-*` 沙箱快照等；本文历史引用中的 `shots/` 路径已同步为归档路径）。`zz-*` 沙箱目录在下次启动时会自动重建；保留套件见 `lytvpk/.tmp-cua/README.md`。
+
 **"要做什么 → 用哪个"对照表**（别再造轮子）：
 
 | 想做的事 | 用这个 | 不要 |
@@ -712,7 +714,7 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
 - **整站巡检**：用坐标点击依次进入 MOD 管理 / 创意工坊 / 下载与解析 / 收藏服务器 / 工具箱 /
   设置（网络、界面、工坊、游戏配置四个分页）/ 使用说明 / 关于，全程
   `window.onerror`、`unhandledrejection`、`console.error` **零新增**（截图见
-  `.tmp-cua/shots/sweep/`）。
+  `archive/scratch/repo-tmp-cua/shots/sweep/`）。
 
 ### 只能人工验证 / 仍未验证
 
@@ -787,7 +789,7 @@ addonlist 键 / 裸文件名 / 绝对路径三种成员写法都能解析；裸�
    放进收件箱；
 3. 打包 EXE 打开「分组建议」：概览显示 `共 40 条建议（其中 6 条来自导入的建议文件）`，
    6 条导入建议排在最前并带「导入建议」徽标，成员行的位置 / 游戏开关 / 优先级 / 操作按钮
-   全部正常渲染（截图：`.tmp-cua/shots/import-demo.png`）。
+   全部正常渲染（截图：`archive/scratch/repo-tmp-cua/shots/import-demo.png`）。
 
 **只能人工验证**：
 
@@ -823,7 +825,7 @@ addonlist 键 / 裸文件名 / 绝对路径三种成员写法都能解析；裸�
 **已在打包 EXE 上驱动验证**：点「准备给智能体的材料」→
 `%AppData%\LytVPK\grouping_catalog.json` 生成（939 KB / 1968 个 Mod），
 剪贴板拿到提示词，弹窗显示清单路径与建议文件路径（截图
-`.tmp-cua/shots/agent-prepared.png`）。
+`archive/scratch/repo-tmp-cua/shots/agent-prepared.png`）。
 
 **只能人工验证**：剪贴板内容在外部应用（Codex / Claude）里粘贴后的实际效果，
 以及「保存提示词…」的系统保存对话框。
@@ -879,7 +881,7 @@ disabled"的范围落地的项与证据：
 
 **已在打包 EXE 上验证**：导入外部 agent 的 187 组建议后，弹窗显示「共 40 条建议（其中 40 条来自导入的建议文件）」，
 导入建议排在最前并带「导入建议」徽标，成员行的位置 / 游戏开关 / 优先级 / 详情 / 启用·禁用按钮正常
-（截图 `.tmp-cua/shots/final-verify.png`）。
+（截图 `archive/scratch/repo-tmp-cua/shots/final-verify.png`）。
 
 ### 第九轮（清单覆盖"LytVPK 已解析的全部信息"）
 
@@ -951,21 +953,21 @@ coverage = {"mods":1968,"withStructure":1968,"withStructureTargets":1968,"withAd
 PostMessage 投递鼠标 / 字符消息，脚本见 `scripts/devtools/`）：
 
 1. 工具栏「分组」菜单展开后，每个组一行显示
-   `↑前移 ↓后移 整组开关 ＋选中的 N 个 －选中的 N 个 重命名 删除`（截图 `.tmp-cua/shots/r11-group-menu2.png`）。
+   `↑前移 ↓后移 整组开关 ＋选中的 N 个 －选中的 N 个 重命名 删除`（截图 `archive/scratch/repo-tmp-cua/shots/r11-group-menu2.png`）。
 2. 「分组建议」弹窗默认折叠：标题 + 高置信度 + 导入建议 + `11 个 Mod` + 「展开详情」+ 成员预览
    （`…还有 8 个`），筛选栏显示「显示 24 / 234 条建议（还有 210 条未显示）」
-   （`.tmp-cua/shots/r11-suggest-modal.png`）。
+   （`archive/scratch/repo-tmp-cua/shots/r11-suggest-modal.png`）。
 3. 「展开详情」后出现完整成员行（`详情 / 游戏开关 开 / 禁用` + 位置徽标 + `优先级 #1036`），
-   标题变为可编辑输入框（`.tmp-cua/shots/r11-suggest-expanded.png`）。
+   标题变为可编辑输入框（`archive/scratch/repo-tmp-cua/shots/r11-suggest-expanded.png`）。
 4. 拖右下角把弹窗拉大（`drag-window-at.ps1`），关闭再打开后尺寸保持不变 —— 缩放与
-   localStorage 记忆都生效（`.tmp-cua/shots/r11-suggest-resized2.png` 与 `r11-suggest-reopen.png`）。
+   localStorage 记忆都生效（`archive/scratch/repo-tmp-cua/shots/r11-suggest-resized2.png` 与 `r11-suggest-reopen.png`）。
 5. 「全部折叠」把已展开的卡片收回到摘要；搜索框输入 `M16` 后计数变为「显示 9 / 9 条建议」，
    列表只剩 9 条命中（含成员名带 `MW22 M16` 的主题套装）
-   （`.tmp-cua/shots/r11-suggest-search2.png`）。
+   （`archive/scratch/repo-tmp-cua/shots/r11-suggest-search2.png`）。
 6. 「重命名」弹出应用内输入框并预填当前组名；「删除」弹出应用内确认框，正文列出
    「只删除 groups.json 里的这一条记录（6 个成员）/ 不会改动 addonlist.txt，也不会删除任何 Mod 文件 /
    组成员已经写入的 Mod 分层（priority.json）会保留 / 下级分组会回到顶层」
-   （`.tmp-cua/shots/r11-rename-dialog.png`、`.tmp-cua/shots/r11-delete-dialog.png`）。
+   （`archive/scratch/repo-tmp-cua/shots/r11-rename-dialog.png`、`archive/scratch/repo-tmp-cua/shots/r11-delete-dialog.png`）。
 
 **本轮的人工点击只走到弹窗并取消**，没有真的删除任何策略组；删除语义由上面的 Go 用例覆盖。
 
@@ -997,14 +999,14 @@ PostMessage 投递鼠标 / 字符消息，脚本见 `scripts/devtools/`）：
 **已在打包 EXE 上驱动验证**（右键 = `click-window-at.ps1 -RightButton`）：
 
 1. 不属于任何组的 Mod（星雪特效平台整合版）：右键菜单出现「加入策略组…」
-   （`.tmp-cua/shots/r12-context-menu.png`）；
+   （`archive/scratch/repo-tmp-cua/shots/r12-context-menu.png`）；
 2. 点击后弹出「加入策略组」选择器：`已选中 1 个 Mod；下面 17 个策略组里 17 个可以加入`，
-   每行显示组名 + 成员数，未选中目标时「加入这个组」为禁用态（`.tmp-cua/shots/r12-group-picker.png`）；
+   每行显示组名 + 成员数，未选中目标时「加入这个组」为禁用态（`archive/scratch/repo-tmp-cua/shots/r12-group-picker.png`）；
 3. 用「分组」菜单筛出 `!!医疗箱 系列` 后，组内 Mod 的右键菜单同时出现
-   「加入策略组… / 从策略组移出… / 移动到其它策略组…」（`.tmp-cua/shots/r12b-menu-in-group.png`）；
+   「加入策略组… / 从策略组移出… / 移动到其它策略组…」（`archive/scratch/repo-tmp-cua/shots/r12b-menu-in-group.png`）；
 4. 点「移动到其它策略组…」弹出移动选择器：
    `已选中 1 个 Mod；从「!!医疗箱 系列（主文件+音频+材质+开关模块）」移动到下面 16 个策略组之一`，
-   源组那一行显示为禁用并注明「就是当前所在的组」（`.tmp-cua/shots/r12b-move-dialog.png`）。
+   源组那一行显示为禁用并注明「就是当前所在的组」（`archive/scratch/repo-tmp-cua/shots/r12b-move-dialog.png`）。
 
 **本轮所有真机点击都只到"打开选择器"为止，最后都点了取消**：没有真正写 `groups.json`，
 也没有改动任何 Mod 或 `addonlist.txt`（写入语义由上面的 Go 用例覆盖）。
@@ -1035,12 +1037,12 @@ PostMessage 投递鼠标 / 字符消息，脚本见 `scripts/devtools/`）：
 1. 分组建议弹窗概要行显示「共 234 条建议（其中 189 条来自导入的建议文件）·
    **15 条标签已覆盖（可直接用标签筛选）**」，筛选栏出现下拉「隐藏标签已覆盖」，
    计数为「显示 24 / **219** 条建议（还有 195 条未显示）」——234 − 15 = 219，
-   说明 15 条标签已覆盖的建议确实被默认隐藏（`.tmp-cua/shots/r13-suggest-tag-filter.png`）；
-2. 「分组」菜单里每个组都出现「打标签…」（`.tmp-cua/shots/r13-group-menu.png`）；
+   说明 15 条标签已覆盖的建议确实被默认隐藏（`archive/scratch/repo-tmp-cua/shots/r13-suggest-tag-filter.png`）；
+2. 「分组」菜单里每个组都出现「打标签…」（`archive/scratch/repo-tmp-cua/shots/r13-group-menu.png`）；
 3. 点开「打标签…」后对话框显示：`给「!!医疗箱 系列（主文件+音频+材质+开关模块）」打标签`、
    `建议标签：!!医疗箱 系列（主文件_音频_材质_开关模块）（来自组名）；可以直接改成别的名字。`、
    这一组共 6 个成员的预览，以及"会改 addonlist 键、工具会自动改绑本地记录"的说明
-   （`.tmp-cua/shots/r13-tag-dialog.png`）。
+   （`archive/scratch/repo-tmp-cua/shots/r13-tag-dialog.png`）。
 
 **本轮真机点击都在对话框上取消了**：没有真的给任何 Mod 打标签（那会改文件名），
 写入语义由 Go 用例在临时夹具上覆盖。
@@ -1097,7 +1099,7 @@ PostMessage 投递鼠标 / 字符消息，脚本见 `scripts/devtools/`）：
    命中的就是该按钮（真实鼠标不会点到别的东西）；
 2. 点开后弹窗显示：`当前使用：LytVPK 内置默认提示词`、三个占位符芯片、
    7925 字符的可编辑提示词（开头就是「### 处理范围（硬性，先读这条）」）、
-   `恢复默认 / 取消 / 保存`（截图 `.tmp-cua/shots/r14-editor-open.png`、`r14-editor-scope.png`）；
+   `恢复默认 / 取消 / 保存`（截图 `archive/scratch/repo-tmp-cua/shots/r14-editor-open.png`、`r14-editor-scope.png`）；
 3. 改内容后状态变成 `… · 有未保存的修改`；点「保存」→ 落盘
    `%AppData%\LytVPK\group_suggestion_agent_prompt.md`、`isCustom=true`、记录保存时间，
  随后 `GetGroupSuggestionAgentPrompt()` 返回的内容里已把
