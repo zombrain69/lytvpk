@@ -104,7 +104,7 @@ test("排除词用子串，不会在长路径里凑字母误伤", () => {
         {
           name: "ak47-hd.vpk",
           title: "ak47-hd.vpk",
-          path: "E:\\SteamLibrary\\steamapps\\common\\Left 4 Dead 2\\program\\lytvpk\\internal\\.tmp-cua\\fixture8\\left4dead2\\addons\\ak47-hd.vpk",
+          path: "H:\\SteamLibrary\\steamapps\\common\\Left 4 Dead 2\\program\\lytvpk\\internal\\.tmp-cua\\fixture8\\left4dead2\\addons\\ak47-hd.vpk",
           order: -1,
         },
       ],

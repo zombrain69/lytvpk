@@ -21,9 +21,9 @@ var privacyGuardForbiddenPatterns = []struct {
 	name string
 	re   *regexp.Regexp
 }{
-	{"Windows 用户名目录", regexp.MustCompile(`C:\\Users\\(Administrator|PC)(\\|\b)`)},
-	{"本机 Steam 库", regexp.MustCompile(`[CDEFG]:\\SteamLibrary`)},
-	{"本机 Steam 安装目录", regexp.MustCompile(`C:\\steam\b`)},
+	{"Windows 用户名目录", regexp.MustCompile(`C:\\{1,4}Users\\{1,4}(Administrator|PC)(\\{1,4}|\b)`)},
+	{"本机 Steam 库", regexp.MustCompile(`[CDEFG]:\\{1,4}SteamLibrary`)},
+	{"本机 Steam 安装目录", regexp.MustCompile(`C:\\{1,4}steam\b`)},
 	{"GitHub token", regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{30,}`)},
 	{"GitHub PAT", regexp.MustCompile(`github_pat_[A-Za-z0-9_]{40,}`)},
 	{"私钥块", regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)},
