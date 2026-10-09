@@ -167,6 +167,8 @@ func TestNormalizeFileSort(t *testing.T) {
 		{fileSortTypeLoadOrder, "DESC", fileSortTypeLoadOrder, fileSortOrderDesc},
 		{fileSortTypeSize, "asc", fileSortTypeSize, fileSortOrderAsc},
 		{fileSortTypeModelComplexity, " x ", fileSortTypeModelComplexity, fileSortOrderDesc},
+		{fileSortTypeXDRSlot, "", fileSortTypeXDRSlot, fileSortOrderAsc},
+		{fileSortTypeXDRSlot, "desc", fileSortTypeXDRSlot, fileSortOrderDesc},
 	}
 	for _, c := range cases {
 		gotType, gotOrder := normalizeFileSort(c.inType, c.inOrder)

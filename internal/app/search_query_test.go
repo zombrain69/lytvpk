@@ -14,6 +14,8 @@ type searchQueryCase struct {
 	Terms       []string   `json:"terms"`
 	IncludeTags [][]string `json:"includeTags"`
 	ExcludeTags []string   `json:"excludeTags"`
+	IncludeSlots [][]string `json:"includeSlots"`
+	ExcludeSlots []string   `json:"excludeSlots"`
 	Regex       string     `json:"regex"`
 	RegexError  bool       `json:"regexError"`
 }
@@ -65,6 +67,25 @@ func TestParseModSearchQueryMatchesSharedCases(t *testing.T) {
 				t.Fatalf("excludeTags = %v, 期望 %v", spec.ExcludeTags, wantExclude)
 			}
 
+			gotSlots := make([][]string, 0, len(spec.IncludeSlots))
+			for _, condition := range spec.IncludeSlots {
+				gotSlots = append(gotSlots, condition.Terms)
+			}
+			wantSlots := tc.IncludeSlots
+			if wantSlots == nil {
+				wantSlots = [][]string{}
+			}
+			if !reflect.DeepEqual(gotSlots, wantSlots) {
+				t.Fatalf("includeSlots = %v, 期望 %v", gotSlots, wantSlots)
+			}
+			wantExcludeSlots := tc.ExcludeSlots
+			if wantExcludeSlots == nil {
+				wantExcludeSlots = []string{}
+			}
+			if !sameStringList(spec.ExcludeSlots, wantExcludeSlots) {
+				t.Fatalf("excludeSlots = %v, 期望 %v", spec.ExcludeSlots, wantExcludeSlots)
+			}
+
 			if tc.Regex == "" {
 				if spec.Regex != nil {
 					t.Fatalf("不应有正则，实际 %v", spec.Regex)
@@ -104,6 +125,9 @@ func TestModSearchQueryMatchesFields(t *testing.T) {
 		SecondaryTags:   []string{"步枪", "材质"},
 		SubjectSummary:  "AK47 武器",
 		ContentSubjects: []string{"models/weapons/v_rifle_ak47.mdl"},
+		XDRSlots: []XDRSlotInfo{
+			{Character: "Zoey", Slot: 32, SlotLabel: "032", SlotName: "Heal_self", SlotGroup: "治疗"},
+		},
 	}
 
 	cases := []struct {
@@ -129,6 +153,16 @@ func TestModSearchQueryMatchesFields(t *testing.T) {
 		// `-排除` 用子串而不是模糊：长路径里"凑字母"不该把记录排掉
 		{"-old", true},  // 路径里有 o/l/d 但不含 "old" 这个词
 		{"-sniper", true},
+		// `slot:` 走 XDR 槽位（角色 / 槽位号 / 官方用途名 / 用途组，子串、大小写不敏感）。
+		{"slot:heal", true},   // SlotName Heal_self
+		{"slot:zoey", true},   // 角色名
+		{"slot:32", true},     // 槽位号
+		{"slot:治疗", true},   // 用途组
+		{"slot:rescue", false},
+		{"slot:heal slot:zoey", true},
+		{"slot:heal -slot:32", false},
+		{"-slot:heal", false},
+		{"-slot:rescue", true},
 	}
 	for _, tc := range cases {
 		spec := parseModSearchQuery(tc.query)

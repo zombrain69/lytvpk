@@ -20,6 +20,8 @@ export const SEARCH_SYNTAX_ROWS = [
   { syntax: "tag:步枪|狙击", description: "任一标签命中即可（或）" },
   { syntax: "tag:武器 tag:步枪", description: "两个标签都要（且）" },
   { syntax: "-tag:材质", description: "排除含这个标签的 Mod" },
+  { syntax: "slot:heal", description: "按动作槽筛（XDR）：角色 / 槽位号 / 官方用途名都算，如 slot:zoey、slot:32、slot:救援" },
+  { syntax: "-slot:救援", description: "排除含该动作槽的 Mod（例如不想看某角色的动作包）" },
   { syntax: "-材质", description: "排除「包含」这个词的 Mod（子串匹配；不做模糊，长路径不会误伤）" },
   { syntax: "re:^ak\\d+$", description: "正则匹配；写法有误会直接提示「正则表达式无效」" },
 ];

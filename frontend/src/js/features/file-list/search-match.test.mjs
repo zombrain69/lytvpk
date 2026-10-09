@@ -109,6 +109,24 @@ test("搜索语法的命中字段：tag: 标成标签，-tag: 不参与高亮", 
   assert.deepEqual(describeMatchReasons(file, "re:^ak47"), ["标题", "文件名", "主体"].slice(0, 3));
 });
 
+test("搜索语法的命中字段：slot: 命中动作槽，-slot: 不参与高亮", () => {
+  const slotFile = {
+    ...sampleFile,
+    xdrSlots: [
+      { character: "Zoey", slot: 32, slotLabel: "032", slotName: "Heal_self", slotGroup: "治疗" },
+      { character: "Bill", slot: 33, slotLabel: "033", slotName: "Rescue", slotGroup: "救援" },
+    ],
+  };
+  assert.deepEqual(describeMatchReasons(slotFile, "slot:heal"), ["动作槽"]);
+  assert.deepEqual(describeMatchReasons(slotFile, "slot:zoey"), ["动作槽"]);
+  assert.deepEqual(describeMatchReasons(slotFile, "slot:32"), ["动作槽"]);
+  assert.deepEqual(describeMatchReasons(slotFile, "slot:救援"), ["动作槽"]);
+  // 没有 XDR 槽位的 Mod 命中不了 slot: 条件。
+  assert.deepEqual(describeMatchReasons(sampleFile, "slot:heal"), []);
+  // `-slot:` 只是排除条件，不产生"匹配到xx"的说明。
+  assert.deepEqual(describeMatchReasons(slotFile, "-slot:rescue"), []);
+});
+
 test("正则写错时计数文案直接说明原因", () => {
   assert.match(
     describeSearchResult({ total: 10, shown: 0, query: "re:[", regexInvalid: "Invalid regular expression" }),

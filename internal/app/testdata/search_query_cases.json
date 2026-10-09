@@ -1,11 +1,13 @@
 {
-  "_comment": "Go 与前端共用的搜索语法用例：两边解析器必须给出同样的结果（对齐 FireAxe AddonNodeSearchUtils 的 IsRegex / Tags / TagFilterMode）。",
+  "_comment": "Go 与前端共用的搜索语法用例：两边解析器必须给出同样的结果（对齐 FireAxe AddonNodeSearchUtils 的 IsRegex / Tags / TagFilterMode；slot: 为本 fork 扩展）。",
   "cases": [
     {
       "query": "",
       "terms": [],
       "includeTags": [],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -13,6 +15,8 @@
       "terms": ["ak47"],
       "includeTags": [],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -20,6 +24,8 @@
       "terms": ["AK47", "武器"],
       "includeTags": [],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -27,6 +33,8 @@
       "terms": [],
       "includeTags": [["武器"]],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -34,6 +42,8 @@
       "terms": [],
       "includeTags": [["武器"], ["步枪"]],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -41,6 +51,8 @@
       "terms": [],
       "includeTags": [["步枪", "狙击"]],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -48,6 +60,8 @@
       "terms": [],
       "includeTags": [],
       "excludeTags": ["材质"],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -55,6 +69,8 @@
       "terms": ["ak47"],
       "includeTags": [["武器"]],
       "excludeTags": ["材质"],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -62,6 +78,8 @@
       "terms": [],
       "includeTags": [],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": "^ak\\d+$"
     },
     {
@@ -69,6 +87,8 @@
       "terms": [],
       "includeTags": [],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": "",
       "regexError": true
     },
@@ -77,6 +97,8 @@
       "terms": [],
       "includeTags": [],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     },
     {
@@ -84,6 +106,62 @@
       "terms": ["ak 47", "武器"],
       "includeTags": [],
       "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
+      "regex": ""
+    },
+    {
+      "query": "slot:heal",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "includeSlots": [["heal"]],
+      "excludeSlots": [],
+      "regex": ""
+    },
+    {
+      "query": "槽位:zoey|bill",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "includeSlots": [["zoey", "bill"]],
+      "excludeSlots": [],
+      "regex": ""
+    },
+    {
+      "query": "-slot:rescue",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": ["rescue"],
+      "regex": ""
+    },
+    {
+      "query": "slot:heal slot:zoey",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "includeSlots": [["heal"], ["zoey"]],
+      "excludeSlots": [],
+      "regex": ""
+    },
+    {
+      "query": "slot:32 tag:XDR动画 ak",
+      "terms": ["ak"],
+      "includeTags": [["XDR动画"]],
+      "excludeTags": [],
+      "includeSlots": [["32"]],
+      "excludeSlots": [],
+      "regex": ""
+    },
+    {
+      "query": "slot:",
+      "terms": [],
+      "includeTags": [],
+      "excludeTags": [],
+      "includeSlots": [],
+      "excludeSlots": [],
       "regex": ""
     }
   ]

@@ -5,6 +5,7 @@ import { renderFileList, revealFileByPath } from "./render.js";
 import { GetAddonListOrder, GetModPriorityPlan } from "../../../../wailsjs/go/app/App";
 import { buildPriorityPlanMap } from "./priority-label.mjs";
 import { applySortOrder, compareByPriority, compareNames, nextSortState } from "./priority-sort.mjs";
+import { compareByXDRSlot, minXDRSlot } from "./xdr-slot-sort.mjs";
 import { modelMetricScanTargets } from "./model-metric-targets.mjs";
 
 let loadOrderHighlightTimer = null;
@@ -53,6 +54,9 @@ export function setupSortEvents() {
   document
     .getElementById("sort-load-order-btn")
     ?.addEventListener("click", () => handleLoadOrderSort());
+  document
+    .getElementById("sort-xdr-slot-btn")
+    ?.addEventListener("click", () => handleXDRSlotSort());
 
   setupLoadOrderLocator();
 
@@ -148,6 +152,26 @@ export async function handleLoadOrderSort() {
     console.error("获取加载顺序失败:", err);
     showError("addonlist.txt 错误: " + err);
   }
+}
+
+/** 动作槽排序：按 XDR 槽位号（1–48）排列，多槽位取最小；没有槽位的排末尾。 */
+export function handleXDRSlotSort() {
+  document.getElementById("sort-dropdown-content")?.classList.add("hidden");
+
+  const next = nextSortState(appState.sortType, appState.sortOrder, "xdrSlot");
+  appState.sortType = next.type;
+  appState.sortOrder = next.order;
+  saveSortPreference();
+
+  updateSortButtonUI();
+  applySort(appState.vpkFiles);
+  renderFileList();
+
+  const withSlot = (appState.vpkFiles || []).filter((file) => minXDRSlot(file) !== null).length;
+  showNotification(
+    `已按动作槽排序（${appState.sortOrder === "desc" ? "槽位降序" : "槽位升序"}）：${withSlot} 个 Mod 带 XDR 槽位`,
+    "success",
+  );
 }
 
 export function handleSortChange(type) {
@@ -383,6 +407,7 @@ const SORT_DIRECTION_LABELS = {
   size: { asc: "由小到大", desc: "由大到小" },
   modelComplexity: { asc: "低到高", desc: "高到低" },
   loadOrder: { asc: "顺序", desc: "倒序" },
+  xdrSlot: { asc: "槽位升序", desc: "槽位降序" },
 };
 
 function sortDirectionLabel(type, order) {
@@ -429,6 +454,7 @@ export function updateSortButtonUI() {
   else if (appState.sortType === "loadOrder") text = "优先级排序";
   else if (appState.sortType === "size") text = "VPK 大小排序";
   else if (appState.sortType === "modelComplexity") text = "模型复杂度排序";
+  else if (appState.sortType === "xdrSlot") text = "动作槽排序";
 
   const arrow = sortDirectionLabel(appState.sortType, appState.sortOrder);
   if (btnText) btnText.textContent = arrow ? `${text} （${arrow}）` : text;
@@ -438,6 +464,7 @@ export function updateSortButtonUI() {
   applySortMenuItem(document.getElementById("sort-size-btn"), "size");
   applySortMenuItem(document.getElementById("sort-model-complexity-btn"), "modelComplexity");
   applySortMenuItem(document.getElementById("sort-load-order-btn"), "loadOrder");
+  applySortMenuItem(document.getElementById("sort-xdr-slot-btn"), "xdrSlot");
 }
 
 export function applySort(files) {
@@ -458,6 +485,17 @@ export function applySort(files) {
     // 导致"优先级排序（倒序）"点了也不反转（用户 2026-10-07 反馈）。
     decorated.sort((left, right) =>
       applySortOrder(compareByPriority(left, right), appState.sortOrder),
+    );
+    return writeBack(decorated);
+  }
+  if (appState.sortType === "xdrSlot") {
+    const decorated = files.map((file) => ({
+      file,
+      slot: minXDRSlot(file),
+      name: String(file?.name || ""),
+    }));
+    decorated.sort((left, right) =>
+      applySortOrder(compareByXDRSlot(left, right), appState.sortOrder),
     );
     return writeBack(decorated);
   }

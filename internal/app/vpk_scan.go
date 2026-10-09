@@ -622,6 +622,7 @@ func (a *App) SearchVPKFiles(query string, primaryTag string, secondaryTags []st
 			ContentSubjects: vpkFile.ContentSubjects,
 			VoiceCharacters: vpkFile.VoiceCharacters,
 			XDRSummary:      vpkFile.XDRSummary,
+			XDRSlots:        vpkFile.XDRSlots,
 		})
 
 		// 主标签筛选匹配

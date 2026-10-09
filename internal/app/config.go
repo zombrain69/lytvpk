@@ -24,13 +24,14 @@ const (
 )
 
 // VPK 列表排序设置的取值（与前端 sorting.js / priority-sort.mjs 一致）：
-// 名称 / 日期 / 大小 / 模型复杂度 / 加载顺序（优先级）。
+// 名称 / 日期 / 大小 / 模型复杂度 / 加载顺序（优先级）/ 动作槽（XDR）。
 const (
 	fileSortTypeName            = "name"
 	fileSortTypeDate            = "date"
 	fileSortTypeSize            = "size"
 	fileSortTypeModelComplexity = "modelComplexity"
 	fileSortTypeLoadOrder       = "loadOrder"
+	fileSortTypeXDRSlot         = "xdrSlot"
 
 	fileSortOrderAsc  = "asc"
 	fileSortOrderDesc = "desc"
@@ -45,7 +46,7 @@ const (
 func normalizeFileSort(sortType, sortOrder string) (string, string) {
 	sortType = strings.TrimSpace(sortType)
 	switch sortType {
-	case fileSortTypeName, fileSortTypeDate, fileSortTypeSize, fileSortTypeModelComplexity, fileSortTypeLoadOrder:
+	case fileSortTypeName, fileSortTypeDate, fileSortTypeSize, fileSortTypeModelComplexity, fileSortTypeLoadOrder, fileSortTypeXDRSlot:
 	default:
 		sortType = fileSortTypeLoadOrder
 	}

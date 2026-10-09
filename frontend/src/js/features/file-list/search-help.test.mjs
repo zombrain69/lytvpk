@@ -31,7 +31,7 @@ test("归档面板复用同一份说明书，但字段与 tag: 含义不同", ()
 
 test("语法表覆盖实际支持的全部写法", () => {
   const syntaxes = SEARCH_SYNTAX_ROWS.map((row) => row.syntax).join(" ");
-  ["tag:", "|", "-tag:", "re:", '"'].forEach((token) => {
+  ["tag:", "|", "-tag:", "re:", "slot:", "-slot:", '"'].forEach((token) => {
     assert.ok(syntaxes.includes(token), `语法表应包含 ${token} 的示例`);
   });
   // 每一行都要有说明，不能只有写法。

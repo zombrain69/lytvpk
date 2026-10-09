@@ -156,7 +156,7 @@ function normalizeConfig(config = {}) {
     : [];
   next.displayMode = next.displayMode || DEFAULT_CONFIG.displayMode;
   // 排序设置：只接受白名单取值；方向缺省与排序菜单一致（日期/大小/复杂度默认倒序）。
-  next.sortType = ["name", "date", "size", "modelComplexity", "loadOrder"].includes(next.sortType)
+  next.sortType = ["name", "date", "size", "modelComplexity", "loadOrder", "xdrSlot"].includes(next.sortType)
     ? next.sortType
     : DEFAULT_CONFIG.sortType;
   next.sortOrder = ["asc", "desc"].includes(next.sortOrder)

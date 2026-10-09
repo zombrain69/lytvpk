@@ -416,7 +416,7 @@
               <input
                 type="text"
                 id="search-input"
-                placeholder="搜索 VPK（支持 tag:武器、-tag:材质、re:^ak 等写法；Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空）"
+                placeholder="搜索 VPK（支持 tag:武器、slot:heal、-tag:材质、re:^ak 等写法；Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空）"
                 class="search-input"
               />
               <button
@@ -572,6 +572,17 @@
                       </svg>
                     </span>
                     优先级排序（分层优先，其次加载顺序）
+                  </button>
+                  <button id="sort-xdr-slot-btn" class="dropdown-item">
+                    <span class="btn-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" y1="9" x2="20" y2="9"></line>
+                        <line x1="4" y1="15" x2="20" y2="15"></line>
+                        <line x1="10" y1="3" x2="8" y2="21"></line>
+                        <line x1="16" y1="3" x2="14" y2="21"></line>
+                      </svg>
+                    </span>
+                    动作槽排序（XDR）
                   </button>
                 </div>
               </div>

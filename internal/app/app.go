@@ -21,6 +21,9 @@ import (
 // VPKFile 类型别名,用于Wails绑定
 type VPKFile = parser.VPKFile
 
+// XDRSlotInfo 供 app 包内引用槽位类型（搜索语法 `slot:` 等）。
+type XDRSlotInfo = parser.XDRSlotInfo
+
 // IPOption 类型别名,用于Wails绑定
 type IPOption = network.IPOption
 

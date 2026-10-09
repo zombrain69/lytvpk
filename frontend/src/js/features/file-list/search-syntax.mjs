@@ -13,9 +13,12 @@
 //   -tag:材质        排除含该标签的（= Not）
 //   -材质            普通词的排除写法
 //   re:^ak\d+$      正则匹配（= IsRegex）
+//   slot:heal       按动作槽筛（本 fork 扩展）：角色 / 槽位号 / 官方用途名 / 用途组；-slot: 排除
 
 export const TAG_PREFIXES = ["tag:", "标签:"];
 export const EXCLUDE_TAG_PREFIXES = ["-tag:", "-标签:"];
+export const SLOT_PREFIXES = ["slot:", "槽位:"];
+export const EXCLUDE_SLOT_PREFIXES = ["-slot:", "-槽位:"];
 export const REGEX_PREFIXES = ["re:", "正则:"];
 
 function startsWithAny(value, prefixes) {
@@ -69,9 +72,10 @@ export function splitTagAlternatives(value) {
 
 /**
  * parseSearchSyntax 解析搜索框内容。
- * 返回 { raw, terms, includeTags, excludeTags, regex, regexInvalid }：
+ * 返回 { raw, terms, includeTags, excludeTags, includeSlots, excludeSlots, regex, regexInvalid }：
  *   - terms：字符串数组，前导 "-" 表示"命中即排除"；
  *   - includeTags：数组的数组，内层是"任一命中即可"的 OR 组；
+ *   - includeSlots / excludeSlots：`slot:a|b` / `-slot:a` 条件（形状与 includeTags 一致）；
  *   - regex：正则源码（不带 (?i)，匹配时用 i 标志）；
  *   - regexInvalid：正则写错时的错误信息（此时界面应显示原因，且不渲染任何命中）。
  */
@@ -81,6 +85,8 @@ export function parseSearchSyntax(raw) {
 		terms: [],
 		includeTags: [],
 		excludeTags: [],
+		includeSlots: [],
+		excludeSlots: [],
 		regex: "",
 		regexInvalid: "",
 	};
@@ -97,10 +103,23 @@ export function parseSearchSyntax(raw) {
 			}
 			continue;
 		}
+		if (startsWithAny(token, EXCLUDE_SLOT_PREFIXES)) {
+			const name = stripAnyPrefix(token, EXCLUDE_SLOT_PREFIXES);
+			if (!name) continue;
+			spec.excludeSlots.push(...splitTagAlternatives(name));
+			continue;
+		}
 		if (startsWithAny(token, EXCLUDE_TAG_PREFIXES)) {
 			const name = stripAnyPrefix(token, EXCLUDE_TAG_PREFIXES);
 			if (!name) continue;
 			spec.excludeTags.push(...splitTagAlternatives(name));
+			continue;
+		}
+		if (startsWithAny(token, SLOT_PREFIXES)) {
+			const name = stripAnyPrefix(token, SLOT_PREFIXES);
+			if (!name) continue;
+			const alternatives = splitTagAlternatives(name);
+			if (alternatives.length > 0) spec.includeSlots.push(alternatives);
 			continue;
 		}
 		if (startsWithAny(token, TAG_PREFIXES)) {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -14,6 +15,8 @@ import (
 //	Tags + TagFilterMode.Not   →  -tag:材质
 //	IncludeName / 忽略大小写     →  默认行为（标题、文件名、标签、主体…都参与，大小写不敏感）
 //
+// 本 fork 扩展（FireAxe 没有）：动作槽筛选 →  slot:heal（角色 / 槽位号 / 官方用途名 / 用途组 任一命中；-slot: 排除）
+//
 // 为什么不用"模式开关"而是逐 token 表达：搜索框里没有地方放模式下拉，
 // 而 `tag:a|b`（或）/ `tag:a tag:b`（且）/ `-tag:a`（排除）比"先切模式再输入"更直接，
 // 三种 FireAxe 模式都能表达。多个普通词之间是"且"，引号里的空格算一个词。
@@ -22,12 +25,20 @@ type modSearchTagCondition struct {
 	Terms []string
 }
 
+// modSearchSlotCondition 与标签条件同形：`slot:a|b` 拆成 OR 组，多个 slot: 之间是"且"。
+type modSearchSlotCondition struct {
+	Terms []string
+}
+
 type modSearchQuery struct {
 	Raw         string
 	Terms       []string
 	IncludeTags []modSearchTagCondition
 	ExcludeTags []string
-	Regex       *regexp.Regexp
+	// IncludeSlots / ExcludeSlots 同上，但作用于 XDR 动作槽（`slot:` / `-slot:`）。
+	IncludeSlots []modSearchSlotCondition
+	ExcludeSlots []string
+	Regex        *regexp.Regexp
 	// RegexError 记录 `re:` 的编译错误：这种情况一个都不匹配（与 FireAxe 的"无效正则匹配不到"一致），
 	// 但界面要把原因说清楚，而不是静默空列表。
 	RegexError string
@@ -77,6 +88,14 @@ func parseModSearchQuery(raw string) modSearchQuery {
 				continue
 			}
 			spec.Regex = compiled
+		case strings.HasPrefix(token, "-slot:") || strings.HasPrefix(token, "-槽位:"):
+			name := trimSearchPrefix(token, "-slot:", "-槽位:")
+			if name == "" {
+				continue
+			}
+			for _, part := range splitTagAlternatives(name) {
+				spec.ExcludeSlots = append(spec.ExcludeSlots, part)
+			}
 		case strings.HasPrefix(token, "-tag:") || strings.HasPrefix(token, "-标签:"):
 			name := trimSearchPrefix(token, "-tag:", "-标签:")
 			if name == "" {
@@ -84,6 +103,15 @@ func parseModSearchQuery(raw string) modSearchQuery {
 			}
 			for _, part := range splitTagAlternatives(name) {
 				spec.ExcludeTags = append(spec.ExcludeTags, part)
+			}
+		case strings.HasPrefix(token, "slot:") || strings.HasPrefix(token, "槽位:"):
+			name := trimSearchPrefix(token, "slot:", "槽位:")
+			if name == "" {
+				continue
+			}
+			terms := splitTagAlternatives(name)
+			if len(terms) > 0 {
+				spec.IncludeSlots = append(spec.IncludeSlots, modSearchSlotCondition{Terms: terms})
 			}
 		case strings.HasPrefix(token, "tag:") || strings.HasPrefix(token, "标签:"):
 			name := trimSearchPrefix(token, "tag:", "标签:")
@@ -144,6 +172,8 @@ type searchableModFields struct {
 	ContentSubjects []string
 	VoiceCharacters []string
 	XDRSummary      string
+	// XDRSlots 供 `slot:` 条件使用：角色 / 槽位号 / 官方用途名与用途组（见 xdr_slots.go）。
+	XDRSlots []XDRSlotInfo
 }
 
 // tagsInHierarchyOrFlat 返回该 Mod 的全部标签（一级 + 二级），用于 tag: 条件判断。
@@ -169,6 +199,35 @@ func (fields searchableModFields) hasTag(name string) bool {
 	for _, tag := range fields.allTags() {
 		if strings.ToLower(tag) == needle {
 			return true
+		}
+	}
+	return false
+}
+
+// xdrSlotSearchTexts 返回一个槽位参与 `slot:` 匹配的文本：
+// 角色 / 槽位标签（%03d）/ 官方用途名 / 用途组 / 槽位号。
+func xdrSlotSearchTexts(slot XDRSlotInfo) []string {
+	return []string{
+		slot.Character,
+		slot.SlotLabel,
+		slot.SlotName,
+		slot.SlotGroup,
+		strconv.Itoa(slot.Slot),
+	}
+}
+
+// hasXDRSlot 判断该 Mod 的任意 XDR 槽位是否命中一个 `slot:` 词（大小写不敏感子串）。
+// 用子串而不是模糊：`slot:heal` 要能找到 `Heal_self`，`slot:32` 要能按槽位号找。
+func (fields searchableModFields) hasXDRSlot(name string) bool {
+	needle := strings.ToLower(strings.TrimSpace(name))
+	if needle == "" {
+		return false
+	}
+	for _, slot := range fields.XDRSlots {
+		for _, text := range xdrSlotSearchTexts(slot) {
+			if text != "" && strings.Contains(strings.ToLower(text), needle) {
+				return true
+			}
 		}
 	}
 	return false
@@ -216,6 +275,28 @@ func (spec modSearchQuery) matches(fields searchableModFields) bool {
 			}
 		}
 		if !matched {
+			return false
+		}
+	}
+
+	for _, condition := range spec.IncludeSlots {
+		hit := false
+		for _, name := range condition.Terms {
+			if fields.hasXDRSlot(name) {
+				hit = true
+				break
+			}
+		}
+		if !hit {
+			return false
+		}
+	}
+
+	for _, name := range spec.ExcludeSlots {
+		if name == "" {
+			continue
+		}
+		if fields.hasXDRSlot(name) {
 			return false
 		}
 	}

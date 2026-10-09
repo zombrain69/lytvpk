@@ -8,8 +8,9 @@
 //   3. 同时给出命中的字段名（标题 / 文件名 / 一级标签 / 子标签 / 主体 …），
 //      用 chip 贴在标题旁边，等于告诉用户"匹配到的是哪一块"。
 //
-// 搜索框语法（tag: / -tag: / re:，见 search-syntax.mjs）解析出来的结果在这里被拆开用：
-// 高亮只跟"正向的普通词"走，`-tag:` 之类只影响筛选，不会在界面上乱标。
+// 搜索框语法（tag: / -tag: / slot: / re:，见 search-syntax.mjs）解析出来的结果在这里被拆开用：
+// 高亮只跟"正向的普通词"走，`-tag:`、`slot:` 之类只影响筛选（命中时会在备注里标出字段），
+// 不会在界面上乱标。
 
 import { compiledRegex, parseSearchSyntax, positiveTerms } from "./search-syntax.mjs";
 
@@ -194,6 +195,35 @@ function fileTags(file) {
 	return tags;
 }
 
+/**
+ * fileHasXDRSlot 判断该 Mod 的任意 XDR 槽位是否命中一个 `slot:` 条件（任一写法即可）。
+ * 命中口径与 Go 侧 hasXDRSlot 一致：角色 / 槽位标签 / 官方用途名 / 用途组 / 槽位号，
+ * 大小写不敏感子串。
+ */
+function fileHasXDRSlot(file, alternatives) {
+	const slots = Array.isArray(file?.xdrSlots) ? file.xdrSlots : [];
+	for (const alternative of alternatives || []) {
+		const needle = String(alternative ?? "").trim().toLowerCase();
+		if (!needle) continue;
+		for (const slot of slots) {
+			const texts = [
+				slot?.character,
+				slot?.slotLabel,
+				slot?.slotName,
+				slot?.slotGroup,
+				slot?.slot != null ? String(slot.slot) : "",
+			];
+			if (texts.some((text) => {
+				const value = String(text ?? "").trim().toLowerCase();
+				return value !== "" && value.includes(needle);
+			})) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 /** matchReasonLabelsFor 根据解析后的语法，算出这行是"被哪些字段匹配到"的。 */
 function matchReasonLabelsFor(file, spec, max) {
 	const labels = [];
@@ -234,13 +264,19 @@ function matchReasonLabelsFor(file, spec, max) {
 		);
 		if (matched) push(matched.label);
 	}
+
+	// 4) slot: 条件：命中就标"动作槽"（角色 / 槽位号 / 官方用途都算）。
+	for (const condition of spec?.includeSlots || []) {
+		if (fileHasXDRSlot(file, condition)) push("动作槽");
+	}
 	return labels;
 }
 
 /**
  * describeMatchReasons 返回命中的字段名（最多 max 个）。
  * 用于"明确的匹配"：让用户知道是标题命中了，还是某个标签/主体命中了。
- * 支持搜索框语法：`tag:` 命中会标成"一级标签/子标签"，`-词` 与 `re:` 不会乱标高亮。
+ * 支持搜索框语法：`tag:` 命中会标成"一级标签/子标签"，`slot:` 命中会标"动作槽"，
+ * `-词`、`-tag:` 与 `re:` 不会乱标高亮。
  */
 export function describeMatchReasons(file, query, max = 3) {
 	const spec = parseSearchSyntax(query);

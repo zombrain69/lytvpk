@@ -26,6 +26,8 @@ test("共享用例：前端解析结果与 Go 一致", () => {
     assert.deepEqual(spec.terms, item.terms, `terms 不一致：${item.query}`);
     assert.deepEqual(spec.includeTags, item.includeTags, `includeTags 不一致：${item.query}`);
     assert.deepEqual(spec.excludeTags, item.excludeTags, `excludeTags 不一致：${item.query}`);
+    assert.deepEqual(spec.includeSlots, item.includeSlots, `includeSlots 不一致：${item.query}`);
+    assert.deepEqual(spec.excludeSlots, item.excludeSlots, `excludeSlots 不一致：${item.query}`);
     assert.equal(spec.regex, item.regex, `regex 不一致：${item.query}`);
     if (item.regexError) {
       assert.notEqual(spec.regexInvalid, "", `应当报告正则错误：${item.query}`);
