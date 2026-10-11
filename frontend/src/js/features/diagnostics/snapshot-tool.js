@@ -9,6 +9,7 @@
 
 import { showError, showNotification } from "../../core/toast.js";
 import { confirmInApp } from "../modals/confirm.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let deps = {};
 let modal = null;
@@ -18,15 +19,25 @@ export function configureModSnapshotTool(nextDeps = {}) {
   deps = nextDeps || {};
 }
 
-const MODE_LABELS = { names: "文件名快照", full: "完整备份" };
-const ACTION_LABELS = {
-  enable: "启用",
-  disable: "禁用",
-  restore: "补回",
-  overwrite: "覆盖",
-  skip: "跳过",
-  missing: "缺失",
+const MODE_LABEL_KEYS = { names: "toolbox.snapshot.modeLabelNames", full: "toolbox.snapshot.modeLabelFull" };
+
+/** modeLabel 按当前语言取快照类型名（t() 延迟取，模块求值期不调）。 */
+function modeLabel(mode) {
+  return MODE_LABEL_KEYS[mode] ? t(MODE_LABEL_KEYS[mode]) : mode;
+}
+const ACTION_LABEL_KEYS = {
+  enable: "toolbox.snapshot.actionEnable",
+  disable: "toolbox.snapshot.actionDisable",
+  restore: "toolbox.snapshot.actionRestore",
+  overwrite: "toolbox.snapshot.actionOverwrite",
+  skip: "toolbox.snapshot.actionSkip",
+  missing: "toolbox.snapshot.actionMissing",
 };
+
+/** actionLabel 按当前语言取恢复动作名（t() 延迟取，模块求值期不调）。 */
+function actionLabel(action) {
+  return ACTION_LABEL_KEYS[action] ? t(ACTION_LABEL_KEYS[action]) : action;
+}
 
 function formatBytes(bytes) {
   const value = Number(bytes) || 0;
@@ -59,7 +70,7 @@ function ensureModal() {
     try {
       await deps.OpenModSnapshotsFolder();
     } catch (error) {
-      showError("打开快照目录失败: " + error);
+      showError(t("toolbox.snapshot.openFolderFailed", { error }));
     }
   });
   document.getElementById("mod-snapshot-restore-btn")?.addEventListener("click", restoreSnapshot);
@@ -81,7 +92,7 @@ function close() {
 
 export async function openModSnapshotTool() {
   if (!ensureModal()) {
-    showError("找不到 Mod 快照窗口（界面未加载）");
+    showError(t("toolbox.snapshot.modalMissing"));
     return;
   }
   modal.classList.remove("hidden");
@@ -97,13 +108,13 @@ async function refreshList() {
   try {
     snapshots = (await deps.ListModSnapshots()) || [];
   } catch (error) {
-    showError("读取快照列表失败: " + error);
+    showError(t("toolbox.snapshot.listReadFailed", { error }));
     return;
   }
   if (snapshots.length === 0) {
     const empty = document.createElement("div");
     empty.className = "setting-row-desc";
-    empty.textContent = "还没有快照。创建之后这里会列出可恢复的快照。";
+    empty.textContent = t("toolbox.snapshot.listEmpty");
     list.appendChild(empty);
     return;
   }
@@ -115,17 +126,22 @@ async function refreshList() {
     const title = document.createElement("strong");
     title.textContent = snapshot.name || snapshot.id;
     const meta = document.createElement("span");
-    meta.textContent = `${MODE_LABELS[snapshot.mode] || snapshot.mode} · ${formatTime(snapshot.createdAt)} · ${snapshot.modCount} 个 Mod · ${snapshot.addonListEntries} 条 addonlist`;
+    meta.textContent = t("toolbox.snapshot.metaLine", {
+      mode: modeLabel(snapshot.mode),
+      time: formatTime(snapshot.createdAt),
+      modCount: snapshot.modCount,
+      entries: snapshot.addonListEntries,
+    });
     main.append(title, meta);
     const actions = document.createElement("div");
     actions.className = "settings-profile-actions";
     const previewBtn = document.createElement("button");
     previewBtn.type = "button";
-    previewBtn.textContent = "恢复预览";
+    previewBtn.textContent = t("toolbox.snapshot.preview");
     previewBtn.addEventListener("click", () => previewSnapshot(snapshot.id));
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
-    deleteBtn.textContent = "删除";
+    deleteBtn.textContent = t("toolbox.snapshot.deleteAction");
     deleteBtn.addEventListener("click", () => deleteSnapshot(snapshot));
     actions.append(previewBtn, deleteBtn);
     item.append(main, actions);
@@ -140,22 +156,22 @@ async function createSnapshot() {
   const status = document.getElementById("mod-snapshot-status");
   const mode = modeSelect?.value === "full" ? "full" : "names";
   if (mode === "full" && !(await confirmInApp(
-    "完整备份会把 addons 根目录里的 VPK 与同名图片/.meta 复制进快照目录，Mod 多、体积大时需要更长时间。继续创建？",
-    { title: "创建完整备份" },
+    t("toolbox.snapshot.fullBackupConfirm"),
+    { title: t("toolbox.snapshot.createFullTitle") },
   ))) {
     return;
   }
   button.disabled = true;
-  if (status) status.textContent = "正在创建快照…";
+  if (status) status.textContent = t("toolbox.snapshot.creating");
   try {
     const meta = await deps.CreateModSnapshot(nameInput?.value || "", mode);
     if (nameInput) nameInput.value = "";
-    if (status) status.textContent = `已创建快照「${meta.name}」（${MODE_LABELS[meta.mode] || meta.mode}，${meta.modCount} 个 Mod）`;
-    showNotification(`已创建快照「${meta.name}」`, "success");
+    if (status) status.textContent = t("toolbox.snapshot.createdWithMode", { name: meta.name, mode: modeLabel(meta.mode), count: meta.modCount });
+    showNotification(t("toolbox.snapshot.created", { name: meta.name }), "success");
     await refreshList();
   } catch (error) {
     if (status) status.textContent = "";
-    showError("创建快照失败: " + error);
+    showError(t("toolbox.snapshot.createFailed", { error }));
   } finally {
     button.disabled = false;
   }
@@ -165,7 +181,7 @@ async function previewSnapshot(id) {
   try {
     currentPlan = await deps.PreviewModSnapshotRestore(id);
   } catch (error) {
-    showError("生成恢复计划失败: " + error);
+    showError(t("toolbox.snapshot.previewFailed", { error }));
     return;
   }
   const plan = document.getElementById("mod-snapshot-plan");
@@ -174,16 +190,16 @@ async function previewSnapshot(id) {
   if (!plan || !summary || !items) return;
   const counts = currentPlan?.counts || {};
   const parts = Object.entries(counts)
-    .map(([action, count]) => `${ACTION_LABELS[action] || action} ${count}`)
+    .map(([action, count]) => `${actionLabel(action)} ${count}`)
     .join(" · ");
-  summary.textContent = `快照「${currentPlan?.snapshot?.name || id}」：${parts || "无需改动"}；恢复会同时写回 addonlist.txt（执行前自动备份当前文件）。`;
+  summary.textContent = t("toolbox.snapshot.planSummary", { name: currentPlan?.snapshot?.name || id, parts: parts || t("toolbox.snapshot.noChanges") });
   items.innerHTML = "";
   (currentPlan?.items || []).forEach((item) => {
     const row = document.createElement("div");
     row.className = `mod-snapshot-plan-item is-${item.action}`;
     const action = document.createElement("span");
     action.className = "mod-snapshot-plan-action";
-    action.textContent = ACTION_LABELS[item.action] || item.action;
+    action.textContent = actionLabel(item.action);
     const key = document.createElement("span");
     key.className = "mod-snapshot-plan-key";
     key.textContent = item.key;
@@ -205,10 +221,15 @@ async function restoreSnapshot() {
     return;
   }
   const confirmed = await confirmInApp(
-    `按恢复计划执行？\n\n启用 ${counts.enable || 0} · 禁用 ${counts.disable || 0} · 补回 ${counts.restore || 0} · ` +
-      `覆盖 ${counts.overwrite || 0} · 跳过 ${counts.skip || 0} · 缺失 ${counts.missing || 0}\n\n` +
-      "快照之后新增的 Mod 会被移到 disabled，内容不同的文件会被覆盖；执行前会自动备份当前 addonlist.txt。",
-    { title: "执行快照恢复" },
+    t("toolbox.snapshot.restoreConfirmBody", {
+      enable: counts.enable || 0,
+      disable: counts.disable || 0,
+      restore: counts.restore || 0,
+      overwrite: counts.overwrite || 0,
+      skip: counts.skip || 0,
+      missing: counts.missing || 0,
+    }),
+    { title: t("toolbox.snapshot.restoreTitle") },
   );
   if (!confirmed) return;
   const button = document.getElementById("mod-snapshot-restore-btn");
@@ -216,8 +237,14 @@ async function restoreSnapshot() {
   try {
     const result = await deps.RestoreModSnapshot(currentPlan.snapshot.id);
     showNotification(
-      `已恢复快照：启用 ${result.enabled} · 禁用 ${result.disabled} · 补回 ${result.restored} · 覆盖 ${result.overwritten} · 跳过 ${result.skipped}` +
-        (result.missing ? ` · 缺失 ${result.missing}` : ""),
+      t("toolbox.snapshot.restored", {
+        enabled: result.enabled,
+        disabled: result.disabled,
+        restored: result.restored,
+        overwritten: result.overwritten,
+        skipped: result.skipped,
+        missing: result.missing ? t("toolbox.snapshot.restoredMissing", { count: result.missing }) : "",
+      }),
       "success",
     );
     await deps.refreshFilesKeepFilter?.({ silent: true });
@@ -225,21 +252,21 @@ async function restoreSnapshot() {
     document.getElementById("mod-snapshot-plan")?.classList.add("hidden");
     await refreshList();
   } catch (error) {
-    showError("恢复快照失败: " + error);
+    showError(t("toolbox.snapshot.restoreFailed", { error }));
   } finally {
     button.disabled = false;
   }
 }
 
 async function deleteSnapshot(snapshot) {
-  if (!(await confirmInApp(`删除快照「${snapshot.name || snapshot.id}」？快照会移入回收站，Mod 文件不受影响。`, { title: "删除快照" }))) {
+  if (!(await confirmInApp(t("toolbox.snapshot.deleteConfirm", { name: snapshot.name || snapshot.id }), { title: t("toolbox.snapshot.deleteTitle") }))) {
     return;
   }
   try {
     await deps.DeleteModSnapshot(snapshot.id);
-    showNotification("已删除快照", "success");
+    showNotification(t("toolbox.snapshot.deleted"), "success");
     await refreshList();
   } catch (error) {
-    showError("删除快照失败: " + error);
+    showError(t("toolbox.snapshot.deleteFailed", { error }));
   }
 }

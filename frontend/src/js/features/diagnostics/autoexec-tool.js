@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { attachLineNumberGutter } from "../../core/line-number-editor.js";
 import { makeModalResizable } from "../../core/modal-resizer.js";
 
@@ -11,7 +12,7 @@ export async function openAutoexecTool() {
   modal.classList.remove("hidden");
   const body = modal.querySelector("[data-autoexec-tool-body]");
   if (!body) return;
-  body.innerHTML = `<div class="autoexec-tool-loading">正在读取 autoexec.cfg...</div>`;
+  body.innerHTML = `<div class="autoexec-tool-loading">${t("toolbox.autoexec.loading")}</div>`;
 
   try {
     const [config, help] = await Promise.all([
@@ -23,7 +24,7 @@ export async function openAutoexecTool() {
   } catch (error) {
     if (!isCurrentOpenSession(modal, requestId)) return;
     body.innerHTML = `<div class="autoexec-tool-error">${escapeHtml(formatError(error))}</div>`;
-    showError("读取 autoexec.cfg 失败: " + formatError(error));
+    showError(t("toolbox.autoexec.readFailed", { error: formatError(error) }));
   }
 }
 
@@ -38,14 +39,14 @@ function ensureModal() {
   modal.innerHTML = `
     <div class="modal-content autoexec-tool-modal-content">
       <div class="modal-header">
-        <h3>autoexec.cfg 编辑器</h3>
-        <button type="button" class="close-btn" data-autoexec-tool-close aria-label="关闭">&times;</button>
+        <h3>${t("toolbox.card.autoexec.title")}</h3>
+        <button type="button" class="close-btn" data-autoexec-tool-close aria-label="${t("toolbox.common.close")}">&times;</button>
       </div>
       <div class="modal-body autoexec-tool-body" data-autoexec-tool-body></div>
       <div class="modal-footer">
-        <span class="autoexec-resize-hint" aria-hidden="true">可拖动右下角调整窗口大小</span>
-        <button type="button" class="btn btn-secondary" data-autoexec-tool-close>关闭</button>
-        <button type="button" class="btn btn-primary" data-autoexec-tool-save disabled>保存 autoexec.cfg</button>
+        <span class="autoexec-resize-hint" aria-hidden="true">${t("toolbox.autoexec.resizeHint")}</span>
+        <button type="button" class="btn btn-secondary" data-autoexec-tool-close>${t("toolbox.common.close")}</button>
+        <button type="button" class="btn btn-primary" data-autoexec-tool-save disabled>${t("toolbox.autoexec.save")}</button>
       </div>
     </div>
   `;
@@ -67,10 +68,10 @@ function renderEditor(modal, config, help, sessionId) {
 
   const content = String(config.content || "");
   body.innerHTML = `
-    <div class="autoexec-tool-intro">编辑只写回文件，不会在本程序中执行命令。保存时保留原文件的编码、BOM 和换行格式。</div>
+    <div class="autoexec-tool-intro">${t("toolbox.autoexec.intro")}</div>
     <div class="autoexec-meta autoexec-tool-meta">
       <span class="autoexec-path">${escapeHtml(config.path || "")}</span>
-      <span>${config.exists ? "文件存在" : "文件不存在，将在保存时创建"}</span>
+      <span>${config.exists ? t("toolbox.autoexec.fileExists") : t("toolbox.autoexec.fileMissing")}</span>
       <span>${escapeHtml(config.encoding || "UTF-8")} · ${escapeHtml(config.lineEnding || "CRLF")}</span>
       <span>${formatBytes(config.size)}</span>
     </div>
@@ -78,18 +79,18 @@ function renderEditor(modal, config, help, sessionId) {
       <div class="autoexec-editor-column">
         <div class="autoexec-editor-shell">
           <pre class="autoexec-line-numbers" data-autoexec-tool-line-numbers aria-hidden="true"></pre>
-          <textarea class="autoexec-editor" data-autoexec-tool-editor spellcheck="false" wrap="off" aria-label="autoexec.cfg 内容">${escapeHtml(content)}</textarea>
+          <textarea class="autoexec-editor" data-autoexec-tool-editor spellcheck="false" wrap="off" aria-label="${t("toolbox.autoexec.editorAria")}">${escapeHtml(content)}</textarea>
         </div>
-        <div class="autoexec-analysis" data-autoexec-tool-analysis>正在分析命令...</div>
+        <div class="autoexec-analysis" data-autoexec-tool-analysis>${t("toolbox.autoexec.analyzing")}</div>
         <div class="autoexec-tool-matches" data-autoexec-tool-matches></div>
         <div class="autoexec-action-row">
-          <button type="button" class="trigger-check-btn addonlist-action-btn" data-autoexec-tool-reload>重新读取</button>
-          <button type="button" class="trigger-check-btn addonlist-action-btn" data-autoexec-tool-open ${config.exists ? "" : "disabled"}>打开文件位置</button>
+          <button type="button" class="trigger-check-btn addonlist-action-btn" data-autoexec-tool-reload>${t("toolbox.autoexec.reload")}</button>
+          <button type="button" class="trigger-check-btn addonlist-action-btn" data-autoexec-tool-open ${config.exists ? "" : "disabled"}>${t("toolbox.autoexec.openLocation")}</button>
         </div>
       </div>
       <aside class="autoexec-help-column">
-        <div class="autoexec-help-title">命令说明（点击插入）</div>
-        <input type="search" class="form-input" data-autoexec-tool-search placeholder="搜索命令或含义">
+        <div class="autoexec-help-title">${t("toolbox.autoexec.helpTitle")}</div>
+        <input type="search" class="form-input" data-autoexec-tool-search placeholder="${t("toolbox.autoexec.searchPlaceholder")}">
         <div class="autoexec-help-list" data-autoexec-tool-help>${renderHelpItems(help)}</div>
       </aside>
     </div>
@@ -119,7 +120,12 @@ function renderEditor(modal, config, help, sessionId) {
       const highRisk = items.filter((item) => item.known && item.help?.risk?.startsWith("高")).length;
       const mediumRisk = items.filter((item) => item.known && item.help?.risk?.startsWith("中")).length;
       if (analysis) {
-        analysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令${highRisk ? `；高风险 ${highRisk}` : ""}${mediumRisk ? `；中风险 ${mediumRisk}` : ""}`;
+        analysis.textContent = t("toolbox.autoexec.analysisSummary", {
+          known,
+          unknown,
+          high: highRisk ? t("toolbox.autoexec.analysisHighRisk", { count: highRisk }) : "",
+          medium: mediumRisk ? t("toolbox.autoexec.analysisMediumRisk", { count: mediumRisk }) : "",
+        });
         analysis.classList.toggle("is-warning", unknown > 0 || highRisk > 0);
       }
       renderMatches(matches, items);
@@ -129,7 +135,7 @@ function renderEditor(modal, config, help, sessionId) {
         !isCurrentOpenSession(modal, sessionId) ||
         !editor.isConnected
       ) return;
-      if (analysis) analysis.textContent = `指令识别失败：${formatError(error)}`;
+      if (analysis) analysis.textContent = t("toolbox.autoexec.analysisFailed", { error: formatError(error) });
     }
   };
   editor?.addEventListener("input", analyze);
@@ -157,7 +163,7 @@ function renderEditor(modal, config, help, sessionId) {
           !isCurrentOpenSession(modal, sessionId) ||
           !body.isConnected
         ) return;
-        showNotification("搜索指令说明失败: " + formatError(error), "error");
+        showNotification(t("toolbox.autoexec.searchHelpFailed", { error: formatError(error) }), "error");
       }
     }, 160);
   });
@@ -181,7 +187,7 @@ function renderEditor(modal, config, help, sessionId) {
     try {
       await callApp("OpenFileLocation", config.path);
     } catch (error) {
-      showError("打开 autoexec.cfg 位置失败: " + formatError(error));
+      showError(t("toolbox.autoexec.openFailed", { error: formatError(error) }));
     }
   });
   saveButton.disabled = !config.path;
@@ -191,11 +197,11 @@ function renderEditor(modal, config, help, sessionId) {
     try {
       await callApp("SaveAutoexecConfig", editor.value);
       if (!isCurrentOpenSession(modal, sessionId)) return;
-      showNotification("已保存 autoexec.cfg（编码与换行格式已保留）", "success");
+      showNotification(t("toolbox.autoexec.saved"), "success");
       closeModal(modal);
     } catch (error) {
       if (!isCurrentOpenSession(modal, sessionId)) return;
-      showError("保存 autoexec.cfg 失败: " + formatError(error));
+      showError(t("toolbox.autoexec.saveFailed", { error: formatError(error) }));
       saveButton.disabled = false;
     }
   };
@@ -203,7 +209,7 @@ function renderEditor(modal, config, help, sessionId) {
 
 function renderHelpItems(items) {
   if (!Array.isArray(items) || items.length === 0) {
-    return `<div class="autoexec-help-empty">未找到匹配指令</div>`;
+    return `<div class="autoexec-help-empty">${t("toolbox.autoexec.helpEmpty")}</div>`;
   }
   return items.map((item) => `
     <button type="button" class="autoexec-help-item" data-autoexec-command="${escapeAttr(item.command)}" data-autoexec-risk="${escapeAttr(item.risk || "")}">
@@ -223,7 +229,7 @@ function renderMatches(container, items) {
     row.className = `autoexec-match ${item.known ? "is-known" : "is-unknown"}`;
     const title = document.createElement("div");
     title.className = "autoexec-match-title";
-    title.textContent = `第 ${item.line} 行 · ${item.command}${item.known ? "" : "（未知指令）"}`;
+    title.textContent = t("toolbox.autoexec.matchLine", { line: item.line, command: item.command, unknown: item.known ? "" : t("toolbox.autoexec.matchUnknownTag") });
     row.appendChild(title);
     if (item.known && item.help) {
       const detail = document.createElement("div");
@@ -233,7 +239,7 @@ function renderMatches(container, items) {
     } else {
       const detail = document.createElement("div");
       detail.className = "autoexec-match-detail";
-      detail.textContent = "可能来自插件或 Mod，建议确认来源后再保存。";
+      detail.textContent = t("toolbox.autoexec.matchHint");
       row.appendChild(detail);
     }
     container.appendChild(row);
@@ -257,7 +263,7 @@ function isCurrentOpenSession(modal, sessionId) {
 
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
-  if (typeof method !== "function") return Promise.reject(new Error(`当前后端不支持 ${methodName}`));
+  if (typeof method !== "function") return Promise.reject(new Error(t("toolbox.common.backendUnsupported", { method: methodName })));
   return method(...args);
 }
 
@@ -270,7 +276,7 @@ function formatBytes(size) {
 }
 
 function formatError(error) {
-  return error?.message || String(error || "未知错误");
+  return error?.message || String(error || t("toolbox.common.unknownError"));
 }
 
 function escapeAttr(value) {

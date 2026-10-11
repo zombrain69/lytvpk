@@ -1,5 +1,22 @@
 # Changelog
 
+## 未发布 — i18n：快照 + autoexec 家族（snapshot-tool / autoexec-tool）（第 13 项第十七批）（2026-10-12）
+
+- `snapshot-tool.js`：Mod 快照窗口 JS 侧全量文案 —— 类型/动作标签表改「key 表 + 延迟取文案」
+  （`MODE_LABEL_KEYS` / `ACTION_LABEL_KEYS`）、列表（空态 / meta 行 / 恢复预览 / 删除）、
+  创建流程（完整备份确认与标题、创建中、两种完成通知、失败）、恢复计划（摘要模板 / 无需改动）、
+  执行确认（三段拼接合成单模板 + 标题）、恢复结果通知（含追加的缺失段）、删除确认与结果、
+  目录打开失败 / 窗口未加载。
+- `autoexec-tool.js`：编辑器窗口全量文案 —— 动态建窗模板（标题复用
+  `toolbox.card.autoexec.title` / 关闭 / 缩放提示 / 保存按钮 / 说明 / 文件状态两态 / 搜索占位 /
+  分析占位 / 重新读取 / 打开文件位置 / 命令说明）、识别统计（已收录-未知-高风险-中风险合成单模板）、
+  指令与保存的失败/成功通知、匹配行（第 N 行 · …（未知指令））、未知指令提示。
+- **豁免**：`autoexec-tool.js` 两处 `risk?.startsWith("高")` / `("中")` 是后端风险数据匹配
+  （契约值，不属于界面文案），保留并记录豁免。
+- 目录新增 58 key（`toolbox.snapshot` +33 / `toolbox.autoexec` 25）；既有条目零改动。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；`go test ./...` /
+  `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：模型统计家族（model-stats-scan / model-stats-search）（第 13 项第十六批）（2026-10-12）
 
 - `model-stats-scan.js`：模型面数检测窗口全量文案 —— 扫描进度与加载态（准备 / 读取 VPK / 扫描提示两态 /
