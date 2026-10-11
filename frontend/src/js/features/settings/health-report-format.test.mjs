@@ -69,6 +69,7 @@ test("formatHealthIssueKind maps known kinds and falls back to the raw value", (
   assert.equal(formatHealthIssueKind("file_type_mismatch"), "同名路径是文件夹");
   assert.equal(formatHealthIssueKind("meta_id_mismatch"), "工坊信息对不上作品");
   assert.equal(formatHealthIssueKind("outside_root"), "条目指向受管目录之外");
+  assert.equal(formatHealthIssueKind("filename_too_long"), "文件名超长不会加载");
   assert.equal(formatHealthIssueKind("something_else"), "something_else");
   assert.equal(formatHealthIssueKind(undefined), "未知问题");
 });
@@ -121,6 +122,7 @@ test("healthIssueAutoFixAction 只白名单三类可自动修复的问题", () =
     "file_type_mismatch",
     "meta_id_mismatch",
     "outside_root",
+    "filename_too_long",
     "",
   ].forEach((kind) => {
     assert.equal(healthIssueAutoFixAction(kind), null, `${kind} 不应自动修复`);

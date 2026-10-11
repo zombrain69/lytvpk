@@ -1,5 +1,22 @@
 # Changelog
 
+## 未发布 — 体检新增「文件名长度守卫」（2026-10-11）
+
+- **新体检类型 `filename_too_long`（文件名超长不会加载）**：VPK 主干名（不含 `.vpk`）超过
+  63 个 ANSI 字节时，L4D2 的定长名字缓冲放不下它，引擎会**静默忽略**整个包 ——「附加内容」里
+  看不到它、模型/贴图/声音全都不加载、日志里也没有任何报错（最容易误判成"mod 做得不好"）。
+  体检现在把它作为警告直接报出来；只查游戏会加载的 `addons` 根目录与 `workshop`，
+  **不需要深度扫描**，也不会改任何文件名。
+- 阈值依据 sHartet/l4d2-addons 的真机实测（主干 82B / 88B 完全无效；同一份字节改成 41B 立刻生效；
+  58B / 61B 一直正常）。实现前先对真实库做了只读抽样复核：3008 个受管 VPK 仅 1 个主干 101B
+  （且从未写进 addonlist.txt），其余全部 ≤ 58B —— 与 63B 安全区一致、未发现反例，守卫按此阈值落地。
+- 落点：`internal/app/health_check.go`（`ansiByteLength` GBK/ANSI 字节计数 + `checkLongAddonFilenames`，
+  挂进 `RunModHealthCheck` §4.4）、前端标签 `health-report-format.mjs`、用户文档
+  `docs/toolbox/mod-health-check.md`（体检类型三层一致性审计 `TestHealthIssueKindsHaveLabelAndDocRow` 覆盖）。
+- 真机只读复跑（真实库，无 GUI）：189 条问题中 `filename_too_long` 恰好命中那 1 个 101B 文件，
+  其余 VPK 全部 ≤ 58B；`addonlist.txt` 全程未写（mtime 保持 2026-10-07）。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）563 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — 加载顺序「写前差异确认」+「恢复上一份备份」入口（2026-10-09）
 
 - **写前差异确认**：`应用优化并写入` / `按分层应用` / 常用一键规则在写入 addonlist.txt 前，

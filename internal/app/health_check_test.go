@@ -335,6 +335,78 @@ func TestRunModHealthCheckReportsWorkshopMetaProblems(t *testing.T) {
 	}
 }
 
+// 主干名超过 63 ANSI 字节的包引擎静默不挂载（sHartet/l4d2-addons 真机实测）：
+// 体检必须把这类文件报出来，且按 ANSI（中文环境 GBK）字节计量 —— 一个汉字算 2 字节。
+func TestRunModHealthCheckFlagsOverlongAddonNames(t *testing.T) {
+	root := t.TempDir()
+	boundaryName := strings.Repeat("a", modHealthAddonNameMaxANSIBytes) + ".vpk"   // 63 字节：安全区
+	asciiLong := strings.Repeat("b", modHealthAddonNameMaxANSIBytes+1) + ".vpk"    // 64 字节：超限
+	chineseOK := strings.Repeat("汉", 31) + ".vpk"                                  // 62 字节：安全区
+	chineseLong := strings.Repeat("汉", 32) + ".vpk"                                // 64 字节：超限
+	workshopLong := strings.Repeat("w", modHealthAddonNameMaxANSIBytes+1) + ".vpk" // workshop 同样要报
+	disabledLong := strings.Repeat("d", modHealthAddonNameMaxANSIBytes+1) + ".vpk" // disabled 不参与加载，不报
+	writeHealthCheckFixture(t, root, boundaryName, asciiLong, chineseOK, chineseLong,
+		filepath.Join("workshop", workshopLong), filepath.Join("disabled", disabledLong))
+	writeConflictTestAddonList(t, root, []conflictTestAddonListEntry{
+		{Name: boundaryName, Value: "1"},
+	})
+	a := newProfileTestApp(t, root)
+
+	report, err := a.RunModHealthCheck(ModHealthCheckOptions{})
+	if err != nil {
+		t.Fatalf("health check: %v", err)
+	}
+
+	reported := map[string]ModHealthIssue{}
+	for _, issue := range report.Issues {
+		if issue.Kind == "filename_too_long" {
+			reported[issue.Name] = issue
+		}
+	}
+	want := []string{asciiLong, chineseLong, workshopLong}
+	if len(reported) != len(want) {
+		t.Fatalf("expected %d filename_too_long issues, got %#v", len(want), report.Issues)
+	}
+	for _, name := range want {
+		issue, ok := reported[name]
+		if !ok {
+			t.Fatalf("expected %s to be flagged as filename_too_long, got %#v", name, report.Issues)
+		}
+		if issue.Severity != "warning" {
+			t.Fatalf("expected a warning severity, got %#v", issue)
+		}
+	}
+	// 紧跟上限的 63 字节名字、62 字节中文名、disabled 里的超长文件都不该报。
+	for _, name := range []string{boundaryName, chineseOK, disabledLong} {
+		if _, ok := reported[name]; ok {
+			t.Fatalf("did not expect %s to be flagged, got %#v", name, report.Issues)
+		}
+	}
+	// workshop 条目要带位置与完整路径（界面按位置显示）。
+	if issue := reported[workshopLong]; issue.Location != "workshop" ||
+		!strings.HasSuffix(issue.Path, filepath.Join("workshop", workshopLong)) {
+		t.Fatalf("unexpected workshop issue metadata: %#v", issue)
+	}
+}
+
+func TestAnsiByteLengthCountsGBKBytes(t *testing.T) {
+	cases := []struct {
+		input string
+		want  int
+	}{
+		{"abc", 3},
+		{"中文", 4},
+		{"a中b", 4},
+		{"【撬棍】", 8},
+		{"a🙂", 2}, // GBK 表示不了的表情按 1 字节近似（引擎侧退化成 '?'）
+	}
+	for _, tc := range cases {
+		if got := ansiByteLength(tc.input); got != tc.want {
+			t.Errorf("ansiByteLength(%q) = %d, want %d", tc.input, got, tc.want)
+		}
+	}
+}
+
 func TestSaveModHealthReportWritesMarkdownFile(t *testing.T) {
 	a := &App{configDir: t.TempDir()}
 	markdown := "# LytVPK Mod 体检报告\n\n- 问题总数：0\n"

@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -49,6 +52,12 @@ const (
 	// 这些文件就是"看着装了、其实一次都没生效"的死重（真实库里 59 个子目录 / 1363 个 VPK / 约 9.2 GB）。
 	// 只汇总一条，不逐个列，避免把体检列表刷爆。
 	modHealthKindSubfolderVPKs = "subfolder_vpks"
+	// modHealthKindFilenameTooLong：主干名（不含 .vpk）超过 63 ANSI 字节的 VPK 引擎不会挂载。
+	// L4D2 用定长名字缓冲，超长包在「附加内容」里看不到、内容全不加载、日志里也没有任何报错
+	// （静默失效，最容易误判成"mod 做得不好"）。依据 sHartet/l4d2-addons 真机实测：
+	// 82B / 88B 完全无效、同一份字节改成 41B 后立刻生效、58B / 61B 一直正常；
+	// 本机库只读抽样复核未见反例（3008 个受管 VPK 仅 1 个 101B，且从未写进 addonlist.txt）。
+	modHealthKindFilenameTooLong = "filename_too_long"
 )
 
 // ModHealthCheckOptions 控制体检范围。DeepScan 会逐个解析 VPK 目录，
@@ -286,6 +295,66 @@ func checkSubfolderVPKs(rootDir string, report *ModHealthReport) {
 			count, formatHealthSize(total)))
 }
 
+// modHealthAddonNameMaxANSIBytes 是引擎给 addon 文件名（主干，不含 .vpk）的定长缓冲上限：
+// 超过 63 个 ANSI 字节的包引擎根本不挂载 —— 「附加内容」列表里看不到它、里面的模型/贴图/声音
+// 全都不加载，日志里也没有任何报错（静默失效，最容易误判成"mod 做得不好"）。
+//
+// 依据：sHartet/l4d2-addons 的真机实测（2026-10-03 定死）：主干 82B / 88B 的包完全无效；
+// 把同一份字节复制成 41B 的名字后立刻生效；58B / 61B 一直正常。
+// 本机库只读抽样复核（2026-10-11）：3008 个受管 VPK 仅 1 个主干 101B（且从未写进 addonlist.txt），
+// 其余全部 ≤ 58B —— 与"63B 安全区"一致，未发现反例。
+const modHealthAddonNameMaxANSIBytes = 63
+
+// ansiByteLength 返回字符串按 Windows ANSI（中文环境即 GBK/CP936）编码后的字节数，
+// 与引擎定长名字缓冲的计量口径一致：ASCII 1 字节、汉字 2 字节。
+// GBK 表示不了的字符（emoji 等）按 1 字节近似 —— 引擎把这些字转成 '?'，同样只占 1 字节。
+func ansiByteLength(value string) int {
+	if encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(value)); err == nil {
+		return len(encoded)
+	}
+	total := 0
+	for _, r := range value {
+		if encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(string(r))); err == nil {
+			total += len(encoded)
+			continue
+		}
+		total++ // 引擎侧会退化成 '?' 这类单字节占位
+	}
+	return total
+}
+
+// checkLongAddonFilenames 报出"主干名超过引擎上限、会被静默忽略"的 VPK。
+// 只查游戏真正会加载的两个位置（addons 根目录与 workshop）；disabled 里的文件本就不参与加载，
+// 等它被移回复位时再由本检查兜住。纯文件名判断，不依赖深度扫描。
+func checkLongAddonFilenames(rootDir string, report *ModHealthReport) {
+	for _, dir := range []struct {
+		path     string
+		location string
+	}{
+		{path: rootDir, location: "root"},
+		{path: filepath.Join(rootDir, "workshop"), location: "workshop"},
+	} {
+		entries, err := os.ReadDir(dir.path)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".vpk") {
+				continue
+			}
+			name := entry.Name()
+			stem := strings.TrimSuffix(name, filepath.Ext(name))
+			length := ansiByteLength(stem)
+			if length <= modHealthAddonNameMaxANSIBytes {
+				continue
+			}
+			report.addIssue(modHealthKindFilenameTooLong, "warning", name, filepath.Join(dir.path, name), dir.location,
+				fmt.Sprintf("%s 的主干名（不含 .vpk）有 %d 个 ANSI 字节，超过引擎 %d 字节的定长上限：这个包不会被游戏挂载 ——「附加内容」里看不到它、里面的内容完全不生效，而且不会有任何报错。把文件名缩到 %d 字节以内（中文按 2 字节算，约 30 个汉字）才会被加载；体检不会改文件名。",
+					name, length, modHealthAddonNameMaxANSIBytes, modHealthAddonNameMaxANSIBytes))
+		}
+	}
+}
+
 // checkWorkshopMetaIDMatch 核对 .meta 里记的作品 ID 与文件名是不是同一个作品。
 //
 // 对齐 FireAxe `WorkshopVpkAddon.cs:693`（`metaInfo.PublishedFileId != publishedFileId`
@@ -485,8 +554,10 @@ func (a *App) RunModHealthCheck(options ModHealthCheckOptions) (ModHealthReport,
 	checkDuplicateDisabledCopies(rootDir, &report)
 	// 4.3) addons 子目录里的 VPK：游戏不会加载（真实库里 1363 个 / 约 9.2 GB）。
 	checkSubfolderVPKs(rootDir, &report)
+	// 4.4) 文件名长度守卫：主干名超过 63 ANSI 字节的包引擎静默不挂载（见 checkLongAddonFilenames）。
+	checkLongAddonFilenames(rootDir, &report)
 
-	// 4.4) XDR（xdReanimsBase）动作：同角色同槽冲突、缺基础包（复用已解析的扫描缓存，不额外扫盘）。
+	// 4.5) XDR（xdReanimsBase）动作：同角色同槽冲突、缺基础包（复用已解析的扫描缓存，不额外扫盘）。
 	a.checkXDRHealth(a.GetVPKFiles(), &report)
 
 	// 5) 用户声明的依赖：依赖被关闭或依赖文件缺失。
