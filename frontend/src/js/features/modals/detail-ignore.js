@@ -6,6 +6,7 @@
 
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   DeleteModIgnoreFiles,
   GetModIgnoreFiles,
@@ -45,23 +46,23 @@ export async function syncDetailIgnoreEditor(file) {
   }
   section.classList.remove("hidden");
   input.value = "";
-  setStatus("正在读取…");
+  setStatus(t("modals.detailIgnore.loading"));
   try {
     const entries = await GetModIgnoreFiles(currentKey);
     input.value = formatConflictIgnoreList(entries);
     setStatus(
       Array.isArray(entries) && entries.length > 0
-        ? `已保存 ${entries.length} 条忽略规则`
-        : "尚未设置：该 Mod 参与全部资源重叠判定",
+        ? t("modals.detailIgnore.savedCount", { count: entries.length })
+        : t("modals.detailIgnore.notSet"),
     );
   } catch (error) {
-    setStatus("读取忽略清单失败: " + String(error?.message || error), true);
+    setStatus(t("modals.detailIgnore.readFailed", { error: String(error?.message || error) }), true);
   }
 }
 
 async function saveCurrentIgnoreList() {
   if (!currentKey) {
-    showError("当前 Mod 没有可用的 addonlist 键，无法保存忽略清单");
+    showError(t("modals.detailIgnore.noKeySave"));
     return;
   }
   const input = element("detail-ignore-input");
@@ -70,15 +71,15 @@ async function saveCurrentIgnoreList() {
   try {
     const record = await SetModIgnoreFiles(currentKey, currentName, files);
     input.value = formatConflictIgnoreList(record?.files || files);
-    setStatus(files.length > 0 ? `已保存 ${files.length} 条忽略规则` : "已清空该 Mod 的忽略规则");
+    setStatus(files.length > 0 ? t("modals.detailIgnore.savedCount", { count: files.length }) : t("modals.detailIgnore.cleared"));
     showNotification(
       files.length > 0
-        ? "已保存该 Mod 的冲突忽略文件（下次分析生效）"
-        : "已清空该 Mod 的冲突忽略文件",
+        ? t("modals.detailIgnore.savedFile")
+        : t("modals.detailIgnore.clearedFile"),
       "success",
     );
   } catch (error) {
-    setStatus("保存忽略清单失败: " + String(error?.message || error), true);
+    setStatus(t("modals.detailIgnore.saveFailed", { error: String(error?.message || error) }), true);
   }
 }
 
@@ -88,10 +89,10 @@ async function clearCurrentIgnoreList() {
   if (input) input.value = "";
   try {
     await DeleteModIgnoreFiles(currentKey);
-    setStatus("已清空该 Mod 的忽略规则");
-    showNotification("已清空该 Mod 的冲突忽略文件", "success");
+    setStatus(t("modals.detailIgnore.cleared"));
+    showNotification(t("modals.detailIgnore.clearedFile"), "success");
   } catch (error) {
-    setStatus("清空忽略清单失败: " + String(error?.message || error), true);
+    setStatus(t("modals.detailIgnore.clearFailed", { error: String(error?.message || error) }), true);
   }
 }
 

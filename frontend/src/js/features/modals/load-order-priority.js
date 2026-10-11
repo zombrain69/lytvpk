@@ -7,6 +7,7 @@
 
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   ApplyModPriorityLayers,
   ClearModPriority,
@@ -60,13 +61,13 @@ function renderPriorityPanel(entry) {
   }
   if (effective) {
     const order = Number.isInteger(entry.order) ? entry.order : 0;
-    const parts = [`顺序号 #${order > 0 ? order : "未记录"}`];
+    const parts = [t("loadOrder.priority.indexLine", { order: order > 0 ? order : t("mods.gameState.unrecorded") })];
     if (entry.groupTier !== null && entry.groupTier !== undefined) {
-      parts.push(`策略组权重 ${entry.groupTier}`);
+      parts.push(t("loadOrder.priority.groupTier", { tier: entry.groupTier }));
     }
     const explanation = formatEffectiveLayer(entry);
     if (explanation) parts.push(explanation);
-    else parts.push(`有效分层 ${entry.effective}`);
+    else parts.push(t("loadOrder.priority.effective", { effective: entry.effective }));
     effective.textContent = parts.join(" · ");
   }
 }
@@ -98,21 +99,21 @@ async function saveCurrentTier() {
   const file = currentFileFromState();
   const key = addonListKeyForFile(file);
   if (!key) {
-    showError("当前 Mod 没有可用的 addonlist 键，无法设置分层");
+    showError(t("loadOrder.priority.noKeySave"));
     return;
   }
   const tier = readTierInput();
   if (tier === null) {
-    showError("请输入整数分层（可为负数；数值越小越先加载）");
+    showError(t("loadOrder.priority.invalidTier"));
     return;
   }
   try {
     await SetModPriority(key, file?.name || key, tier);
     await refreshAfterTierChange();
-    showNotification("已保存分层；点击“按分层应用”后才会重排 addonlist.txt", "success");
+    showNotification(t("loadOrder.priority.saved"), "success");
   } catch (err) {
     console.error("保存优先级分层失败:", err);
-    showError("保存分层失败: " + err);
+    showError(t("loadOrder.priority.saveFailed", { error: err }));
   }
 }
 
@@ -120,16 +121,16 @@ async function clearCurrentTier() {
   const file = currentFileFromState();
   const key = addonListKeyForFile(file);
   if (!key) {
-    showError("当前 Mod 没有可用的 addonlist 键，无法清除分层");
+    showError(t("loadOrder.priority.noKeyClear"));
     return;
   }
   try {
     await ClearModPriority(key);
     await refreshAfterTierChange();
-    showNotification("已清除分层，该 Mod 回到按顺序号判定", "success");
+    showNotification(t("loadOrder.priority.cleared"), "success");
   } catch (err) {
     console.error("清除优先级分层失败:", err);
-    showError("清除分层失败: " + err);
+    showError(t("loadOrder.priority.clearFailed", { error: err }));
   }
 }
 
@@ -146,13 +147,13 @@ async function applyPriorityLayers() {
     // 写前确认：先算一遍带差异的预览；没有变化就明说、不写盘（与后端空写保护一致）。
     const plan = await PreviewModPriorityLayers();
     if (!hasWriteDiffChanges(plan?.diff)) {
-      showNotification("当前顺序已经是分层顺序，无需写入 addonlist.txt", "info");
+      showNotification(t("loadOrder.priority.noChanges"), "info");
       return;
     }
     const confirmed = await confirmHtmlInApp(
-      "写入前确认：按分层重排 addonlist.txt",
+      t("loadOrder.priority.confirmTitle"),
       buildWriteDiffHtml(plan.diff, {
-        note: "按分层应用不会清理任何条目；写入前会自动留备份；所有 Mod 的游戏内开关状态保持不变。",
+        note: t("loadOrder.priority.confirmNote"),
       }),
       "load-order-write-confirm",
     );
@@ -165,10 +166,10 @@ async function applyPriorityLayers() {
     } else {
       await refreshPriorityPanel();
     }
-    showNotification(`已按分层重排 ${changed} 个条目`, "success");
+    showNotification(t("loadOrder.priority.applied", { count: changed }), "success");
   } catch (err) {
     console.error("按分层应用失败:", err);
-    showError("按分层应用失败: " + err);
+    showError(t("loadOrder.priority.applyFailed", { error: err }));
   }
 }
 

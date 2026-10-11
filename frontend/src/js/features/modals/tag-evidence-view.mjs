@@ -1,11 +1,16 @@
 // 「标签依据」的纯逻辑（W6）：把 Go 侧 tagEvidence 转成可渲染的行。
 // 单独成模块是为了能在 node:test 里直接测，不需要 DOM。
 
-export const EVIDENCE_LEVEL_LABELS = {
-  exact: "本体精确",
-  pattern: "本体特征",
-  inferred: "名称/关键词",
+import { t } from "../../core/i18n-runtime.js";
+
+export const EVIDENCE_LEVEL_LABEL_KEYS = {
+  exact: "modals.tagEvidence.levelExact",
+  pattern: "modals.tagEvidence.levelPattern",
+  inferred: "modals.tagEvidence.levelInferred",
 };
+
+// 模块求值期不取文案：按 key 延迟解析（语言可在运行时切换）。
+const evidenceLevelLabel = (level) => (EVIDENCE_LEVEL_LABEL_KEYS[level] ? t(EVIDENCE_LEVEL_LABEL_KEYS[level]) : level);
 
 export const TAG_EVIDENCE_DISPLAY_LIMIT = 12;
 
@@ -29,7 +34,7 @@ export function buildTagEvidenceRows(evidence, limit = TAG_EVIDENCE_DISPLAY_LIMI
     return {
       tag,
       level,
-      levelLabel: EVIDENCE_LEVEL_LABELS[level] || level,
+      levelLabel: evidenceLevelLabel(level),
       detail: sources.length > 0 ? `${rule} · ${sources.join(" , ")}` : rule,
     };
   }).filter((row) => row.tag !== "" || row.detail !== "");

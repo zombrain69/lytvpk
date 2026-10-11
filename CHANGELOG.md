@@ -1,5 +1,36 @@
 # Changelog
 
+## 未发布 — i18n：modals 家族（弹窗与加载顺序，8 文件）（第 13 项第十九批）（2026-10-12）
+
+- `load-order-policy.js`（79 处）：加载顺序窗口动态文案全量 —— 五个预设改「key 表 + 延迟取文案」
+  （`LOAD_ORDER_PRESETS` 的 `label`→`labelKey`，复用静态节点的 `loadOrder.preset*`）、
+  获取 / 保存 / 移动 / 预览 / 写入 / 恢复各链路的成功与失败提示、规则列表（空态 / 移到·排在前面 /
+  移除按钮）、预览（空态 / 摘要行 / 位置类型三态 / 状态三态 / 新增与失效徽标及 tooltip / 行 tooltip）、
+  写入确认（标题 + 提醒 + 失效清理说明 + 成功通知含「；」追加段）、恢复备份（无备份 / 标题 / 成功 / 失败）、
+  三种模式标题与说明、当前策略摘要。**复用**：`loadOrder.preset*` / `loadOrder.title` /
+  `mods.priority.labelUnknown` / `mods.category.status.gameOn|gameOff`。**豁免**：`addonlist.txt 不存在`
+  （匹配后端错误文本的协议常量）。
+- `load-order-priority.js`（15 处）：分层面板（指标行三条 / 保存与清除全链路通知 / 按分层应用确认与结果）；
+  复用 `mods.gameState.unrecorded`。
+- `load-order-write-diff.mjs`（18 处 + 盲区 1 处）：写前差异预览纯逻辑（摘要行五条 / 明细标题与剩余条数 /
+  位置行 / 移除·新增标签 / 默认提醒 / 恢复确认三段）。**盲区**：`重排明细（前 N 条）：` 所在模板行
+  （多行模板串首段）被扫描器整段漏报，本批迁完。
+- `detail.js`（19 处 + 盲区 2 处）：文件详情弹窗（XDR 三种优先级横幅 / 槽位动作与官方建议 / 槽位状态三态 /
+  角色·模型兜底 / 主体兜底 / 语音替换标签 / 无标题 / 工坊链接复用 `workshop.itemFallbackTitle` /
+  未知战役·模式 / 无章节信息 / 标签依据标题与剩余条数）。**豁免**：`低`（subjectConfidence 后端契约值）、
+  `地图`（primaryTag 数据匹配）。**盲区**：219 / 231 行的嵌套「（…）」片段（含全角括号）本批迁完。
+- `detail-ignore.js`（13 处）：冲突忽略文件编辑器（读取态 / 保存·清空两态状态与通知 / 四条失败）。
+- `tag-evidence-view.mjs`（3 处）：`EVIDENCE_LEVEL_LABELS` → `EVIDENCE_LEVEL_LABEL_KEYS` + 延迟解析器；
+  测试改「源码接线 + 目录内容」双查并新增一条断言。
+- `confirm.js` / `prompt.js`（1 + 2 处）：默认标题与按钮文案复用既有 `modals.confirm.*` / `modals.prompt.*`；
+  `exit.js` 仅 console 诊断，无界面文案。
+- 目录新增 138 key（`loadOrder.*` +69 / `loadOrder.writeDiff` 20 / `loadOrder.priority` 15 /
+  `modals.detail` 19 / `modals.detailIgnore` 10 / `modals.tagEvidence` 5）；复用 8 个既有 key。
+- 测试：`load-order-write-diff.test.mjs` 注入 `installTestCatalog()`；`tag-evidence-view.test.mjs`
+  改 key 表双查并新增一条接线断言。扫描：modals 家族归零，仅剩 3 处设计内豁免。
+- 验证：`node --test`（frontend，显式清单）575 项 0 失败；`npm run build` 通过；`go test ./...`
+  （1059 项）/ `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：崩溃转储查看器（mdmp-report.js）（第 13 项第十八批）（2026-10-12）
 
 - `mdmp-report.js`：崩溃转储查看器窗口 JS 侧全量文案 —— 标签页表改「key 表 + 延迟取文案」

@@ -1,6 +1,8 @@
 // 应用内文本输入弹窗：替代 WebView2 下不可靠的 window.prompt，
 // 与已有 confirm 弹窗保持一致的会话隔离（旧回调不能关闭新弹窗）。
 
+import { t } from "../../core/i18n-runtime.js";
+
 let promptSessionId = 0;
 
 /**
@@ -16,7 +18,7 @@ let promptSessionId = 0;
  * @returns {object | null} 会话对象，缺少 DOM 时返回 null
  */
 export function showPromptModal(title, message, options = {}) {
-  const { defaultValue = "", placeholder = "", confirmText = "确定", onConfirm, onCancel } = options;
+  const { defaultValue = "", placeholder = "", confirmText = t("modals.prompt.confirm"), onConfirm, onCancel } = options;
 
   const modal = document.getElementById("prompt-modal");
   const titleEl = document.getElementById("prompt-modal-title");
@@ -90,7 +92,7 @@ export function showPromptModal(title, message, options = {}) {
     cleanup("cancel");
   };
 
-  titleEl.textContent = title || "输入";
+  titleEl.textContent = title || t("modals.prompt.title");
   messageEl.textContent = message || "";
   inputEl.value = defaultValue;
   inputEl.placeholder = placeholder;

@@ -1,5 +1,6 @@
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
 import { renderFileList } from "../file-list/render.js";
 import { refreshLoadOrderMap } from "../file-list/sorting.js";
@@ -48,23 +49,23 @@ let loadOrderOperationGeneration = 0;
 
 const LOAD_ORDER_PRESETS = {
   recommended: {
-    label: "推荐：目录规整",
+    labelKey: "loadOrder.presetTidy",
     policy: { rootFirst: true, groupWorkshop: true, stateOrder: "keep" },
   },
   "root-first": {
-    label: "根目录优先",
+    labelKey: "loadOrder.presetRootFirst",
     policy: { rootFirst: true, groupWorkshop: false, stateOrder: "keep" },
   },
   "group-workshop": {
-    label: "工坊聚集",
+    labelKey: "loadOrder.presetWorkshopGroup",
     policy: { rootFirst: false, groupWorkshop: true, stateOrder: "keep" },
   },
   "enabled-first": {
-    label: "开启项优先",
+    labelKey: "loadOrder.presetEnabledFirst",
     policy: { rootFirst: false, groupWorkshop: false, stateOrder: "enabled-first" },
   },
   "disabled-first": {
-    label: "关闭项优先",
+    labelKey: "loadOrder.presetDisabledFirst",
     policy: { rootFirst: false, groupWorkshop: false, stateOrder: "disabled-first" },
   },
 };
@@ -127,7 +128,7 @@ export async function openEnhancedLoadOrderModal(context = {}) {
   const input = document.getElementById("load-order-input");
   const sourceSearch = document.getElementById("load-order-rule-sources-search");
   const targetSearch = document.getElementById("load-order-rule-target-search");
-  if (currentEl) currentEl.textContent = "正在获取...";
+  if (currentEl) currentEl.textContent = t("loadOrder.loading");
   if (input) input.value = "";
   if (sourceSearch) sourceSearch.value = "";
   if (targetSearch) targetSearch.value = "";
@@ -147,10 +148,10 @@ export async function openEnhancedLoadOrderModal(context = {}) {
     console.error("获取加载顺序失败:", err);
     closeEnhancedLoadOrderModal();
     if (String(err).includes("addonlist.txt 不存在")) {
-      showError("未找到 addonlist.txt 文件，无法设置加载顺序");
+      showError(t("loadOrder.notFound"));
       return;
     }
-    showError("获取加载顺序失败: " + err);
+    showError(t("loadOrder.fetchFailed", { error: err }));
   }
 }
 
@@ -169,17 +170,17 @@ export function closeEnhancedLoadOrderModal() {
 export async function saveEnhancedLoadOrder() {
   if (currentMode !== "single" || !currentLoadOrderFile) return;
   if (currentOrder <= 0) {
-    showError("该 Mod 尚未写入 addonlist.txt；加载顺序只会重排已有条目，不会改变游戏内开关状态");
+    showError(t("loadOrder.notWritten"));
     return;
   }
   const input = document.getElementById("load-order-input");
   if (!input) {
-    showError("加载顺序输入框不可用，请重新打开窗口");
+    showError(t("loadOrder.inputUnavailable"));
     return;
   }
   const order = Number.parseInt(input.value.trim(), 10);
   if (!Number.isInteger(order)) {
-    showError("请输入有效的序号");
+    showError(t("loadOrder.invalidIndex"));
     return;
   }
   const operation = beginLoadOrderOperation();
@@ -190,11 +191,11 @@ export async function saveEnhancedLoadOrder() {
     if (!isCurrentLoadOrderOperation(operation)) return;
     const refreshed = await refreshLoadOrderModal(operation);
     if (!refreshed || !isCurrentLoadOrderOperation(operation)) return;
-    showNotification("单项加载顺序已保存", "success");
+    showNotification(t("loadOrder.savedSingle"), "success");
   } catch (err) {
     if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("保存加载顺序失败:", err);
-    showError("保存失败: " + err);
+    showError(t("loadOrder.saveFailed", { error: err }));
   }
 }
 
@@ -288,7 +289,7 @@ async function refreshLoadOrderModal(operation = beginLoadOrderOperation()) {
   renderRuleSelectors();
   renderRules();
   renderActivePolicy();
-  renderPreview(currentEntries, "当前 addonlist.txt 顺序");
+  renderPreview(currentEntries, t("loadOrder.previewCurrent"));
   return true;
 }
 
@@ -304,8 +305,8 @@ function renderCurrentOrder() {
     currentOrderEl.textContent = currentOrder;
     input.placeholder = String(currentOrder);
   } else {
-    currentOrderEl.textContent = "未生成";
-    input.placeholder = "输入新的序号";
+    currentOrderEl.textContent = t("loadOrder.notGenerated");
+    input.placeholder = t("loadOrder.newIndexHint");
   }
   upButton.disabled = currentOrder <= 1;
   downButton.disabled = currentOrder <= 0 || currentOrder >= currentEntries.length;
@@ -313,7 +314,7 @@ function renderCurrentOrder() {
 
 async function moveCurrentFileBy(delta) {
   if (!currentLoadOrderFile || currentOrder <= 0) {
-    showError("该 Mod 尚未写入 addonlist.txt，请先输入序号保存");
+    showError(t("loadOrder.notWrittenFirst"));
     return;
   }
   const destination = Math.min(Math.max(currentOrder + delta, 1), currentEntries.length);
@@ -326,10 +327,10 @@ async function moveCurrentFileBy(delta) {
     if (!isCurrentLoadOrderOperation(operation)) return;
     const refreshed = await refreshLoadOrderModal(operation);
     if (!refreshed || !isCurrentLoadOrderOperation(operation)) return;
-    showNotification(delta < 0 ? "Mod 已上移一位" : "Mod 已下移一位", "success");
+    showNotification(delta < 0 ? t("loadOrder.movedUp") : t("loadOrder.movedDown"), "success");
   } catch (err) {
     if (!isCurrentLoadOrderOperation(operation)) return;
-    showError("调整优先级失败: " + err);
+    showError(t("loadOrder.moveFailed", { error: err }));
   }
 }
 
@@ -353,7 +354,7 @@ let ruleTargetList = null;
 
 function addConstraints(direction) {
   if (!ruleSourcesList || !ruleTargetList) {
-    showError("加载顺序规则选择器不可用，请重新打开窗口");
+    showError(t("loadOrder.ruleSelectorUnavailable"));
     return;
   }
   const entryKeys = new Set(currentEntries.map((entry) => entry.key));
@@ -361,7 +362,7 @@ function addConstraints(direction) {
   const sources = [...selectedSourceKeys].filter((key) => entryKeys.has(key));
   const target = selectedTargetKey;
   if (!target || sources.length === 0) {
-    showError("请至少选择一个 Mod，并选择相对目标");
+    showError(t("loadOrder.selectRuleFirst"));
     return;
   }
 
@@ -378,7 +379,7 @@ function addConstraints(direction) {
     }
   });
   if (added === 0) {
-    showError("不能把同一个 Mod 设为自身的前后关系，或该规则已存在");
+    showError(t("loadOrder.ruleDuplicate"));
     return;
   }
   invalidateLoadOrderOperations();
@@ -392,7 +393,7 @@ function renderRules() {
   if (currentPolicy.constraints.length === 0) {
     const empty = document.createElement("div");
     empty.className = "load-order-rule-empty";
-    empty.textContent = "尚未添加本次排序的前后关系。";
+    empty.textContent = t("loadOrder.rulesEmpty");
     container.appendChild(empty);
     renderActivePolicy();
     return;
@@ -403,17 +404,17 @@ function renderRules() {
     const text = document.createElement("span");
     text.className = "load-order-rule-text";
     if (constraint.anchorMove === "before") {
-      text.textContent = `${entryDisplayName(constraint.before)} 移到 ${entryDisplayName(constraint.after)} 前面`;
+      text.textContent = t("loadOrder.ruleMoveBefore", { source: entryDisplayName(constraint.before), target: entryDisplayName(constraint.after) });
     } else if (constraint.anchorMove === "after") {
-      text.textContent = `${entryDisplayName(constraint.after)} 移到 ${entryDisplayName(constraint.before)} 后面`;
+      text.textContent = t("loadOrder.ruleMoveAfter", { source: entryDisplayName(constraint.after), target: entryDisplayName(constraint.before) });
     } else {
-      text.textContent = `${entryDisplayName(constraint.before)} 排在 ${entryDisplayName(constraint.after)} 前面`;
+      text.textContent = t("loadOrder.ruleOrderBefore", { source: entryDisplayName(constraint.before), target: entryDisplayName(constraint.after) });
     }
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "load-order-rule-delete";
     remove.dataset.loadOrderRuleIndex = String(index);
-    remove.textContent = "移除";
+    remove.textContent = t("loadOrder.ruleRemove");
     row.append(text, remove);
     container.appendChild(row);
   });
@@ -429,12 +430,12 @@ async function previewLoadOrderPolicy() {
   try {
     const preview = await PreviewAddonListLoadOrderPolicy(policy);
     if (!isCurrentLoadOrderOperation(operation)) return;
-    renderPreview(preview.entries || [], "预览：尚未写入");
-    showNotification("已生成加载顺序预览", "info");
+    renderPreview(preview.entries || [], t("loadOrder.previewNotWritten"));
+    showNotification(t("loadOrder.previewDone"), "info");
   } catch (err) {
     if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("预览加载顺序失败:", err);
-    showError("无法生成排序预览: " + err);
+    showError(t("loadOrder.previewFailed", { error: err }));
   }
 }
 
@@ -449,14 +450,14 @@ async function applyLoadOrderPolicy(options = {}) {
     const preview = await PreviewAddonListLoadOrderPolicy(policy);
     if (!isCurrentLoadOrderOperation(operation)) return;
     if (!hasWriteDiffChanges(preview?.diff)) {
-      renderPreview(preview?.entries || [], "预览：没有需要写入的变化");
-      showNotification("当前内容已经是目标顺序，无需写入 addonlist.txt", "info");
+      renderPreview(preview?.entries || [], t("loadOrder.previewNoChanges"));
+      showNotification(t("loadOrder.noChanges"), "info");
       return;
     }
     const confirmed = await confirmHtmlInApp(
-      "写入前确认：addonlist.txt 将发生变化",
+      t("loadOrder.writeConfirmTitle"),
       buildWriteDiffHtml(preview.diff, {
-        note: "「移除」为失效条目清理（文件已不在磁盘）；写入前会自动留备份；所有 Mod 的游戏内开关状态保持不变。",
+        note: t("loadOrder.writeConfirmNote"),
       }),
       "load-order-write-confirm",
     );
@@ -474,20 +475,20 @@ async function applyLoadOrderPolicy(options = {}) {
     // 清理前已自动留一份历史备份；这里把结果说清楚，避免用户以为条目"凭空消失"。
     const removedStale = Array.isArray(result.removedStale) ? result.removedStale : [];
     const staleNote = removedStale.length > 0
-      ? `已顺手清理 ${removedStale.length} 条失效记录（已自动备份）：${removedStale.slice(0, 3).join("、")}${removedStale.length > 3 ? " 等" : ""}`
+      ? t("loadOrder.staleNote", { count: removedStale.length, list: removedStale.slice(0, 3).join("、"), more: removedStale.length > 3 ? t("loadOrder.staleMore") : "" })
       : "";
-    renderPreview(currentEntries, staleNote || "已写入 addonlist.txt，并同步保护快照");
+    renderPreview(currentEntries, staleNote || t("loadOrder.written"));
     currentOrder = order;
     renderCurrentOrder();
     renderActivePolicy();
     showNotification(
-      options.successMessage || `加载顺序已写入 addonlist.txt，所有 Mod 开关状态保持不变${staleNote ? `；${staleNote}` : ""}`,
+      options.successMessage || t("loadOrder.writeSuccess", { stale: staleNote ? t("loadOrder.writeSuccessStale", { note: staleNote }) : "" }),
       "success"
     );
   } catch (err) {
     if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("应用加载顺序失败:", err);
-    showError("写入失败: " + err);
+    showError(t("loadOrder.writeFailed", { error: err }));
   }
 }
 
@@ -497,11 +498,11 @@ async function restoreLatestAddonListBackup() {
   try {
     const candidate = await GetAddonListRestoreCandidate();
     if (!candidate?.found) {
-      showNotification("还没有可恢复的 addonlist.txt 备份", "info");
+      showNotification(t("loadOrder.noBackup"), "info");
       return;
     }
     const confirmed = await confirmHtmlInApp(
-      "恢复 addonlist.txt 备份",
+      t("loadOrder.restoreTitle"),
       buildRestoreConfirmHtml(candidate),
       "load-order-write-confirm",
     );
@@ -514,10 +515,10 @@ async function restoreLatestAddonListBackup() {
     await refreshModListAfterLoadOrderChange();
     const operation = beginLoadOrderOperation();
     await refreshLoadOrderModal(operation);
-    showNotification("已恢复 addonlist.txt 备份（恢复前的内容已另存为 before-restore 备份）", "success");
+    showNotification(t("loadOrder.restored"), "success");
   } catch (err) {
     console.error("恢复 addonlist.txt 备份失败:", err);
-    showError("恢复备份失败: " + err);
+    showError(t("loadOrder.restoreFailed", { error: err }));
   }
 }
 
@@ -537,7 +538,7 @@ async function refreshModListAfterLoadOrderChange() {
   } catch (error) {
     // 写入已经成功，刷新失败不应被误报为“写入失败”；记录日志并给出可操作提示。
     console.error("加载顺序已写入，但 Mod 列表刷新失败:", error);
-    showNotification("加载顺序已保存，但列表刷新失败，请点击刷新按钮重试", "warning");
+    showNotification(t("loadOrder.refreshFailed"), "warning");
   }
 }
 
@@ -553,15 +554,15 @@ function renderPreview(entries, summary) {
   );
   if (summaryEl) {
     const extra = [];
-    if (invalidCount > 0) extra.push(`${invalidCount} 个失效`);
-    if (unrecorded > 0) extra.push(`${unrecorded} 个未记录`);
-    summaryEl.textContent = [`${summary} · ${entries.length} 个条目`, ...extra].join(" · ");
+    if (invalidCount > 0) extra.push(t("loadOrder.staleInvalid", { count: invalidCount }));
+    if (unrecorded > 0) extra.push(t("loadOrder.staleUnrecorded", { count: unrecorded }));
+    summaryEl.textContent = [t("loadOrder.summaryLine", { summary, count: entries.length }), ...extra].join(" · ");
   }
   container.replaceChildren();
   if (entries.length === 0) {
     const empty = document.createElement("div");
     empty.className = "load-order-preview-empty";
-    empty.textContent = "addonlist.txt 中尚无 Mod 条目。";
+    empty.textContent = t("loadOrder.entriesEmpty");
     container.appendChild(empty);
     return;
   }
@@ -606,7 +607,7 @@ function renderPreview(entries, summary) {
     const type = document.createElement("span");
     const location = entry.isWorkshop ? "workshop" : entry.isRoot ? "root" : "other";
     type.className = `load-order-preview-type ${location}`;
-    type.textContent = entry.isWorkshop ? "工坊" : entry.isRoot ? "根目录" : "子目录";
+    type.textContent = entry.isWorkshop ? t("loadOrder.previewType.workshop") : entry.isRoot ? t("loadOrder.previewType.root") : t("loadOrder.previewType.sub");
     const key = document.createElement("span");
     key.className = "load-order-preview-key";
     key.title = entryLabel(entry);
@@ -616,14 +617,14 @@ function renderPreview(entries, summary) {
     state.className = entry.isUnrecorded
       ? "load-order-preview-state unrecorded"
       : `load-order-preview-state ${enabled ? "enabled" : "disabled"}`;
-    state.textContent = entry.isUnrecorded ? "未写入 addonlist" : enabled ? "游戏内开启" : "游戏内关闭";
+    state.textContent = entry.isUnrecorded ? t("mods.priority.labelUnknown") : enabled ? t("mods.category.status.gameOn") : t("mods.category.status.gameOff");
     row.append(order, type, key, state);
 
     if (entry.isUnrecorded) {
       const badge = document.createElement("span");
       badge.className = "load-order-preview-status is-unrecorded";
-      badge.textContent = "新增";
-      badge.title = "扫描到但还没写进 addonlist.txt；在 Mod 列表里开启它会按设置的位置写入";
+      badge.textContent = t("loadOrder.badgeNew");
+      badge.title = t("loadOrder.badgeNewTitle");
       row.appendChild(badge);
     }
 
@@ -632,11 +633,11 @@ function renderPreview(entries, summary) {
       const badge = document.createElement("span");
       badge.className = `load-order-preview-status is-${status}`;
       badge.textContent =
-        status === LOAD_ORDER_ENTRY_STATUS.disabled ? "文件在 disabled" : "文件不存在";
+        status === LOAD_ORDER_ENTRY_STATUS.disabled ? t("loadOrder.badgeDisabledFile") : t("loadOrder.badgeMissingFile");
       badge.title =
         status === LOAD_ORDER_ENTRY_STATUS.disabled
-          ? "addonlist.txt 里有这条记录，但文件当前在 disabled 目录，不会参与加载"
-          : "addonlist.txt 里有这条记录，但磁盘上找不到对应文件（失效条目）";
+          ? t("loadOrder.badgeDisabledTitle")
+          : t("loadOrder.badgeMissingTitle");
       row.appendChild(badge);
     }
     return row;
@@ -764,7 +765,7 @@ function updatePreviewWindow(state, { force = false } = {}) {
 }
 
 function entryLabel(entry) {
-  return `${entry.order}. ${entryDisplayName(entry.key)}${entry.value === "1" ? "（开启）" : "（关闭）"}`;
+  return `${entry.order}. ${entryDisplayName(entry.key)}${entry.value === "1" ? t("loadOrder.previewRowOn") : t("loadOrder.previewRowOff")}`;
 }
 
 function normalizeLoadOrderContext(context) {
@@ -790,24 +791,24 @@ function renderModalMode(file) {
   const singleSection = document.getElementById("load-order-single-section");
   const confirmButton = document.getElementById("confirm-load-order-btn");
   const priorityPanel = document.getElementById("load-order-priority-panel");
-  if (title) title.textContent = isSingle ? "调整单个 Mod 加载顺序" : isSelection ? "批量调整 Mod 加载顺序" : "加载顺序优化";
+  if (title) title.textContent = isSingle ? t("loadOrder.titleSingle") : isSelection ? t("loadOrder.titleSelection") : t("loadOrder.title");
   singleSection?.classList.toggle("hidden", !isSingle);
   confirmButton?.classList.toggle("hidden", !isSingle);
   if (!isSingle) priorityPanel?.classList.add("hidden");
 
   if (isSingle) {
-    if (filename) filename.textContent = file?.name || "当前 Mod";
-    if (contextNote) contextNote.textContent = "单项模式：可上移、下移或指定现有条目的新序号。";
+    if (filename) filename.textContent = file?.name || t("loadOrder.currentMod");
+    if (contextNote) contextNote.textContent = t("loadOrder.modeSingleNote");
     void syncLoadOrderPriorityPanel(file?.path || null);
     return;
   }
   if (isSelection) {
-    if (filename) filename.textContent = `已选择 ${selectedPathNames.length} 个 Mod`;
-    if (contextNote) contextNote.textContent = "批量模式：左侧是要实际移动的来源 Mod，右侧是位置参照锚点；点击“移到锚点前面/后面”后，来源会按当前相对顺序紧邻搬到锚点相应一侧，锚点不会被错误推到列表末尾。";
+    if (filename) filename.textContent = t("loadOrder.selectionCount", { count: selectedPathNames.length });
+    if (contextNote) contextNote.textContent = t("loadOrder.modeSelectionNote");
     return;
   }
-  if (filename) filename.textContent = "全部 addonlist.txt 条目";
-  if (contextNote) contextNote.textContent = "全局模式：可一键按规则重排全部条目；不会新增条目，也不会修改任何 Mod 的游戏内开关。";
+  if (filename) filename.textContent = t("loadOrder.modeGlobalFileName");
+  if (contextNote) contextNote.textContent = t("loadOrder.modeGlobalNote");
 }
 
 function preselectContextEntries() {
@@ -827,7 +828,7 @@ function preselectContextEntries() {
     });
   if (unmatchedNames.length > 0) {
     const contextNote = document.getElementById("load-order-context-note");
-    if (contextNote) contextNote.textContent += ` ${unmatchedNames.join("、")} 尚未写入 addonlist.txt，不能仅通过重排改变其状态。`;
+    if (contextNote) contextNote.textContent += t("loadOrder.unmatchedSuffix", { names: unmatchedNames.join("、") });
   }
 }
 
@@ -837,7 +838,7 @@ function applyLoadOrderPreset(presetName) {
   currentPolicy = { ...createEmptyPolicy(), ...preset.policy };
   syncPolicyControls();
   renderRules();
-  applyLoadOrderPolicy({ successMessage: `已按“${preset.label}”重排 addonlist.txt，所有开关状态保持不变` });
+  applyLoadOrderPolicy({ successMessage: t("loadOrder.presetApplied", { preset: t(preset.labelKey) }) });
 }
 
 function syncPolicyControls() {
@@ -854,12 +855,12 @@ function renderActivePolicy() {
   const summary = document.getElementById("load-order-active-policy");
   if (!summary) return;
   const labels = [];
-  if (currentPolicy.rootFirst) labels.push("根目录优先");
-  if (currentPolicy.groupWorkshop) labels.push("工坊聚集");
-  if (currentPolicy.stateOrder === "enabled-first") labels.push("开启项优先");
-  if (currentPolicy.stateOrder === "disabled-first") labels.push("关闭项优先");
-  if (currentPolicy.constraints.length > 0) labels.push(`${currentPolicy.constraints.length} 条锚点规则`);
-  summary.textContent = labels.length > 0 ? `当前策略：${labels.join(" · ")}` : "当前策略：保持原有顺序";
+  if (currentPolicy.rootFirst) labels.push(t("loadOrder.presetRootFirst"));
+  if (currentPolicy.groupWorkshop) labels.push(t("loadOrder.presetWorkshopGroup"));
+  if (currentPolicy.stateOrder === "enabled-first") labels.push(t("loadOrder.presetEnabledFirst"));
+  if (currentPolicy.stateOrder === "disabled-first") labels.push(t("loadOrder.presetDisabledFirst"));
+  if (currentPolicy.constraints.length > 0) labels.push(t("loadOrder.anchorRuleCount", { count: currentPolicy.constraints.length }));
+  summary.textContent = labels.length > 0 ? t("loadOrder.activePolicySummary", { labels: labels.join(" · ") }) : t("loadOrder.activePolicyNone");
 }
 
 function addonListKeyForFile(file) {

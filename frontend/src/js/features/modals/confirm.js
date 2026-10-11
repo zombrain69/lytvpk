@@ -1,3 +1,5 @@
+import { t } from "../../core/i18n-runtime.js";
+
 let confirmSessionId = 0;
 
 export function showConfirmModal(title, message, onConfirm, useHtml = false, extraClass = "", onCancel = null) {
@@ -97,7 +99,7 @@ export function showConfirmModal(title, message, onConfirm, useHtml = false, ext
  * 所以这里用 settled 标记保证只结算一次。
  */
 export function confirmInApp(message, options = {}) {
-  const { title = "确认", extraClass = "" } = options || {};
+  const { title = t("modals.confirm.title"), extraClass = "" } = options || {};
   return new Promise((resolve) => {
     let settled = false;
     const settle = (value) => {

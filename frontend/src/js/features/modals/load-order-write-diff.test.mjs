@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   buildRestoreConfirmHtml,
   buildWriteDiffHtml,
   hasWriteDiffChanges,
   summarizeWriteDiff,
 } from "./load-order-write-diff.mjs";
+
+// 文案已 i18n 化（第 13 项第十九批·modals 家族）：安装真实目录后继续断言中文。
+installTestCatalog();
 
 const fullDiff = {
   countBefore: 4,

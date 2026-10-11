@@ -1,6 +1,7 @@
 import { appState } from "../state.js";
 import { escapeHtml, formatFileSize, getLocationDisplayName } from "../../core/utils.js";
 import { showError } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   GetModEvidence,
   GetWorkshopBrowserTarget,
@@ -142,7 +143,7 @@ export function showFileDetail(filePath) {
   document.getElementById("detail-name").textContent = file.name;
   document.getElementById("detail-size").textContent = formatFileSize(file.size);
   document.getElementById("detail-location").textContent = getLocationDisplayName(file.location);
-  document.getElementById("detail-status").textContent = file.enabled ? "启用" : "禁用";
+  document.getElementById("detail-status").textContent = file.enabled ? t("mods.ops.common.actionEnable") : t("mods.ops.common.actionDisable");
   document.getElementById("detail-modified").textContent = new Date(file.lastModified).toLocaleString();
 
   const previewSection = document.getElementById("preview-section");
@@ -202,45 +203,45 @@ export function showFileDetail(filePath) {
       const randomCount = Number(xdrPriority.randomSlots || 0);
       const activeCount = Number(xdrPriority.activeSlots || 0);
       if (xdrPriority.state === "active") {
-        return `<div class="detail-xdr-priority is-active">▶ 动作生效：${activeCount} 个槽位都没有同槽竞争者，游戏里会按预期播放</div>`;
+        return `<div class="detail-xdr-priority is-active">${t("modals.detail.xdrActive", { count: activeCount })}</div>`;
       }
       if (xdrPriority.state === "random") {
-        return `<div class="detail-xdr-priority is-random">⚠ 动作随机生效：${randomCount} 个槽位被其它 Mod 同槽占用 —— 官方规则是同角色同槽只会随机生效一个（与加载顺序无关），要确定播哪个就把其中一个改到空槽</div>`;
+        return `<div class="detail-xdr-priority is-random">${t("modals.detail.xdrRandom", { count: randomCount })}</div>`;
       }
-      return `<div class="detail-xdr-priority is-partial">◐ 动作部分生效：${activeCount} 个槽位会播放，${randomCount} 个槽位与其它 Mod 同槽、游戏随机生效</div>`;
+      return `<div class="detail-xdr-priority is-partial">${t("modals.detail.xdrPartial", { active: activeCount, random: randomCount })}</div>`;
     })();
     const xdrRows = xdrSlots
       .map((slot) => {
         const actions = Array.isArray(slot.actions) && slot.actions.length > 0
-          ? ` · 动作：${slot.actions.join("、")}`
+          ? t("modals.detail.slotActions", { actions: slot.actions.join("、") })
           : "";
         // 槽位用途只是官方建议（作者可以自选别的槽），所以写成"官方建议"而不是断言。
         const designation = slot.slotName
-          ? ` · 官方建议：${escapeHtml(slot.slotName)}${slot.slotGroup ? `（${escapeHtml(slot.slotGroup)}）` : ""}`
+          ? t("modals.detail.slotDesignation", { name: escapeHtml(slot.slotName), group: slot.slotGroup ? t("modals.detail.slotDesignationGroup", { group: escapeHtml(slot.slotGroup) }) : "" })
           : "";
         const status = slotStatusByKey.get(`${slot.character || ""}|${slot.slot ?? 0}`);
         let stateHtml = "";
         if (status?.state === "active") {
-          stateHtml = `<span class="detail-xdr-state is-active">▶ 会生效</span>`;
+          stateHtml = `<span class="detail-xdr-state is-active">${t("modals.detail.slotStateActive")}</span>`;
         } else if (status?.state === "random") {
           const rivals = (status.rivals || [])
             .map((rival) => String(rival.title || rival.name || "").trim())
             .filter(Boolean)
             .slice(0, 3)
             .join("、");
-          stateHtml = `<span class="detail-xdr-state is-random" title="同槽只会随机生效一个">⚠ 随机${rivals ? `（同槽：${escapeHtml(rivals)}）` : ""}</span>`;
+          stateHtml = `<span class="detail-xdr-state is-random" title="${t("modals.detail.slotStateRandomTitle")}">${t("modals.detail.slotStateRandom")}${rivals ? t("modals.detail.slotStateRandomRivals", { rivals: escapeHtml(rivals) }) : ""}</span>`;
         }
-        return `<div class="detail-xdr-slot"><strong>${escapeHtml(slot.character || "未指定角色/模型")}</strong> · ${escapeHtml(slot.model || "未知模型")} · slot ${escapeHtml(slot.slotLabel || String(slot.slot ?? "?"))}${designation}${escapeHtml(actions)}${stateHtml}</div>`;
+        return `<div class="detail-xdr-slot"><strong>${escapeHtml(slot.character || t("modals.detail.charFallback"))}</strong> · ${escapeHtml(slot.model || t("modals.detail.modelFallback"))} · slot ${escapeHtml(slot.slotLabel || String(slot.slot ?? "?"))}${designation}${escapeHtml(actions)}${stateHtml}</div>`;
       })
       .join("");
-    subjectElement.innerHTML = `${xdrSummary ? `<div class="detail-xdr-summary">${escapeHtml(xdrSummary)}</div>` : ""}${xdrPriorityHtml}${xdrRows}${subjectSummary ? `<div class="detail-subject-text">${escapeHtml(subjectSummary)}</div>` : ""}` || "主体：未识别";
+    subjectElement.innerHTML = `${xdrSummary ? `<div class="detail-xdr-summary">${escapeHtml(xdrSummary)}</div>` : ""}${xdrPriorityHtml}${xdrRows}${subjectSummary ? `<div class="detail-subject-text">${escapeHtml(subjectSummary)}</div>` : ""}` || t("modals.detail.subjectFallback");
     subjectElement.dataset.confidence = String(file.subjectConfidence || "低");
   }
 
   const detailTagsContainer = document.getElementById("detail-detail-tags");
   const voiceCharacters = [...new Set((file.voiceCharacters || []).map((tag) => String(tag || "").trim()).filter(Boolean))];
   const voiceTagsHtml = voiceCharacters.length > 0
-    ? `<span class="tag voice-replacement-tag" title="按 sound/player 标准语音目录识别">语音替换：${voiceCharacters.map(escapeHtml).join("、")}</span>`
+    ? `<span class="tag voice-replacement-tag" title="${t("modals.detail.voiceReplacementTitle")}">${t("modals.detail.voiceReplacement", { characters: voiceCharacters.map(escapeHtml).join("、") })}</span>`
     : "";
   const secondaryTagsHtml =
     file.secondaryTags && file.secondaryTags.length > 0
@@ -253,7 +254,7 @@ export function showFileDetail(filePath) {
   void loadTagEvidenceIfMissing(file, detailTagsContainer);
 
   const vpkInfoSection = document.getElementById("vpk-info-section");
-  document.getElementById("detail-vpk-title").textContent = file.title || "无标题";
+  document.getElementById("detail-vpk-title").textContent = file.title || t("modals.detail.untitled");
 
   const authorItem = document.getElementById("detail-vpk-author-item");
   if (file.author && file.author !== "") {
@@ -296,7 +297,7 @@ export function showFileDetail(filePath) {
     if (currentDetailFile?.path !== file.path || !workshopId) return;
 
     urlItem.style.display = "grid";
-    urlLink.textContent = `工坊 #${workshopId}`;
+    urlLink.textContent = t("workshop.itemFallbackTitle", { id: workshopId });
     urlLink.href = "javascript:void(0)";
     urlLink.removeAttribute("target");
     urlLink.onclick = (e) => {
@@ -315,7 +316,7 @@ export function showFileDetail(filePath) {
     mapInfoSection.classList.remove("hidden");
 
     const campaignElement = document.getElementById("detail-campaign");
-    campaignElement.textContent = file.campaign || "未知战役";
+    campaignElement.textContent = file.campaign || t("modals.detail.unknownCampaign");
 
     const chaptersListElement = document.getElementById("detail-chapters-list");
     if (file.chapters && Object.keys(file.chapters).length > 0) {
@@ -330,14 +331,14 @@ export function showFileDetail(filePath) {
               <div class="chapter-code">${chapterCode}</div>
             </div>
             <div class="chapter-modes">${
-              modes.length > 0 ? modes.join(" | ") : "未知模式"
+              modes.length > 0 ? modes.join(" | ") : t("modals.detail.unknownMode")
             }</div>
           </div>
         `;
       });
       chaptersListElement.innerHTML = chaptersHtml;
     } else {
-      chaptersListElement.innerHTML = '<div class="no-chapters">无章节信息</div>';
+      chaptersListElement.innerHTML = `<div class="no-chapters">${t("modals.detail.noChapters")}</div>`;
     }
   } else {
     mapInfoSection.classList.add("hidden");
@@ -373,7 +374,7 @@ function renderTagEvidence(file, anchor) {
 
   const title = document.createElement("div");
   title.className = "detail-tag-evidence-title";
-  title.textContent = "标签依据";
+  title.textContent = t("modals.tagEvidence.title");
   block.appendChild(title);
 
   rows.forEach((item) => {
@@ -403,7 +404,7 @@ function renderTagEvidence(file, anchor) {
   if (hiddenCount > 0) {
     const more = document.createElement("div");
     more.className = "detail-tag-evidence-more";
-    more.textContent = `…另有 ${hiddenCount} 条`;
+    more.textContent = t("modals.tagEvidence.more", { count: hiddenCount });
     block.appendChild(more);
   }
 

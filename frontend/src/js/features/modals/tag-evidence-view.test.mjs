@@ -4,11 +4,29 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   buildTagEvidenceRows,
-  EVIDENCE_LEVEL_LABELS,
+  EVIDENCE_LEVEL_LABEL_KEYS,
   TAG_EVIDENCE_DISPLAY_LIMIT,
 } from "./tag-evidence-view.mjs";
+
+// 文案已 i18n 化（第 13 项第十九批·modals 家族）：安装真实目录后继续断言中文。
+installTestCatalog();
+
+test("证据强度标签走目录（源码接线 + 目录内容）", () => {
+  const catalog = JSON.parse(
+    readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+  );
+  assert.equal(EVIDENCE_LEVEL_LABEL_KEYS.exact, "modals.tagEvidence.levelExact");
+  assert.equal(EVIDENCE_LEVEL_LABEL_KEYS.pattern, "modals.tagEvidence.levelPattern");
+  assert.equal(EVIDENCE_LEVEL_LABEL_KEYS.inferred, "modals.tagEvidence.levelInferred");
+  assert.equal(catalog.modals.tagEvidence.levelExact, "本体精确");
+  assert.equal(catalog.modals.tagEvidence.levelPattern, "本体特征");
+  assert.equal(catalog.modals.tagEvidence.levelInferred, "名称/关键词");
+  const source = readFileSync(new URL("./tag-evidence-view.mjs", import.meta.url), "utf8");
+  assert.match(source, /t\(EVIDENCE_LEVEL_LABEL_KEYS\[level\]\)/, "取值要经 key 表延迟解析");
+});
 
 test("buildTagEvidenceRows 把证据转成可渲染行", () => {
   const { rows, hiddenCount } = buildTagEvidenceRows([
@@ -31,7 +49,7 @@ test("buildTagEvidenceRows 把证据转成可渲染行", () => {
   assert.deepEqual(rows[0], {
     tag: "AK47",
     level: "exact",
-    levelLabel: EVIDENCE_LEVEL_LABELS.exact,
+    levelLabel: "本体精确",
     detail: "entity:weapon_rifle_ak47 · models/w_models/weapons/w_rifle_ak47.mdl",
   });
   // 没有来源路径时只显示规则，不留多余分隔符
