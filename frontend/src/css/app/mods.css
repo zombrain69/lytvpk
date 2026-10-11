@@ -5212,6 +5212,35 @@ html.dark-mode .card-badge.xdr-priority-badge.is-partial {
   color: #b45309;
 }
 
+/* 同槽冲突行上的「移到空槽」入口（详情面板内联小按钮，跟随机角标同一色系）。 */
+.detail-xdr-move-btn {
+  display: inline-block;
+  margin-left: var(--spacing-2);
+  padding: 2px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--duration-200) var(--ease-out), color var(--duration-200) var(--ease-out);
+}
+
+.detail-xdr-move-btn:hover {
+  background: rgba(245, 158, 11, 0.28);
+  color: #92400e;
+}
+
+html.dark-mode .detail-xdr-move-btn {
+  color: #fbbf24;
+}
+
+html.dark-mode .detail-xdr-move-btn:hover {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fcd34d;
+}
+
 html.dark-mode .detail-xdr-priority.is-active,
 html.dark-mode .detail-xdr-state.is-active {
   color: #4ade80;
@@ -5601,6 +5630,98 @@ button.mod-conflict-badge:hover {
 .unrecorded-game-state-modal-content {
   width: min(560px, calc(100vw - 2rem));
   max-width: 560px;
+}
+
+/* XDR「移到空槽」弹窗（从详情面板打开）：宽度与 unrecorded-game-state 弹窗同口径。 */
+.xdr-slot-move-modal .modal-content {
+  width: min(560px, calc(100vw - 2rem));
+  max-width: 560px;
+}
+
+.xdr-slot-move-modal .message-content {
+  padding: 0;
+}
+
+.xdr-slot-move-content {
+  display: grid;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.xdr-slot-move-intro,
+.xdr-slot-move-note,
+.xdr-slot-move-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.xdr-slot-move-note {
+  color: #b45309;
+}
+
+.xdr-slot-move-hint {
+  font-size: 0.85rem;
+}
+
+.xdr-slot-move-target {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.xdr-slot-move-target-label {
+  font-weight: 700;
+}
+
+.xdr-slot-move-select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.xdr-slot-move-files {
+  max-height: 220px;
+  overflow: auto;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.04);
+  font-size: 0.8rem;
+}
+
+.xdr-slot-move-files-title {
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+
+.xdr-slot-move-file-row code {
+  overflow-wrap: anywhere;
+}
+
+.xdr-slot-move-files-more {
+  color: var(--text-secondary);
+}
+
+.xdr-slot-move-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+html.dark-mode .xdr-slot-move-note {
+  color: #fbbf24;
+}
+
+html.dark-mode .xdr-slot-move-files {
+  background: rgba(148, 163, 184, 0.08);
 }
 
 .unrecorded-game-state-modal-content .message-content {

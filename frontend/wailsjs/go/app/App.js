@@ -766,6 +766,10 @@ export function MoveArchiveFiles(arg1, arg2, arg3) {
   return window['go']['app']['App']['MoveArchiveFiles'](arg1, arg2, arg3);
 }
 
+export function MoveXDRModToSlot(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['MoveXDRModToSlot'](arg1, arg2, arg3, arg4);
+}
+
 export function MoveModStrategyGroup(arg1, arg2) {
   return window['go']['app']['App']['MoveModStrategyGroup'](arg1, arg2);
 }
@@ -852,6 +856,10 @@ export function PreviewModSnapshotRestore(arg1) {
 
 export function PreviewVPKEntry(arg1, arg2) {
   return window['go']['app']['App']['PreviewVPKEntry'](arg1, arg2);
+}
+
+export function PreviewXDRSlotMove(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['PreviewXDRSlotMove'](arg1, arg2, arg3, arg4);
 }
 
 export function QueryStockIndex(arg1, arg2) {

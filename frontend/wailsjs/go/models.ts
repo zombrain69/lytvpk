@@ -5485,6 +5485,146 @@ export namespace parser {
 	        this.confidence = source["confidence"];
 	    }
 	}
+	export class XDRSlotMoveFile {
+	    from: string;
+	    to: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.from = source["from"];
+	        this.to = source["to"];
+	    }
+	}
+	export class XDRSlotMoveFileResult {
+	    path: string;
+	    renamedCount: number;
+	    skipped?: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveFileResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.renamedCount = source["renamedCount"];
+	        this.skipped = source["skipped"];
+	        this.error = source["error"];
+	    }
+	}
+	export class XDRSlotMoveOption {
+	    slot: number;
+	    slotLabel: string;
+	    slotName: string;
+	    slotGroup: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveOption(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.slot = source["slot"];
+	        this.slotLabel = source["slotLabel"];
+	        this.slotName = source["slotName"];
+	        this.slotGroup = source["slotGroup"];
+	    }
+	}
+	export class XDRSlotMovePreview {
+	    sourcePath: string;
+	    character: string;
+	    fromSlot: number;
+	    fromSlotLabel: string;
+	    toSlot: number;
+	    toSlotLabel: string;
+	    defaultSlot: number;
+	    availableSlots: XDRSlotMoveOption[];
+	    files: XDRSlotMoveFile[];
+	    siblingPaths: string[];
+	    rivals: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMovePreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourcePath = source["sourcePath"];
+	        this.character = source["character"];
+	        this.fromSlot = source["fromSlot"];
+	        this.fromSlotLabel = source["fromSlotLabel"];
+	        this.toSlot = source["toSlot"];
+	        this.toSlotLabel = source["toSlotLabel"];
+	        this.defaultSlot = source["defaultSlot"];
+	        this.availableSlots = this.convertValues(source["availableSlots"], XDRSlotMoveOption);
+	        this.files = this.convertValues(source["files"], XDRSlotMoveFile);
+	        this.siblingPaths = source["siblingPaths"];
+	        this.rivals = source["rivals"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class XDRSlotMoveResult {
+	    sourcePath: string;
+	    character: string;
+	    fromSlot: number;
+	    toSlot: number;
+	    renamedFiles: number;
+	    processedFiles: XDRSlotMoveFileResult[];
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourcePath = source["sourcePath"];
+	        this.character = source["character"];
+	        this.fromSlot = source["fromSlot"];
+	        this.toSlot = source["toSlot"];
+	        this.renamedFiles = source["renamedFiles"];
+	        this.processedFiles = this.convertValues(source["processedFiles"], XDRSlotMoveFileResult);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class VPKFile {
 	    name: string;
 	    path: string;

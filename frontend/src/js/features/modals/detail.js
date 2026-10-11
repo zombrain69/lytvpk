@@ -15,6 +15,7 @@ import {
 } from "../shared/vpk-preview-cache.js";
 import { initDetailIgnoreControls, syncDetailIgnoreEditor } from "./detail-ignore.js";
 import { buildTagEvidenceRows } from "./tag-evidence-view.mjs";
+import { openXDRSlotMoveDialog } from "./xdr-slot-move.js";
 
 let currentDetailFile = null;
 let detailPreviousFocus = null;
@@ -231,11 +232,17 @@ export function showFileDetail(filePath) {
             .join("、");
           stateHtml = `<span class="detail-xdr-state is-random" title="${t("modals.detail.slotStateRandomTitle")}">${t("modals.detail.slotStateRandom")}${rivals ? t("modals.detail.slotStateRandomRivals", { rivals: escapeHtml(rivals) }) : ""}</span>`;
         }
-        return `<div class="detail-xdr-slot"><strong>${escapeHtml(slot.character || t("modals.detail.charFallback"))}</strong> · ${escapeHtml(slot.model || t("modals.detail.modelFallback"))} · slot ${escapeHtml(slot.slotLabel || String(slot.slot ?? "?"))}${designation}${escapeHtml(actions)}${stateHtml}</div>`;
+        // 同槽冲突（随机生效）的行给一个「移到空槽」入口：
+        // 数据属性带上角色与槽号，innerHTML 之后由 wireXDRSlotMoveButtons 挂真实按钮。
+        const moveAttrs = status?.state === "random" && slot.slot > 0
+          ? ` data-xdr-move="1" data-xdr-character="${escapeHtml(slot.character || "")}" data-xdr-slot="${Number(slot.slot)}"`
+          : "";
+        return `<div class="detail-xdr-slot"${moveAttrs}><strong>${escapeHtml(slot.character || t("modals.detail.charFallback"))}</strong> · ${escapeHtml(slot.model || t("modals.detail.modelFallback"))} · slot ${escapeHtml(slot.slotLabel || String(slot.slot ?? "?"))}${designation}${escapeHtml(actions)}${stateHtml}</div>`;
       })
       .join("");
     subjectElement.innerHTML = `${xdrSummary ? `<div class="detail-xdr-summary">${escapeHtml(xdrSummary)}</div>` : ""}${xdrPriorityHtml}${xdrRows}${subjectSummary ? `<div class="detail-subject-text">${escapeHtml(subjectSummary)}</div>` : ""}` || t("modals.detail.subjectFallback");
     subjectElement.dataset.confidence = String(file.subjectConfidence || "低");
+    wireXDRSlotMoveButtons(subjectElement, file);
   }
 
   const detailTagsContainer = document.getElementById("detail-detail-tags");
@@ -409,6 +416,39 @@ function renderTagEvidence(file, anchor) {
   }
 
   anchor.insertAdjacentElement("afterend", block);
+}
+
+// wireXDRSlotMoveButtons 给"同槽随机"的 XDR 行挂「移到空槽…」按钮。
+// 行本身是 innerHTML 组装的（沿既有渲染方式），这里只补一个真实控件：
+// 点击后关掉详情、打开换槽弹窗，弹窗收尾（含取消 / 失败）再按路径重开详情。
+function wireXDRSlotMoveButtons(container, file) {
+  container.querySelectorAll(".detail-xdr-slot[data-xdr-move='1']").forEach((row) => {
+    const character = String(row.dataset.xdrCharacter || "").trim();
+    const slot = Number(row.dataset.xdrSlot || 0);
+    if (!character || !slot) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "detail-xdr-move-btn";
+    button.textContent = t("modals.xdrMove.button");
+    button.onclick = () => {
+      const path = file.path;
+      closeModal();
+      void openXDRSlotMoveDialog({
+        filePath: path,
+        character,
+        fromSlot: slot,
+        onFinished: (reason) => {
+          // 弹窗被别的会话顶掉时不要抢焦点，其余收尾都把详情带回用户面前。
+          if (reason === "replaced") return;
+          const modal = document.getElementById("file-detail-modal");
+          if (modal?.classList.contains("hidden")) {
+            showFileDetail(path);
+          }
+        },
+      });
+    };
+    row.appendChild(button);
+  });
 }
 
 /**

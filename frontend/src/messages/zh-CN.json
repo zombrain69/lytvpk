@@ -4063,6 +4063,26 @@
       "levelPattern": "本体特征",
       "levelInferred": "名称/关键词",
       "more": "…另有 {count} 条"
+    },
+    "xdrMove": {
+      "button": "移到空槽…",
+      "title": "移到空槽（XDR 动作）",
+      "intro": "把「{name}」的 {character} 槽位文件从 slot {from} 改到一个空槽：只改 VPK 内槽位文件的名字（如 bill_slot_007.mdl → bill_slot_044.mdl），Mod 的其它内容不变。",
+      "rivals": "当前同槽：{rivals} —— 官方规则是同槽只会随机生效一个；换到空槽后不再随机。",
+      "siblings": "检测到同一份 Mod 还有 {count} 个副本，会一起处理：{paths}",
+      "targetLabel": "目标槽位",
+      "optionLabel": "{label} · 官方建议：{name}{group}",
+      "optionLabelPlain": "{label}",
+      "hint": "槽位数字小的 Mod 优先：两个 Mod 替换同一动作时，低槽位的会生效。想让本 Mod 生效就选低槽位；想让对手生效，就选比对手高的槽位。",
+      "filesTitle": "将改名的文件（{count} 个）：",
+      "filesMore": "…还有 {count} 个",
+      "noSlots": "这个角色已经没有可用的空槽（1–48 里与其它 Mod 冲突或改名会重名的都排除了）。先处理其它同槽 Mod，或调整本 Mod 的其它槽位后重试。",
+      "confirm": "移到空槽",
+      "done": "已移到空槽：{count} 个文件（slot {from} → {to}）",
+      "doneWithSkipped": "已移到空槽：{count} 个文件（slot {from} → {to}）；{skipped} 个副本不含该槽位，未改动",
+      "partial": "部分完成：{count} 个文件已改名、{failed} 个失败 —— {reason}",
+      "noChange": "没有文件被改动",
+      "dialogUnavailable": "消息弹窗不可用，无法打开换槽窗口"
     }
   },
   "loadOrder": {

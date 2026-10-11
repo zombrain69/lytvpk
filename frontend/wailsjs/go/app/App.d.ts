@@ -388,6 +388,8 @@ export function MigrateLocalStorageConfig(arg1:app.LocalStorageMigrationPayload)
 
 export function MoveArchiveFiles(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
 
+export function MoveXDRModToSlot(arg1:string,arg2:string,arg3:number,arg4:number):Promise<app.XDRSlotMoveResult>;
+
 export function MoveModStrategyGroup(arg1:string,arg2:string):Promise<app.ModStrategyGroup>;
 
 export function MoveModStrategyGroupMembers(arg1:string,arg2:string,arg3:Array<string>):Promise<app.ModStrategyGroupMoveResult>;
@@ -431,6 +433,8 @@ export function PreviewCustomTagRules(arg1:string):Promise<app.CustomTagRulePrev
 export function PreviewModSnapshotRestore(arg1:string):Promise<app.ModSnapshotRestorePlan>;
 
 export function PreviewVPKEntry(arg1:string,arg2:string):Promise<app.VPKPreviewResult>;
+
+export function PreviewXDRSlotMove(arg1:string,arg2:string,arg3:number,arg4:number):Promise<app.XDRSlotMovePreview>;
 
 export function QueryStockIndex(arg1:string,arg2:number):Promise<app.StockIndexQueryResult>;
 
