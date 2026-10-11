@@ -72,14 +72,20 @@ test("计数文案与高亮参数", () => {
 
 test("模型统计面板真的接上了统一检索", () => {
   const source = readFileSync(new URL("./model-stats-scan.js", import.meta.url), "utf8");
+  const catalog = JSON.parse(readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"));
   assert.match(source, /searchModelStatsItems\(/, "列表要用统一检索");
   assert.match(source, /describeModelStatsSearch\(/, "要有命中计数");
   assert.match(source, /modelStatsHighlightSpec\(/, "命中项要高亮");
   assert.match(source, /MODEL_STATS_SEARCH_HELP_VARIANT|buildSearchHelpHtml/, "要有语法提示（与 Mod 列表同源）");
-  assert.match(source, /正则表达式无效：\$\{invalidRegex\}/, "正则写错时要说清原因，而不是「没有匹配」");
+  // 文案已 i18n 化（第 13 项第十六批）：源码接线 + 目录内容双查。
+  assert.match(source, /t\("toolbox\.modelStats\.searchPlaceholder"\)/, "占位文字要走目录文案");
+  assert.match(catalog.toolbox.modelStats.searchPlaceholder, /tag:状态/, "占位文字要能看出支持 tag: 语法（目录侧）");
+  assert.match(source, /t\("search\.regexInvalid", \{ detail: invalidRegex \}\)/, "正则写错时要说清原因，而不是「没有匹配」");
+  assert.equal(catalog.search.regexInvalid, "正则表达式无效：{detail}");
   // 键盘光标（与 Mod 列表 / 归档面板同一套）
   assert.match(source, /nextResultPath\(keys, currentCursorKey/, "缺少上下键移动光标");
-  assert.match(source, /describeResultCursor\(keys, currentCursorKey, "Enter 展开 \/ 收起"\)/, "计数要显示光标位置与 Enter 的作用");
+  assert.match(source, /describeResultCursor\(keys, currentCursorKey, t\("toolbox\.common\.enterHint"\)\)/, "计数要显示光标位置与 Enter 的作用");
+  assert.equal(catalog.toolbox.common.enterHint, "Enter 展开 / 收起");
   assert.match(source, /row\.dataset\.cursorKey = `model-stats-row-/, "行上要有光标键");
   assert.match(source, /syncCursorHighlight\(list, "\[data-cursor-key\]", currentCursorKey\)/, "重画后要恢复光标");
 });

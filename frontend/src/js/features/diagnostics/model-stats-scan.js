@@ -1,4 +1,5 @@
 import { showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { explainActionAvailability, formatExplanation } from "../../core/action-explanation.mjs";
 import { highlightMatches } from "../file-list/search-match.mjs";
 import { collectCursorKeys, describeResultCursor, nextResultPath, syncCursorHighlight } from "../file-list/result-cursor.mjs";
@@ -100,7 +101,7 @@ export async function openModelStatsScanModal() {
   scanEventSettled = false;
   modal.classList.remove("hidden");
   registerScanEvents();
-  renderLoading({ current: 0, total: 0, message: "准备扫描模型面数..." });
+  renderLoading({ current: 0, total: 0, message: t("toolbox.modelStats.preparing") });
 
   try {
     const state = await callApp("GetModelStatsScanState");
@@ -108,7 +109,7 @@ export async function openModelStatsScanModal() {
     if (state?.running && state.scanId) {
       activeScanId = state.scanId;
       awaitingScanStart = false;
-      renderLoading(state.progress || { current: 0, total: 0, message: "正在扫描模型面数..." });
+      renderLoading(state.progress || { current: 0, total: 0, message: t("toolbox.modelStats.scanning") });
       return;
     }
 
@@ -119,12 +120,12 @@ export async function openModelStatsScanModal() {
     if (scanEventSettled) return;
     if (!activeScanId) activeScanId = started?.scanId || "";
     awaitingScanStart = false;
-    renderLoading(started?.progress || { current: 0, total: 0, message: "正在扫描模型面数..." });
+    renderLoading(started?.progress || { current: 0, total: 0, message: t("toolbox.modelStats.scanning") });
   } catch (error) {
     if (!isCurrentSession()) return;
     awaitingScanStart = false;
-    renderError("模型面数检测失败: " + error);
-    showError?.("模型面数检测失败: " + error);
+    renderError(t("toolbox.modelStats.failed", { error }));
+    showError?.(t("toolbox.modelStats.failed", { error }));
   }
 }
 
@@ -164,12 +165,12 @@ function registerScanEvents() {
     activeScanId = "";
     if (payload.error) {
       renderError(payload.error);
-      showError?.("模型面数检测失败: " + payload.error);
+      showError?.(t("toolbox.modelStats.failed", { error: payload.error }));
       return;
     }
     currentResult = payload.result || null;
     renderResults(currentResult);
-    showNotification("模型面数检测完成", "success");
+    showNotification(t("toolbox.modelStats.done"), "success");
   });
 }
 
@@ -194,9 +195,9 @@ function renderLoading(progress = {}) {
   const current = Number(progress.current || 0);
   const total = Number(progress.total || 0);
   const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
-  const description = progress.message || "正在读取 VPK 中的 .vvd 和 .dx90.vtx 文件...";
-  const metaText = total > 0 ? `${current} / ${total}` : "准备中";
-  const hintText = "扫描中可关闭弹窗；再次打开会接入正在运行的扫描任务。";
+  const description = progress.message || t("toolbox.modelStats.readingVpk");
+  const metaText = total > 0 ? `${current} / ${total}` : t("toolbox.modelStats.preparingShort");
+  const hintText = t("toolbox.modelStats.hint");
 
   const existingShell = body.firstElementChild?.classList.contains("model-stats-loading")
     ? body.firstElementChild
@@ -212,7 +213,7 @@ function renderLoading(progress = {}) {
     body.replaceChildren();
     const shell = createEl("div", "model-stats-loading");
     const spinner = createEl("div", "model-stats-spinner");
-    const title = createEl("h3", "", "正在扫描模型数据");
+    const title = createEl("h3", "", t("toolbox.modelStats.loadingTitle"));
     const desc = createEl("p", "model-stats-loading-desc", description);
     const progressWrap = createEl("div", "model-stats-progress");
     const bar = createEl("div", "model-stats-progress-bar");
@@ -253,7 +254,7 @@ function renderResults(result) {
   const shell = createEl("div", "model-stats-results");
 
   if (allItems.length === 0) {
-    shell.appendChild(createEmptyState("没有可扫描的启用或创意工坊 Mod"));
+    shell.appendChild(createEmptyState(t("toolbox.modelStats.emptyAll")));
   } else {
     shell.appendChild(createViewToolbar());
     if (rows.length === 0) {
@@ -262,10 +263,10 @@ function renderResults(result) {
       shell.appendChild(
         createEmptyState(
           invalidRegex
-            ? `正则表达式无效：${invalidRegex}`
+            ? t("search.regexInvalid", { detail: invalidRegex })
             : currentQuery.trim()
-              ? `没有匹配「${currentQuery.trim()}」的 Mod`
-              : "没有可展示的模型明细",
+              ? t("toolbox.modelStats.emptyNoMatch", { query: currentQuery.trim() })
+              : t("toolbox.modelStats.emptyNoRows"),
         ),
       );
     } else {
@@ -281,13 +282,13 @@ function createViewToolbar() {
   const toolbar = createEl("div", "model-stats-toolbar");
   const toggle = createEl("div", "model-stats-view-toggle");
   toggle.setAttribute("role", "tablist");
-  toggle.setAttribute("aria-label", "模型统计视图");
+  toggle.setAttribute("aria-label", t("toolbox.modelStats.viewAria"));
   toggle.dataset.active = currentView;
   toggle.append(
     createEl("span", "model-stats-view-indicator"),
-    createViewButton(MODEL_STATS_VIEW_MODS, "Mod 汇总"),
-    createViewButton(MODEL_STATS_VIEW_MODELS, "模型排行"),
-    createViewButton(MODEL_STATS_VIEW_STRIP_GROUPS, "Strip Group 排行"),
+    createViewButton(MODEL_STATS_VIEW_MODS, t("toolbox.modelStats.viewMods")),
+    createViewButton(MODEL_STATS_VIEW_MODELS, t("toolbox.modelStats.viewModels")),
+    createViewButton(MODEL_STATS_VIEW_STRIP_GROUPS, t("toolbox.modelStats.viewStripGroups")),
   );
 
   const note = createEl(
@@ -298,16 +299,16 @@ function createViewToolbar() {
   const searchWrap = createEl("div", "model-stats-search-wrap");
   const search = createEl("input", "model-stats-search");
   search.type = "search";
-  search.placeholder = "搜索 Mod / 模型路径（支持 -排除 / re: 正则 / tag:状态）";
+  search.placeholder = t("toolbox.modelStats.searchPlaceholder");
   search.value = currentQuery;
-  search.setAttribute("aria-label", "搜索模型统计结果");
+  search.setAttribute("aria-label", t("toolbox.modelStats.searchAria"));
   // 悬停提示与 `?` 浮层都和 Mod 列表同源（search-help.mjs），只是字段与 tag: 含义不同。
   search.title = buildSearchHelpTitle(MODEL_STATS_SEARCH_HELP_VARIANT);
   const helpBtn = createEl("button", "search-help-btn", "?");
   helpBtn.type = "button";
   helpBtn.id = "model-stats-search-help-btn";
-  helpBtn.title = "搜索语法说明书";
-  helpBtn.setAttribute("aria-label", "搜索语法说明书");
+  helpBtn.title = t("toolbox.modelStats.searchHelpTitle");
+  helpBtn.setAttribute("aria-label", t("toolbox.modelStats.searchHelpAria"));
   helpBtn.setAttribute("aria-expanded", "false");
   const helpPopover = createEl("div", "search-help-popover hidden");
   helpPopover.id = "model-stats-search-help-popover";
@@ -440,7 +441,7 @@ function updateModelStatsCountText() {
     regexInvalid: currentSearch?.regexInvalid || "",
   });
   const keys = collectCursorKeys(document.querySelector(".model-stats-list"), "[data-cursor-key]");
-  const cursorText = describeResultCursor(keys, currentCursorKey, "Enter 展开 / 收起");
+  const cursorText = describeResultCursor(keys, currentCursorKey, t("toolbox.common.enterHint"));
   count.textContent = [base, cursorText].filter(Boolean).join(" · ");
 }
 
@@ -458,7 +459,7 @@ function renderResultFooter(pagination) {
   if ((pagination?.totalRows || 0) > 0) {
     footer.append(createPagination(pagination));
   }
-  const closeBtn = createEl("button", "btn btn-secondary", "关闭");
+  const closeBtn = createEl("button", "btn btn-secondary", t("toolbox.common.close"));
   closeBtn.type = "button";
   closeBtn.addEventListener("click", closeModelStatsScanModal);
   footer.append(closeBtn);
@@ -473,16 +474,16 @@ function renderError(message) {
   const error = createEl("div", "model-stats-error");
   error.append(
     createEl("div", "model-stats-error-icon", "!"),
-    createEl("h3", "", "检测失败"),
-    createEl("p", "", message || "模型面数检测发生错误"),
+    createEl("h3", "", t("toolbox.modelStats.errorTitle")),
+    createEl("p", "", message || t("toolbox.modelStats.errorBody")),
   );
   body.appendChild(error);
 
   footer.replaceChildren();
-  const retryBtn = createEl("button", "btn btn-primary", "重新扫描");
+  const retryBtn = createEl("button", "btn btn-primary", t("toolbox.modelStats.retry"));
   retryBtn.type = "button";
   retryBtn.addEventListener("click", openModelStatsScanModal);
-  const closeBtn = createEl("button", "btn btn-secondary", "关闭");
+  const closeBtn = createEl("button", "btn btn-secondary", t("toolbox.common.close"));
   closeBtn.type = "button";
   closeBtn.addEventListener("click", closeModelStatsScanModal);
   footer.append(retryBtn, closeBtn);
@@ -494,15 +495,15 @@ function createPagination(pagination = {}) {
   const page = pagination.page || 1;
   const pager = createEl("div", "model-stats-pagination");
 
-  const prev = createPaginationButton("‹", "上一页", page <= 1, () => {
+  const prev = createPaginationButton("‹", t("toolbox.common.paginationPrev"), page <= 1, () => {
     currentPage = Math.max(1, currentPage - 1);
     renderResults(currentResult);
   });
-  const next = createPaginationButton("›", "下一页", page >= totalPages, () => {
+  const next = createPaginationButton("›", t("toolbox.common.paginationNext"), page >= totalPages, () => {
     currentPage = Math.min(totalPages, currentPage + 1);
     renderResults(currentResult);
   });
-  const meta = createEl("span", "model-stats-pagination-meta", `第 ${page} / ${totalPages} 页 · 共 ${formatNumber(totalRows)} 条`);
+  const meta = createEl("span", "model-stats-pagination-meta", t("toolbox.modelStats.paginationMeta", { page, totalPages, total: formatNumber(totalRows) }));
 
   pager.append(prev, meta, next);
   return pager;
@@ -526,7 +527,7 @@ function createModResultRow(item, rankNumber) {
   const main = createEl("div", "model-stats-mod-main");
   const highlightSpec = modelStatsHighlightSpec(currentSearch);
   main.append(
-    createHighlightedText("strong", "model-stats-mod-title", item.title || item.name || "未知 Mod", highlightSpec),
+    createHighlightedText("strong", "model-stats-mod-title", item.title || item.name || t("toolbox.modelStats.unknownMod"), highlightSpec),
     createHighlightedText("span", "model-stats-mod-file", item.name || item.path || "", highlightSpec),
   );
 
@@ -534,10 +535,10 @@ function createModResultRow(item, rankNumber) {
   header.append(
     rank,
     main,
-    createTableMetric("模型", item.modelCount || 0),
+    createTableMetric(t("toolbox.modelStats.metricModels"), item.modelCount || 0),
     createTableMetric("Strip Group", getModStripGroupCount(item)),
-    createTableMetric("顶点", item.totalVertices || 0),
-    createTableMetric("三角形", item.totalTriangles || 0),
+    createTableMetric(t("toolbox.modelStats.metricVertices"), item.totalVertices || 0),
+    createTableMetric(t("toolbox.modelStats.metricTriangles"), item.totalTriangles || 0),
     createDisableAction(item),
     chevron,
   );
@@ -570,12 +571,12 @@ function createModelResultRow(row, rankNumber) {
   const rank = createEl("span", "model-stats-rank", String(rankNumber));
   const modRef = createEl("div", "model-stats-row-mod-ref");
   modRef.append(
-    createHighlightedText("strong", "", row.mod.title || row.mod.name || "未知 Mod", modelStatsHighlightSpec(currentSearch)),
+    createHighlightedText("strong", "", row.mod.title || row.mod.name || t("toolbox.modelStats.unknownMod"), modelStatsHighlightSpec(currentSearch)),
     createHighlightedText("span", "", row.mod.name || row.mod.path || "", modelStatsHighlightSpec(currentSearch)),
   );
   const main = createEl("div", "model-stats-mod-main");
   main.append(
-    createTextWithTitle("strong", "model-stats-mod-title", row.model.path || "未知模型"),
+    createTextWithTitle("strong", "model-stats-mod-title", row.model.path || t("toolbox.modelStats.unknownModel")),
     createTextWithTitle("span", "model-stats-mod-file", row.model.message || row.model.vtxPath || row.model.vvdPath || "LOD0"),
   );
   const chevron = createEl("span", "model-stats-chevron");
@@ -584,8 +585,8 @@ function createModelResultRow(row, rankNumber) {
     modRef,
     main,
     createTableMetric("Strip Group", row.model.stripGroupCount || getStripGroups(row.model).length),
-    createTableMetric("顶点", row.model.vertices || 0),
-    createTableMetric("三角形", row.model.triangles || 0, row.model.triangleStripEstimated ? "估算" : ""),
+    createTableMetric(t("toolbox.modelStats.metricVertices"), row.model.vertices || 0),
+    createTableMetric(t("toolbox.modelStats.metricTriangles"), row.model.triangles || 0, row.model.triangleStripEstimated ? t("toolbox.modelStats.estimated") : ""),
     createDisableAction(row.mod),
     chevron,
   );
@@ -617,7 +618,7 @@ function createStripGroupResultRow(row, rankNumber) {
   const rank = createEl("span", "model-stats-rank", String(rankNumber));
   const main = createEl("div", "model-stats-mod-main");
   main.append(
-    createHighlightedText("strong", "model-stats-mod-title", row.mod.title || row.mod.name || "未知 Mod", modelStatsHighlightSpec(currentSearch)),
+    createHighlightedText("strong", "model-stats-mod-title", row.mod.title || row.mod.name || t("toolbox.modelStats.unknownMod"), modelStatsHighlightSpec(currentSearch)),
     createHighlightedText("span", "model-stats-mod-file", row.mod.name || row.mod.path || "", modelStatsHighlightSpec(currentSearch)),
   );
 
@@ -637,8 +638,8 @@ function createStripGroupResultRow(row, rankNumber) {
     main,
     modelRef,
     groupRef,
-    createTableMetric("顶点", row.group.vertices || 0),
-    createTableMetric("索引", row.group.indices || 0),
+    createTableMetric(t("toolbox.modelStats.metricVertices"), row.group.vertices || 0),
+    createTableMetric(t("toolbox.modelStats.metricIndices"), row.group.indices || 0),
     createDisableAction(row.mod),
     spacer,
   );
@@ -684,19 +685,19 @@ function isModDisabled(mod) {
 }
 
 function getDisableButtonText(mod) {
-  if (isModDisabled(mod)) return "已禁用";
-  return "禁用";
+  if (isModDisabled(mod)) return t("toolbox.modelStats.disableStateDisabled");
+  return t("toolbox.modelStats.disableAction");
 }
 
 function getDisableButtonTitle(mod) {
-  if (isModDisabled(mod)) return "这个 Mod 已移动到 disabled 目录";
+  if (isModDisabled(mod)) return t("toolbox.modelStats.disableDoneTitle");
   // 灰掉的原因走统一的解释层（core/action-explanation.mjs）：
   // 避免"按钮灰了但没人知道为什么"。
   const availability = explainActionAvailability({ action: "disable-file", file: mod });
   if (!availability.available) {
-    return `不能禁用：${formatExplanation(availability)}`;
+    return t("toolbox.modelStats.cannotDisable", { reason: formatExplanation(availability) });
   }
-  return "将这个 Mod 移动到 disabled 目录";
+  return t("toolbox.modelStats.disableTitle");
 }
 
 async function disableModelStatsMod(mod, button) {
@@ -707,10 +708,10 @@ async function disableModelStatsMod(mod, button) {
     await callApp("ToggleVPKFile", mod.path);
     markModDisabled(mod);
     await refreshFilesAfterDisable();
-    showNotification(`已禁用 ${mod.title || mod.name || "Mod"}`, "success");
+    showNotification(t("toolbox.modelStats.disabledNotice", { name: mod.title || mod.name || "Mod" }), "success");
     renderResults(currentResult);
   } catch (error) {
-    showError?.("禁用 Mod 失败: " + error);
+    showError?.(t("toolbox.modelStats.disableFailed", { error }));
     setDisableButtonReady(button, mod);
   }
 }
@@ -741,7 +742,7 @@ function setDisableButtonPending(button) {
   if (!button) return;
   button.disabled = true;
   button.dataset.originalText = button.textContent;
-  button.textContent = "禁用中";
+  button.textContent = t("toolbox.modelStats.disabling");
 }
 
 function setDisableButtonReady(button, mod) {
@@ -758,7 +759,7 @@ function renderModelDetails(container, item) {
   }
   const models = getSortedModels(item);
   if (models.length === 0) {
-    container.appendChild(createEmptyState("这个 Mod 没有检测到模型文件"));
+    container.appendChild(createEmptyState(t("toolbox.modelStats.emptyModelFiles")));
     return;
   }
 
@@ -773,17 +774,17 @@ function createModelDetailSection(model, index) {
 
   const main = createEl("div", "model-stats-model-main");
   main.append(
-    createTextWithTitle("strong", "", model.path || `模型 ${index + 1}`),
+    createTextWithTitle("strong", "", model.path || t("toolbox.modelStats.modelFallback", { index: index + 1 })),
     createTextWithTitle("span", "", model.message || model.vtxPath || model.vvdPath || "LOD0"),
   );
   const values = createEl("div", "model-stats-model-values");
   values.append(
-    createMetric("顶点", model.vertices || 0),
-    createMetric("三角形", model.triangles || 0),
+    createMetric(t("toolbox.modelStats.metricVertices"), model.vertices || 0),
+    createMetric(t("toolbox.modelStats.metricTriangles"), model.triangles || 0),
     createMetric("Strip Group", model.stripGroupCount || getStripGroups(model).length),
   );
   if (model.triangleStripEstimated) {
-    values.appendChild(createEl("span", "model-stats-pill is-warning", "估算"));
+    values.appendChild(createEl("span", "model-stats-pill is-warning", t("toolbox.modelStats.estimated")));
   }
   const chevron = createEl("span", "model-stats-chevron");
   row.append(main, values, chevron);
@@ -813,7 +814,7 @@ function renderStripGroupCards(container, model) {
   container.replaceChildren();
   const groups = getSortedStripGroups(model);
   if (groups.length === 0) {
-    container.appendChild(createEmptyState("这个模型没有检测到 strip group 数据"));
+    container.appendChild(createEmptyState(t("toolbox.modelStats.emptyStripGroups")));
     return;
   }
   groups.forEach((group) => container.appendChild(createStripGroupCard(group)));
@@ -824,11 +825,11 @@ function createStripGroupCard(group) {
   card.append(
     createEl("strong", "", formatStripGroupLabel(group)),
     createEl("span", "model-stats-strip-card-value", formatNumber(group.vertices || 0)),
-    createEl("span", "", `索引 ${formatNumber(group.indices || 0)}`),
-    createEl("span", "", `三角形 ${formatNumber(group.triangles || 0)}`),
+    createEl("span", "", t("toolbox.modelStats.groupIndices", { count: formatNumber(group.indices || 0) })),
+    createEl("span", "", t("toolbox.modelStats.groupTriangles", { count: formatNumber(group.triangles || 0) })),
   );
   if (group.triangleStripEstimated) {
-    card.appendChild(createEl("em", "", "三角形估算"));
+    card.appendChild(createEl("em", "", t("toolbox.modelStats.trianglesEstimated")));
   }
   return card;
 }
@@ -929,9 +930,9 @@ function paginateRows(rows) {
 }
 
 function getCurrentViewSortNote() {
-  if (currentView === MODEL_STATS_VIEW_MODELS) return "按单模型三角形数量降序";
-  if (currentView === MODEL_STATS_VIEW_STRIP_GROUPS) return "按单个 strip group 顶点数降序";
-  return "按 Mod 顶点总量降序";
+  if (currentView === MODEL_STATS_VIEW_MODELS) return t("toolbox.modelStats.sortNoteModels");
+  if (currentView === MODEL_STATS_VIEW_STRIP_GROUPS) return t("toolbox.modelStats.sortNoteStripGroups");
+  return t("toolbox.modelStats.sortNoteMods");
 }
 
 function getCurrentViewTableClass() {
@@ -967,7 +968,7 @@ function getSortedStripGroups(model) {
 }
 
 function getModelDisplayName(model = {}) {
-  const value = model.path || model.vtxPath || model.vvdPath || "未知模型";
+  const value = model.path || model.vtxPath || model.vvdPath || t("toolbox.modelStats.unknownModel");
   const normalized = String(value).replaceAll("\\", "/");
   return normalized.split("/").pop() || normalized;
 }
@@ -1010,7 +1011,7 @@ function bindCloseControls() {
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
   if (typeof method !== "function") {
-    return Promise.reject(new Error(`当前后端不支持 ${methodName}`));
+    return Promise.reject(new Error(t("toolbox.common.backendUnsupported", { method: methodName })));
   }
   return method(...args);
 }

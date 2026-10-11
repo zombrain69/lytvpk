@@ -4,14 +4,20 @@
 //   tags   → 有模型 / 无模型 / 估算（triangleStripEstimated：三角形数是按 strip 估算的）
 
 import { describeFieldSearch, highlightSpecFor, searchByFields } from "../../core/field-search.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
-export const MODEL_STATS_STATE_TAGS = ["有模型", "无模型", "估算"];
+/** MODEL_STATS_STATE_TAG_KEYS 三种扫描状态的文案 key（t() 延迟取，模块求值期不调）。 */
+export const MODEL_STATS_STATE_TAG_KEYS = [
+  "toolbox.modelStatsSearch.tagHasModels",
+  "toolbox.modelStatsSearch.tagNoModels",
+  "toolbox.modelStatsSearch.tagEstimated",
+];
 
 /** modelStatsStateTags 返回这个 Mod 在扫描结果里的状态标签（供 `tag:` 与界面角标使用）。 */
 export function modelStatsStateTags(item) {
   const models = Array.isArray(item?.models) ? item.models : [];
-  const tags = [models.length > 0 ? "有模型" : "无模型"];
-  if (models.some((model) => model?.triangleStripEstimated)) tags.push("估算");
+  const tags = [models.length > 0 ? t("toolbox.modelStatsSearch.tagHasModels") : t("toolbox.modelStatsSearch.tagNoModels")];
+  if (models.some((model) => model?.triangleStripEstimated)) tags.push(t("toolbox.modelStatsSearch.tagEstimated"));
   return tags;
 }
 

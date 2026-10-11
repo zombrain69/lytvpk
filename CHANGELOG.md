@@ -1,5 +1,22 @@
 # Changelog
 
+## 未发布 — i18n：模型统计家族（model-stats-scan / model-stats-search）（第 13 项第十六批）（2026-10-12）
+
+- `model-stats-scan.js`：模型面数检测窗口全量文案 —— 扫描进度与加载态（准备 / 读取 VPK / 扫描提示两态 /
+  完成 / 失败三处）、空态三层（无 Mod / 正则无效 / 无匹配 / 无明细）、视图切换（aria + Mod 汇总 /
+  模型排行 / Strip Group 排行 + 三种排序说明）、搜索（占位 / aria / 说明书）、分页（上一页 / 下一页 /
+  计数模板）、指标标签（模型 / 顶点 / 三角形 / 索引）、禁用动作五态（禁用 / 已禁用 / 禁用中 / 两个 title /
+  不能禁用原因 / 已禁用通知 / 失败）、模型行与 strip group 卡片（未知 Mod / 未知模型 / 模型序号 / 估算 /
+  索引 N / 三角形 N / 三角形估算）、错误态（检测失败 / 重新扫描）。
+- `model-stats-search.mjs`：`tag:` 扫描状态值（有模型 / 无模型 / 估算）改「key 表 + 延迟取文案」
+  （`MODEL_STATS_STATE_TAG_KEYS`），与归档检索同口径。
+- **复用**：`toolbox.common.close|enterHint|backendUnsupported`；空态「正则表达式无效」复用
+  `search.regexInvalid`；`toolbox.common` 新增 `paginationPrev` / `paginationNext`（mdmp 批次将复用）。
+- 目录新增 52 key（`toolbox.modelStats` 47 / `toolbox.modelStatsSearch` 3 / `toolbox.common` +2）。
+- 测试：`model-stats-search.test.mjs` 两处源级断言改「源码接线 + 目录内容」双查，并新增占位文字双查。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；`go test ./...` /
+  `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：压缩包管理家族（archive-manager / archive-search）（第 13 项第十五批）（2026-10-12）
 
 - `archive-manager.js`：压缩包管理窗口全量文案 —— 扫描忙碌 / 完成 / 失败提示、窗口标题两态（含数量）、
