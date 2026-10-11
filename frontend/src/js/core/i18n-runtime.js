@@ -43,12 +43,25 @@ export function setLocale(locale) {
   const next = i18n.setLocale(locale);
   if (typeof document !== "undefined") {
     document.documentElement?.setAttribute("lang", next);
+    // 语言切换后立即把全部静态节点按新语言回填 —— 与启动时回填走同一条
+    // `applyTranslations()` 路径，页面/弹窗都不需要各自处理。
+    applyTranslations();
   }
   return next;
 }
 
-/** applyTranslations 回填带 data-i18n / data-i18n-title / data-i18n-placeholder 的节点。 */
-export function applyTranslations(root = document) {
+// 属性回填绑定：data-i18n-* 属性名 → 要写入的目标属性。
+// 纯文本用 `data-i18n`（写入 textContent），其余按属性对应表处理。
+const ATTRIBUTE_BINDINGS = [
+  ["data-i18n-title", "title"],
+  ["data-i18n-placeholder", "placeholder"],
+  ["data-i18n-aria-label", "aria-label"],
+  ["data-i18n-alt", "alt"],
+];
+
+/** applyTranslations 回填带 data-i18n / data-i18n-title / data-i18n-placeholder /
+ *  data-i18n-aria-label / data-i18n-alt 的节点（全量、幂等；启动与语言切换共用）。 */
+export function applyTranslations(root = typeof document !== "undefined" ? document : null) {
   if (!root?.querySelectorAll) return 0;
   let applied = 0;
   root.querySelectorAll("[data-i18n]").forEach((element) => {
@@ -57,18 +70,14 @@ export function applyTranslations(root = document) {
     element.textContent = t(key);
     applied++;
   });
-  root.querySelectorAll("[data-i18n-title]").forEach((element) => {
-    const key = element.getAttribute("data-i18n-title");
-    if (!key) return;
-    element.setAttribute("title", t(key));
-    applied++;
-  });
-  root.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
-    const key = element.getAttribute("data-i18n-placeholder");
-    if (!key) return;
-    element.setAttribute("placeholder", t(key));
-    applied++;
-  });
+  for (const [sourceAttr, targetAttr] of ATTRIBUTE_BINDINGS) {
+    root.querySelectorAll(`[${sourceAttr}]`).forEach((element) => {
+      const key = element.getAttribute(sourceAttr);
+      if (!key) return;
+      element.setAttribute(targetAttr, t(key));
+      applied++;
+    });
+  }
   return applied;
 }
 

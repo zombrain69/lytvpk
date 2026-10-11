@@ -1,5 +1,5 @@
 import { showMessageModal } from "../../core/message-modal.js";
-import { t, applyTranslations } from "../../core/i18n-runtime.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let getConfig;
 let saveConfig;
@@ -300,7 +300,6 @@ export async function showUpdateModal(info) {
     const closeReadOnlyModal = () => modal.classList.add("hidden");
     cancelBtn.onclick = closeReadOnlyModal;
     closeBtn.onclick = closeReadOnlyModal;
-    applyTranslations(modal);
     modal.classList.remove("hidden");
     return;
   }
@@ -625,7 +624,6 @@ export async function showUpdateModal(info) {
   cancelBtn.onclick = cleanup;
   closeBtn.onclick = cleanup;
 
-  applyTranslations(modal);
   modal.classList.remove("hidden");
 }
 

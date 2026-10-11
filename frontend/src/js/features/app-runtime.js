@@ -11,6 +11,7 @@ import {
 } from "../core/config.js";
 import { applyUIScale, setupUIScaleShortcuts } from "../core/ui-scale.js";
 import { applyReadingComfort } from "../core/reading-comfort.mjs";
+import { applyTranslations } from "../core/i18n-runtime.js";
 import { setupModalResizers } from "../core/modal-resizer.js";
 import { setupFloatingModal } from "../core/floating-modal.js";
 import { initTheme, setupThemeToggle } from "../core/theme.js";
@@ -891,6 +892,9 @@ async function initializeApp() {
 
   initTheme();
   initAppShell();
+  // i18n 静态节点统一回填：index.html 里带 data-i18n* 的节点全部走这一条路径
+  // （启动时一次；语言切换后的全量重放由 i18n 运行时自己负责，页面/弹窗不再各自处理）。
+  applyTranslations();
   setupModalResizers();
   // 主窗口几何记忆（对齐 FireAxe v0.7.3）：恢复上次的宽高 / 最大化状态，之后跟着保存。
   void restoreMainWindowGeometry();

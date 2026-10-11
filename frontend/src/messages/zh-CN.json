@@ -1,6 +1,19 @@
 {
   "app": {
-    "name": "LytVPK"
+    "name": "LytVPK",
+    "shell": {
+      "window": {
+        "minimize": "最小化",
+        "maximize": "最大化/还原",
+        "close": "关闭"
+      },
+      "commandPalette": {
+        "tooltip": "命令面板（Ctrl+K）：输入关键词跳转页面或执行常用动作"
+      },
+      "shortcuts": {
+        "dialogLabel": "键盘快捷键总览"
+      }
+    }
   },
   "toolbox": {
     "title": "工具箱",
@@ -191,6 +204,87 @@
         "updated": "Mod随机轮换设置已更新",
         "disabled": "Mod随机轮换已关闭"
       }
+    },
+    "toolbar": {
+      "selectDirectory": "选择addons目录",
+      "directoryTriggerTooltip": "点击切换历史目录",
+      "directoryListTitle": "历史目录",
+      "directoryEmpty": "暂无保存的目录",
+      "loadOrder": "加载顺序",
+      "loadOrderTooltip": "优化或调整 addonlist.txt 的加载顺序",
+      "groupFilterTooltip": "按策略组筛选 Mod；策略组内的 Mod 会在卡片上显示组徽标",
+      "groupSuggest": "分组建议",
+      "groupSuggestTooltip": "根据工坊合集、文件名前缀、共同标签、同一作者、相同主体推导可能属于同一组的 Mod",
+      "groupCapture": "用选中的 Mod 建组",
+      "groupManager": "策略组管理…",
+      "groupManagerTooltip": "打开「策略组管理」窗口：应用策略、组权重与上级分组、多选批量删除 / 开关自动联动，全生命周期都在这个窗口里",
+      "priorityTooltip": "输入 addonlist.txt 中显示的优先级编号，可在任意当前排序方式下定位对应 Mod",
+      "priorityPlaceholder": "优先级 #",
+      "priorityAriaLabel": "按优先级编号定位 Mod",
+      "priorityLocate": "定位",
+      "upload": "上传",
+      "refresh": "刷新",
+      "resetFilter": "重置筛选",
+      "conflictAnalysis": "冲突分析",
+      "conflictAnalysisTooltip": "只分析当前筛选出的 Mod；默认关闭，最多支持 5000 个筛选目标",
+      "conflictScope": "对比范围",
+      "conflictScopeTooltip": "选择冲突分析的对比范围和条件组合方式",
+      "categoryToggle": "分类",
+      "categoryToggleTooltip": "显示/隐藏分类树（按角色、武器、动作 XDR、音画场景等分类）",
+      "sortTooltip": "排序方式"
+    },
+    "search": {
+      "placeholder": "搜索 VPK（支持 tag:武器、slot:heal、-tag:材质、re:^ak 等写法；Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空）",
+      "helpTooltip": "搜索语法与快捷键",
+      "helpDialogLabel": "搜索语法与快捷键"
+    },
+    "filter": {
+      "showHidden": "显示隐藏"
+    },
+    "status": {
+      "selectionHint": "Shift 范围 · Ctrl 多选",
+      "selectionHintTooltip": "按住 Shift 选择连续范围，按住 Ctrl 选择多个不连续 Mod",
+      "pendingMoveTooltip": "Ctrl+X 标记待移动，Ctrl+V 选择目标目录后移动，Esc 取消",
+      "selectAll": "全选",
+      "deselectAll": "取消全选"
+    },
+    "category": {
+      "navLabel": "分类导航",
+      "searchPlaceholder": "搜索分类…",
+      "searchAriaLabel": "搜索分类",
+      "treeLabel": "Mod 分类",
+      "clear": "清除分类"
+    },
+    "columns": {
+      "name": "文件名",
+      "size": "大小",
+      "location": "位置",
+      "gameState": "游戏内开关",
+      "tags": "标签",
+      "actions": "操作"
+    },
+    "batch": {
+      "gameEnable": "游戏内启用",
+      "gameEnableTooltip": "把选中的 Mod 设为「游戏内启用」：只改 addonlist.txt 的 0/1，不移动、不删除文件",
+      "gameDisable": "游戏内关闭",
+      "gameDisableTooltip": "把选中的 Mod 设为「游戏内关闭」：只改 addonlist.txt 的 0/1，不移动、不删除文件",
+      "enable": "批量启用",
+      "disable": "批量禁用",
+      "disableMenuTooltip": "更多批量禁用选项",
+      "disableMenuAriaLabel": "更多批量禁用选项",
+      "disableAll": "禁用所有mod",
+      "disableAllCharacters": "禁用所有人物mod",
+      "disableAllWeapons": "禁用所有武器mod",
+      "more": "更多操作",
+      "hide": "批量隐藏",
+      "unhide": "批量取消隐藏",
+      "setTags": "设置标签",
+      "share": "分享物品",
+      "uploadServer": "上传服务器",
+      "exportZip": "导出ZIP",
+      "transferToRoot": "转移至根目录",
+      "move": "移动文件",
+      "delete": "批量删除"
     }
   },
   "workshop": {

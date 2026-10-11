@@ -81,7 +81,7 @@ test("index.html 静态节点 data-i18n* 引用的 key 都在目录里", () => {
   const html = readFileSync(htmlPath, "utf8");
   const catalogKeys = loadCatalogKeys();
   const referenced = [];
-  for (const match of html.matchAll(/data-i18n(?:-title|-placeholder)?="([\w.]+)"/g)) {
+  for (const match of html.matchAll(/data-i18n(?:-title|-placeholder|-aria-label|-alt)?="([\w.]+)"/g)) {
     referenced.push(match[1]);
   }
   assert.ok(referenced.length > 0, "没有扫描到任何 data-i18n 属性，检查正则或文件位置");
