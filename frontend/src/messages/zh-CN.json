@@ -1567,6 +1567,13 @@
         "copyFailed": "复制失败",
         "missingAll": "有 {count} 个 Mod 没有工坊 ID，未复制",
         "missingSkipped": "有 {count} 个 Mod 没有工坊 ID，已跳过"
+      },
+      "shortcut": {
+        "allSkipped": "没有可生成的工坊快捷方式：{count} 个文件都无法确定工坊 ID",
+        "done": "已生成工坊快捷方式：新建 {created}，更新 {updated}，未变 {unchanged}{skipped}",
+        "failed": "生成工坊快捷方式失败: {error}",
+        "skippedSuffix": "（跳过 {count} 个无法确定工坊 ID 的文件）",
+        "writeErrors": "有 {count} 个快捷方式写入失败"
       }
     },
     "contextMenu": {
@@ -1577,6 +1584,7 @@
       "integrityCheck": "VPK 完整性检测",
       "integrityCheckBatch": "检测/修复选中 VPK",
       "jumpToWorkshop": "跳转工坊",
+      "generateShortcut": "生成工坊快捷方式（.url）",
       "adjustLoadOrder": "调整加载顺序",
       "unpack": "解包",
       "openLocation": "打开位置",

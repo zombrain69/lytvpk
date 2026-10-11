@@ -22,7 +22,9 @@ import {
   moveSelected,
   transferSelectedWorkshopFiles,
   batchToggleVisibility,
+  generateWorkshopShortcutsForPaths,
 } from "./actions.js";
+import { hasWorkshopShortcutSource } from "./workshop-shortcut.mjs";
 import {
   shareSelectedWorkshopItems,
   shareWorkshopItem,
@@ -246,6 +248,14 @@ function buildSingleMenu(menu, file) {
     );
   }
 
+  if (hasWorkshopShortcutSource(file)) {
+    menu.appendChild(
+      createMenuItem(t("mods.contextMenu.generateShortcut"), iconSvg("link"), () =>
+        generateWorkshopShortcutsForPaths([file.path]),
+      ),
+    );
+  }
+
   if (file.workshopId) {
     menu.appendChild(createMenuItem(t("mods.batch.share"), iconSvg("share"), () => shareWorkshopItem(file)));
   }
@@ -321,6 +331,13 @@ function buildBatchMenu(menu) {
 
   menu.appendChild(createDivider());
   menu.appendChild(createMenuItem(t("mods.batch.share"), iconSvg("share"), () => shareSelectedWorkshopItems()));
+  if (selectedFiles.some((file) => hasWorkshopShortcutSource(file))) {
+    menu.appendChild(
+      createMenuItem(t("mods.contextMenu.generateShortcut"), iconSvg("link"), () =>
+        generateWorkshopShortcutsForPaths(selectedPaths),
+      ),
+    );
+  }
   menu.appendChild(createMenuItem(t("mods.batch.setTags"), iconSvg("tag"), () => openBatchSetTagsModal()));
   appendGroupMenuItems(menu, selectedPaths);
   menu.appendChild(

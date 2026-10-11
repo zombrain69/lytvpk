@@ -1,5 +1,25 @@
 # Changelog
 
+## 未发布 — 工坊快捷方式（.url）生成（2026-10-12）
+
+- 新能力（路线图第 7 项）：MOD 管理页右键（单文件或多选）新增 **「生成工坊快捷方式（.url）」** ——
+  在 VPK 同目录生成同名 `.url`（Windows InternetShortcut 格式，三行、CRLF，与参考实现
+  sHartet/l4d2-addons 同款），资源管理器里双击直达对应工坊页。
+- ID 解析链（与详情面板 `resolveWorkshopID` 同序）：同名 `.meta` 的 `workshop_id` →
+  `workshop\` 下的纯数字文件名（隐藏的 `_` 前缀先剥掉再校验）→ 扫描缓存里 `addoninfo.txt`
+  的 `addonURL0`；无法确定 ID 的文件逐项跳过并在通知里说明原因，不猜测、不写文件。
+- 幂等与安全：既有 `.url` 已指向同一工坊页时原样保留（浏览器拖拽生成的完整格式不会被
+  「统一格式」改写），指向别的页才改写并计入「更新」；沙箱只读闸门
+  （`LYTVPK_READONLY_LIBRARY=1`）下整体拒绝。只新增/更新 `.url` 旁车文件，不动 VPK 本体。
+- `.url` 随行：重命名 / 移动 / 隐藏 Mod 时 `.url` 作为旁车一起移动，删除时一并回收
+  （`handleSidecarFile` / `copySidecarFiles` 的旁车扩展列表加 `.url`）。
+- 测试：Go 新增 `internal/app/workshop_shortcut_test.go`（12 项：解析链与优先级 / 幂等 /
+  改写 / 跳过 / 非法输入 / 旁车随行）；前端新增
+  `features/file-list/workshop-shortcut.test.mjs`（7 项，右键菜单可见性预判）。
+- 验证：`go test -count=1 ./...` / `go vet ./...` 全过；前端显式清单 123 文件 598 项 0 失败；
+  `npm run build` 通过。**真机 UI 验证项已登记 manual-verification §20**（浏览器双击 `.url` 的
+  系统关联行为只能真机确认）。
+
 ## 未发布 — 观察项清理：mod-panel 死代码 + operations.js 死分支（2026-10-12）
 
 - **`features/mods/mod-panel.js` 删除**（路线图观察项⑤，核实后执行）：右侧信息面板的旧实现 ——

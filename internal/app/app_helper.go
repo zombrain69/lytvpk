@@ -42,7 +42,7 @@ func copySidecarFiles(srcPath, destPath string) error {
 	srcBase := strings.TrimSuffix(srcPath, srcExt)
 	destExt := filepath.Ext(destPath)
 	destBase := strings.TrimSuffix(destPath, destExt)
-	for _, ext := range []string{".jpg", ".jpeg", ".png", ".gif", ".meta"} {
+	for _, ext := range []string{".jpg", ".jpeg", ".png", ".gif", ".meta", ".url"} {
 		srcSidecar := srcBase + ext
 		if _, err := os.Stat(srcSidecar); err != nil {
 			if os.IsNotExist(err) {
@@ -65,8 +65,8 @@ func (a *App) handleSidecarFile(srcPath, destPath string, op string) {
 	srcExt := filepath.Ext(srcPath)
 	srcBase := strings.TrimSuffix(srcPath, srcExt)
 
-	// 可能的图片扩展名和meta扩展名
-	exts := []string{".jpg", ".jpeg", ".png", ".gif", ".meta"}
+	// 可能的图片扩展名、meta 扩展名与工坊快捷方式（.url）
+	exts := []string{".jpg", ".jpeg", ".png", ".gif", ".meta", ".url"}
 
 	for _, ext := range exts {
 		srcImg := srcBase + ext

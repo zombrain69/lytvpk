@@ -350,6 +350,10 @@ export function GenerateStockWhitelistBatchesFromGame() {
   return window['go']['app']['App']['GenerateStockWhitelistBatchesFromGame']();
 }
 
+export function GenerateWorkshopShortcuts(arg1) {
+  return window['go']['app']['App']['GenerateWorkshopShortcuts'](arg1);
+}
+
 export function GetAddonListInfo() {
   return window['go']['app']['App']['GetAddonListInfo']();
 }

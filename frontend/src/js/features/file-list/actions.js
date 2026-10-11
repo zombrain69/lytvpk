@@ -19,6 +19,7 @@ import {
   SelectDirectory,
   GetVPKFiles,
   ToggleVPKVisibility,
+  GenerateWorkshopShortcuts,
 } from "../../../../wailsjs/go/app/App";
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import { moveVpkFilesWithConflictResolution } from "./file-move-conflicts.js";
@@ -510,6 +511,44 @@ export function transferSelectedWorkshopFiles() {
       );
     },
   );
+}
+
+/**
+ * generateWorkshopShortcutsForPaths 为一批 Mod 生成工坊快捷方式（.url）。
+ *
+ * ID 解析（.meta → workshop 纯数字文件名 → addonURL0）与校验都在后端
+ * GenerateWorkshopShortcuts 里做；这里只负责发起调用与结果提示。
+ * 无法确定 ID 的文件由后端逐项跳过，不猜测、不写文件；写入失败逐条计数。
+ */
+export async function generateWorkshopShortcutsForPaths(filePaths) {
+  const paths = Array.from(new Set((filePaths || []).filter(Boolean)));
+  if (paths.length === 0) {
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
+    return;
+  }
+  try {
+    const result = await GenerateWorkshopShortcuts(paths);
+    const created = Number(result?.created || 0);
+    const updated = Number(result?.updated || 0);
+    const unchanged = Number(result?.unchanged || 0);
+    const skipped = Array.isArray(result?.skipped) ? result.skipped.length : 0;
+    const writeErrors = Array.isArray(result?.errors) ? result.errors.length : 0;
+    if (created + updated + unchanged === 0) {
+      showNotification(t("mods.ops.shortcut.allSkipped", { count: skipped }), "info");
+    } else {
+      const skippedText = skipped > 0 ? t("mods.ops.shortcut.skippedSuffix", { count: skipped }) : "";
+      showNotification(
+        t("mods.ops.shortcut.done", { created, updated, unchanged, skipped: skippedText }),
+        "success",
+      );
+    }
+    if (writeErrors > 0) {
+      showError(t("mods.ops.shortcut.writeErrors", { count: writeErrors }));
+    }
+  } catch (err) {
+    console.error("生成工坊快捷方式失败:", err);
+    showError(t("mods.ops.shortcut.failed", { error: String(err) }));
+  }
 }
 
 export async function batchToggleVisibility(hide) {

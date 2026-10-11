@@ -180,6 +180,8 @@ export function GenerateEntityTable(arg1:string,arg2:string):Promise<string>;
 
 export function GenerateStockWhitelistBatchesFromGame():Promise<app.StockWhitelistStatus>;
 
+export function GenerateWorkshopShortcuts(arg1:Array<string>):Promise<app.WorkshopShortcutResult>;
+
 export function GetAddonListInfo():Promise<app.AddonListInfo>;
 
 export function GetAddonListLoadOrderEntries():Promise<Array<app.AddonListLoadOrderEntry>>;
