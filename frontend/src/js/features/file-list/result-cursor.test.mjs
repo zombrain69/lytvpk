@@ -9,6 +9,9 @@ import {
   nextResultPath,
   syncCursorHighlight,
 } from "./result-cursor.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const paths = ["a.vpk", "b.vpk", "c.vpk"];
 

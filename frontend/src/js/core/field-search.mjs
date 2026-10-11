@@ -8,6 +8,7 @@
 
 import { compiledRegex, negatedTerms, parseSearchSyntax, positiveTerms } from "../features/file-list/search-syntax.mjs";
 import { subsequenceMatch } from "../features/file-list/search-match.mjs";
+import { t } from "./i18n-runtime.js";
 
 const toTextFields = (values) =>
   (Array.isArray(values) ? values : [])
@@ -72,16 +73,16 @@ export function searchByFields(items, query, accessors = {}) {
   return { items: filtered, matched: filtered.length, total: list.length, regexInvalid: "", syntax };
 }
 
-/** describeFieldSearch 生成计数文案（名词由调用方给，例如"压缩包" / "Mod"）。 */
-export function describeFieldSearch({ total = 0, matched = 0, query = "", regexInvalid = "", noun = "条目" } = {}) {
+/** describeFieldSearch 生成计数文案（名词由调用方给，例如"压缩包" / "Mod"；缺省名词来自目录）。 */
+export function describeFieldSearch({ total = 0, matched = 0, query = "", regexInvalid = "", noun = t("search.defaultNoun") } = {}) {
   const keyword = String(query ?? "").trim();
   if (!keyword) return "";
-  if (regexInvalid) return `正则表达式无效：${regexInvalid}`;
+  if (regexInvalid) return t("search.regexInvalid", { detail: regexInvalid });
   // 拉丁字母名词（Mod / VPK）与中文之间留一个空格，中文名词不加。
   const separator = /^[A-Za-z]/.test(noun) ? " " : "";
   const label = `${separator}${noun}`;
-  if (Number(matched) === 0) return `没有匹配「${keyword}」的${label}（共 ${Number(total) || 0} 个）`;
-  return `匹配 ${Number(matched) || 0} / ${Number(total) || 0} 个${label}`;
+  if (Number(matched) === 0) return t("search.noMatch", { keyword, noun: label, total: Number(total) || 0 });
+  return t("search.matchedCount", { matched: Number(matched) || 0, total: Number(total) || 0, noun: label });
 }
 
 /** highlightSpecFor 给出高亮参数（没有查询或正则写错时返回 null）。 */

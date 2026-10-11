@@ -1,5 +1,29 @@
 # Changelog
 
+## 未发布 — i18n：Mod 列表检索支持迁移（field-search / search-help / search-match / result-cursor）（第 13 项第二批）（2026-10-11）
+
+- `core/field-search.mjs`（各面板共用计数模板）：`正则表达式无效：…` / `没有匹配「…」的 N（共 M 个）` /
+  `匹配 N / M 个…` 与缺省名词「条目」改走目录（`search.regexInvalid` / `search.noMatch` /
+  `search.matchedCount` / `search.defaultNoun`）；拉丁字母名词与中文之间补空格的行为保持不变。
+- `features/file-list/search-help.mjs`（搜索语法说明书，6 个面板共用）：`?` 浮层的三个分区标题、
+  六个变体的匹配范围字段、字段说明、43 条语法示例（写法 + 含义）与搜索框悬停提示全部改 key
+  （`search.section.*` / `search.fields.*` / `search.note.*` / `search.example.*` /
+  `search.titleTooltip`）；静态表改「key 表 + 延迟取文案」（模块求值期不调 t()），
+  六个变体对外导出名不变（`MOD_SEARCH_HELP_VARIANT` 等）。
+- `features/file-list/search-match.mjs`：命中字段 chip 的 7 个字段名（`mods.search.matchField.*`）、
+  XDR 状态检索值（`mods.search.xdrState.*`）、chip 模板与计数文案（`mods.search.matchChip` /
+  `mods.search.regexInvalid` / `mods.search.noMatch` / `mods.search.count`）改走目录。
+- `features/file-list/result-cursor.mjs`：位置说明模板与默认 Enter 提示改走目录
+  （`search.cursor.position` / `search.cursor.defaultHint`）。
+- 说明（留档）：`search-syntax.mjs` 的「标签: / -标签: / 槽位: / -槽位: / 正则:」是双端约定的
+  语法前缀常量（Go `search_query.go` 镜像），按协议层处理、不迁移。
+- 测试：`search-help.test.mjs` / `search-match.test.mjs` / `result-cursor.test.mjs` /
+  `archive-search.test.mjs` / `model-stats-search.test.mjs` / `strategy-group-filter.test.mjs`
+  注入 `installTestCatalog()`（渲染 / 计数断言改为经真实目录取值）。
+- 目录新增 146 key：顶层 `search.*` 132 叶 + `mods.search.*` 新增 14 叶；既有条目值零改动。
+- 验证：`node --test`（frontend，118 文件）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变。
+
 ## 未发布 — i18n：迁移冲突检测家族（conflicts，8 个源文件）（第 13 项第一批）（2026-10-11）
 
 - `conflicts.js` 全部用户可见文案改走 `t()`（109 处；3 处 console 诊断保持原样）：

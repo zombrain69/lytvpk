@@ -3,6 +3,8 @@
 // 为什么需要：搜索框本身很好用（Ctrl+F 聚焦、Esc 清空），但选结果还得把手从键盘挪到鼠标。
 // 这里只做"光标落在哪一行"的纯计算，DOM 操作留给调用方，方便 node --test 覆盖。
 
+import { t } from "../../core/i18n-runtime.js";
+
 /**
  * nextResultPath 在结果路径列表里移动光标。
  *
@@ -28,13 +30,14 @@ export function nextResultPath(paths, currentPath, delta) {
 
 /**
  * describeResultCursor 生成"第 3 / 12 个结果"这样的位置说明（给提示条与无障碍用）。
- * hint 由调用方给（不同面板 Enter 做的事不同：打开详情 / 展开压缩包 / 展开模型）。
+ * hint 由调用方给（不同面板 Enter 做的事不同：打开详情 / 展开压缩包 / 展开模型）；
+ * 默认值与位置模板（search.cursor.*）都在目录里。
  */
-export function describeResultCursor(paths, currentPath, hint = "Enter 打开详情") {
+export function describeResultCursor(paths, currentPath, hint = t("search.cursor.defaultHint")) {
   const list = Array.isArray(paths) ? paths : [];
   const index = list.indexOf(String(currentPath || ""));
   if (index < 0 || list.length === 0) return "";
-  return `第 ${index + 1} / ${list.length} 个结果（${hint}）`;
+  return t("search.cursor.position", { index: index + 1, total: list.length, hint });
 }
 
 /**

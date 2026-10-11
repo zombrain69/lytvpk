@@ -9,6 +9,9 @@ import {
   searchArchivePackages,
 } from "./archive-search.mjs";
 import { ARCHIVE_SEARCH_HELP_VARIANT, buildSearchHelpTitle } from "../file-list/search-help.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const packages = [
   {

@@ -2,14 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+import { t } from "../../core/i18n-runtime.js";
 import {
   ARCHIVE_SEARCH_HELP_VARIANT,
-  SEARCH_FIELD_LABELS,
+  SEARCH_FIELD_LABEL_KEYS,
   SEARCH_SHORTCUT_ROWS,
   SEARCH_SYNTAX_ROWS,
   buildSearchHelpHtml,
   buildSearchHelpTitle,
 } from "./search-help.mjs";
+
+installTestCatalog();
 
 test("归档面板复用同一份说明书，但字段与 tag: 含义不同", () => {
   const html = buildSearchHelpHtml(ARCHIVE_SEARCH_HELP_VARIANT);
@@ -30,12 +34,12 @@ test("归档面板复用同一份说明书，但字段与 tag: 含义不同", ()
 });
 
 test("语法表覆盖实际支持的全部写法", () => {
-  const syntaxes = SEARCH_SYNTAX_ROWS.map((row) => row.syntax).join(" ");
+  const syntaxes = SEARCH_SYNTAX_ROWS.map((row) => t(row.syntaxKey)).join(" ");
   ["tag:", "|", "-tag:", "re:", "slot:", "-slot:", '"'].forEach((token) => {
     assert.ok(syntaxes.includes(token), `语法表应包含 ${token} 的示例`);
   });
   // 每一行都要有说明，不能只有写法。
-  assert.ok(SEARCH_SYNTAX_ROWS.every((row) => row.description.trim().length > 0), "语法行要有说明");
+  assert.ok(SEARCH_SYNTAX_ROWS.every((row) => t(row.descriptionKey).trim().length > 0), "语法行要有说明");
   assert.ok(SEARCH_SHORTCUT_ROWS.length >= 4, "快捷键至少列出 Ctrl+F / ↑↓ / Enter / Esc");
 });
 
@@ -49,7 +53,7 @@ test("浮层 HTML 全部转义，并把范围与快捷键都写清", () => {
   // 反斜杠与引号这类字符必须被转义进 code 里，而不是当成 HTML。
   assert.match(html, /re:\^ak\\d\+\$/, "正则示例要原样显示");
   assert.ok(!html.includes('"ak 47"'), "双引号示例应被转义");
-  assert.ok(SEARCH_FIELD_LABELS.every((label) => html.includes(label)), "匹配范围要逐项列出");
+  assert.ok(SEARCH_FIELD_LABEL_KEYS.map((key) => t(key)).every((label) => html.includes(label)), "匹配范围要逐项列出");
 });
 
 test("悬停提示是一行版，且与浮层同源", () => {

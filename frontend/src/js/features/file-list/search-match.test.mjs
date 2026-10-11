@@ -11,6 +11,9 @@ import {
   normalizeQuery,
   subsequenceMatch,
 } from "./search-match.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const sampleFile = {
   title: "AK47 突击步枪",

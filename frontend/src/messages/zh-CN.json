@@ -306,7 +306,25 @@
     "search": {
       "placeholder": "搜索 VPK（支持 tag:武器、slot:heal、-tag:材质、re:^ak 等写法；Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空）",
       "helpTooltip": "搜索语法与快捷键",
-      "helpDialogLabel": "搜索语法与快捷键"
+      "helpDialogLabel": "搜索语法与快捷键",
+      "matchChip": "匹配：{list}",
+      "regexInvalid": "正则表达式无效：{detail}",
+      "noMatch": "没有匹配「{keyword}」的 Mod（共 {total} 个）",
+      "count": "匹配 {matched} / {total} 个 Mod",
+      "xdrState": {
+        "active": "动作生效",
+        "random": "动作随机生效 同槽冲突",
+        "partial": "动作部分生效"
+      },
+      "matchField": {
+        "title": "标题",
+        "fileName": "文件名",
+        "primaryTag": "一级标签",
+        "secondaryTag": "子标签",
+        "subject": "主体",
+        "voice": "发音角色",
+        "slot": "动作槽"
+      }
     },
     "filter": {
       "showHidden": "显示隐藏"
@@ -2310,5 +2328,259 @@
     "fileCategoryAudio": "音频",
     "fileCategoryConfig": "配置",
     "fileCategoryOther": "其他"
+  },
+  "search": {
+    "section": {
+      "matches": "匹配范围",
+      "syntax": "语法",
+      "shortcuts": "快捷键"
+    },
+    "defaultNoun": "条目",
+    "regexInvalid": "正则表达式无效：{detail}",
+    "noMatch": "没有匹配「{keyword}」的{noun}（共 {total} 个）",
+    "matchedCount": "匹配 {matched} / {total} 个{noun}",
+    "titleTooltip": "匹配：{fields}\n语法：{syntax}\n快捷键：Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空",
+    "cursor": {
+      "defaultHint": "Enter 打开详情",
+      "position": "第 {index} / {total} 个结果（{hint}）"
+    },
+    "fields": {
+      "mods": {
+        "title": "标题",
+        "fileName": "文件名",
+        "primaryTag": "一级标签",
+        "secondaryTag": "子标签",
+        "subject": "结构化主体",
+        "voice": "发音角色",
+        "slot": "动作槽"
+      },
+      "archive": {
+        "packageName": "压缩包名",
+        "path": "路径",
+        "innerVpkName": "包内 VPK 名",
+        "innerVpkPath": "包内 VPK 路径",
+        "packageState": "包状态"
+      },
+      "modelStats": {
+        "title": "Mod 标题",
+        "fileName": "文件名",
+        "path": "路径",
+        "modelPath": "模型 .mdl / .vtx / .vvd 路径",
+        "scanNote": "扫描备注",
+        "scanState": "扫描状态"
+      },
+      "groupManager": {
+        "name": "组名",
+        "description": "组描述",
+        "member": "成员名（含文件键）",
+        "state": "组状态"
+      },
+      "conflicts": {
+        "path": "冲突资源路径",
+        "participants": "参与 Mod 的名称 / 标题 / 文件路径",
+        "severityState": "严重度与判定状态"
+      },
+      "health": {
+        "subject": "问题对象名",
+        "path": "文件路径",
+        "target": "可操作目标",
+        "hint": "提示文案",
+        "severityType": "严重度与问题类型"
+      }
+    },
+    "note": {
+      "mods": "大小写不敏感；命中的片段会在标题/文件名里高亮，并标注是哪个字段命中的。",
+      "archive": "大小写不敏感；命中的片段会在压缩包名里高亮，并标出是哪个包状态命中的。",
+      "modelStats": "大小写不敏感；命中的片段会在 Mod 名或模型路径里高亮，并标出是哪个扫描状态命中的。",
+      "groupManager": "大小写不敏感；命中的组会连它的上级与下级一起显示，缩进不会指向看不见的组。",
+      "conflicts": "大小写不敏感；命中的片段会在 Mod 名与资源路径里高亮。搜索与上面的严重度筛选是「与」的关系。",
+      "health": "大小写不敏感；命中的片段会在问题标题与说明里高亮。搜索只影响显示，不影响体检结果本身。"
+    },
+    "example": {
+      "mods": {
+        "plain": {
+          "syntax": "ak47 武器",
+          "desc": "普通词（可多个）：都要命中，字符按顺序出现即可"
+        },
+        "quoted": {
+          "syntax": "\"ak 47\"",
+          "desc": "引号里的空格算一个词"
+        },
+        "tagSingle": {
+          "syntax": "tag:步枪",
+          "desc": "必须有这个标签（一级或子标签）"
+        },
+        "tagOr": {
+          "syntax": "tag:步枪|狙击",
+          "desc": "任一标签命中即可（或）"
+        },
+        "tagAnd": {
+          "syntax": "tag:武器 tag:步枪",
+          "desc": "两个标签都要（且）"
+        },
+        "tagExclude": {
+          "syntax": "-tag:材质",
+          "desc": "排除含这个标签的 Mod"
+        },
+        "slot": {
+          "syntax": "slot:heal",
+          "desc": "按动作槽筛（XDR）：角色 / 槽位号 / 官方用途名都算，如 slot:zoey、slot:32、slot:救援"
+        },
+        "slotExclude": {
+          "syntax": "-slot:救援",
+          "desc": "排除含该动作槽的 Mod（例如不想看某角色的动作包）"
+        },
+        "exclude": {
+          "syntax": "-材质",
+          "desc": "排除「包含」这个词的 Mod（子串匹配；不做模糊，长路径不会误伤）"
+        },
+        "regex": {
+          "syntax": "re:^ak\\d+$",
+          "desc": "正则匹配；写法有误会直接提示「正则表达式无效」"
+        }
+      },
+      "archive": {
+        "plain": {
+          "syntax": "ak47 武器",
+          "desc": "普通词（可多个）：都要命中，字符按顺序出现即可"
+        },
+        "quoted": {
+          "syntax": "\"ak 47\"",
+          "desc": "引号里的空格算一个词"
+        },
+        "exclude": {
+          "syntax": "-old",
+          "desc": "排除「包含」old 的压缩包（子串匹配，长路径不会误伤）"
+        },
+        "tagState": {
+          "syntax": "tag:密码",
+          "desc": "按包状态筛：密码 / 错误 / 已有 / 待导入"
+        },
+        "tagStateOr": {
+          "syntax": "tag:密码|错误",
+          "desc": "任一状态命中即可（或）"
+        },
+        "tagStateAnd": {
+          "syntax": "tag:错误 -tag:密码",
+          "desc": "两个状态条件同时生效（且 / 排除）"
+        },
+        "regex": {
+          "syntax": "re:^mods-",
+          "desc": "正则匹配；写法有误会直接提示「正则表达式无效」"
+        }
+      },
+      "modelStats": {
+        "plain": {
+          "syntax": "ak47",
+          "desc": "普通词（可多个）：都要命中，字符按顺序出现即可"
+        },
+        "multiField": {
+          "syntax": "models weapons",
+          "desc": "两个词可以分别命中不同字段（模型路径也算）"
+        },
+        "exclude": {
+          "syntax": "-katana",
+          "desc": "排除「包含」katana 的 Mod（子串匹配，长路径不会误伤）"
+        },
+        "tagState": {
+          "syntax": "tag:无模型",
+          "desc": "只看没检测到模型的条目（有模型 / 无模型 / 估算）"
+        },
+        "tagStateAnd": {
+          "syntax": "tag:有模型 -tag:估算",
+          "desc": "有模型、且三角形数不是估算值"
+        },
+        "regex": {
+          "syntax": "re:\\.mdl$",
+          "desc": "正则匹配；写法有误会直接提示「正则表达式无效」"
+        }
+      },
+      "groupManager": {
+        "plain": {
+          "syntax": "医疗箱",
+          "desc": "普通词（可多个）：都要命中；组名与成员名都算"
+        },
+        "multiField": {
+          "syntax": "ak47 medkit",
+          "desc": "两个词可以分别命中组名与成员名"
+        },
+        "exclude": {
+          "syntax": "-备用",
+          "desc": "排除「包含」备用的组（子串匹配；被排除的组不会因为父组命中又被带出来）"
+        },
+        "tagPolicy": {
+          "syntax": "tag:单选",
+          "desc": "按策略筛：全开 / 全关 / 单选 / 随机单选"
+        },
+        "tagTopLevel": {
+          "syntax": "tag:顶层 -tag:子组",
+          "desc": "只看顶层组；层级标签还有「子组」，「自动联动」对应常开联动"
+        },
+        "regex": {
+          "syntax": "re:^AK\\d+",
+          "desc": "正则匹配；写法有误会直接提示「正则表达式无效」"
+        }
+      },
+      "conflicts": {
+        "plain": {
+          "syntax": "ak47",
+          "desc": "普通词（可多个）：都要命中；资源路径与 Mod 名都算"
+        },
+        "multiField": {
+          "syntax": "models weapons",
+          "desc": "两个词可以分别命中不同字段"
+        },
+        "exclude": {
+          "syntax": "-katana",
+          "desc": "排除「包含」katana 的冲突组（子串匹配，长路径不会误伤）"
+        },
+        "tagSeverity": {
+          "syntax": "tag:严重",
+          "desc": "按严重度筛：严重 / 警告 / 提示"
+        },
+        "tagSameLayer": {
+          "syntax": "tag:同层",
+          "desc": "只看「参与者共用同一个有效分层」的真冲突；另有「未记录」（有 Mod 没写进 addonlist）"
+        },
+        "tagAndExclude": {
+          "syntax": "tag:同层 -tag:严重",
+          "desc": "条件可以组合（且 / 排除）"
+        },
+        "regex": {
+          "syntax": "re:\\.nut$",
+          "desc": "正则匹配；写法有误会直接提示「正则表达式无效」"
+        }
+      },
+      "health": {
+        "plain": {
+          "syntax": "ak47",
+          "desc": "普通词（可多个）：对象名、路径与提示文案都算"
+        },
+        "twoWords": {
+          "syntax": "addonlist 依赖",
+          "desc": "两个词要同时命中同一条问题"
+        },
+        "exclude": {
+          "syntax": "-unrecorded",
+          "desc": "排除「包含」这个词的问题（子串匹配，长路径不会误伤）"
+        },
+        "tagSeverity": {
+          "syntax": "tag:严重",
+          "desc": "按严重度筛：严重 / 警告 / 提示"
+        },
+        "tagType": {
+          "syntax": "tag:条目缺少文件",
+          "desc": "按问题类型筛（类型名与列表里显示的一致，例如「同名路径是文件夹」）"
+        },
+        "tagAndWord": {
+          "syntax": "tag:警告 依赖",
+          "desc": "条件可以组合（且 / 排除）"
+        },
+        "regex": {
+          "syntax": "re:\\.vpk$",
+          "desc": "正则匹配；写法有误会直接提示「正则表达式无效」"
+        }
+      }
+    }
   }
 }

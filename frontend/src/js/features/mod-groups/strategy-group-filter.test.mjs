@@ -8,6 +8,9 @@ import {
   formatBatchHint,
   groupTags,
 } from "./strategy-group-filter.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const rows = [
   { group: { id: "box", name: "!!医疗箱 系列", members: [{ name: "bbb武器.vpk" }] }, depth: 1 },

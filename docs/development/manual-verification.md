@@ -515,6 +515,9 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
   `frontend/src/js/features/app-runtime-i18n.test.mjs` 钉住「渲染成原句」与 data-i18n* 接线）；
   冲突检测家族（`features/conflicts/` 8 个源文件，含忽略清单说明）已迁移（第 13 项第一批，
   四个纯文案模块测试经 `installTestCatalog()` 断言真实目录文案）；
+  检索支持层（`core/field-search.mjs` 计数模板、`features/file-list/search-help.mjs` 语法说明书
+  （6 个面板共用）、`search-match.mjs` 命中 chip 与计数、`result-cursor.mjs` 位置说明）已迁移
+  （第 13 项第二批；六个跨面板测试经 `installTestCatalog()` 断言说明书渲染与计数文案逐字不变）；
   服务器页的官方战役/章节名与模式名表按数据层排除（见 i18n.md）；静态节点（含更新弹窗、
   工坊弹窗骨架与其余窗口）已由第 10 / 12 项统一挂 `data-i18n*`，启动与语言切换时由
   `applyTranslations()` 全量回填；
@@ -534,6 +537,10 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
     对比范围摘要与预览行、筛选说明、空态、修复建议（展开建议（N 条）/ 收起建议）、
     分组卡片（严重度徽标 / 覆盖 / 同层 N / N 个冲突文件 / 长按拖动可排序）、行内按钮及其悬停说明、
     文件树加载与分页文案与迁移前逐字一致。
+- [ ] 在 Mod 列表点搜索框旁的 `?` 按钮打开搜索语法说明书，并搜索一个词（如 `ak47` 或 `tag:武器`）。
+  - 预期：浮层「匹配范围 / 语法 / 快捷键」三节内容与迁移前逐字一致（含各语法示例的写法与含义）；
+    命中 chip（匹配：标题 · 文件名 …）与命中计数（匹配 N / M 个 Mod）不变；压缩包管理 / 模型统计 /
+    策略组管理 / 冲突检测 / 体检结果五个面板的 `?` 浮层字段清单与示例同样逐字不变。
 - [ ] 点击工具栏「轮换」按钮（Mod 随机轮换）。
   - 预期：按钮文案（轮换已关闭 / 轮换已启用 / 人物轮换已启用 / 武器轮换已启用 /
     分类轮换已启用（N 类））与迁移前一致；确认弹窗（标题、两个开关、按分类输入与提示、

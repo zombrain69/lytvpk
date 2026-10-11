@@ -13,6 +13,7 @@
 // 不会在界面上乱标。
 
 import { compiledRegex, parseSearchSyntax, positiveTerms } from "./search-syntax.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 // 这里特意不依赖 core/utils.js 的 escapeHtml：那个实现走 DOM（document.createElement），
 // 会让这个纯函数层没法在 node --test 里跑。高亮必须自己负责转义，所以就地实现一份。
@@ -159,24 +160,24 @@ export function highlightRangesFor(text, spec) {
 	return ranges;
 }
 
-// 可被搜索的字段与它们在界面上的叫法（顺序 = 展示优先级）。
+// 可被搜索的字段与它们在界面上的叫法（顺序 = 展示优先级；文案在目录里，渲染时取）。
 const SEARCHABLE_FIELDS = [
-	{ label: "标题", read: (file) => [file?.title] },
-	{ label: "文件名", read: (file) => [file?.name] },
-	{ label: "一级标签", read: (file) => [file?.primaryTag] },
-	{ label: "子标签", read: (file) => file?.secondaryTags || [] },
-	{ label: "主体", read: (file) => [file?.subjectSummary, ...(file?.contentSubjects || [])] },
-	{ label: "发音角色", read: (file) => file?.voiceCharacters || [] },
+	{ labelKey: "mods.search.matchField.title", read: (file) => [file?.title] },
+	{ labelKey: "mods.search.matchField.fileName", read: (file) => [file?.name] },
+	{ labelKey: "mods.search.matchField.primaryTag", read: (file) => [file?.primaryTag] },
+	{ labelKey: "mods.search.matchField.secondaryTag", read: (file) => file?.secondaryTags || [] },
+	{ labelKey: "mods.search.matchField.subject", read: (file) => [file?.subjectSummary, ...(file?.contentSubjects || [])] },
+	{ labelKey: "mods.search.matchField.voice", read: (file) => file?.voiceCharacters || [] },
 	{
-		label: "动作槽",
+		labelKey: "mods.search.matchField.slot",
 		read: (file) => {
 			const priority = file?.xdrPriority;
 			const stateText = priority?.state === "active"
-				? "动作生效"
+				? t("mods.search.xdrState.active")
 				: priority?.state === "random"
-					? "动作随机生效 同槽冲突"
+					? t("mods.search.xdrState.random")
 					: priority?.state === "partial"
-						? "动作部分生效"
+						? t("mods.search.xdrState.partial")
 						: "";
 			return [file?.xdrSummary, stateText];
 		},
@@ -187,10 +188,10 @@ const SEARCHABLE_FIELDS = [
 function fileTags(file) {
 	const tags = [];
 	const primary = String(file?.primaryTag ?? "").trim();
-	if (primary) tags.push({ name: primary, label: "一级标签" });
+	if (primary) tags.push({ name: primary, labelKey: "mods.search.matchField.primaryTag" });
 	for (const tag of file?.secondaryTags || []) {
 		const name = String(tag ?? "").trim();
-		if (name) tags.push({ name, label: "子标签" });
+		if (name) tags.push({ name, labelKey: "mods.search.matchField.secondaryTag" });
 	}
 	return tags;
 }
@@ -240,7 +241,7 @@ function matchReasonLabelsFor(file, spec, max) {
 			});
 			// 命中几个字段就列几个：只说"标题"会让人以为文件名没命中，
 			// 实际上"匹配到哪些字段"本身就是用户想知道的信息（上限由 max 控制）。
-			if (hit) push(field.label);
+			if (hit) push(t(field.labelKey));
 		}
 	}
 
@@ -252,7 +253,7 @@ function matchReasonLabelsFor(file, spec, max) {
 				const text = String(value ?? "").trim();
 				return text !== "" && regex.test(text);
 			});
-			if (hit) push(field.label);
+			if (hit) push(t(field.labelKey));
 		}
 	}
 
@@ -262,12 +263,12 @@ function matchReasonLabelsFor(file, spec, max) {
 		const matched = tags.find((tag) =>
 			condition.some((name) => tag.name.toLowerCase() === String(name).toLowerCase()),
 		);
-		if (matched) push(matched.label);
+		if (matched) push(t(matched.labelKey));
 	}
 
 	// 4) slot: 条件：命中就标"动作槽"（角色 / 槽位号 / 官方用途都算）。
 	for (const condition of spec?.includeSlots || []) {
-		if (fileHasXDRSlot(file, condition)) push("动作槽");
+		if (fileHasXDRSlot(file, condition)) push(t("mods.search.matchField.slot"));
 	}
 	return labels;
 }
@@ -288,14 +289,14 @@ export function describeMatchReasons(file, query, max = 3) {
 export function formatMatchReasonChip(labels) {
 	const list = (labels || []).filter(Boolean);
 	if (list.length === 0) return "";
-	return `匹配：${list.join(" · ")}`;
+	return t("mods.search.matchChip", { list: list.join(" · ") });
 }
 
 /** describeSearchResult 生成搜索框旁边的计数文案。 */
 export function describeSearchResult({ total = 0, shown = 0, query = "", regexInvalid = "" } = {}) {
 	const keyword = normalizeQuery(query);
 	if (!keyword) return "";
-	if (regexInvalid) return `正则表达式无效：${regexInvalid}`;
-	if (shown === 0) return `没有匹配「${keyword}」的 Mod（共 ${Number(total) || 0} 个）`;
-	return `匹配 ${Number(shown) || 0} / ${Number(total) || 0} 个 Mod`;
+	if (regexInvalid) return t("mods.search.regexInvalid", { detail: regexInvalid });
+	if (shown === 0) return t("mods.search.noMatch", { keyword, total: Number(total) || 0 });
+	return t("mods.search.count", { matched: Number(shown) || 0, total: Number(total) || 0 });
 }

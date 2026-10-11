@@ -8,6 +8,9 @@ import {
   modelStatsStateTags,
   searchModelStatsItems,
 } from "./model-stats-search.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const items = [
   {

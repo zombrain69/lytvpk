@@ -1,7 +1,11 @@
 // 搜索语法的"说明书"：搜索框旁 `?` 按钮的浮层内容与悬停提示都从这里生成，
 // 保证界面提示、文档、测试三处不会各写一份互相对不上的说明。
+//
+// 文案全部走目录（`search.*` 子树）：静态表只存 key，渲染时经 t() 取当前语言
+// 的文案（模块求值期不调 t()）。
 
 import { shortcutRowsByIds } from "../../core/shortcuts.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 function escapeHtmlText(value) {
   return String(value ?? "")
@@ -12,18 +16,18 @@ function escapeHtmlText(value) {
     .replaceAll("'", "&#39;");
 }
 
-/** 语法行：写法 → 含义。 */
+/** 语法行：写法 → 含义（只存 key；渲染时经 t() 取当前语言文案）。 */
 export const SEARCH_SYNTAX_ROWS = [
-  { syntax: "ak47 武器", description: "普通词（可多个）：都要命中，字符按顺序出现即可" },
-  { syntax: '"ak 47"', description: "引号里的空格算一个词" },
-  { syntax: "tag:步枪", description: "必须有这个标签（一级或子标签）" },
-  { syntax: "tag:步枪|狙击", description: "任一标签命中即可（或）" },
-  { syntax: "tag:武器 tag:步枪", description: "两个标签都要（且）" },
-  { syntax: "-tag:材质", description: "排除含这个标签的 Mod" },
-  { syntax: "slot:heal", description: "按动作槽筛（XDR）：角色 / 槽位号 / 官方用途名都算，如 slot:zoey、slot:32、slot:救援" },
-  { syntax: "-slot:救援", description: "排除含该动作槽的 Mod（例如不想看某角色的动作包）" },
-  { syntax: "-材质", description: "排除「包含」这个词的 Mod（子串匹配；不做模糊，长路径不会误伤）" },
-  { syntax: "re:^ak\\d+$", description: "正则匹配；写法有误会直接提示「正则表达式无效」" },
+  { syntaxKey: "search.example.mods.plain.syntax", descriptionKey: "search.example.mods.plain.desc" },
+  { syntaxKey: "search.example.mods.quoted.syntax", descriptionKey: "search.example.mods.quoted.desc" },
+  { syntaxKey: "search.example.mods.tagSingle.syntax", descriptionKey: "search.example.mods.tagSingle.desc" },
+  { syntaxKey: "search.example.mods.tagOr.syntax", descriptionKey: "search.example.mods.tagOr.desc" },
+  { syntaxKey: "search.example.mods.tagAnd.syntax", descriptionKey: "search.example.mods.tagAnd.desc" },
+  { syntaxKey: "search.example.mods.tagExclude.syntax", descriptionKey: "search.example.mods.tagExclude.desc" },
+  { syntaxKey: "search.example.mods.slot.syntax", descriptionKey: "search.example.mods.slot.desc" },
+  { syntaxKey: "search.example.mods.slotExclude.syntax", descriptionKey: "search.example.mods.slotExclude.desc" },
+  { syntaxKey: "search.example.mods.exclude.syntax", descriptionKey: "search.example.mods.exclude.desc" },
+  { syntaxKey: "search.example.mods.regex.syntax", descriptionKey: "search.example.mods.regex.desc" },
 ];
 
 /**
@@ -38,15 +42,15 @@ export const SEARCH_SHORTCUT_ROWS = shortcutRowsByIds([
   "search-clear",
 ]).map((row) => ({ syntax: row.keys, description: row.description }));
 
-/** 参与搜索的字段（顺序 = 展示顺序）。 */
-export const SEARCH_FIELD_LABELS = [
-  "标题",
-  "文件名",
-  "一级标签",
-  "子标签",
-  "结构化主体",
-  "发音角色",
-  "动作槽",
+/** 参与搜索的字段（顺序 = 展示顺序）；key 指向目录，渲染时取文案。 */
+export const SEARCH_FIELD_LABEL_KEYS = [
+  "search.fields.mods.title",
+  "search.fields.mods.fileName",
+  "search.fields.mods.primaryTag",
+  "search.fields.mods.secondaryTag",
+  "search.fields.mods.subject",
+  "search.fields.mods.voice",
+  "search.fields.mods.slot",
 ];
 
 /**
@@ -55,23 +59,29 @@ export const SEARCH_FIELD_LABELS = [
  * 归档里没有一级标签，`tag:` 落在**包状态**上。
  */
 export const ARCHIVE_SEARCH_HELP_VARIANT = {
-  fields: ["压缩包名", "路径", "包内 VPK 名", "包内 VPK 路径", "包状态"],
-  fieldNote: "大小写不敏感；命中的片段会在压缩包名里高亮，并标出是哪个包状态命中的。",
+  fieldKeys: [
+    "search.fields.archive.packageName",
+    "search.fields.archive.path",
+    "search.fields.archive.innerVpkName",
+    "search.fields.archive.innerVpkPath",
+    "search.fields.archive.packageState",
+  ],
+  fieldNoteKey: "search.note.archive",
   syntaxRows: [
-    { syntax: "ak47 武器", description: "普通词（可多个）：都要命中，字符按顺序出现即可" },
-    { syntax: '"ak 47"', description: "引号里的空格算一个词" },
-    { syntax: "-old", description: "排除「包含」old 的压缩包（子串匹配，长路径不会误伤）" },
-    { syntax: "tag:密码", description: "按包状态筛：密码 / 错误 / 已有 / 待导入" },
-    { syntax: "tag:密码|错误", description: "任一状态命中即可（或）" },
-    { syntax: "tag:错误 -tag:密码", description: "两个状态条件同时生效（且 / 排除）" },
-    { syntax: "re:^mods-", description: "正则匹配；写法有误会直接提示「正则表达式无效」" },
+    { syntaxKey: "search.example.archive.plain.syntax", descriptionKey: "search.example.archive.plain.desc" },
+    { syntaxKey: "search.example.archive.quoted.syntax", descriptionKey: "search.example.archive.quoted.desc" },
+    { syntaxKey: "search.example.archive.exclude.syntax", descriptionKey: "search.example.archive.exclude.desc" },
+    { syntaxKey: "search.example.archive.tagState.syntax", descriptionKey: "search.example.archive.tagState.desc" },
+    { syntaxKey: "search.example.archive.tagStateOr.syntax", descriptionKey: "search.example.archive.tagStateOr.desc" },
+    { syntaxKey: "search.example.archive.tagStateAnd.syntax", descriptionKey: "search.example.archive.tagStateAnd.desc" },
+    { syntaxKey: "search.example.archive.regex.syntax", descriptionKey: "search.example.archive.regex.desc" },
   ],
 };
 
 /** 默认（Mod 列表）说明书变体。 */
 export const MOD_SEARCH_HELP_VARIANT = {
-  fields: SEARCH_FIELD_LABELS,
-  fieldNote: "大小写不敏感；命中的片段会在标题/文件名里高亮，并标注是哪个字段命中的。",
+  fieldKeys: SEARCH_FIELD_LABEL_KEYS,
+  fieldNoteKey: "search.note.mods",
   syntaxRows: SEARCH_SYNTAX_ROWS,
 };
 
@@ -80,15 +90,22 @@ export const MOD_SEARCH_HELP_VARIANT = {
  * （有模型 / 无模型 / 估算 —— 估算指三角形数是按 strip 估出来的）。
  */
 export const MODEL_STATS_SEARCH_HELP_VARIANT = {
-  fields: ["Mod 标题", "文件名", "路径", "模型 .mdl / .vtx / .vvd 路径", "扫描备注", "扫描状态"],
-  fieldNote: "大小写不敏感；命中的片段会在 Mod 名或模型路径里高亮，并标出是哪个扫描状态命中的。",
+  fieldKeys: [
+    "search.fields.modelStats.title",
+    "search.fields.modelStats.fileName",
+    "search.fields.modelStats.path",
+    "search.fields.modelStats.modelPath",
+    "search.fields.modelStats.scanNote",
+    "search.fields.modelStats.scanState",
+  ],
+  fieldNoteKey: "search.note.modelStats",
   syntaxRows: [
-    { syntax: "ak47", description: "普通词（可多个）：都要命中，字符按顺序出现即可" },
-    { syntax: "models weapons", description: "两个词可以分别命中不同字段（模型路径也算）" },
-    { syntax: "-katana", description: "排除「包含」katana 的 Mod（子串匹配，长路径不会误伤）" },
-    { syntax: "tag:无模型", description: "只看没检测到模型的条目（有模型 / 无模型 / 估算）" },
-    { syntax: "tag:有模型 -tag:估算", description: "有模型、且三角形数不是估算值" },
-    { syntax: "re:\\.mdl$", description: "正则匹配；写法有误会直接提示「正则表达式无效」" },
+    { syntaxKey: "search.example.modelStats.plain.syntax", descriptionKey: "search.example.modelStats.plain.desc" },
+    { syntaxKey: "search.example.modelStats.multiField.syntax", descriptionKey: "search.example.modelStats.multiField.desc" },
+    { syntaxKey: "search.example.modelStats.exclude.syntax", descriptionKey: "search.example.modelStats.exclude.desc" },
+    { syntaxKey: "search.example.modelStats.tagState.syntax", descriptionKey: "search.example.modelStats.tagState.desc" },
+    { syntaxKey: "search.example.modelStats.tagStateAnd.syntax", descriptionKey: "search.example.modelStats.tagStateAnd.desc" },
+    { syntaxKey: "search.example.modelStats.regex.syntax", descriptionKey: "search.example.modelStats.regex.desc" },
   ],
 };
 
@@ -97,15 +114,20 @@ export const MODEL_STATS_SEARCH_HELP_VARIANT = {
  * （策略 全开/全关/单选/随机单选 · 层级 顶层/子组 · 自动联动）。
  */
 export const GROUP_MANAGER_SEARCH_HELP_VARIANT = {
-  fields: ["组名", "组描述", "成员名（含文件键）", "组状态"],
-  fieldNote: "大小写不敏感；命中的组会连它的上级与下级一起显示，缩进不会指向看不见的组。",
+  fieldKeys: [
+    "search.fields.groupManager.name",
+    "search.fields.groupManager.description",
+    "search.fields.groupManager.member",
+    "search.fields.groupManager.state",
+  ],
+  fieldNoteKey: "search.note.groupManager",
   syntaxRows: [
-    { syntax: "医疗箱", description: "普通词（可多个）：都要命中；组名与成员名都算" },
-    { syntax: "ak47 medkit", description: "两个词可以分别命中组名与成员名" },
-    { syntax: "-备用", description: "排除「包含」备用的组（子串匹配；被排除的组不会因为父组命中又被带出来）" },
-    { syntax: "tag:单选", description: "按策略筛：全开 / 全关 / 单选 / 随机单选" },
-    { syntax: "tag:顶层 -tag:子组", description: "只看顶层组；层级标签还有「子组」，「自动联动」对应常开联动" },
-    { syntax: "re:^AK\\d+", description: "正则匹配；写法有误会直接提示「正则表达式无效」" },
+    { syntaxKey: "search.example.groupManager.plain.syntax", descriptionKey: "search.example.groupManager.plain.desc" },
+    { syntaxKey: "search.example.groupManager.multiField.syntax", descriptionKey: "search.example.groupManager.multiField.desc" },
+    { syntaxKey: "search.example.groupManager.exclude.syntax", descriptionKey: "search.example.groupManager.exclude.desc" },
+    { syntaxKey: "search.example.groupManager.tagPolicy.syntax", descriptionKey: "search.example.groupManager.tagPolicy.desc" },
+    { syntaxKey: "search.example.groupManager.tagTopLevel.syntax", descriptionKey: "search.example.groupManager.tagTopLevel.desc" },
+    { syntaxKey: "search.example.groupManager.regex.syntax", descriptionKey: "search.example.groupManager.regex.desc" },
   ],
 };
 
@@ -114,16 +136,20 @@ export const GROUP_MANAGER_SEARCH_HELP_VARIANT = {
  * 字段是"冲突资源路径 + 参与 Mod 名"；`tag:` 落在严重度与判定状态上。
  */
 export const CONFLICT_SEARCH_HELP_VARIANT = {
-  fields: ["冲突资源路径", "参与 Mod 的名称 / 标题 / 文件路径", "严重度与判定状态"],
-  fieldNote: "大小写不敏感；命中的片段会在 Mod 名与资源路径里高亮。搜索与上面的严重度筛选是「与」的关系。",
+  fieldKeys: [
+    "search.fields.conflicts.path",
+    "search.fields.conflicts.participants",
+    "search.fields.conflicts.severityState",
+  ],
+  fieldNoteKey: "search.note.conflicts",
   syntaxRows: [
-    { syntax: "ak47", description: "普通词（可多个）：都要命中；资源路径与 Mod 名都算" },
-    { syntax: "models weapons", description: "两个词可以分别命中不同字段" },
-    { syntax: "-katana", description: "排除「包含」katana 的冲突组（子串匹配，长路径不会误伤）" },
-    { syntax: "tag:严重", description: "按严重度筛：严重 / 警告 / 提示" },
-    { syntax: "tag:同层", description: "只看「参与者共用同一个有效分层」的真冲突；另有「未记录」（有 Mod 没写进 addonlist）" },
-    { syntax: "tag:同层 -tag:严重", description: "条件可以组合（且 / 排除）" },
-    { syntax: "re:\\.nut$", description: "正则匹配；写法有误会直接提示「正则表达式无效」" },
+    { syntaxKey: "search.example.conflicts.plain.syntax", descriptionKey: "search.example.conflicts.plain.desc" },
+    { syntaxKey: "search.example.conflicts.multiField.syntax", descriptionKey: "search.example.conflicts.multiField.desc" },
+    { syntaxKey: "search.example.conflicts.exclude.syntax", descriptionKey: "search.example.conflicts.exclude.desc" },
+    { syntaxKey: "search.example.conflicts.tagSeverity.syntax", descriptionKey: "search.example.conflicts.tagSeverity.desc" },
+    { syntaxKey: "search.example.conflicts.tagSameLayer.syntax", descriptionKey: "search.example.conflicts.tagSameLayer.desc" },
+    { syntaxKey: "search.example.conflicts.tagAndExclude.syntax", descriptionKey: "search.example.conflicts.tagAndExclude.desc" },
+    { syntaxKey: "search.example.conflicts.regex.syntax", descriptionKey: "search.example.conflicts.regex.desc" },
   ],
 };
 
@@ -132,24 +158,43 @@ export const CONFLICT_SEARCH_HELP_VARIANT = {
  * 字段是"问题对象名 / 路径 / 可操作目标 / 提示文案"；`tag:` 落在严重度与问题类型上。
  */
 export const HEALTH_SEARCH_HELP_VARIANT = {
-  fields: ["问题对象名", "文件路径", "可操作目标", "提示文案", "严重度与问题类型"],
-  fieldNote: "大小写不敏感；命中的片段会在问题标题与说明里高亮。搜索只影响显示，不影响体检结果本身。",
+  fieldKeys: [
+    "search.fields.health.subject",
+    "search.fields.health.path",
+    "search.fields.health.target",
+    "search.fields.health.hint",
+    "search.fields.health.severityType",
+  ],
+  fieldNoteKey: "search.note.health",
   syntaxRows: [
-    { syntax: "ak47", description: "普通词（可多个）：对象名、路径与提示文案都算" },
-    { syntax: "addonlist 依赖", description: "两个词要同时命中同一条问题" },
-    { syntax: "-unrecorded", description: "排除「包含」这个词的问题（子串匹配，长路径不会误伤）" },
-    { syntax: "tag:严重", description: "按严重度筛：严重 / 警告 / 提示" },
-    { syntax: "tag:条目缺少文件", description: "按问题类型筛（类型名与列表里显示的一致，例如「同名路径是文件夹」）" },
-    { syntax: "tag:警告 依赖", description: "条件可以组合（且 / 排除）" },
-    { syntax: "re:\\.vpk$", description: "正则匹配；写法有误会直接提示「正则表达式无效」" },
+    { syntaxKey: "search.example.health.plain.syntax", descriptionKey: "search.example.health.plain.desc" },
+    { syntaxKey: "search.example.health.twoWords.syntax", descriptionKey: "search.example.health.twoWords.desc" },
+    { syntaxKey: "search.example.health.exclude.syntax", descriptionKey: "search.example.health.exclude.desc" },
+    { syntaxKey: "search.example.health.tagSeverity.syntax", descriptionKey: "search.example.health.tagSeverity.desc" },
+    { syntaxKey: "search.example.health.tagType.syntax", descriptionKey: "search.example.health.tagType.desc" },
+    { syntaxKey: "search.example.health.tagAndWord.syntax", descriptionKey: "search.example.health.tagAndWord.desc" },
+    { syntaxKey: "search.example.health.regex.syntax", descriptionKey: "search.example.health.regex.desc" },
   ],
 };
 
+/** resolveSyntaxRow 取一条语法行的当前文案（key → t()；兼容直接给字面量的行）。 */
+function resolveSyntaxRow(row) {
+  return {
+    syntax: row.syntaxKey ? t(row.syntaxKey) : String(row.syntax ?? ""),
+    description: row.descriptionKey ? t(row.descriptionKey) : String(row.description ?? ""),
+  };
+}
+
+/** resolveVariantFields 取变体的"匹配范围"字段文案。 */
+function resolveVariantFields(variant) {
+  return (variant?.fieldKeys || SEARCH_FIELD_LABEL_KEYS).map((key) => t(key));
+}
+
 /** buildSearchHelpHtml 生成浮层内容（全部转义）。 */
 export function buildSearchHelpHtml(variant = MOD_SEARCH_HELP_VARIANT) {
-  const fields = variant?.fields || SEARCH_FIELD_LABELS;
-  const syntaxRows = variant?.syntaxRows || SEARCH_SYNTAX_ROWS;
-  const fieldNote = variant?.fieldNote || "大小写不敏感；命中的片段会在标题/文件名里高亮，并标注是哪个字段命中的。";
+  const fields = resolveVariantFields(variant);
+  const syntaxRows = (variant?.syntaxRows || SEARCH_SYNTAX_ROWS).map(resolveSyntaxRow);
+  const fieldNote = t(variant?.fieldNoteKey || "search.note.mods");
   const renderRows = (rows) =>
     rows
       .map(
@@ -161,16 +206,16 @@ export function buildSearchHelpHtml(variant = MOD_SEARCH_HELP_VARIANT) {
       .join("");
   return `
     <div class="search-help-section">
-      <div class="search-help-title">匹配范围</div>
+      <div class="search-help-title">${escapeHtmlText(t("search.section.matches"))}</div>
       <div class="search-help-fields">${escapeHtmlText(fields.join(" · "))}</div>
       <div class="search-help-note">${escapeHtmlText(fieldNote)}</div>
     </div>
     <div class="search-help-section">
-      <div class="search-help-title">语法</div>
+      <div class="search-help-title">${escapeHtmlText(t("search.section.syntax"))}</div>
       ${renderRows(syntaxRows)}
     </div>
     <div class="search-help-section">
-      <div class="search-help-title">快捷键</div>
+      <div class="search-help-title">${escapeHtmlText(t("search.section.shortcuts"))}</div>
       ${renderRows(SEARCH_SHORTCUT_ROWS)}
     </div>
   `;
@@ -178,8 +223,8 @@ export function buildSearchHelpHtml(variant = MOD_SEARCH_HELP_VARIANT) {
 
 /** buildSearchHelpTitle 生成搜索框的悬停提示（一行版）。 */
 export function buildSearchHelpTitle(variant = MOD_SEARCH_HELP_VARIANT) {
-  const fields = variant?.fields || SEARCH_FIELD_LABELS;
-  const syntaxRows = variant?.syntaxRows || SEARCH_SYNTAX_ROWS;
+  const fields = resolveVariantFields(variant);
+  const syntaxRows = (variant?.syntaxRows || SEARCH_SYNTAX_ROWS).map(resolveSyntaxRow);
   const syntax = syntaxRows.map((row) => row.syntax).join(" / ");
-  return `匹配：${fields.join("、")}\n语法：${syntax}\n快捷键：Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空`;
+  return t("search.titleTooltip", { fields: fields.join("、"), syntax });
 }
