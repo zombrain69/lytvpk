@@ -2,6 +2,8 @@ package app
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/binary"
 	"image"
 	"image/png"
 	"os"
@@ -90,6 +92,88 @@ func TestVPKPreviewReadsTextAndImage(t *testing.T) {
 
 	if _, err := app.PreviewVPKEntry(packed.OutputPath, "materials/missing.txt"); err == nil {
 		t.Fatal("不存在的条目必须报错")
+	}
+}
+
+// buildTinyWAV 造一个最小可播放的 PCM WAV（8kHz 单声道 16bit，8 个静音采样）。
+func buildTinyWAV() []byte {
+	data := make([]byte, 8*2)
+	var buf bytes.Buffer
+	buf.WriteString("RIFF")
+	binary.Write(&buf, binary.LittleEndian, uint32(36+len(data)))
+	buf.WriteString("WAVE")
+	buf.WriteString("fmt ")
+	binary.Write(&buf, binary.LittleEndian, uint32(16))
+	binary.Write(&buf, binary.LittleEndian, uint16(1))
+	binary.Write(&buf, binary.LittleEndian, uint16(1))
+	binary.Write(&buf, binary.LittleEndian, uint32(8000))
+	binary.Write(&buf, binary.LittleEndian, uint32(8000*2))
+	binary.Write(&buf, binary.LittleEndian, uint16(2))
+	binary.Write(&buf, binary.LittleEndian, uint16(16))
+	buf.WriteString("data")
+	binary.Write(&buf, binary.LittleEndian, uint32(len(data)))
+	buf.Write(data)
+	return buf.Bytes()
+}
+
+// 音频预览：.wav / .mp3 走 data URL（浏览器原生播放器），base64 解码后必须与源字节一致；
+// 不在支持列表里的音频扩展名仍按"其它类型"只给说明。
+func TestVPKPreviewReadsAudio(t *testing.T) {
+	app := &App{}
+	srcDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(srcDir, "sound"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	wavBytes := buildTinyWAV()
+	if err := os.WriteFile(filepath.Join(srcDir, "sound", "alert.wav"), wavBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "sound", "theme.mp3"), []byte("ID3\x03\x00\x00\x00fake-mp3"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "sound", "extra.ogg"), []byte("OggSxxxx"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	outDir := t.TempDir()
+	packed, err := app.packVPKDirectoryWithOptions(srcDir, outDir, false, "audio-fixture", nil)
+	if err != nil {
+		t.Fatalf("打包夹具失败: %v", err)
+	}
+
+	wavPreview, err := app.PreviewVPKEntry(packed.OutputPath, "sound/alert.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wavPreview.Kind != "audio" {
+		t.Fatalf("wav 应走音频分支: %#v", wavPreview)
+	}
+	const wavPrefix = "data:audio/wav;base64,"
+	if !strings.HasPrefix(wavPreview.DataURL, wavPrefix) {
+		t.Fatalf("wav data URL 前缀不对: %s", wavPreview.DataURL[:min(32, len(wavPreview.DataURL))])
+	}
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(wavPreview.DataURL, wavPrefix))
+	if err != nil {
+		t.Fatalf("解码 base64 失败: %v", err)
+	}
+	if !bytes.Equal(decoded, wavBytes) {
+		t.Fatalf("音频字节 round-trip 不一致（解码 %d 字节 / 源 %d 字节）", len(decoded), len(wavBytes))
+	}
+
+	mp3Preview, err := app.PreviewVPKEntry(packed.OutputPath, "sound/theme.mp3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mp3Preview.Kind != "audio" || !strings.HasPrefix(mp3Preview.DataURL, "data:audio/mpeg;base64,") {
+		t.Fatalf("mp3 预览不对: %#v", mp3Preview)
+	}
+
+	oggPreview, err := app.PreviewVPKEntry(packed.OutputPath, "sound/extra.ogg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if oggPreview.Kind != "binary" || oggPreview.Note == "" {
+		t.Fatalf(".ogg 不在支持列表里，应只给说明: %#v", oggPreview)
 	}
 }
 

@@ -1111,3 +1111,9 @@ html.dark-mode .autoexec-analysis.is-warning {
   background:
     repeating-conic-gradient(#00000010 0% 25%, transparent 0% 50%) 50% / 16px 16px;
 }
+
+/* 音频预览：浏览器原生播放器，data URL 直接播放（不写盘、不解包）。 */
+.vpk-preview-audio {
+  width: 100%;
+  margin-top: var(--spacing-2);
+}

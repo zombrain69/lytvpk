@@ -384,7 +384,7 @@
       },
       "vpkPreview": {
         "title": "VPK 内容预览",
-        "description": "列出 VPK 里的全部条目，就地预览文本 / KeyValues / 图片 / VTF 贴图—— 想确认\"这个包里装了什么\"时不用先解包。",
+        "description": "列出 VPK 里的全部条目，就地预览文本 / KeyValues / 图片 / VTF 贴图 / 音频（可播放）/ 模型与地图信息卡—— 想确认\"这个包里装了什么\"时不用先解包。",
         "status": "不解包直接看",
         "action": "选择 VPK 预览"
       },
@@ -508,6 +508,7 @@
       "empty": "这个 VPK 是空的。",
       "loadingEntry": "正在读取 {path}…",
       "previewFailed": "预览失败: {error}",
+      "audioFallback": "浏览器不支持播放这个音频（或编码不常见）——可先用「VPK 解包」取出后用音频播放器打开。",
       "unsupported": "该类型暂不支持预览。"
     },
     "archiveManager": {

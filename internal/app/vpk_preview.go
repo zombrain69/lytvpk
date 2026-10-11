@@ -24,13 +24,17 @@ import (
 //   - 文本 / KeyValues（.txt .cfg .vmt .vdf .nut .lua .res .json …）——按游戏文件编码解码；
 //   - 图片（.jpg .png .gif .bmp）；
 //   - VTF 贴图（DXT1/3/5 与常见未压缩格式）——转成 PNG 返回；
-//   - 其它类型只给元信息（大小 + 说明），不做二进制预览。
+//   - 音频（.wav .mp3）——原样返回 data URL，交给浏览器原生播放器；
+//   - 模型 / 地图只给信息卡，其它类型只给元信息（大小 + 说明），不做二进制预览。
 //
-// 边界：单条文本最多 256KB、图片/VTF 最多 8MB，超出只报"太大"而不是硬塞进界面。
+// 边界：单条文本最多 256KB、图片/VTF 最多 8MB、音频最多 16MB，超出只报"太大"而不是硬塞进界面。
 
 const (
 	vpkPreviewTextLimit  = 256 * 1024
 	vpkPreviewImageLimit = 8 * 1024 * 1024
+	// 音频要整体进内存再转 data URL：L4D2 音效多在几百 KB，音乐向的 WAV
+	// 可能到十几 MB；再大就走解包通道（不让 WebView 顶着一坨 base64 卡住）。
+	vpkPreviewAudioLimit = 16 * 1024 * 1024
 	// 地图（.bsp）比贴图大得多：只读取到上限做"信息卡"，不做 3D 渲染。
 	vpkPreviewMapLimit   = 128 * 1024 * 1024
 	vpkPreviewMaxEntries = 20000
@@ -50,7 +54,7 @@ type VPKEntryList struct {
 
 type VPKPreviewResult struct {
 	Path      string `json:"path"`
-	Kind      string `json:"kind"` // text | image | binary
+	Kind      string `json:"kind"` // text | image | audio | model | map | binary
 	Text      string `json:"text,omitempty"`
 	DataURL   string `json:"dataUrl,omitempty"`
 	Size      int64  `json:"size"`
@@ -137,6 +141,19 @@ func (a *App) PreviewVPKEntry(filePath string, entryPath string) (VPKPreviewResu
 		}
 		result.Kind = "image"
 		result.DataURL = dataURLForImageBytes(ext, raw)
+		return result, nil
+	case isVPKPreviewAudioExt(ext):
+		if target.Size() > vpkPreviewAudioLimit {
+			result.Kind = "binary"
+			result.Note = fmt.Sprintf("音频超过 %dMB，已跳过预览（可先用「VPK 解包」取出后再听）", vpkPreviewAudioLimit/1024/1024)
+			return result, nil
+		}
+		raw, readErr := readVPKEntryBytes(opener, target)
+		if readErr != nil {
+			return result, fmt.Errorf("读取条目失败: %w", readErr)
+		}
+		result.Kind = "audio"
+		result.DataURL = dataURLForAudioBytes(ext, raw)
 		return result, nil
 	case ext == ".vtf":
 		if target.Size() > vpkPreviewImageLimit {
@@ -227,6 +244,23 @@ func dataURLForImageBytes(ext string, raw []byte) string {
 		mime = "image/gif"
 	case ".bmp":
 		mime = "image/bmp"
+	}
+	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(raw)
+}
+
+func isVPKPreviewAudioExt(ext string) bool {
+	switch ext {
+	case ".wav", ".mp3":
+		return true
+	default:
+		return false
+	}
+}
+
+func dataURLForAudioBytes(ext string, raw []byte) string {
+	mime := "audio/wav"
+	if ext == ".mp3" {
+		mime = "audio/mpeg"
 	}
 	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(raw)
 }

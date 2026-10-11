@@ -1,5 +1,19 @@
 # Changelog
 
+## 未发布 — VPK 内容预览：音频播放（2026-10-12）
+
+- 新能力（路线图第 6 项）：VPK 内容预览现在能直接**播放包内音频**（`.wav` / `.mp3`）——
+  音频来自 VPK 内部、不写盘、不解包；播放器是浏览器原生的，编码不常见时显示兜底说明。
+- 边界：单条音频最大 16MB（超出显示"已跳过预览"）；`.ogg` 等不在支持列表的扩展名仍按
+  "其它类型"只给说明。
+- 后端 `internal/app/vpk_preview.go` 新增 `audio` kind（data URL 直出）；前端
+  `features/diagnostics/vpk-preview.js` 接原生播放器；新增 `toolbox.vpkPreview.audioFallback` key；
+  工具箱卡片描述同步补"音频"（`toolbox.card.vpkPreview.description`）。
+- 测试：Go 新增 `TestVPKPreviewReadsAudio`（WAV base64 round-trip 与源字节一致、MP3 前缀、
+  `.ogg` 保持"其它类型"）；前端新增 `features/diagnostics/vpk-preview-audio.test.mjs`。
+- 验证：`go test -count=1 ./...` / `go vet ./...` 全过；前端显式清单 122 文件 591 项 0 失败；
+  `npm run build` 通过。
+
 ## 未发布 — 动作槽（XDR）：一键「移到空槽」（2026-10-12）
 
 - 新能力（路线图第 5 项）：Mod 详情面板里 `⚠ 动作随机生效` 的槽位行新增「移到空槽…」按钮 ——

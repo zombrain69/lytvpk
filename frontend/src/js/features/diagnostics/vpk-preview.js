@@ -132,6 +132,18 @@ async function loadEntry(entryPath) {
     body.appendChild(img);
     return;
   }
+  // 音频（.wav / .mp3）：data URL 直接喂给浏览器原生播放器；元素内的文本是
+  // 不支持的浏览器看到的兜底说明。
+  if (result.kind === "audio" && result.dataUrl) {
+    const audio = document.createElement("audio");
+    audio.className = "vpk-preview-audio";
+    audio.controls = true;
+    audio.preload = "metadata";
+    audio.src = result.dataUrl;
+    audio.textContent = t("toolbox.vpkPreview.audioFallback");
+    body.appendChild(audio);
+    return;
+  }
   const note = document.createElement("div");
   note.className = "setting-row-desc";
   note.textContent = result.note || t("toolbox.vpkPreview.unsupported");

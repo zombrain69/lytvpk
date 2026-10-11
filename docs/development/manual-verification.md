@@ -2232,6 +2232,17 @@ HUD 图标包（一个包含多把武器图标的 Mod）会同时拿到多条武
 | 基础包 | `xdReanimsBase`（2121557118）存在但游戏内被关闭 → 报"68 个动作都不会生效" |
 | 动作包（深扫描） | `3006131197.vpk`（202 个模型）、`3006559778.vpk`（13 个模型）各报一次，根/工坊副本已去重 |
 
+### 与"动作生效"角标对应的真机数据（2026-10-07，只读）
+
+`GetVPKFiles` 的数据在真实库上的分布：**生效 27 / 随机 2 / 部分生效 2**（其余 37 个带槽位的 Mod 是
+基础包/无槽位证据或未记录状态）。典型样本：
+
+| Mod | 结论 | 细节 |
+| --- | --- | --- |
+| `[xdR] Mixamo Kick Animations`（2987309192） | 部分生效 6/7 | Bill·Coach·Ellis·Francis·Nick·Rochelle 生效；Zoey slot 029 被 `「xdR」No Sniper Zoomed Stretches`（2991679673）同槽占用 |
+| `[xdR] Alpha Smoker choke animations`（3731342507） | 全部随机（8 个角色 slot 041） | 同槽对手：`3128595987.vpk` |
+| `3128595987.vpk` | 部分生效 1/9 | Smoker slot 041 唯一 → 会生效，其余 8 个角色被上面的 Mod 同槽占用 |
+
 ### 只能人工验证的部分
 
 - [ ] 在应用里点「开始体检」（工具箱），确认结果表里能看到「XDR 同槽冲突 / 缺少 XDR 基础包」，
@@ -2283,16 +2294,26 @@ HUD 图标包（一个包含多把武器图标的 Mod）会同时拿到多条武
       （若报"已有实例在跑"说明上次没退干净）。
 - [ ] 更新后点「重启应用」确认新窗口真的起来了（不是"点了没反应"）。
 
-### 与"动作生效"角标对应的真机数据（2026-10-07，只读）
+## 19. VPK 内容预览：音频播放
 
-`GetVPKFiles` 的数据在真实库上的分布：**生效 27 / 随机 2 / 部分生效 2**（其余 37 个带槽位的 Mod 是
-基础包/无槽位证据或未记录状态）。典型样本：
+### 已经自动化覆盖的部分
 
-| Mod | 结论 | 细节 |
-| --- | --- | --- |
-| `[xdR] Mixamo Kick Animations`（2987309192） | 部分生效 6/7 | Bill·Coach·Ellis·Francis·Nick·Rochelle 生效；Zoey slot 029 被 `「xdR」No Sniper Zoomed Stretches`（2991679673）同槽占用 |
-| `[xdR] Alpha Smoker choke animations`（3731342507） | 全部随机（8 个角色 slot 041） | 同槽对手：`3128595987.vpk` |
-| `3128595987.vpk` | 部分生效 1/9 | Smoker slot 041 唯一 → 会生效，其余 8 个角色被上面的 Mod 同槽占用 |
+- 后端：`internal/app/vpk_preview_test.go` 的 `TestVPKPreviewReadsAudio`（`.wav` 走
+  `data:audio/wav;base64,` 且 base64 解码后与源字节逐字节一致、`.mp3` 走 `audio/mpeg`、
+  `.ogg` 等不在列表的扩展名仍按"其它类型"只给说明）。
+- 前端：`features/diagnostics/vpk-preview-audio.test.mjs`（kind=audio 分支生成原生
+  `<audio controls>` 并绑定 dataUrl；兜底文案与卡片描述按"源码接线 + 目录内容"双查；音频样式已接线）。
+
+### 只能人工验证的部分
+
+- [ ] 打开一个含音频的 VPK（如带 `sound/` 的 Mod）→ 条目列表点一个 `.wav` / `.mp3` →
+      预览区出现播放条并能出声（音频来自 VPK 内部，不写盘、不解包）。
+- [ ] 体积守卫：条一个 >16MB 的音频条目，应显示"已跳过预览"而不是把界面卡住。
+
+### 仍未验证
+
+- 游戏专用编码（ADPCM / Xbox ADPCM 等）的 WAV 在浏览器里能否解码：需要真机样本确认；
+  解码失败时只会显示兜底文案，属预期行为（需要听请先用「VPK 解包」）。
 
 ## 第二十一轮：界面性能（2026-10-01，只读沙箱 + 应用内 JS 桥，真实 2904 个 Mod）
 
