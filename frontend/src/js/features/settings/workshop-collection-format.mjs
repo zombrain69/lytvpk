@@ -1,5 +1,7 @@
 // 工坊合集实体化的文案层（与 DOM 无关，node --test 覆盖）。
 
+import { t } from "../../core/i18n-runtime.js";
+
 export function countMissingCollectionMembers(link) {
   if (!link || !Array.isArray(link.members)) return 0;
   return link.members.filter((member) => !member?.present).length;
@@ -9,11 +11,11 @@ export function formatCollectionSummary(link) {
   if (!link) return "";
   const total = Array.isArray(link.members) ? link.members.length : 0;
   const missing = countMissingCollectionMembers(link);
-  const truncated = link.childCollectionsTruncated ? "（子合集过多，已截断）" : "";
-  if (total === 0) return `没有可下载成员${truncated}`;
+  const truncated = link.childCollectionsTruncated ? t("settings.collections.summary.truncated") : "";
+  if (total === 0) return t("settings.collections.summary.empty", { truncated });
   return missing === 0
-    ? `${total} 个成员，已全部下载${truncated}`
-    : `${total} 个成员，其中 ${missing} 个未下载${truncated}`;
+    ? t("settings.collections.summary.complete", { total, truncated })
+    : t("settings.collections.summary.missing", { total, missing, truncated });
 }
 
 export function formatCollectionRefreshSummary(result) {
@@ -21,23 +23,25 @@ export function formatCollectionRefreshSummary(result) {
   const parts = [];
   if (Number(result.addedCount || 0) > 0) {
     const titles = (result.addedTitles || []).filter(Boolean).slice(0, 3).join("、");
-    parts.push(`新增 ${result.addedCount} 个${titles ? `（${titles}…）` : ""}`);
+    const titlesPart = titles ? t("settings.collections.refresh.titlesPart", { titles }) : "";
+    parts.push(t("settings.collections.refresh.added", { count: result.addedCount, titles: titlesPart }));
   }
   if (Number(result.removedCount || 0) > 0) {
     const titles = (result.removedTitles || []).filter(Boolean).slice(0, 3).join("、");
-    parts.push(`下架 ${result.removedCount} 个${titles ? `（${titles}…）` : ""}`);
+    const titlesPart = titles ? t("settings.collections.refresh.titlesPart", { titles }) : "";
+    parts.push(t("settings.collections.refresh.removed", { count: result.removedCount, titles: titlesPart }));
   }
   if (Number(result.missingCount || 0) > 0) {
-    parts.push(`本地缺少 ${result.missingCount} 个`);
+    parts.push(t("settings.collections.refresh.missing", { count: result.missingCount }));
   }
-  if (parts.length === 0) return "合集内容没有变化";
+  if (parts.length === 0) return t("settings.collections.refresh.noChange");
   return parts.join("；");
 }
 
 export function formatCollectionQueueSummary(queuedIds) {
   const ids = Array.isArray(queuedIds) ? queuedIds.filter(Boolean) : [];
-  if (ids.length === 0) return "没有需要下载的成员";
-  return `已加入下载队列 ${ids.length} 个成员`;
+  if (ids.length === 0) return t("settings.collections.queue.empty");
+  return t("settings.collections.queue.queued", { count: ids.length });
 }
 
 /**
@@ -49,7 +53,7 @@ export function formatCollectionQueueSummary(queuedIds) {
  */
 export function formatCollectionCheckAllSummary(results) {
   const list = Array.isArray(results) ? results : [];
-  if (list.length === 0) return "还没有保存过工坊合集";
+  if (list.length === 0) return t("settings.collections.checkAll.none");
 
   const failed = list.filter((item) => String(item?.error || "").trim());
   const ok = list.filter((item) => !String(item?.error || "").trim());
@@ -59,9 +63,13 @@ export function formatCollectionCheckAllSummary(results) {
 
   const parts = [];
   if (ok.length === 0) {
-    parts.push(`全部 ${list.length} 个合集都检查失败`);
+    parts.push(t("settings.collections.checkAll.allFailed", { total: list.length }));
   } else if (changed.length === 0) {
-    parts.push(ok.length === list.length ? "所有合集都没有成员变化" : `${ok.length} 个合集没有成员变化`);
+    parts.push(
+      ok.length === list.length
+        ? t("settings.collections.checkAll.noChangeAll")
+        : t("settings.collections.checkAll.noChangeSome", { count: ok.length }),
+    );
   } else {
     parts.push(
       changed.map((item) => `${item.title || item.collectionId}：${formatCollectionRefreshSummary(item)}`).join("；"),
@@ -70,7 +78,11 @@ export function formatCollectionCheckAllSummary(results) {
   if (failed.length > 0) {
     const first = failed[0];
     parts.push(
-      `${failed.length} 个检查失败：${first.title || first.collectionId}（${String(first.error).slice(0, 60)}）`,
+      t("settings.collections.checkAll.failed", {
+        count: failed.length,
+        title: first.title || first.collectionId,
+        error: String(first.error).slice(0, 60),
+      }),
     );
   }
   return parts.join("；");

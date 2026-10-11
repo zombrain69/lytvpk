@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import { formatProfileApplySummary } from "./profile-format.mjs";
+
+installTestCatalog();
 
 test("formatProfileApplySummary reports switch counts", () => {
   assert.equal(

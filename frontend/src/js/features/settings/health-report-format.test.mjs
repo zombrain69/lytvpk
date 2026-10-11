@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   healthIssueAutoFixAction,
   summarizeHealthAutoFix,
@@ -9,6 +10,8 @@ import {
   formatHealthReportSummary,
   formatHealthSeverity,
 } from "./health-report-format.mjs";
+
+installTestCatalog();
 
 test("buildHealthIssueRows maps issues and reports hidden rows", () => {
   const empty = buildHealthIssueRows(null);

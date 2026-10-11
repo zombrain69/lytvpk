@@ -1,3 +1,5 @@
+import { t } from "../../core/i18n-runtime.js";
+
 export function createAutoexecSettingsController(initialInfo, operations = {}) {
   let info = initialInfo || null;
   let reloadRequestId = 0;
@@ -6,7 +8,7 @@ export function createAutoexecSettingsController(initialInfo, operations = {}) {
 
   const reload = async () => {
     if (typeof operations.getConfig !== "function") {
-      throw new Error("当前后端未提供 GetAutoexecConfig 接口");
+      throw new Error(t("settings.autoexec.errors.getMissing"));
     }
     const requestId = ++reloadRequestId;
     const next = await operations.getConfig();
@@ -17,7 +19,7 @@ export function createAutoexecSettingsController(initialInfo, operations = {}) {
 
   const save = async (content) => {
     if (typeof operations.saveConfig !== "function") {
-      throw new Error("当前后端未提供 SaveAutoexecConfig 接口");
+      throw new Error(t("settings.autoexec.errors.saveMissing"));
     }
     await operations.saveConfig(content);
     try {

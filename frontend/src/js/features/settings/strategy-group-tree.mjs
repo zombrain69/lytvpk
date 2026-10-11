@@ -3,6 +3,8 @@
 // 约定：扁平视图仍是默认视图。没有任何"上级分组"时，展开结果与扁平列表逐项一致，
 // 只是每项多带一个 depth=1（渲染时不产生缩进）。
 
+import { t } from "../../core/i18n-runtime.js";
+
 /**
  * flattenStrategyGroupTree 把后端 ListModStrategyGroupTree 的结果展开成
  * [{ group, depth }] 的渲染序列；输入不是树时退化为扁平列表。
@@ -83,7 +85,7 @@ export function resolveStrategyGroupDrop(rows, draggedId, targetId, position = "
   const entries = entryList(rows);
   const dragged = String(draggedId || "");
   const index = entries.findIndex((entry) => entry.id === dragged);
-  if (index < 0) return { ok: false, reason: "找不到要移动的策略组" };
+  if (index < 0) return { ok: false, reason: t("strategyGroups.tree.move.missingGroup") };
 
   const target = targetId === null || targetId === undefined ? "" : String(targetId);
   const mode = position === "root" || !target ? "root" : position;
@@ -102,10 +104,10 @@ export function resolveStrategyGroupDrop(rows, draggedId, targetId, position = "
   }
 
   const targetIndex = entries.findIndex((entry) => entry.id === target);
-  if (targetIndex < 0) return { ok: false, reason: "找不到拖放目标策略组" };
-  if (targetIndex === index) return { ok: false, reason: "不能把组拖到它自己身上" };
+  if (targetIndex < 0) return { ok: false, reason: t("strategyGroups.tree.move.missingTarget") };
+  if (targetIndex === index) return { ok: false, reason: t("strategyGroups.tree.move.self") };
   if (targetIndex > index && targetIndex < end) {
-    return { ok: false, reason: "不能把组拖进它自己的子组（会形成循环层级）" };
+    return { ok: false, reason: t("strategyGroups.tree.move.cycle") };
   }
 
   const targetEntry = entries[targetIndex];
@@ -116,7 +118,11 @@ export function resolveStrategyGroupDrop(rows, draggedId, targetId, position = "
   if (newDepth + height > STRATEGY_GROUP_MAX_DEPTH) {
     return {
       ok: false,
-      reason: `最多支持 ${STRATEGY_GROUP_MAX_DEPTH} 层分组，这次拖放会把「${entries[index].name}」放到第 ${newDepth + height} 层`,
+      reason: t("strategyGroups.tree.move.depth", {
+        max: STRATEGY_GROUP_MAX_DEPTH,
+        name: entries[index].name,
+        depth: newDepth + height,
+      }),
     };
   }
 
@@ -165,9 +171,9 @@ export function formatStrategyGroupDropMessage(rows, draggedId, targetId, positi
   const target = entries.find((entry) => entry.id === String(targetId || ""));
   const name = dragged?.name || String(draggedId || "");
   const mode = position === "root" || !targetId ? "root" : position;
-  if (mode === "root") return `已把「${name}」移动到顶层`;
+  if (mode === "root") return t("strategyGroups.tree.drop.toRoot", { name });
   const targetName = target?.name || String(targetId || "");
-  if (mode === "before") return `已把「${name}」排到「${targetName}」前面`;
-  if (mode === "after") return `已把「${name}」排到「${targetName}」后面`;
-  return `已把「${name}」移动到「${targetName}」下面`;
+  if (mode === "before") return t("strategyGroups.tree.drop.before", { name, target: targetName });
+  if (mode === "after") return t("strategyGroups.tree.drop.after", { name, target: targetName });
+  return t("strategyGroups.tree.drop.inside", { name, target: targetName });
 }

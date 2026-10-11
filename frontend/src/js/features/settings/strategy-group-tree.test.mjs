@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   STRATEGY_GROUP_MAX_DEPTH,
   applyStrategyGroupDropOrder,
@@ -9,6 +10,8 @@ import {
   formatStrategyGroupDropMessage,
   resolveStrategyGroupDrop,
 } from "./strategy-group-tree.mjs";
+
+installTestCatalog();
 
 // 拖放排序的测试夹具：a 是顶层组，b 是 a 的子组，c 是 b 的子组，d 是另一个顶层组。
 const dragRows = [

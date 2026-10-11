@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   formatStrategyGroupApplySummary,
   formatStrategyGroupEnforcementNotice,
@@ -11,6 +12,8 @@ import {
   formatStrategyGroupStrategy,
   summarizeStrategyGroupSelection,
 } from "./strategy-group-format.mjs";
+
+installTestCatalog();
 
 test("formatStrategyGroupEnforcementNotice only fires when members changed", () => {
   assert.equal(formatStrategyGroupEnforcementNotice(0), "");

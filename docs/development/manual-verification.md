@@ -507,7 +507,8 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
   （`frontend/src/js/core/i18n-catalog.test.mjs`）。
 - 工具箱、关于页与 mods 页（轮换，`frontend/src/js/features/mods/mod-rotation.js`）、
   工坊浏览器（`features/workshop/` 9 个 JS 模块）、下载页（`features/downloads/`
-  6 个源文件）、收藏服务器页与面板高级控制（`features/servers/` 6 个源文件）已改用 `t()`；
+  6 个源文件）、收藏服务器页与面板高级控制（`features/servers/` 6 个源文件）、
+  设置页文案层子模块（`features/settings/` 9 个 `.mjs`，含策略组文案层 `strategyGroups.*`）已改用 `t()`；
   服务器页的官方战役/章节名与模式名表按数据层排除（见 i18n.md）；更新弹窗的静态节点在打开时
   由 `applyTranslations()` 回填（未回填时节点保留原中文，行为不变）；轮换按钮 tooltip 已挂
   `data-i18n-title`，等全局回填路径接通后生效；工坊弹窗的静态骨架（排序/工具栏/抽屉标题）

@@ -626,5 +626,201 @@
         "sendFailed": "发送失败: {error}"
       }
     }
+  },
+  "settings": {
+    "health": {
+      "kind": {
+        "unknown": "未知问题",
+        "missingAddonlist": "缺少 addonlist.txt",
+        "missingFile": "条目缺少文件",
+        "disabledOnly": "只剩 disabled 副本",
+        "unrecorded": "未写入开关记录",
+        "duplicateEntry": "重复条目",
+        "invalidVpk": "VPK 无法解析",
+        "orphanMeta": "孤立的工坊信息",
+        "missingMeta": "缺少工坊信息",
+        "dependencyDisabled": "依赖未开启",
+        "dependencyMissing": "依赖缺失",
+        "dependencyCycle": "依赖成环",
+        "fileTypeMismatch": "同名路径是文件夹",
+        "metaIdMismatch": "工坊信息对不上作品",
+        "outsideRoot": "条目指向受管目录之外",
+        "duplicateVpkCopy": "工坊作品有多份副本",
+        "duplicateDisabledCopy": "根目录与 disabled 各一份",
+        "subfolderVpks": "子目录里的 VPK 不会被加载",
+        "filenameTooLong": "文件名超长不会加载",
+        "xdrSlotCollision": "XDR 同槽冲突",
+        "xdrMissingBase": "缺少 XDR 基础包",
+        "xdrVariantPack": "XDR 多版本动作包"
+      },
+      "severity": {
+        "critical": "严重",
+        "warning": "警告",
+        "info": "提示"
+      },
+      "autoFix": {
+        "removeDuplicates": {
+          "label": "一键修复：删除重复条目",
+          "shortLabel": "删除重复条目",
+          "title": "删除 addonlist.txt 里重复的同一 Mod 条目（会先备份、保留第一条）"
+        },
+        "removeMissing": {
+          "label": "一键修复：清理缺失条目",
+          "shortLabel": "清理缺失条目",
+          "title": "把指向已不存在文件的条目从 addonlist.txt 里清掉（会先备份）"
+        },
+        "enableDependencies": {
+          "label": "一键修复：启用依赖",
+          "shortLabel": "启用依赖",
+          "title": "给这个主 Mod 打开它声明的全部依赖（缺文件的依赖会跳过并报告）"
+        }
+      },
+      "summary": {
+        "empty": "还没有体检结果",
+        "clean": "未发现问题",
+        "critical": "严重 {count}",
+        "warning": "警告 {count}",
+        "info": "提示 {count}",
+        "issues": "发现 {total} 个问题：{parts}",
+        "issuesPlain": "发现 {total} 个问题"
+      },
+      "search": {
+        "noun": "问题"
+      },
+      "markdown": {
+        "unknownTime": "未知",
+        "title": "# LytVPK Mod 体检报告",
+        "generatedAt": "- 生成时间：{time}",
+        "total": "- 问题总数：{count}{counts}",
+        "deepScan": "- 深度扫描：{value}",
+        "yes": "是",
+        "no": "否",
+        "clean": "未发现问题。",
+        "section": "## {severity}（{count}）",
+        "tableHeader": "| 类型 | 对象 | 说明 |",
+        "unknownSeverity": "> 另有 {count} 条结果严重度未知，未分节显示。",
+        "footer": "由 LytVPK 生成。"
+      }
+    },
+    "collections": {
+      "summary": {
+        "truncated": "（子合集过多，已截断）",
+        "empty": "没有可下载成员{truncated}",
+        "complete": "{total} 个成员，已全部下载{truncated}",
+        "missing": "{total} 个成员，其中 {missing} 个未下载{truncated}"
+      },
+      "refresh": {
+        "titlesPart": "（{titles}…）",
+        "added": "新增 {count} 个{titles}",
+        "removed": "下架 {count} 个{titles}",
+        "missing": "本地缺少 {count} 个",
+        "noChange": "合集内容没有变化"
+      },
+      "queue": {
+        "empty": "没有需要下载的成员",
+        "queued": "已加入下载队列 {count} 个成员"
+      },
+      "checkAll": {
+        "none": "还没有保存过工坊合集",
+        "allFailed": "全部 {total} 个合集都检查失败",
+        "noChangeAll": "所有合集都没有成员变化",
+        "noChangeSome": "{count} 个合集没有成员变化",
+        "failed": "{count} 个检查失败：{title}（{error}）"
+      }
+    },
+    "dependencies": {
+      "summary": {
+        "enabled": "已启用 {count} 个",
+        "alreadyEnabled": "{count} 个本就开启",
+        "missing": "{count} 个文件缺失",
+        "none": "没有需要处理的依赖"
+      },
+      "batch": {
+        "none": "没有需要启用的依赖",
+        "done": "已为 {masters} 个 Mod 启用 {enabled} 个依赖"
+      }
+    },
+    "profiles": {
+      "apply": {
+        "applied": "{count} 项已存在",
+        "added": "{count} 项补回",
+        "kept": "{count} 项保留",
+        "groups": "恢复 {count} 个策略组",
+        "dependencies": "恢复 {count} 条依赖",
+        "titled": "已应用方案“{name}”",
+        "untitled": "已应用方案"
+      }
+    },
+    "autoexec": {
+      "errors": {
+        "getMissing": "当前后端未提供 GetAutoexecConfig 接口",
+        "saveMissing": "当前后端未提供 SaveAutoexecConfig 接口"
+      }
+    }
+  },
+  "strategyGroups": {
+    "strategy": {
+      "single": "互斥单选",
+      "singleRandom": "随机单选",
+      "all": "全部开启",
+      "off": "全部关闭",
+      "unset": "未设置"
+    },
+    "apply": {
+      "titled": "已应用策略组“{name}”",
+      "untitled": "已应用策略组",
+      "kept": "，保留 {name}",
+      "summary": "{head}（{strategy}）：开启 {enabled} 项，关闭 {disabled} 项{kept}"
+    },
+    "enforcement": {
+      "notice": "已按策略组自动联动另外 {count} 个 Mod"
+    },
+    "batch": {
+      "confirm": {
+        "delete": "删除选中的 {count} 个策略组（共 {members} 个成员）：只删除 groups.json 里的记录，不改动 addonlist.txt、也不删除任何 Mod 文件；组成员已写入的分层（priority.json）会保留；被删组的下级分组会回到顶层。",
+        "enforceOn": "给选中的 {count} 个策略组开启自动联动：之后手动开关组内成员会按策略联动同组其它成员。{list}",
+        "enforceOff": "关闭选中 {count} 个策略组的自动联动：策略组仍可手动「按策略应用」，只是不再自动联动。{list}",
+        "setTier": "给选中的 {count} 个策略组设置同一个组权重（共 {members} 个成员受影响）。{list}",
+        "clearTier": "清除选中 {count} 个策略组的组权重（组本身与成员都保留）。{list}",
+        "default": "对选中的 {count} 个策略组执行批量操作。{list}",
+        "more": " 等 {count} 个"
+      },
+      "result": {
+        "skipped": "；{count} 个已经不存在，已跳过",
+        "detached": "；{count} 个下级分组已回到顶层",
+        "delete": "已删除 {deleted} 个策略组{suffix}（现在还剩 {remaining} 个组）",
+        "enforceOn": "已给 {updated} 个策略组开启自动联动{suffix}",
+        "enforceOff": "已关闭 {updated} 个策略组的自动联动{suffix}",
+        "setTier": "已给 {updated} 个策略组设置权重 {tier}{suffix}（需「按分层应用」才重排）",
+        "clearTier": "已清除 {updated} 个策略组的权重{suffix}",
+        "default": "已更新 {updated} 个策略组{suffix}"
+      }
+    },
+    "selection": {
+      "none": "未选择组",
+      "base": "已选 {count} 个组（{members} 个成员{missing}）",
+      "missingPart": "，含 {count} 个缺失",
+      "hidden": "{base}，其中 {count} 个不在当前筛选里"
+    },
+    "filter": {
+      "all": "当前筛选：全部分组",
+      "more": " 等 {count} 个组",
+      "state": "当前筛选：{shown}{more}"
+    },
+    "tree": {
+      "move": {
+        "missingGroup": "找不到要移动的策略组",
+        "missingTarget": "找不到拖放目标策略组",
+        "self": "不能把组拖到它自己身上",
+        "cycle": "不能把组拖进它自己的子组（会形成循环层级）",
+        "depth": "最多支持 {max} 层分组，这次拖放会把「{name}」放到第 {depth} 层"
+      },
+      "drop": {
+        "toRoot": "已把「{name}」移动到顶层",
+        "before": "已把「{name}」排到「{target}」前面",
+        "after": "已把「{name}」排到「{target}」后面",
+        "inside": "已把「{name}」移动到「{target}」下面"
+      }
+    }
   }
 }

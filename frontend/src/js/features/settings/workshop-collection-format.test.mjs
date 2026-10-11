@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   countMissingCollectionMembers,
   formatCollectionCheckAllSummary,
@@ -8,6 +9,8 @@ import {
   formatCollectionRefreshSummary,
   formatCollectionSummary,
 } from "./workshop-collection-format.mjs";
+
+installTestCatalog();
 
 test("formatCollectionSummary reports downloads and truncation", () => {
   assert.equal(

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import { buildHealthReportMarkdown } from "./health-report-markdown.mjs";
+
+installTestCatalog();
 
 test("buildHealthReportMarkdown reports an empty result without tables", () => {
   const markdown = buildHealthReportMarkdown(

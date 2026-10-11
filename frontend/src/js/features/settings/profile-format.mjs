@@ -1,5 +1,7 @@
 // 启用方案应用结果的提示文案。
 
+import { t } from "../../core/i18n-runtime.js";
+
 export function formatProfileApplySummary(result) {
   const name = String(result?.profileName || "").trim();
   const applied = Number(result?.appliedCount) || 0;
@@ -8,10 +10,14 @@ export function formatProfileApplySummary(result) {
   const groups = Number(result?.restoredGroups) || 0;
   const dependencies = Number(result?.restoredDependencies) || 0;
 
-  const parts = [`${applied} 项已存在`, `${added} 项补回`, `${kept} 项保留`];
-  if (groups > 0) parts.push(`恢复 ${groups} 个策略组`);
-  if (dependencies > 0) parts.push(`恢复 ${dependencies} 条依赖`);
+  const parts = [
+    t("settings.profiles.apply.applied", { count: applied }),
+    t("settings.profiles.apply.added", { count: added }),
+    t("settings.profiles.apply.kept", { count: kept }),
+  ];
+  if (groups > 0) parts.push(t("settings.profiles.apply.groups", { count: groups }));
+  if (dependencies > 0) parts.push(t("settings.profiles.apply.dependencies", { count: dependencies }));
 
-  const head = name ? `已应用方案“${name}”` : "已应用方案";
+  const head = name ? t("settings.profiles.apply.titled", { name }) : t("settings.profiles.apply.untitled");
   return `${head}：${parts.join("，")}`;
 }

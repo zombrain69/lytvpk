@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   describeHealthSearch,
   healthHighlightSpec,
   healthIssueTags,
   searchHealthIssues,
 } from "./health-search.mjs";
+
+installTestCatalog();
 
 const issues = [
   {

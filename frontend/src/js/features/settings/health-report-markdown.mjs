@@ -4,6 +4,7 @@ import {
   formatHealthIssueKind,
   formatHealthSeverity,
 } from "./health-report-format.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 const SEVERITY_ORDER = ["critical", "warning", "info"];
 
@@ -16,7 +17,7 @@ function toTableCell(value) {
 }
 
 export function buildHealthReportMarkdown(report, options = {}) {
-  const generatedAt = String(options?.generatedAt || "").trim() || "未知";
+  const generatedAt = String(options?.generatedAt || "").trim() || t("settings.health.markdown.unknownTime");
   const issues = Array.isArray(report?.issues) ? report.issues : [];
   const deepScanned = report?.deepScanned === true;
 
@@ -37,16 +38,18 @@ export function buildHealthReportMarkdown(report, options = {}) {
   const countText = countParts.length > 0 ? `（${countParts.join("、")}）` : "";
 
   const lines = [
-    "# LytVPK Mod 体检报告",
+    t("settings.health.markdown.title"),
     "",
-    `- 生成时间：${generatedAt}`,
-    `- 问题总数：${issues.length}${countText}`,
-    `- 深度扫描：${deepScanned ? "是" : "否"}`,
+    t("settings.health.markdown.generatedAt", { time: generatedAt }),
+    t("settings.health.markdown.total", { count: issues.length, counts: countText }),
+    t("settings.health.markdown.deepScan", {
+      value: t(deepScanned ? "settings.health.markdown.yes" : "settings.health.markdown.no"),
+    }),
     "",
   ];
 
   if (issues.length === 0) {
-    lines.push("未发现问题。", "");
+    lines.push(t("settings.health.markdown.clean"), "");
     return lines.join("\n");
   }
 
@@ -58,8 +61,8 @@ export function buildHealthReportMarkdown(report, options = {}) {
     if (group.length === 0) {
       continue;
     }
-    lines.push(`## ${formatHealthSeverity(severity)}（${group.length}）`, "");
-    lines.push("| 类型 | 对象 | 说明 |", "| --- | --- | --- |");
+    lines.push(t("settings.health.markdown.section", { severity: formatHealthSeverity(severity), count: group.length }), "");
+    lines.push(t("settings.health.markdown.tableHeader"), "| --- | --- | --- |");
     for (const issue of group) {
       lines.push(
         `| ${toTableCell(formatHealthIssueKind(issue?.kind))} | ${toTableCell(issue?.name)} | ${toTableCell(issue?.message)} |`,
@@ -69,8 +72,8 @@ export function buildHealthReportMarkdown(report, options = {}) {
   }
 
   if (unknownSeverityCount > 0) {
-    lines.push(`> 另有 ${unknownSeverityCount} 条结果严重度未知，未分节显示。`, "");
+    lines.push(t("settings.health.markdown.unknownSeverity", { count: unknownSeverityCount }), "");
   }
-  lines.push("---", "", "由 LytVPK 生成。", "");
+  lines.push("---", "", t("settings.health.markdown.footer"), "");
   return lines.join("\n");
 }

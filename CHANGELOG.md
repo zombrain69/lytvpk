@@ -1,5 +1,23 @@
 # Changelog
 
+## 未发布 — i18n：迁移设置页文案层（settings 子模块 .mjs）（2026-10-11）
+
+- `features/settings/` 的 9 个纯模块 `.mjs` 的用户可见文案改走 `t()`（这批服务设置页内部
+  各卡片；主文件 `settings-page.js` 与 `problem-mod-scan.js` 随后单独迁移）：
+  体检问题类型名（22 条）/ 严重度 / 三个「一键修复」动作的 label・shortLabel・title /
+  汇总文案（`health-report-format.mjs`）、检索名词（`health-search.mjs`）、Markdown 报告全文
+  （`health-report-markdown.mjs`）、工坊合集汇总（`workshop-collection-format.mjs`）、
+  依赖启用汇总（`dependency-format.mjs`）、启用方案应用汇总（`profile-format.mjs`）、
+  autoexec 控制器错误（`autoexec-settings-controller.mjs`）；目录新增 `settings.*` 子树。
+- 策略组文案层（`strategy-group-format.mjs` / `strategy-group-tree.mjs`，服务 mod-groups 的
+  独立「策略组管理」窗口）：策略名、应用 / 联动汇总、批量确认与结果、多选标签、筛选状态、
+  拖放校验与提示；目录新增顶层 `strategyGroups.*` 键组。
+- 类型 / 严重度 / 动作三类表改为「key 表 + 延迟取文案」，不在模块求值期调 `t()`；
+  动作 label 另留 `shortLabel`（体检统计条渲染用，替代字符串 replace 去前缀）。
+- 8 个纯模块单测接入 `installTestCatalog()`（断言值不变）。
+- 文档：`docs/development/i18n.md`、`docs/development/manual-verification.md` §13。
+- 验证：`node --test`（frontend）565 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — i18n：迁移收藏服务器页（servers，6 个源文件）（2026-10-11）
 
 - `features/servers/` 全部源文件的用户可见文案改走 `t()`：地址解析错误提示（消息直接给用户看）、

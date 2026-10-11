@@ -4,6 +4,7 @@
 //   tags   → 严重度（严重 / 警告 / 提示）+ 问题类型（复用已有中文名，例如「条目缺少文件」）
 
 import { describeFieldSearch, highlightSpecFor, searchByFields } from "../../core/field-search.mjs";
+import { t } from "../../core/i18n-runtime.js";
 import { formatHealthIssueKind, formatHealthSeverity } from "./health-report-format.mjs";
 
 /** healthIssueFields 返回参与匹配的文本字段。 */
@@ -28,7 +29,7 @@ export function searchHealthIssues(issues, query) {
 
 /** describeHealthSearch 生成计数文案。 */
 export function describeHealthSearch({ total = 0, matched = 0, query = "", regexInvalid = "" } = {}) {
-  return describeFieldSearch({ total, matched, query, regexInvalid, noun: "问题" });
+  return describeFieldSearch({ total, matched, query, regexInvalid, noun: t("settings.health.search.noun") });
 }
 
 /** healthHighlightSpec 给出高亮参数（交给 highlightMatches）。 */

@@ -1,14 +1,16 @@
 // 策略组在「策略组管理」窗口（features/mod-groups/strategy-group-manager.js）里的展示文案。
 
-const STRATEGY_LABELS = {
-  single: "互斥单选",
-  single_random: "随机单选",
-  all: "全部开启",
-  off: "全部关闭",
+import { t } from "../../core/i18n-runtime.js";
+
+const STRATEGY_KEYS = {
+  single: "strategyGroups.strategy.single",
+  single_random: "strategyGroups.strategy.singleRandom",
+  all: "strategyGroups.strategy.all",
+  off: "strategyGroups.strategy.off",
 };
 
 export function formatStrategyGroupStrategy(value) {
-  return STRATEGY_LABELS[String(value || "").trim()] || "未设置";
+  return t(STRATEGY_KEYS[String(value || "").trim()] || "strategyGroups.strategy.unset");
 }
 
 export function formatStrategyGroupApplySummary(result) {
@@ -18,9 +20,9 @@ export function formatStrategyGroupApplySummary(result) {
   const disabled = Array.isArray(result?.disabled) ? result.disabled.length : 0;
   const picked = String(result?.pickedName || "").trim();
 
-  const head = name ? `已应用策略组“${name}”` : "已应用策略组";
-  const pickedText = picked ? `，保留 ${picked}` : "";
-  return `${head}（${strategy}）：开启 ${enabled} 项，关闭 ${disabled} 项${pickedText}`;
+  const head = name ? t("strategyGroups.apply.titled", { name }) : t("strategyGroups.apply.untitled");
+  const pickedText = picked ? t("strategyGroups.apply.kept", { name: picked }) : "";
+  return t("strategyGroups.apply.summary", { head, strategy, enabled, disabled, kept: pickedText });
 }
 
 // formatStrategyGroupEnforcementNotice 描述一次手动开关触发的自动联动。
@@ -30,7 +32,7 @@ export function formatStrategyGroupEnforcementNotice(changedCount) {
   if (count <= 0) {
     return "";
   }
-  return `已按策略组自动联动另外 ${count} 个 Mod`;
+  return t("strategyGroups.enforcement.notice", { count });
 }
 
 // ---- 策略组批量管理（多选组 → 批量删除 / 批量开关联动 / 批量权重）----
@@ -63,26 +65,21 @@ export function formatStrategyGroupBatchConfirm(action, summary) {
   const count = Number(summary?.count || 0);
   const members = Number(summary?.memberCount || 0);
   const names = (summary?.names || []).slice(0, 5).join("、");
-  const more = (summary?.names || []).length > 5 ? ` 等 ${summary.names.length} 个` : "";
+  const more = (summary?.names || []).length > 5 ? t("strategyGroups.batch.confirm.more", { count: summary.names.length }) : "";
   const list = names ? `\n\n${names}${more}` : "";
   switch (String(action || "")) {
     case "delete":
-      return (
-        `删除选中的 ${count} 个策略组（共 ${members} 个成员）：` +
-        "只删除 groups.json 里的记录，不改动 addonlist.txt、也不删除任何 Mod 文件；" +
-        "组成员已写入的分层（priority.json）会保留；被删组的下级分组会回到顶层。" +
-        list
-      );
+      return t("strategyGroups.batch.confirm.delete", { count, members }) + list;
     case "enforce_on":
-      return `给选中的 ${count} 个策略组开启自动联动：之后手动开关组内成员会按策略联动同组其它成员。${list}`;
+      return t("strategyGroups.batch.confirm.enforceOn", { count, list });
     case "enforce_off":
-      return `关闭选中 ${count} 个策略组的自动联动：策略组仍可手动「按策略应用」，只是不再自动联动。${list}`;
+      return t("strategyGroups.batch.confirm.enforceOff", { count, list });
     case "set_tier":
-      return `给选中的 ${count} 个策略组设置同一个组权重（共 ${members} 个成员受影响）。${list}`;
+      return t("strategyGroups.batch.confirm.setTier", { count, members, list });
     case "clear_tier":
-      return `清除选中 ${count} 个策略组的组权重（组本身与成员都保留）。${list}`;
+      return t("strategyGroups.batch.confirm.clearTier", { count, list });
     default:
-      return `对选中的 ${count} 个策略组执行批量操作。${list}`;
+      return t("strategyGroups.batch.confirm.default", { count, list });
   }
 }
 
@@ -94,21 +91,21 @@ export function formatStrategyGroupBatchResult(action, result) {
   const detached = (result?.detachedChildren || []).length;
   const remaining = Number(result?.remaining || 0);
   const suffix =
-    (skipped > 0 ? `；${skipped} 个已经不存在，已跳过` : "") +
-    (detached > 0 ? `；${detached} 个下级分组已回到顶层` : "");
+    (skipped > 0 ? t("strategyGroups.batch.result.skipped", { count: skipped }) : "") +
+    (detached > 0 ? t("strategyGroups.batch.result.detached", { count: detached }) : "");
   switch (String(action || "")) {
     case "delete":
-      return `已删除 ${deleted} 个策略组${suffix}（现在还剩 ${remaining} 个组）`;
+      return t("strategyGroups.batch.result.delete", { deleted, suffix, remaining });
     case "enforce_on":
-      return `已给 ${updated} 个策略组开启自动联动${suffix}`;
+      return t("strategyGroups.batch.result.enforceOn", { updated, suffix });
     case "enforce_off":
-      return `已关闭 ${updated} 个策略组的自动联动${suffix}`;
+      return t("strategyGroups.batch.result.enforceOff", { updated, suffix });
     case "set_tier":
-      return `已给 ${updated} 个策略组设置权重 ${result?.tier ?? ""}${suffix}（需「按分层应用」才重排）`;
+      return t("strategyGroups.batch.result.setTier", { updated, tier: result?.tier ?? "", suffix });
     case "clear_tier":
-      return `已清除 ${updated} 个策略组的权重${suffix}`;
+      return t("strategyGroups.batch.result.clearTier", { updated, suffix });
     default:
-      return `已更新 ${updated} 个策略组${suffix}`;
+      return t("strategyGroups.batch.result.default", { updated, suffix });
   }
 }
 
@@ -120,12 +117,13 @@ export function formatStrategyGroupBatchResult(action, result) {
  */
 export function formatStrategyGroupSelectionLabel(summary, hiddenCount = 0) {
   const count = Number(summary?.count || 0);
-  if (count <= 0) return "未选择组";
+  if (count <= 0) return t("strategyGroups.selection.none");
   const members = Number(summary?.memberCount || 0);
   const missing = Number(summary?.missingCount || 0);
   const hidden = Number(hiddenCount) || 0;
-  const base = `已选 ${count} 个组（${members} 个成员${missing > 0 ? `，含 ${missing} 个缺失` : ""}）`;
-  return hidden > 0 ? `${base}，其中 ${hidden} 个不在当前筛选里` : base;
+  const missingPart = missing > 0 ? t("strategyGroups.selection.missingPart", { count: missing }) : "";
+  const base = t("strategyGroups.selection.base", { count, members, missing: missingPart });
+  return hidden > 0 ? t("strategyGroups.selection.hidden", { base, count: hidden }) : base;
 }
 
 /**
@@ -136,12 +134,12 @@ export function formatStrategyGroupSelectionLabel(summary, hiddenCount = 0) {
  */
 export function formatStrategyGroupFilterState(ids, groups, limit = 3) {
   const list = Array.isArray(ids) ? ids.map((id) => String(id)) : [];
-  if (list.length === 0) return "当前筛选：全部分组";
+  if (list.length === 0) return t("strategyGroups.filter.all");
   const nameById = new Map(
     (Array.isArray(groups) ? groups : []).map((group) => [String(group?.id), String(group?.name || "")]),
   );
   const names = list.map((id) => nameById.get(id) || id);
   const shown = names.slice(0, Math.max(1, limit)).join("、");
-  const more = names.length > limit ? ` 等 ${names.length} 个组` : "";
-  return `当前筛选：${shown}${more}`;
+  const more = names.length > limit ? t("strategyGroups.filter.more", { count: names.length }) : "";
+  return t("strategyGroups.filter.state", { shown, more });
 }

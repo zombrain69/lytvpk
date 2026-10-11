@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import {
   formatDependencyBatchEnableSummary,
   formatDependencyEnableSummary,
 } from "./dependency-format.mjs";
+
+installTestCatalog();
 
 test("formatDependencyEnableSummary reports each outcome bucket", () => {
   assert.equal(
