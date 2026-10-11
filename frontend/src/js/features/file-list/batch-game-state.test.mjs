@@ -16,6 +16,9 @@ const runtimeSource = readFileSync(
   "utf8",
 );
 const stateSource = readFileSync(path.resolve(here, "../state.js"), "utf8");
+const catalog = JSON.parse(
+  readFileSync(path.resolve(here, "../../../messages/zh-CN.json"), "utf8"),
+);
 
 test("工具栏固定提供「游戏内启用 / 游戏内关闭」两个批量按钮", () => {
   assert.match(indexHtml, /id="game-enable-selected-btn"/, "缺少批量游戏内启用按钮");
@@ -33,7 +36,8 @@ test("批量游戏内开关走一次性写盘的后端接口", () => {
   assert.match(actionsSource, /SetVPKGameEnabledBatch\(\s*targets\.map\(\(file\) => file\.path\),\s*enabled/, "要一次调用批量接口");
   // disabled 目录里的文件不能直接改游戏开关，要提示先放回 addons。
   assert.match(actionsSource, /file\.location !== "disabled"/);
-  assert.match(actionsSource, /disabled 目录里的先用「批量启用」放回 addons/);
+  assert.match(actionsSource, /t\("mods\.ops\.gameState\.noTargets"\)/, "disabled 目录提示要走目录 key");
+  assert.match(catalog.mods.ops.gameState.noTargets, /disabled 目录里的先用「批量启用」放回 addons/);
   // 未记录的条目要提示。
   assert.match(actionsSource, /formatBatchGameStateConfirm\(\{ total: targets\.length, skipped, unrecorded \}, enabled\)/);
   assert.match(actionsSource, /refreshFilesKeepFilter\(\)/, "改完要刷新列表状态");

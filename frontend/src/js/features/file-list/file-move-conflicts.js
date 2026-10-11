@@ -1,3 +1,5 @@
+import { t } from "../../core/i18n-runtime.js";
+
 import {
   CheckFileMoveConflicts,
   GetRootDirectory,
@@ -7,7 +9,7 @@ import {
 
 function formatBytes(value) {
   const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return "未知";
+  if (!Number.isFinite(bytes) || bytes < 0) return t("modals.fileConflict.unknown");
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB", "TB"];
   let size = bytes;
@@ -20,7 +22,7 @@ function formatBytes(value) {
 }
 
 function formatTime(value) {
-  if (!value) return "未知";
+  if (!value) return t("modals.fileConflict.unknown");
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
 }
@@ -31,10 +33,10 @@ function createConflictEntry(conflict) {
 
   const title = document.createElement("div");
   title.className = "file-conflict-entry-title";
-  title.textContent = conflict.targetPath || "目标文件";
+  title.textContent = conflict.targetPath || t("modals.fileConflict.targetLabel");
   const kind = document.createElement("span");
   kind.className = "file-conflict-entry-kind";
-  kind.textContent = conflict.fileType || "文件";
+  kind.textContent = conflict.fileType || t("modals.fileConflict.fileKindFallback");
   title.appendChild(kind);
   entry.appendChild(title);
 
@@ -42,26 +44,32 @@ function createConflictEntry(conflict) {
   details.className = "file-conflict-entry-details";
   const source = document.createElement("div");
   const sourceLabel = document.createElement("strong");
-  sourceLabel.textContent = "源文件";
+  sourceLabel.textContent = t("modals.fileConflict.sourceLabel");
   source.appendChild(sourceLabel);
   const sourcePath = document.createElement("div");
   sourcePath.className = "file-conflict-entry-path";
-  sourcePath.textContent = conflict.sourcePath || "未知";
+  sourcePath.textContent = conflict.sourcePath || t("modals.fileConflict.unknown");
   source.appendChild(sourcePath);
   const sourceInfo = document.createElement("div");
-  sourceInfo.textContent = `大小：${formatBytes(conflict.sourceSize)} · 修改时间：${formatTime(conflict.sourceModTime)}`;
+  sourceInfo.textContent = t("modals.fileConflict.sizeModified", {
+    size: formatBytes(conflict.sourceSize),
+    time: formatTime(conflict.sourceModTime),
+  });
   source.appendChild(sourceInfo);
 
   const target = document.createElement("div");
   const targetLabel = document.createElement("strong");
-  targetLabel.textContent = "目标文件";
+  targetLabel.textContent = t("modals.fileConflict.targetLabel");
   target.appendChild(targetLabel);
   const targetPath = document.createElement("div");
   targetPath.className = "file-conflict-entry-path";
-  targetPath.textContent = conflict.targetPath || "未知";
+  targetPath.textContent = conflict.targetPath || t("modals.fileConflict.unknown");
   target.appendChild(targetPath);
   const targetInfo = document.createElement("div");
-  targetInfo.textContent = `大小：${formatBytes(conflict.targetSize)} · 修改时间：${formatTime(conflict.targetModTime)}`;
+  targetInfo.textContent = t("modals.fileConflict.sizeModified", {
+    size: formatBytes(conflict.targetSize),
+    time: formatTime(conflict.targetModTime),
+  });
   target.appendChild(targetInfo);
 
   details.append(source, target);
@@ -87,9 +95,9 @@ export function showFileConflictDialog(conflicts) {
   const entries = Array.isArray(conflicts) ? conflicts : [];
   list.replaceChildren(...entries.map(createConflictEntry));
   list.classList.remove("is-compared");
-  compareBtn.textContent = "比较文件信息";
+  compareBtn.textContent = t("modals.fileConflict.compare");
   applyAll.checked = false;
-  summary.textContent = `发现 ${entries.length} 个目标文件已存在。请选择如何处理；默认只处理当前冲突。`;
+  summary.textContent = t("modals.fileConflict.summary", { count: entries.length });
   modal.classList.remove("hidden");
 
   return new Promise((resolve) => {
@@ -108,7 +116,7 @@ export function showFileConflictDialog(conflicts) {
 
     compareBtn.onclick = () => {
       const compared = list.classList.toggle("is-compared");
-      compareBtn.textContent = compared ? "收起文件信息" : "比较文件信息";
+      compareBtn.textContent = compared ? t("modals.fileConflict.compareCollapse") : t("modals.fileConflict.compare");
     };
     cancelBtn.onclick = () => cleanup("cancel");
     closeBtn.onclick = () => cleanup("cancel");
@@ -137,7 +145,7 @@ async function moveWithConflictResolution(filePaths, destDir, executor) {
       conflicts = await CheckFileMoveConflicts([filePath], destDir);
     } catch (error) {
       total.failCount += 1;
-      total.errors.push(`检查 ${filePath} 冲突失败: ${String(error)}`);
+      total.errors.push(t("modals.fileConflict.checkFailed", { path: filePath, error: String(error) }));
       continue;
     }
 
@@ -159,7 +167,7 @@ async function moveWithConflictResolution(filePaths, destDir, executor) {
       if (total.cancelled) break;
     } catch (error) {
       total.failCount += 1;
-      total.errors.push(`移动 ${filePath} 失败: ${String(error)}`);
+      total.errors.push(t("modals.fileConflict.moveFailed", { path: filePath, error: String(error) }));
     }
   }
   return total;
@@ -173,7 +181,7 @@ export async function moveVpkFilesWithConflictResolution(filePaths, destDir) {
 
 export async function moveWorkshopFileWithConflictResolution(filePath) {
   const destDir = await GetRootDirectory();
-  if (!destDir) throw new Error("未选择 L4D2 addons 目录");
+  if (!destDir) throw new Error(t("modals.fileConflict.noAddonsDir"));
   return moveWithConflictResolution([filePath], destDir, (path, action) =>
     MoveWorkshopToAddonsWithConflictAction(path, action),
   );

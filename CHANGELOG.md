@@ -1,5 +1,40 @@
 # Changelog
 
+## 未发布 — i18n：file-list 文件操作家族（actions / operations / batch-tags / tags / share / file-move-conflicts / vpk-risk-warning）（第 13 项第十批）（2026-10-12）
+
+- `actions.js`（批量操作与通知，55 处）：批量启用 / 禁用（成功 / 失败+原因 / 批量失败）、
+  「全部禁用」动态范围（确认标题与正文 / 进度 / 结果，`{scope}` 插值）、导出 ZIP
+  （确认弹窗 HTML 片段 / 进度 / 失败）、批量删除、移动全链路（进度 / 成功 / 跳过 / 取消 / 出错）、
+  Ctrl+X 待移动标记与 Ctrl+V 提示、转移创意工坊（确认 / 进度 / 完成三态）、批量隐藏 / 取消隐藏
+  （`{action}` 动作名组合，标题复用 `mods.batch.hide|unhide`）；「请先选择文件」×8 复用
+  `mods.batch.selectFilesFirst`；操作名（`confirmVPKOperationWarning` 的 label）统一走
+  `mods.ops.label.*`（与 VPK 风险弹窗共用）；游戏内开关确认标题 `mods.batch.gameStateTitle`。
+- `operations.js`（单文件操作，55 处）：游戏内开关全链路（同类互斥失败 / 未找到两态 / 未记录选择
+  弹窗（引导句 `{name}`、取消复用 `modals.message.cancel`）/ addonlist 结果两态 + 优先级提示）、
+  单文件启用 / 禁用 / 恢复、复制 Workshop 四条结果、批量转移全链路、删除（确认 / 回收站）、
+  打开位置、解包、隐藏切换、重命名全链路（长度提示三条 / 空名 / 缺失 / 成功 / 失败）+
+  重命名弹窗两条 tooltip（`modals.rename.*`）。
+- `batch-tags.js` + `tags.js`：二级标签提示四态（追加 / 覆盖 / 清空，含空态）→
+  `modals.batchSetTags.hint*`（4 key）；「无」兜底与 × 「删除」→ `mods.tags.*`；
+  批量结果（进度 / 完成+原因 / 成功 / 失败）→ `mods.ops.batchTags.*`。
+- `share.js`：工坊 ID 复制四条（全部缺失 / 已复制 / 部分跳过 / 复制失败）→ `mods.ops.share.*`。
+- `file-move-conflicts.js`：冲突条目（源 / 目标标签、未知与文件兜底、大小·修改时间插值）、
+  比较按钮两态（复用 `modals.fileConflict.compare` + 新增 `compareCollapse`）、摘要、
+  检查 / 移动失败（`{path}` `{error}`）、未选目录 → `modals.fileConflict.*`（+10 key）。
+- `vpk-risk-warning.js`：纯文本警告模板、风险弹窗全部文案（标题 / 引导 / 条目 / 可修复徽标 /
+  说明 / 按钮三条）、检测失败与不支持方法 → `modals.vpkRisk.*`（14 key）；默认操作名
+  `mods.ops.label.continue`（「继续操作」，与弹窗确认按钮同 key）。
+- **已知豁免**：`operations.js` 的两条后端错误匹配文本（`游戏不会接受此 Mod` /
+  `addoninfo.txt 格式无效`；后者对应 Go `internal/parser/addon_info_validation.go`）
+  按协议常量保留，与 `scoped-conflict-retry.mjs` 同口径。
+- 目录新增 150 key（mods.ops 110 / modals.vpkRisk 14 / modals.fileConflict 10 /
+  modals.rename 6 / modals.batchSetTags 4 / mods.tags 4 / modals.message 1 / mods.batch 1）；
+  既有条目值零改动。批前「裸文本」复查 7 文件无扫描器盲区残留；批后扫描仅剩豁免 2 处。
+- 测试：`batch-failure-reason.test.mjs` 重写为「源码接线 + 目录内容」双查并新增插值实测；
+  `batch-game-state.test.mjs` 改双查；`vpk-risk-warning.test.mjs` 新增渲染实测 2 条。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变。
+
 ## 未发布 — i18n：features 根级 4 文件（拖入导入 / 目录下拉 / 启动流程 / 全局状态）（第 13 项第九批）（2026-10-12）
 
 - `drop-import.js`（拖入 / 选择文件导入面板，52 处）：面板标题两态、阶段 / 进度 / 文件行、

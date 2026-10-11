@@ -7,6 +7,7 @@ import {
   updateLoadingMessage,
 } from "../state.js";
 import { showError, showNotification, showSuccess } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import { renderFileList, updateSingleFileDisplay } from "./render.js";
 import { performSearch, refreshFilesKeepFilter } from "./filters.js";
@@ -27,6 +28,7 @@ import {
   formatBatchGameStateConfirm,
   formatBatchGameStateSummary,
   canApplyBatchGameStateLocally,
+  batchGameStateActionLabel,
 } from "./batch-game-state-format.mjs";
 
 /**
@@ -37,7 +39,7 @@ import {
  */
 export async function setSelectedGameEnabled(enabled) {
   if (appState.selectedFiles.size === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
   const files = Array.from(appState.selectedFiles)
@@ -51,12 +53,12 @@ export async function setSelectedGameEnabled(enabled) {
   const targets = files.filter((file) => file.location !== "disabled");
   const skipped = files.length - targets.length;
   if (targets.length === 0) {
-    showNotification("没有可设置的 Mod（disabled 目录里的先用「批量启用」放回 addons）", "info");
+    showNotification(t("mods.ops.gameState.noTargets"), "info");
     return;
   }
   const unrecorded = targets.filter((file) => !file.gameStateKnown).length;
   showConfirmModal(
-    `批量${enabled ? "游戏内启用" : "游戏内关闭"}`,
+    t("mods.batch.gameStateTitle", { action: batchGameStateActionLabel(enabled) }),
     formatBatchGameStateConfirm({ total: targets.length, skipped, unrecorded }, enabled),
     async () => {
       try {
@@ -101,7 +103,7 @@ export async function setSelectedGameEnabled(enabled) {
           updatedPaths.length > 0 ? "success" : "info",
         );
       } catch (error) {
-        showError("批量设置游戏内开关失败: " + String(error?.message || error));
+        showError(t("mods.ops.gameState.batchFailed", { error: String(error?.message || error) }));
       }
     },
   );
@@ -130,7 +132,7 @@ export function deselectAll() {
 
 export async function enableSelected() {
   if (appState.selectedFiles.size === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
 
@@ -145,11 +147,11 @@ export async function enableSelected() {
   });
 
   if (filesToToggle.length === 0) {
-    showNotification("没有需要启用的文件（只能启用disabled目录中的文件）", "info");
+    showNotification(t("mods.ops.enable.noTargets"), "info");
     return;
   }
 
-  if (!(await confirmVPKOperationWarning(filesToToggle, "批量启用 Mod"))) return;
+  if (!(await confirmVPKOperationWarning(filesToToggle, t("mods.ops.label.batchEnable")))) return;
 
   try {
     // 失败的第一个原因要跟着计数一起说出来：只说"N 个失败"用户没法排查
@@ -172,22 +174,22 @@ export async function enableSelected() {
     await batchUpdateFileStatus(successFiles);
     await refreshFilesKeepFilter();
 
-    showNotification(`成功启用 ${successFiles.length} 个文件`, "success");
+    showNotification(t("mods.ops.enable.success", { count: successFiles.length }), "success");
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
       const reason = failures[0] ? `：${failures[0]}` : "";
-      showNotification(`${failedCount} 个文件启用失败${reason}`, "error");
+      showNotification(t("mods.ops.enable.failed", { count: failedCount, reason }), "error");
     }
   } catch (error) {
     console.error("批量启用失败:", error);
-    showError("批量启用失败: " + error);
+    showError(t("mods.ops.enable.batchFailed", { error: String(error) }));
   }
 }
 
 export async function disableSelected() {
   if (appState.selectedFiles.size === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
 
@@ -200,11 +202,11 @@ export async function disableSelected() {
   });
 
   if (filesToToggle.length === 0) {
-    showNotification("没有需要禁用的文件（只能禁用root目录中的文件）", "info");
+    showNotification(t("mods.ops.disable.noTargets"), "info");
     return;
   }
 
-  if (!(await confirmVPKOperationWarning(filesToToggle, "批量禁用 Mod"))) return;
+  if (!(await confirmVPKOperationWarning(filesToToggle, t("mods.ops.label.batchDisable")))) return;
 
   try {
     const failures = [];
@@ -225,16 +227,16 @@ export async function disableSelected() {
     await batchUpdateFileStatus(successFiles);
     await refreshFilesKeepFilter();
 
-    showNotification(`成功禁用 ${successFiles.length} 个文件`, "success");
+    showNotification(t("mods.ops.disable.success", { count: successFiles.length }), "success");
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
       const reason = failures[0] ? `：${failures[0]}` : "";
-      showNotification(`${failedCount} 个文件禁用失败${reason}`, "error");
+      showNotification(t("mods.ops.disable.failed", { count: failedCount, reason }), "error");
     }
   } catch (error) {
     console.error("批量禁用失败:", error);
-    showError("批量禁用失败: " + error);
+    showError(t("mods.ops.disable.batchFailed", { error: String(error) }));
   }
 }
 
@@ -248,16 +250,16 @@ export async function disableAllMods(primaryTag = "") {
     .map((file) => file.path);
 
   if (filesToToggle.length === 0) {
-    showNotification(`没有需要禁用的${scopeLabel}（只会禁用root目录中已启用的文件）`, "info");
+    showNotification(t("mods.ops.disableAll.noTargets", { scope: scopeLabel }), "info");
     return;
   }
 
   showConfirmModal(
-    `确认禁用${scopeLabel}`,
-    `确定要禁用 ${filesToToggle.length} 个${scopeLabel}吗？文件将被移动到 disabled 目录。`,
+    t("mods.ops.disableAll.confirmTitle", { scope: scopeLabel }),
+    t("mods.ops.disableAll.confirmBody", { count: filesToToggle.length, scope: scopeLabel }),
     async () => {
-      if (!(await confirmVPKOperationWarning(filesToToggle, `禁用${scopeLabel}`))) return;
-      updateLoadingMessage(`正在禁用${scopeLabel}...`);
+      if (!(await confirmVPKOperationWarning(filesToToggle, t("mods.ops.label.disableScope", { scope: scopeLabel })))) return;
+      updateLoadingMessage(t("mods.ops.disableAll.progress", { scope: scopeLabel }));
       showLoadingScreen();
 
       const successFiles = [];
@@ -280,16 +282,16 @@ export async function disableAllMods(primaryTag = "") {
         await refreshFilesKeepFilter();
 
         if (successFiles.length > 0) {
-          showNotification(`成功禁用 ${successFiles.length} 个${scopeLabel}`, "success");
+          showNotification(t("mods.ops.disableAll.success", { count: successFiles.length, scope: scopeLabel }), "success");
         }
 
         if (failedCount > 0) {
           const reason = failures[0] ? `：${failures[0]}` : "";
-          showNotification(`${failedCount} 个${scopeLabel}禁用失败${reason}`, "error");
+          showNotification(t("mods.ops.disableAll.failed", { count: failedCount, scope: scopeLabel, reason }), "error");
         }
       } catch (error) {
         console.error(`批量禁用${scopeLabel}失败:`, error);
-        showError(`批量禁用${scopeLabel}失败: ` + error);
+        showError(t("mods.ops.disableAll.batchFailed", { scope: scopeLabel, error: String(error) }));
       } finally {
         showMainScreen();
       }
@@ -300,26 +302,26 @@ export async function disableAllMods(primaryTag = "") {
 export async function exportZipSelected() {
   const selectedFiles = Array.from(appState.selectedFiles);
   if (selectedFiles.length === 0) {
-    showError("请先选择要导出的文件");
+    showError(t("mods.ops.export.noSelection"));
     return;
   }
 
   const confirmMessage = `
     <div style="display: flex; flex-direction: column; gap: 12px;">
-      <p>共选择了 ${selectedFiles.length} 个文件</p>
+      <p>${t("mods.ops.export.selectedCount", { count: selectedFiles.length })}</p>
       <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
         <input type="checkbox" id="export-include-extra" class="file-checkbox" checked>
-        <span>缩略图与工坊信息(.meta)文件</span>
+        <span>${t("mods.ops.export.includeExtra")}</span>
       </label>
       <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
         <input type="checkbox" id="export-rename-to-title" class="file-checkbox">
-        <span>自动重命名为 mod 名称</span>
+        <span>${t("mods.ops.export.renameToTitle")}</span>
       </label>
     </div>
   `;
 
   showConfirmModal(
-    "导出ZIP",
+    t("mods.batch.exportZip"),
     confirmMessage,
     async () => {
       document.getElementById("confirm-modal").classList.add("hidden");
@@ -332,7 +334,7 @@ export async function exportZipSelected() {
       });
 
       showLoadingScreen();
-      updateLoadingMessage("正在准备导出...");
+      updateLoadingMessage(t("mods.ops.export.preparing"));
 
       try {
         const result = await ExportVPKFilesToZip(
@@ -344,7 +346,7 @@ export async function exportZipSelected() {
         showSuccess(result);
       } catch (error) {
         console.error("导出ZIP失败:", error);
-        showError("导出ZIP失败: " + error);
+        showError(t("mods.ops.export.failed", { error: String(error) }));
       } finally {
         showMainScreen();
         if (typeof cleanup === "function") cleanup();
@@ -356,27 +358,27 @@ export async function exportZipSelected() {
 
 export async function deleteSelected() {
   if (appState.selectedFiles.size === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
 
   showConfirmModal(
-    "确认批量删除",
-    `确定要删除选中的 ${appState.selectedFiles.size} 个文件吗？文件将被移动到回收站。`,
+    t("mods.ops.delete.confirmBatchTitle"),
+    t("mods.ops.delete.confirmBatchBody", { count: appState.selectedFiles.size }),
     async () => {
       const filesToDelete = Array.from(appState.selectedFiles);
 
-      if (!(await confirmVPKOperationWarning(filesToDelete, "批量删除 Mod"))) return;
+      if (!(await confirmVPKOperationWarning(filesToDelete, t("mods.ops.label.batchDelete")))) return;
 
       try {
         console.log(`批量删除 ${filesToDelete.length} 个文件...`);
         await DeleteVPKFiles(filesToDelete);
         filesToDelete.forEach((filePath) => appState.selectedFiles.delete(filePath));
         await refreshFilesKeepFilter();
-        showNotification(`成功删除 ${filesToDelete.length} 个文件`, "success");
+        showNotification(t("mods.ops.delete.success", { count: filesToDelete.length }), "success");
       } catch (error) {
         console.error("批量删除失败:", error);
-        showError("批量删除失败: " + error);
+        showError(t("mods.ops.delete.batchFailed", { error: String(error) }));
       }
     }
   );
@@ -384,7 +386,7 @@ export async function deleteSelected() {
 
 export async function moveSelected() {
   if (appState.selectedFiles.size === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
   await movePathsToDestination(Array.from(appState.selectedFiles));
@@ -396,21 +398,21 @@ export async function moveSelected() {
  */
 export async function movePathsToDestination(filesToMove) {
   if (!Array.isArray(filesToMove) || filesToMove.length === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
   try {
     const destDir = await SelectDirectory();
     if (!destDir) return;
 
-    if (!(await confirmVPKOperationWarning(filesToMove, "移动 Mod"))) return;
+    if (!(await confirmVPKOperationWarning(filesToMove, t("mods.ops.label.move")))) return;
 
-    showNotification("正在移动文件...", "info");
+    showNotification(t("mods.ops.move.progress"), "info");
 
     const result = await moveVpkFilesWithConflictResolution(filesToMove, destDir);
 
     if (result.successCount > 0) {
-      showSuccess(`成功移动 ${result.successCount} 个文件`);
+      showSuccess(t("mods.ops.move.success", { count: result.successCount }));
       result.successPaths?.forEach((filePath) => appState.selectedFiles.delete(filePath));
     }
 
@@ -421,18 +423,18 @@ export async function movePathsToDestination(filesToMove) {
     }
 
     if (result.skippedCount > 0) {
-      showNotification(`已跳过 ${result.skippedCount} 个冲突文件`, "info");
+      showNotification(t("mods.ops.move.skipped", { count: result.skippedCount }), "info");
     }
 
     if (result.cancelled) {
-      showNotification("已取消后续移动", "info");
+      showNotification(t("mods.ops.move.cancelled"), "info");
     }
 
     await refreshFilesKeepFilter();
     updateStatusBar();
   } catch (error) {
     console.error("移动文件出错:", error);
-    showError(`移动文件出错: ${error}`);
+    showError(t("mods.ops.move.error", { error: String(error) }));
   }
 }
 
@@ -443,13 +445,13 @@ export async function movePathsToDestination(filesToMove) {
 export function cutSelected() {
   const paths = Array.from(appState.selectedFiles || []);
   if (paths.length === 0) {
-    showNotification("请先选择要移动的 Mod", "info");
+    showNotification(t("mods.ops.move.noSelection"), "info");
     return;
   }
   appState.moveClipboard = new Set(paths);
   updateStatusBar();
   showNotification(
-    `已标记 ${paths.length} 个 Mod 待移动（Ctrl+V 选择目标目录，Esc 取消）`,
+    t("mods.ops.move.cutMarked", { count: paths.length }),
     "success",
   );
 }
@@ -458,7 +460,7 @@ export function cutSelected() {
 export async function pasteMoveClipboard() {
   const pending = Array.from(appState.moveClipboard || []);
   if (pending.length === 0) {
-    showNotification("没有待移动的 Mod（先选中后按 Ctrl+X）", "info");
+    showNotification(t("mods.ops.move.noPending"), "info");
     return;
   }
   await movePathsToDestination(pending);
@@ -476,7 +478,7 @@ export function clearMoveClipboard() {
 export function transferSelectedWorkshopFiles() {
   const selectedPaths = Array.from(appState.selectedFiles);
   if (selectedPaths.length === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
 
@@ -493,14 +495,14 @@ export function transferSelectedWorkshopFiles() {
   const skippedCount = selectedPaths.length - eligibleCount;
 
   if (eligibleCount === 0) {
-    showNotification("没有可转移的创意工坊文件", "info");
+    showNotification(t("mods.ops.common.noWorkshopFiles"), "info");
     return;
   }
 
-  const skippedText = skippedCount > 0 ? `，跳过其他位置的 ${skippedCount} 个文件` : "";
+  const skippedText = skippedCount > 0 ? t("mods.ops.transfer.skippedSuffix", { count: skippedCount }) : "";
   showConfirmModal(
-    "确认转移至根目录",
-    `将把 ${eligibleCount} 个创意工坊文件转移至根目录${skippedText}。当前 Fork 会保留 workshop 原件并同步 addonlist.txt。确定继续吗？`,
+    t("mods.ops.transfer.confirmTitle"),
+    t("mods.ops.transfer.confirmBody", { count: eligibleCount, skipped: skippedText }),
     async () => {
       document.getElementById("confirm-modal")?.classList.add("hidden");
       return moveWorkshopFilesToAddons(
@@ -513,18 +515,18 @@ export function transferSelectedWorkshopFiles() {
 export async function batchToggleVisibility(hide) {
   const selectedFiles = Array.from(appState.selectedFiles);
   if (selectedFiles.length === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
 
-  const actionName = hide ? "取消隐藏" : "隐藏";
+  const actionName = hide ? t("mods.ops.common.actionUnhide") : t("mods.ops.common.actionHide");
 
   showConfirmModal(
-    `批量${actionName}`,
-    `确定要${actionName}选中的 ${selectedFiles.length} 个文件吗？`,
+    hide ? t("mods.batch.unhide") : t("mods.batch.hide"),
+    t("mods.ops.visibility.confirmBody", { action: actionName, count: selectedFiles.length }),
     async () => {
-      if (!(await confirmVPKOperationWarning(selectedFiles, `批量${actionName} Mod`))) return;
-      updateLoadingMessage(`正在批量${actionName}...`);
+      if (!(await confirmVPKOperationWarning(selectedFiles, hide ? t("mods.ops.label.batchUnhide") : t("mods.ops.label.batchHide")))) return;
+      updateLoadingMessage(t("mods.ops.visibility.progress", { action: actionName }));
       showLoadingScreen();
 
       let successCount = 0;
@@ -554,15 +556,15 @@ export async function batchToggleVisibility(hide) {
       showMainScreen();
 
       if (failCount > 0 || skippedCount > 0) {
-        const skippedText = skippedCount > 0 ? `，${skippedCount} 个已处于目标状态未变更` : "";
+        const skippedText = skippedCount > 0 ? t("mods.ops.visibility.skipped", { count: skippedCount }) : "";
         // 同批量启用/禁用：失败时把第一个原因一起说出来，否则用户只知道"有失败"。
         const reason = failCount > 0 && failures[0] ? `：${failures[0]}` : "";
         showNotification(
-          `操作完成: 成功 ${successCount} 个, 失败 ${failCount} 个${reason}${skippedText}`,
+          t("mods.ops.visibility.done", { success: successCount, fail: failCount, reason, skipped: skippedText }),
           "warning",
         );
       } else {
-        showNotification(`成功${actionName} ${successCount} 个文件`, "success");
+        showNotification(t("mods.ops.visibility.success", { action: actionName, count: successCount }), "success");
       }
 
       deselectAll();

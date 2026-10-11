@@ -6,6 +6,7 @@ import {
   updateStatusBar,
 } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { unpackVPKFromPath } from "../diagnostics/vpk-unpack.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
@@ -57,7 +58,7 @@ async function disableSingletonConflicts(conflict) {
         });
       });
     } catch (error) {
-      showError(`关闭同类 Mod 失败：${item.name || item.path}（${error}）`);
+      showError(t("mods.ops.gameState.singletonDisableFailed", { name: item.name || item.path, error }));
     }
   }
   await refreshLoadOrderMap({ silent: true });
@@ -66,7 +67,7 @@ async function disableSingletonConflicts(conflict) {
 function getBackendMethod(name) {
   const method = window?.go?.app?.App?.[name];
   if (typeof method !== "function") {
-    throw new Error(`当前应用未提供 ${name}，请重新构建并启动 LytVPK`);
+    throw new Error(t("mods.ops.common.backendMissingMethod", { name }));
   }
   return method;
 }
@@ -76,7 +77,7 @@ export async function toggleGameEnabled(filePath) {
     appState.allVpkFiles.find((item) => item.path === filePath) ||
     appState.vpkFiles.find((item) => item.path === filePath);
   if (!file) {
-    showError("未找到要切换游戏内开关的 Mod，请刷新后重试");
+    showError(t("mods.ops.gameState.toggleMissing"));
     return;
   }
   // 前置条件与提示文案共用同一层判断（core/action-explanation.mjs），
@@ -107,7 +108,7 @@ export async function setGameState(filePath, state) {
     appState.allVpkFiles.find((item) => item.path === filePath) ||
     appState.vpkFiles.find((item) => item.path === filePath);
   if (!file) {
-    showError("未找到要设置游戏内状态的 Mod，请刷新后重试");
+    showError(t("mods.ops.gameState.setMissing"));
     return;
   }
   const gameStateAvailability = explainActionAvailability({ action: "game-state", file });
@@ -131,11 +132,11 @@ export async function setGameState(filePath, state) {
     return;
   }
 
-  showError("未知的游戏内状态操作，请刷新后重试");
+  showError(t("mods.ops.gameState.unknownAction"));
 }
 
 async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
-  if (nextEnabled && !(await confirmVPKOperationWarning(filePath, "启用游戏内 Mod"))) return;
+  if (nextEnabled && !(await confirmVPKOperationWarning(filePath, t("mods.ops.label.enableGame")))) return;
   // 同类互斥：同一角色/同一把武器的替换只会生效一个。启用前先问一次，
   // 避免"启用了却没生效"的困惑（借鉴其它管理器的 SingletonResource 思路）。
   if (nextEnabled) {
@@ -188,9 +189,9 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
     }
     const orderIndex = getFileLoadOrderIndex(file);
     const priorityHint = wasUnrecorded && nextEnabled && Number.isInteger(orderIndex)
-      ? `（新增为优先级 #${orderIndex + 1}）`
+      ? t("mods.ops.gameState.priorityHint", { order: orderIndex + 1 })
       : "";
-    showNotification(nextEnabled ? `已在 addonlist.txt 中开启 Mod${priorityHint}` : "已在 addonlist.txt 中关闭 Mod", "success");
+    showNotification(nextEnabled ? t("mods.ops.gameState.on", { priority: priorityHint }) : t("mods.ops.gameState.off"), "success");
 
     const enforcementNotice = formatStrategyGroupEnforcementNotice(enforcedCount);
     if (enforcementNotice) {
@@ -211,7 +212,7 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
     if (message.includes("游戏不会接受此 Mod") || message.includes("addoninfo.txt 格式无效")) {
       showError(message);
     } else {
-      showError("写入 addonlist.txt 失败: " + error);
+      showError(t("mods.ops.gameState.writeFailed", { error: String(error) }));
     }
   }
 }
@@ -220,13 +221,13 @@ export const confirmVPKOperationWarning = confirmVPKIntegrityWarning;
 
 async function disableUnrecordedFile(filePath) {
   try {
-    if (!(await confirmVPKOperationWarning(filePath, "禁用 Mod"))) return;
+    if (!(await confirmVPKOperationWarning(filePath, t("mods.ops.label.disable")))) return;
     await ToggleVPKFile(filePath);
     await refreshFilesKeepFilter();
-    showNotification("已禁用 Mod，并移入 disabled 目录", "success");
+    showNotification(t("mods.ops.disable.disabledMoved"), "success");
   } catch (error) {
     console.error("禁用未记录 Mod 失败:", error);
-    showError("禁用失败: " + error);
+    showError(t("mods.ops.disable.singleFailed", { error: String(error) }));
   }
 }
 
@@ -247,13 +248,15 @@ function chooseUnrecordedGameStateAction(file) {
     }
 
     session.addModalClass("unrecorded-game-state-modal-content");
-    session.titleEl.textContent = "未记录 Mod：选择状态";
+    session.titleEl.textContent = t("mods.ops.gameState.unrecordedTitle");
     const content = document.createElement("div");
     content.className = "unrecorded-game-state-content";
 
     const intro = document.createElement("p");
     intro.className = "unrecorded-game-state-intro";
-    intro.textContent = `“${file.title || file.name || "此 Mod"}” 尚未记录在 addonlist.txt，请选择要切换到的状态：`;
+    intro.textContent = t("mods.ops.gameState.unrecordedIntro", {
+      name: file.title || file.name || t("mods.ops.common.thisMod"),
+    });
     content.appendChild(intro);
 
     const list = document.createElement("div");
@@ -283,7 +286,7 @@ function chooseUnrecordedGameStateAction(file) {
     content.appendChild(list);
     session.contentEl.replaceChildren(content);
 
-    session.confirmBtn.textContent = "取消";
+    session.confirmBtn.textContent = t("modals.message.cancel");
     session.confirmBtn.onclick = () => {
       if (!session.isCurrent()) return;
       settled = true;
@@ -306,7 +309,7 @@ export async function toggleFile(filePath) {
     appState.vpkFiles.find((item) => item.path === filePath);
   if (!(await confirmVPKOperationWarning(
     filePath,
-    file?.location === "disabled" ? "恢复并启用 Mod" : "禁用 Mod",
+    file?.location === "disabled" ? t("mods.ops.label.restoreEnable") : t("mods.ops.label.disable"),
   ))) {
     return;
   }
@@ -314,34 +317,34 @@ export async function toggleFile(filePath) {
     console.log("切换文件状态:", filePath);
     await ToggleVPKFile(filePath);
     await refreshFilesKeepFilter();
-    showNotification("文件状态已更新", "success");
+    showNotification(t("mods.ops.toggle.statusUpdated"), "success");
   } catch (error) {
     console.error("切换文件状态失败:", error);
-    showError("操作失败: " + error);
+    showError(t("mods.ops.toggle.operationFailed", { error: String(error) }));
   }
 }
 
 export async function moveFileToAddons(filePath) {
-  if (!(await confirmVPKOperationWarning(filePath, "复制 Workshop Mod"))) return;
+  if (!(await confirmVPKOperationWarning(filePath, t("mods.ops.label.copyWorkshop")))) return;
   try {
     console.log("复制文件到插件目录:", filePath);
     const result = await moveWorkshopFileWithConflictResolution(filePath);
     await refreshFilesKeepFilter();
     if (result.successCount > 0) {
-      showNotification("文件已复制到 addons，workshop 原件已保留并关闭", "success");
+      showNotification(t("mods.ops.copy.done"), "success");
     }
     if (result.skippedCount > 0) {
-      showNotification("目标文件已存在，已跳过复制", "info");
+      showNotification(t("mods.ops.copy.skipped"), "info");
     }
     if (result.cancelled) {
-      showNotification("已取消复制", "info");
+      showNotification(t("mods.ops.copy.cancelled"), "info");
     }
     if (result.failCount > 0) {
-      showError(`复制失败: ${result.errors[0] || "未知错误"}`);
+      showError(t("mods.ops.copy.failed", { error: result.errors[0] || t("mods.ops.common.unknownError") }));
     }
   } catch (error) {
     console.error("复制文件失败:", error);
-    showError("复制失败: " + error);
+    showError(t("mods.ops.copy.failed", { error: String(error) }));
   }
 }
 
@@ -355,23 +358,23 @@ export async function moveWorkshopFilesToAddons(filePaths) {
       return !file || file.location === "workshop";
     });
   if (paths.length === 0) {
-    showNotification("没有可转移的创意工坊文件", "info");
+    showNotification(t("mods.ops.common.noWorkshopFiles"), "info");
     return null;
   }
 
-  if (!(await confirmVPKOperationWarning(paths, "复制 Workshop Mod"))) return null;
+  if (!(await confirmVPKOperationWarning(paths, t("mods.ops.label.copyWorkshop")))) return null;
 
   const cleanupProgress = EventsOn("workshop_transfer_progress", (progress) => {
     const current = Number(progress?.current || 0);
     const total = Number(progress?.total || 0);
     const name = String(progress?.name || "").trim();
-    const message = String(progress?.message || "正在转移...");
+    const message = String(progress?.message || t("mods.ops.transfer.progressFallback"));
     const suffix = total > 0 ? ` (${current}/${total})` : "";
     updateLoadingMessage(`${message}${name ? `：${name}` : ""}${suffix}`);
   });
 
   showLoadingScreen();
-  updateLoadingMessage("正在准备转移创意工坊文件...");
+  updateLoadingMessage(t("mods.ops.transfer.preparing"));
   try {
     const result = await MoveWorkshopFilesToAddons(paths);
     await refreshFilesKeepFilter();
@@ -381,22 +384,22 @@ export async function moveWorkshopFilesToAddons(filePaths) {
     const skippedCount = Number(result?.skippedCount || 0);
     const items = Array.isArray(result?.items) ? result.items : [];
     const firstError = items.find((item) => item?.error)?.error || "";
-    const warning = "当前 Fork 会保留 workshop 原件，并同步 addonlist.txt 状态";
+    const warning = t("mods.ops.transfer.warning");
 
     if (failCount > 0) {
       showNotification(
-        `转移完成：成功 ${successCount} 个，失败 ${failCount} 个，跳过 ${skippedCount} 个${firstError ? `。${firstError}` : ""}`,
+        `${t("mods.ops.transfer.done", { success: successCount, fail: failCount, skipped: skippedCount })}${firstError ? `。${firstError}` : ""}`,
         "warning",
       );
     } else if (successCount > 0) {
-      showNotification(`成功转移 ${successCount} 个文件，跳过 ${skippedCount} 个。${warning}`, "success");
+      showNotification(t("mods.ops.transfer.success", { count: successCount, skipped: skippedCount, warning }), "success");
     } else {
-      showNotification(`没有可转移的创意工坊文件，已跳过 ${skippedCount} 个`, "info");
+      showNotification(t("mods.ops.transfer.none", { count: skippedCount }), "info");
     }
     return result;
   } catch (error) {
     console.error("批量转移创意工坊文件失败:", error);
-    showError("批量转移失败: " + error);
+    showError(t("mods.ops.transfer.failed", { error: String(error) }));
     return null;
   } finally {
     if (typeof cleanupProgress === "function") cleanupProgress();
@@ -430,7 +433,7 @@ function confirmGroupImpactForDelete(filePath) {
   if (!message) return Promise.resolve(true);
   return new Promise((resolve) => {
     showConfirmModal(
-      "该 Mod 属于策略组",
+      t("mods.ops.common.groupImpactTitle"),
       message,
       () => resolve(true),
       false,
@@ -441,17 +444,17 @@ function confirmGroupImpactForDelete(filePath) {
 }
 
 export function deleteFile(filePath) {
-  showConfirmModal("确认删除", "确定要将此文件移至回收站吗？", async () => {
+  showConfirmModal(t("mods.ops.delete.confirmTitle"), t("mods.ops.delete.confirmBody"), async () => {
     try {
       console.log("删除文件:", filePath);
-      if (!(await confirmVPKOperationWarning(filePath, "删除 Mod"))) return;
+      if (!(await confirmVPKOperationWarning(filePath, t("mods.ops.label.delete")))) return;
       if (!(await confirmGroupImpactForDelete(filePath))) return;
       await DeleteVPKFile(filePath);
       await refreshFilesKeepFilter();
-      showNotification("文件已移至回收站", "success");
+      showNotification(t("mods.ops.delete.trashed"), "success");
     } catch (error) {
       console.error("删除文件失败:", error);
-      showError("删除失败: " + error);
+      showError(t("mods.ops.delete.failed", { error: String(error) }));
     }
   });
 }
@@ -460,27 +463,27 @@ export async function openFileLocation(filePath) {
   try {
     console.log("打开文件所在位置:", filePath);
     await OpenFileLocation(filePath);
-    showNotification("已打开文件所在位置", "success");
+    showNotification(t("mods.ops.openLocation.done"), "success");
   } catch (error) {
     console.error("打开文件位置失败:", error);
-    showError("打开位置失败: " + error);
+    showError(t("mods.ops.openLocation.failed", { error: String(error) }));
   }
 }
 
 export async function unpackFile(filePath) {
-  if (!(await confirmVPKOperationWarning(filePath, "解包 Mod"))) return;
+  if (!(await confirmVPKOperationWarning(filePath, t("mods.ops.label.unpack")))) return;
   await unpackVPKFromPath(filePath);
 }
 export async function toggleFileVisibility(filePath) {
   try {
-    if (!(await confirmVPKOperationWarning(filePath, "切换 Mod 隐藏状态"))) return;
+    if (!(await confirmVPKOperationWarning(filePath, t("mods.ops.label.toggleVisibility")))) return;
     console.log("切换文件隐藏状态:", filePath);
     await ToggleVPKVisibility(filePath);
     await refreshFilesKeepFilter();
-    showNotification("文件隐藏状态已更新", "success");
+    showNotification(t("mods.ops.visibility.updated"), "success");
   } catch (error) {
     console.error("切换隐藏状态失败:", error);
-    showError("操作失败: " + error);
+    showError(t("mods.ops.toggle.operationFailed", { error: String(error) }));
   }
 }
 
@@ -564,7 +567,7 @@ export async function renameFile(filePath) {
     (appState.vpkFiles || []).find((f) => f.path === filePath) ||
     (appState.allVpkFiles || []).find((f) => f.path === filePath);
   if (!file) {
-    showError("未找到要重命名的文件，请刷新列表后重试");
+    showError(t("mods.ops.rename.missing"));
     return;
   }
 
@@ -598,8 +601,8 @@ export async function renameFile(filePath) {
   if (fillFromTitleBtn) {
     fillFromTitleBtn.disabled = !modTitle;
     fillFromTitleBtn.title = modTitle
-      ? "使用 addoninfo 中的 Mod 名称"
-      : "未解析到 Mod 名称";
+      ? t("modals.rename.useModNameTooltip")
+      : t("modals.rename.noModTitle");
   }
   modal.classList.remove("hidden");
   input.focus();
@@ -639,17 +642,17 @@ export async function renameFile(filePath) {
     if (filenameLength > WINDOWS_MAX_FILENAME_LENGTH) {
       renameLengthState = {
         hasError: true,
-        message: `文件名过长：${filenameLength}/${WINDOWS_MAX_FILENAME_LENGTH}，请缩短名称`,
+        message: t("modals.rename.lengthTooLong", { current: filenameLength, max: WINDOWS_MAX_FILENAME_LENGTH }),
       };
     } else if (pathLength > WINDOWS_MAX_PATH_LENGTH) {
       renameLengthState = {
         hasError: true,
-        message: `完整路径过长：${pathLength}/${WINDOWS_MAX_PATH_LENGTH}，请缩短名称或移动 Mod 目录`,
+        message: t("modals.rename.lengthPathTooLong", { current: pathLength, max: WINDOWS_MAX_PATH_LENGTH }),
       };
     } else if (pathLength >= WINDOWS_PATH_WARNING_LENGTH) {
       renameLengthState = {
         hasError: false,
-        message: `完整路径较长：${pathLength}/${WINDOWS_MAX_PATH_LENGTH}，接近 Windows 限制`,
+        message: t("modals.rename.lengthPathWarning", { current: pathLength, max: WINDOWS_MAX_PATH_LENGTH }),
       };
     }
 
@@ -665,7 +668,7 @@ export async function renameFile(filePath) {
 
   const fillFromTitle = () => {
     if (!modTitle) {
-      showError("未解析到 Mod 名称");
+      showError(t("modals.rename.noModTitle"));
       return;
     }
 
@@ -678,7 +681,7 @@ export async function renameFile(filePath) {
   const doRename = async () => {
     const newName = input.value.trim();
     if (!newName) {
-      showError("文件名不能为空");
+      showError(t("modals.rename.emptyName"));
       return;
     }
 
@@ -702,14 +705,14 @@ export async function renameFile(filePath) {
     }
 
     try {
-      if (!(await confirmVPKOperationWarning(filePath, "重命名 Mod"))) return;
+      if (!(await confirmVPKOperationWarning(filePath, t("mods.ops.label.rename")))) return;
       await RenameVPKFile(filePath, finalName);
-      showNotification("重命名成功", "success");
+      showNotification(t("mods.ops.rename.done"), "success");
       cleanup();
       await refreshFilesKeepFilter();
     } catch (error) {
       console.error("重命名失败:", error);
-      showError("重命名失败: " + error);
+      showError(t("mods.ops.rename.failed", { error: String(error) }));
     }
   };
 

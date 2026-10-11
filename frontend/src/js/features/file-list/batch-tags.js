@@ -5,6 +5,7 @@ import {
   updateLoadingMessage,
 } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { SetVPKTags } from "../../../../wailsjs/go/app/App";
 import { refreshFilesKeepFilter } from "./filters.js";
 import { deselectAll } from "./actions.js";
@@ -16,17 +17,15 @@ let batchPrimaryTag = "";
 let batchSecondaryTags = [];
 let batchSecondaryTagPicker = null;
 
-const PRIMARY_FALLBACK_LABEL = "无";
-
 const HINTS = {
   append: (count, fileCount) =>
     count === 0
-      ? "请输入要追加的标签"
-      : `将这 ${count} 个标签追加到 ${fileCount} 个文件的现有标签`,
+      ? t("modals.batchSetTags.hintAppendEmpty")
+      : t("modals.batchSetTags.hintAppend", { count, fileCount }),
   set: (count, fileCount) =>
     count === 0
-      ? `将清空 ${fileCount} 个文件的二级标签`
-      : `用这 ${count} 个标签覆盖 ${fileCount} 个文件的现有标签`,
+      ? t("modals.batchSetTags.hintSetClear", { fileCount })
+      : t("modals.batchSetTags.hintSet", { count, fileCount }),
 };
 
 function getPrimaryDropdownElements() {
@@ -55,7 +54,7 @@ function updatePrimaryDropdownUI() {
   ).find((option) => option.dataset.value === selectedValue);
 
   trigger.textContent =
-    selectedOption?.textContent.trim() || PRIMARY_FALLBACK_LABEL;
+    selectedOption?.textContent.trim() || t("mods.tags.none");
   menu.querySelectorAll(".select-option").forEach((option) => {
     const isActive = option.dataset.value === selectedValue;
     option.classList.toggle("active", isActive);
@@ -125,7 +124,7 @@ function renderSecondaryList() {
 
     const removeBtn = document.createElement("span");
     removeBtn.className = "tag-remove-btn";
-    removeBtn.title = "删除";
+    removeBtn.title = t("mods.tags.remove");
     removeBtn.textContent = "×";
     removeBtn.addEventListener("click", () => {
       batchSecondaryTags.splice(index, 1);
@@ -254,13 +253,13 @@ async function saveBatchTags() {
     .filter(Boolean);
 
   if (files.length === 0) {
-    showNotification("没有可处理的文件", "info");
+    showNotification(t("mods.ops.common.noProcessableFiles"), "info");
     return;
   }
 
   const modal = document.getElementById("batch-set-tags-modal");
 
-  updateLoadingMessage("正在批量编辑标签...");
+  updateLoadingMessage(t("mods.ops.batchTags.progress"));
   showLoadingScreen();
 
   let success = 0;
@@ -290,18 +289,18 @@ async function saveBatchTags() {
     // 真机复现：三个文件里有一个被别的进程占用时，通知只写「成功 2 个, 失败 1 个」。
     const reason = errors[0] ? `：${errors[0]}` : "";
     showNotification(
-      `完成: 成功 ${success} 个, 失败 ${fail} 个${reason}`,
+      t("mods.ops.batchTags.done", { success, fail, reason }),
       "warning",
     );
     console.error("批量编辑标签失败详情:", errors);
   } else {
-    showNotification(`成功更新 ${success} 个文件的标签`, "success");
+    showNotification(t("mods.ops.batchTags.success", { count: success }), "success");
   }
 }
 
 export function openBatchSetTagsModal() {
   if (appState.selectedFiles.size === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
 
@@ -421,7 +420,7 @@ export function setupBatchTagsModalListeners() {
       try {
         await saveBatchTags();
       } catch (err) {
-        showError("批量编辑标签失败: " + err);
+        showError(t("mods.ops.batchTags.failed", { error: String(err) }));
       }
     });
   }

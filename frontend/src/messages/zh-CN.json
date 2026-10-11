@@ -532,7 +532,8 @@
       "gameStateSummary": "已把 {count} 个 Mod 设为{action}",
       "gameStateSummaryUnchanged": "{count} 个本来就是这个状态",
       "gameStateSummarySkipped": "{count} 个跳过（disabled 目录或不在列表里）",
-      "gameStateSummaryEnforced": "并按策略组自动联动另外 {count} 个"
+      "gameStateSummaryEnforced": "并按策略组自动联动另外 {count} 个",
+      "gameStateTitle": "批量{action}"
     },
     "singletonConflict": {
       "title": "同类的 Mod 已经在生效",
@@ -607,6 +608,158 @@
       "successCount": "成功 {count} 个",
       "skippedCount": "跳过 {count} 个冲突文件",
       "cancelled": "后续已取消"
+    },
+    "ops": {
+      "label": {
+        "batchEnable": "批量启用 Mod",
+        "batchDisable": "批量禁用 Mod",
+        "batchDelete": "批量删除 Mod",
+        "batchHide": "批量隐藏 Mod",
+        "batchUnhide": "批量取消隐藏 Mod",
+        "continue": "继续操作",
+        "copyWorkshop": "复制 Workshop Mod",
+        "delete": "删除 Mod",
+        "disable": "禁用 Mod",
+        "disableScope": "禁用{scope}",
+        "enableGame": "启用游戏内 Mod",
+        "move": "移动 Mod",
+        "rename": "重命名 Mod",
+        "restoreEnable": "恢复并启用 Mod",
+        "toggleVisibility": "切换 Mod 隐藏状态",
+        "unpack": "解包 Mod"
+      },
+      "common": {
+        "actionHide": "隐藏",
+        "actionUnhide": "取消隐藏",
+        "backendMissingMethod": "当前应用未提供 {name}，请重新构建并启动 LytVPK",
+        "groupImpactTitle": "该 Mod 属于策略组",
+        "noProcessableFiles": "没有可处理的文件",
+        "noWorkshopFiles": "没有可转移的创意工坊文件",
+        "thisMod": "此 Mod",
+        "unknownError": "未知错误"
+      },
+      "gameState": {
+        "batchFailed": "批量设置游戏内开关失败: {error}",
+        "noTargets": "没有可设置的 Mod（disabled 目录里的先用「批量启用」放回 addons）",
+        "off": "已在 addonlist.txt 中关闭 Mod",
+        "on": "已在 addonlist.txt 中开启 Mod{priority}",
+        "priorityHint": "（新增为优先级 #{order}）",
+        "setMissing": "未找到要设置游戏内状态的 Mod，请刷新后重试",
+        "singletonDisableFailed": "关闭同类 Mod 失败：{name}（{error}）",
+        "toggleMissing": "未找到要切换游戏内开关的 Mod，请刷新后重试",
+        "unknownAction": "未知的游戏内状态操作，请刷新后重试",
+        "unrecordedIntro": "“{name}” 尚未记录在 addonlist.txt，请选择要切换到的状态：",
+        "unrecordedTitle": "未记录 Mod：选择状态",
+        "writeFailed": "写入 addonlist.txt 失败: {error}"
+      },
+      "enable": {
+        "batchFailed": "批量启用失败: {error}",
+        "failed": "{count} 个文件启用失败{reason}",
+        "noTargets": "没有需要启用的文件（只能启用disabled目录中的文件）",
+        "success": "成功启用 {count} 个文件"
+      },
+      "disable": {
+        "batchFailed": "批量禁用失败: {error}",
+        "disabledMoved": "已禁用 Mod，并移入 disabled 目录",
+        "failed": "{count} 个文件禁用失败{reason}",
+        "noTargets": "没有需要禁用的文件（只能禁用root目录中的文件）",
+        "singleFailed": "禁用失败: {error}",
+        "success": "成功禁用 {count} 个文件"
+      },
+      "disableAll": {
+        "batchFailed": "批量禁用{scope}失败: {error}",
+        "confirmBody": "确定要禁用 {count} 个{scope}吗？文件将被移动到 disabled 目录。",
+        "confirmTitle": "确认禁用{scope}",
+        "failed": "{count} 个{scope}禁用失败{reason}",
+        "noTargets": "没有需要禁用的{scope}（只会禁用root目录中已启用的文件）",
+        "progress": "正在禁用{scope}...",
+        "success": "成功禁用 {count} 个{scope}"
+      },
+      "export": {
+        "failed": "导出ZIP失败: {error}",
+        "includeExtra": "缩略图与工坊信息(.meta)文件",
+        "noSelection": "请先选择要导出的文件",
+        "preparing": "正在准备导出...",
+        "renameToTitle": "自动重命名为 mod 名称",
+        "selectedCount": "共选择了 {count} 个文件"
+      },
+      "delete": {
+        "batchFailed": "批量删除失败: {error}",
+        "confirmBatchBody": "确定要删除选中的 {count} 个文件吗？文件将被移动到回收站。",
+        "confirmBatchTitle": "确认批量删除",
+        "confirmBody": "确定要将此文件移至回收站吗？",
+        "confirmTitle": "确认删除",
+        "failed": "删除失败: {error}",
+        "success": "成功删除 {count} 个文件",
+        "trashed": "文件已移至回收站"
+      },
+      "move": {
+        "cancelled": "已取消后续移动",
+        "cutMarked": "已标记 {count} 个 Mod 待移动（Ctrl+V 选择目标目录，Esc 取消）",
+        "error": "移动文件出错: {error}",
+        "noPending": "没有待移动的 Mod（先选中后按 Ctrl+X）",
+        "noSelection": "请先选择要移动的 Mod",
+        "progress": "正在移动文件...",
+        "skipped": "已跳过 {count} 个冲突文件",
+        "success": "成功移动 {count} 个文件"
+      },
+      "visibility": {
+        "confirmBody": "确定要{action}选中的 {count} 个文件吗？",
+        "done": "操作完成: 成功 {success} 个, 失败 {fail} 个{reason}{skipped}",
+        "progress": "正在批量{action}...",
+        "skipped": "，{count} 个已处于目标状态未变更",
+        "success": "成功{action} {count} 个文件",
+        "updated": "文件隐藏状态已更新"
+      },
+      "transfer": {
+        "confirmBody": "将把 {count} 个创意工坊文件转移至根目录{skipped}。当前 Fork 会保留 workshop 原件并同步 addonlist.txt。确定继续吗？",
+        "confirmTitle": "确认转移至根目录",
+        "done": "转移完成：成功 {success} 个，失败 {fail} 个，跳过 {skipped} 个",
+        "failed": "批量转移失败: {error}",
+        "none": "没有可转移的创意工坊文件，已跳过 {count} 个",
+        "preparing": "正在准备转移创意工坊文件...",
+        "progressFallback": "正在转移...",
+        "skippedSuffix": "，跳过其他位置的 {count} 个文件",
+        "success": "成功转移 {count} 个文件，跳过 {skipped} 个。{warning}",
+        "warning": "当前 Fork 会保留 workshop 原件，并同步 addonlist.txt 状态"
+      },
+      "copy": {
+        "cancelled": "已取消复制",
+        "done": "文件已复制到 addons，workshop 原件已保留并关闭",
+        "failed": "复制失败: {error}",
+        "skipped": "目标文件已存在，已跳过复制"
+      },
+      "toggle": {
+        "operationFailed": "操作失败: {error}",
+        "statusUpdated": "文件状态已更新"
+      },
+      "openLocation": {
+        "done": "已打开文件所在位置",
+        "failed": "打开位置失败: {error}"
+      },
+      "rename": {
+        "done": "重命名成功",
+        "failed": "重命名失败: {error}",
+        "missing": "未找到要重命名的文件，请刷新列表后重试"
+      },
+      "batchTags": {
+        "done": "完成: 成功 {success} 个, 失败 {fail} 个{reason}",
+        "failed": "批量编辑标签失败: {error}",
+        "progress": "正在批量编辑标签...",
+        "success": "成功更新 {count} 个文件的标签"
+      },
+      "share": {
+        "copied": "已复制 {count} 个工坊 ID",
+        "copyFailed": "复制失败",
+        "missingAll": "有 {count} 个 Mod 没有工坊 ID，未复制",
+        "missingSkipped": "有 {count} 个 Mod 没有工坊 ID，已跳过"
+      }
+    },
+    "tags": {
+      "none": "无",
+      "remove": "删除",
+      "updated": "标签已更新",
+      "updateFailed": "更新标签失败: {error}"
     },
     "directory": {
       "deletePath": "删除此路径",
@@ -2719,7 +2872,13 @@
       "placeholder": "输入新文件名",
       "help": "无需输入 .vpk 后缀，保持原有隐藏状态",
       "cancel": "取消",
-      "confirm": "确定"
+      "confirm": "确定",
+      "emptyName": "文件名不能为空",
+      "lengthPathTooLong": "完整路径过长：{current}/{max}，请缩短名称或移动 Mod 目录",
+      "lengthPathWarning": "完整路径较长：{current}/{max}，接近 Windows 限制",
+      "lengthTooLong": "文件名过长：{current}/{max}，请缩短名称",
+      "noModTitle": "未解析到 Mod 名称",
+      "useModNameTooltip": "使用 addoninfo 中的 Mod 名称"
     },
     "confirm": {
       "title": "确认",
@@ -2738,11 +2897,38 @@
       "compare": "比较文件信息",
       "cancel": "取消",
       "skip": "跳过",
-      "replace": "替换目标文件"
+      "replace": "替换目标文件",
+      "checkFailed": "检查 {path} 冲突失败: {error}",
+      "compareCollapse": "收起文件信息",
+      "fileKindFallback": "文件",
+      "moveFailed": "移动 {path} 失败: {error}",
+      "noAddonsDir": "未选择 L4D2 addons 目录",
+      "sizeModified": "大小：{size} · 修改时间：{time}",
+      "sourceLabel": "源文件",
+      "summary": "发现 {count} 个目标文件已存在。请选择如何处理；默认只处理当前冲突。",
+      "targetLabel": "目标文件",
+      "unknown": "未知"
+    },
+    "vpkRisk": {
+      "bullet": "• {name}：{detail}",
+      "cancel": "取消",
+      "detailsHint": "如需查看详情，请打开“VPK 完整性检测”。",
+      "inspect": "打开 VPK 完整性检测",
+      "inspectFailed": "无法完成 {label} 的 VPK 风险检测，仍可继续操作：{error}",
+      "intro": "“{label}”不会被问题 VPK 阻止，但以下风险可能影响游戏行为：",
+      "issueFallback": "完整性检测发现问题",
+      "note": "游戏可能不会记录或加载这些 Mod；如需处理，请打开 VPK 完整性检测。",
+      "plainText": "⚠️ 风险提示：{label}\n\n检测到以下 Mod 可能存在 VPK 完整性问题：\n{details}\n\n游戏可能不会记录或加载这些 Mod，但当前操作仍可继续。\n\n{hint}\n\n仍要继续吗？",
+      "repairable": "可修复",
+      "repairableHint": "部分问题可通过“VPK 完整性检测”修复并另存为。",
+      "title": "⚠️ {label}风险提示",
+      "unknownVpk": "未知 VPK",
+      "unsupportedMethod": "当前应用不支持 {method}，请重新构建并启动 LytVPK"
     },
     "message": {
       "title": "提示",
-      "confirm": "确定"
+      "confirm": "确定",
+      "cancel": "取消"
     },
     "lightbox": {
       "prev": "上一张",
@@ -2788,7 +2974,11 @@
       "add": "添加",
       "reset": "重置",
       "cancel": "取消",
-      "save": "保存"
+      "save": "保存",
+      "hintAppendEmpty": "请输入要追加的标签",
+      "hintAppend": "将这 {count} 个标签追加到 {fileCount} 个文件的现有标签",
+      "hintSetClear": "将清空 {fileCount} 个文件的二级标签",
+      "hintSet": "用这 {count} 个标签覆盖 {fileCount} 个文件的现有标签"
     },
     "groupTag": {
       "fieldLabel": "标签",

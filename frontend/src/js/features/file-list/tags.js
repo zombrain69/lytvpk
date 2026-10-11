@@ -1,5 +1,6 @@
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { SetVPKTags } from "../../../../wailsjs/go/app/App";
 import { refreshFilesKeepFilter } from "./filters.js";
 import { createSecondaryTagPicker } from "./tag-suggestions.js";
@@ -7,8 +8,6 @@ import { createSecondaryTagPicker } from "./tag-suggestions.js";
 let currentEditingTagsFile = null;
 let currentSecondaryTags = [];
 let secondaryTagPicker = null;
-
-const PRIMARY_TAG_FALLBACK_LABEL = "无";
 
 function getPrimaryTagDropdownElements() {
   return {
@@ -36,7 +35,7 @@ function updatePrimaryTagDropdownUI() {
     (option) => option.dataset.value === selectedValue,
   );
 
-  trigger.textContent = selectedOption?.textContent.trim() || PRIMARY_TAG_FALLBACK_LABEL;
+  trigger.textContent = selectedOption?.textContent.trim() || t("mods.tags.none");
   menu.querySelectorAll(".select-option").forEach((option) => {
     const isActive = option.dataset.value === selectedValue;
     option.classList.toggle("active", isActive);
@@ -130,7 +129,7 @@ export function renderEditTagsList() {
 
     const removeBtn = document.createElement("span");
     removeBtn.className = "tag-remove-btn";
-    removeBtn.title = "删除";
+    removeBtn.title = t("mods.tags.remove");
     removeBtn.textContent = "×";
     removeBtn.addEventListener("click", () => {
       currentSecondaryTags.splice(index, 1);
@@ -213,10 +212,10 @@ export function setupTagModalListeners() {
         await SetVPKTags(currentEditingTagsFile, pTag, sTags);
         modal.classList.add("hidden");
         secondaryTagPicker?.close();
-        showNotification("标签已更新", "success");
+        showNotification(t("mods.tags.updated"), "success");
         await refreshFilesKeepFilter();
       } catch (err) {
-        showError("更新标签失败: " + err);
+        showError(t("mods.tags.updateFailed", { error: String(err) }));
       }
     });
   }

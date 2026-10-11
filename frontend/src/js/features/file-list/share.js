@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { appState } from "../state.js";
 
 function getFileByPath(filePath) {
@@ -61,7 +62,7 @@ export async function copyTextToClipboard(text) {
 export async function shareWorkshopItems(files) {
   const items = Array.isArray(files) ? files.filter(Boolean) : [];
   if (items.length === 0) {
-    showNotification("请先选择文件", "info");
+    showNotification(t("mods.batch.selectFilesFirst"), "info");
     return;
   }
 
@@ -83,19 +84,19 @@ export async function shareWorkshopItems(files) {
   });
 
   if (ids.length === 0) {
-    showNotification(`有 ${missingCount} 个 Mod 没有工坊 ID，未复制`, "info");
+    showNotification(t("mods.ops.share.missingAll", { count: missingCount }), "info");
     return;
   }
 
   try {
     await copyTextToClipboard(ids.join(","));
-    showNotification(`已复制 ${ids.length} 个工坊 ID`, "success");
+    showNotification(t("mods.ops.share.copied", { count: ids.length }), "success");
     if (missingCount > 0) {
-      showNotification(`有 ${missingCount} 个 Mod 没有工坊 ID，已跳过`, "info");
+      showNotification(t("mods.ops.share.missingSkipped", { count: missingCount }), "info");
     }
   } catch (err) {
     console.error("复制工坊 ID 失败:", err);
-    showError("复制失败");
+    showError(t("mods.ops.share.copyFailed"));
   }
 }
 
