@@ -1,16 +1,20 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 
 const TABS = [
-  { id: "overview", label: "概览" },
-  { id: "exception", label: "异常" },
-  { id: "threads", label: "线程" },
-  { id: "modules", label: "模块" },
-  { id: "memory", label: "内存" },
+  { id: "overview", labelKey: "toolbox.mdmpReport.tab.overview" },
+  { id: "exception", labelKey: "toolbox.mdmpReport.tab.exception" },
+  { id: "threads", labelKey: "toolbox.mdmpReport.tab.threads" },
+  { id: "modules", labelKey: "toolbox.mdmpReport.tab.modules" },
+  { id: "memory", labelKey: "toolbox.mdmpReport.tab.memory" },
   { id: "streams", label: "Streams" },
   { id: "raw", label: "Raw JSON" },
 ];
 
 const PAGE_SIZE = 30;
+
+// TABS 是模块级常量：按 key 延迟取文案（模块求值期不调 t()）。
+const tabLabel = (tab) => (tab.labelKey ? t(tab.labelKey) : tab.label);
 
 let activeTab = "overview";
 let currentReport = null;
@@ -25,7 +29,7 @@ export async function openMDMPReportTool() {
   try {
     filePath = await callApp("SelectMDMPFile");
   } catch (error) {
-    showError("选择崩溃转储失败: " + formatError(error));
+    showError(t("toolbox.mdmpReport.selectFailed", { error: formatError(error) }));
     return;
   }
   if (!filePath) return;
@@ -50,7 +54,7 @@ export async function openMDMPReportFromPath(filePath) {
     }
     currentReport = report || {};
     renderReport();
-    showNotification("崩溃转储解析完成", "success");
+    showNotification(t("toolbox.mdmpReport.parseDone"), "success");
   } catch (error) {
     if (
       requestId !== reportRequestId ||
@@ -58,8 +62,8 @@ export async function openMDMPReportFromPath(filePath) {
     ) {
       return;
     }
-    renderError("解析崩溃转储失败: " + formatError(error));
-    showError("解析崩溃转储失败: " + formatError(error));
+    renderError(t("toolbox.mdmpReport.parseFailed", { error: formatError(error) }));
+    showError(t("toolbox.mdmpReport.parseFailed", { error: formatError(error) }));
   }
 }
 
@@ -87,14 +91,14 @@ function ensureModal() {
   const content = createEl("div", "modal-content mdmp-report-modal-content");
   const header = createEl("div", "modal-header mdmp-report-header");
   const titleWrap = createEl("div", "mdmp-report-title");
-  const title = createEl("h2", "", "崩溃转储查看器");
-  const subtitle = createEl("p", "", "解析 .mdmp / .dmp 中的客观字段，不做原因判断。");
+  const title = createEl("h2", "", t("toolbox.card.mdmp.title"));
+  const subtitle = createEl("p", "", t("toolbox.mdmpReport.subtitle"));
   titleWrap.append(title, subtitle);
 
   const closeBtn = createEl("button", "close-btn", "×");
   closeBtn.type = "button";
   closeBtn.id = "close-mdmp-report-modal-btn";
-  closeBtn.setAttribute("aria-label", "关闭");
+  closeBtn.setAttribute("aria-label", t("toolbox.common.close"));
   header.append(titleWrap, closeBtn);
 
   const body = createEl("div", "modal-body");
@@ -126,11 +130,11 @@ function renderLoading(filePath) {
   const shell = createEl("div", "mdmp-report-loading");
   shell.append(
     createEl("div", "mdmp-report-spinner"),
-    createEl("h3", "", "正在解析崩溃转储"),
+    createEl("h3", "", t("toolbox.mdmpReport.loading")),
     createTextWithTitle("p", "", filePath || ""),
   );
   body.appendChild(shell);
-  footer.replaceChildren(createFooterButton("关闭", "btn btn-secondary", closeModal));
+  footer.replaceChildren(createFooterButton(t("toolbox.common.close"), "btn btn-secondary", closeModal));
 }
 
 function renderError(message) {
@@ -142,11 +146,11 @@ function renderError(message) {
   const shell = createEl("div", "mdmp-report-error");
   shell.append(
     createEl("div", "mdmp-report-error-icon", "!"),
-    createEl("h3", "", "解析失败"),
-    createEl("p", "", message || "无法解析崩溃转储文件"),
+    createEl("h3", "", t("toolbox.mdmpReport.errorTitle")),
+    createEl("p", "", message || t("toolbox.mdmpReport.errorFallback")),
   );
   body.appendChild(shell);
-  footer.replaceChildren(createFooterButton("关闭", "btn btn-secondary", closeModal));
+  footer.replaceChildren(createFooterButton(t("toolbox.common.close"), "btn btn-secondary", closeModal));
 }
 
 function renderReport() {
@@ -158,17 +162,17 @@ function renderReport() {
   const shell = createEl("div", "mdmp-report-shell");
   shell.append(createSummaryBar(currentReport), createTabs(), createTabContent());
   body.appendChild(shell);
-  footer.replaceChildren(createFooterButton("关闭", "btn btn-secondary", closeModal));
+  footer.replaceChildren(createFooterButton(t("toolbox.common.close"), "btn btn-secondary", closeModal));
 }
 
 function createSummaryBar(report) {
   const bar = createEl("div", "mdmp-report-summary");
   bar.append(
-    createMetricCard("文件", basename(report.file?.name || report.file?.path || "")),
+    createMetricCard(t("toolbox.mdmpReport.label.file"), basename(report.file?.name || report.file?.path || "")),
     createMetricCard("Streams", formatNumber(report.streams?.length || 0)),
-    createMetricCard("线程", formatNumber(report.threads?.length || 0)),
-    createMetricCard("模块", formatNumber(report.modules?.length || 0)),
-    createMetricCard("内存范围", formatNumber(report.memoryRanges?.length || 0)),
+    createMetricCard(t("toolbox.mdmpReport.summary.threads"), formatNumber(report.threads?.length || 0)),
+    createMetricCard(t("toolbox.mdmpReport.summary.modules"), formatNumber(report.modules?.length || 0)),
+    createMetricCard(t("toolbox.mdmpReport.summary.memoryRanges"), formatNumber(report.memoryRanges?.length || 0)),
   );
   return bar;
 }
@@ -183,7 +187,7 @@ function createTabs() {
   const tabs = createEl("div", "mdmp-report-tabs");
   tabs.setAttribute("role", "tablist");
   TABS.forEach((tab) => {
-    const btn = createEl("button", `mdmp-report-tab${activeTab === tab.id ? " is-active" : ""}`, tab.label);
+    const btn = createEl("button", `mdmp-report-tab${activeTab === tab.id ? " is-active" : ""}`, tabLabel(tab));
     btn.type = "button";
     btn.dataset.tab = tab.id;
     btn.setAttribute("role", "tab");
@@ -211,14 +215,14 @@ function createTabContent() {
 function createOverviewView(report) {
   const view = createEl("div", "mdmp-report-view");
   view.append(
-    createSection("文件信息", [
-      ["路径", report.file?.path],
-      ["大小", formatBytes(report.file?.size)],
-      ["修改时间", report.file?.lastModified],
+    createSection(t("toolbox.mdmpReport.section.fileInfo"), [
+      [t("toolbox.mdmpReport.label.path"), report.file?.path],
+      [t("toolbox.mdmpReport.label.size"), formatBytes(report.file?.size)],
+      [t("toolbox.mdmpReport.label.lastModified"), report.file?.lastModified],
     ]),
     createSection("Header", [
-      ["签名", `${report.header?.signatureAscii || ""} ${report.header?.signature || ""}`.trim()],
-      ["版本", report.header?.version],
+      [t("toolbox.mdmpReport.label.signature"), `${report.header?.signatureAscii || ""} ${report.header?.signature || ""}`.trim()],
+      [t("toolbox.mdmpReport.label.version"), report.header?.version],
       ["Streams", report.header?.numberOfStreams],
       ["Stream Directory RVA", report.header?.streamDirectoryRva],
       ["TimeDateStamp UTC", report.header?.timeDateStampUtc],
@@ -226,17 +230,17 @@ function createOverviewView(report) {
     ]),
   );
   if (report.system) {
-    view.appendChild(createSection("系统信息", [
-      ["架构", joinValue(report.system.architectureName, report.system.processorArchitecture)],
+    view.appendChild(createSection(t("toolbox.mdmpReport.section.system"), [
+      [t("toolbox.mdmpReport.label.architecture"), joinValue(report.system.architectureName, report.system.processorArchitecture)],
       ["CPU Vendor", report.system.cpuVendor],
-      ["处理器数量", report.system.numberOfProcessors],
+      [t("toolbox.mdmpReport.label.processorCount"), report.system.numberOfProcessors],
       ["Windows", `${report.system.majorVersion}.${report.system.minorVersion}.${report.system.buildNumber}`],
       ["Platform", joinValue(report.system.platformName, report.system.platformId)],
       ["Product Type", joinValue(report.system.productTypeName, report.system.productType)],
     ]));
   }
   if (report.misc) {
-    view.appendChild(createSection("进程信息", [
+    view.appendChild(createSection(t("toolbox.mdmpReport.section.process"), [
       ["Process ID", report.misc.processId],
       ["Process Create UTC", report.misc.processCreateTimeUtc],
       ["User Time", `${report.misc.processUserTimeSeconds || 0}s`],
@@ -245,7 +249,7 @@ function createOverviewView(report) {
     ]));
   }
   if (report.exception) {
-    view.appendChild(createSection("异常摘要", [
+    view.appendChild(createSection(t("toolbox.mdmpReport.section.exceptionSummary"), [
       ["Thread ID", report.exception.threadId],
       ["Exception Code", joinValue(report.exception.code, report.exception.codeName)],
       ["Address", report.exception.address],
@@ -253,7 +257,7 @@ function createOverviewView(report) {
     ]));
   }
   if ((report.parseWarnings || []).length > 0) {
-    view.appendChild(createListSection("解析警告", report.parseWarnings));
+    view.appendChild(createListSection(t("toolbox.mdmpReport.section.parseWarnings"), report.parseWarnings));
   }
   return view;
 }
@@ -262,21 +266,21 @@ function createExceptionView(report) {
   const view = createEl("div", "mdmp-report-view");
   const exception = report.exception;
   if (!exception) {
-    view.appendChild(createEmptyState("这个 dump 没有 ExceptionStream"));
+    view.appendChild(createEmptyState(t("toolbox.mdmpReport.empty.noExceptionStream")));
     return view;
   }
 
   view.append(
-    createSection("异常信息", [
+    createSection(t("toolbox.mdmpReport.section.exceptionInfo"), [
       ["Thread ID", exception.threadId],
       ["Code", joinValue(exception.code, exception.codeName)],
       ["Flags", exception.flags],
       ["Record", exception.record],
       ["Address", exception.address],
-      ["命中模块", formatModuleHit(report.exceptionModule)],
+      [t("toolbox.mdmpReport.label.hitModule"), formatModuleHit(report.exceptionModule)],
       ["Parameters", (exception.parameters || []).join(", ")],
     ]),
-    createRegisterSection("异常上下文", exception.context),
+    createRegisterSection(t("toolbox.mdmpReport.section.exceptionContext"), exception.context),
   );
   return view;
 }
@@ -292,7 +296,7 @@ function createThreadsView(report) {
   }));
   return createDataTable("threads", rows, [
     ["TID", (row) => row.id],
-    ["名称", (row) => row.name],
+    [t("toolbox.mdmpReport.label.name"), (row) => row.name],
     ["TEB", (row) => row.teb],
     ["Stack", (row) => row.stack],
     ["IP", (row) => row.eip],
@@ -304,13 +308,13 @@ function createModulesView(report) {
   const rows = report.modules || [];
   return createDataTable("modules", rows, [
     ["#", (row) => row.index],
-    ["文件", (row) => row.fileName || basename(row.path)],
+    [t("toolbox.mdmpReport.label.file"), (row) => row.fileName || basename(row.path)],
     ["Base", (row) => row.baseAddress],
     ["Size", (row) => formatBytes(row.sizeOfImage)],
     ["Timestamp UTC", (row) => row.timeDateStampUtc],
     ["Version", (row) => row.version?.fileVersion],
     ["PDB", (row) => row.codeView?.pdbPath || ""],
-    ["路径", (row) => row.path],
+    [t("toolbox.mdmpReport.label.path"), (row) => row.path],
   ]);
 }
 
@@ -427,7 +431,7 @@ function createDataTable(key, rows, columns) {
   const toolbar = createEl("div", "mdmp-report-table-toolbar");
   const input = createEl("input", "form-input mdmp-report-search");
   input.type = "search";
-  input.placeholder = "搜索当前表格";
+  input.placeholder = t("toolbox.mdmpReport.table.searchPlaceholder");
   input.value = state.query;
   const countLabel = createEl("span", "", "");
   toolbar.append(input, countLabel);
@@ -445,7 +449,7 @@ function createDataTable(key, rows, columns) {
     const start = (state.page - 1) * PAGE_SIZE;
     const pageRows = filtered.slice(start, start + PAGE_SIZE);
 
-    countLabel.textContent = `共 ${formatNumber(filtered.length)} 条`;
+    countLabel.textContent = t("toolbox.mdmpReport.table.count", { count: formatNumber(filtered.length) });
 
     table.replaceChildren();
     const header = createEl("div", "mdmp-report-table-row is-header");
@@ -454,7 +458,7 @@ function createDataTable(key, rows, columns) {
     table.appendChild(header);
 
     if (pageRows.length === 0) {
-      table.appendChild(createEmptyState("没有可展示的数据"));
+      table.appendChild(createEmptyState(t("toolbox.mdmpReport.empty.noData")));
     } else {
       pageRows.forEach((row) => {
         const line = createEl("div", "mdmp-report-table-row");
@@ -465,12 +469,12 @@ function createDataTable(key, rows, columns) {
     }
 
     pager.replaceChildren(
-      createPagerButton("‹", "上一页", state.page <= 1, () => {
+      createPagerButton("‹", t("toolbox.common.paginationPrev"), state.page <= 1, () => {
         state.page = Math.max(1, state.page - 1);
         render();
       }),
-      createEl("span", "", `第 ${state.page} / ${totalPages} 页 · ${formatNumber(filtered.length)} 条`),
-      createPagerButton("›", "下一页", state.page >= totalPages, () => {
+      createEl("span", "", t("toolbox.mdmpReport.table.pageStatus", { page: state.page, totalPages, count: formatNumber(filtered.length) })),
+      createPagerButton("›", t("toolbox.common.paginationNext"), state.page >= totalPages, () => {
         state.page = Math.min(totalPages, state.page + 1);
         render();
       }),
@@ -521,7 +525,7 @@ function createFooterButton(label, className, onClick) {
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
   if (typeof method !== "function") {
-    return Promise.reject(new Error(`当前后端不支持 ${methodName}`));
+    return Promise.reject(new Error(t("toolbox.common.backendUnsupported", { method: methodName })));
   }
   return method(...args);
 }
@@ -553,7 +557,7 @@ function createTextWithTitle(tag, className = "", text = "") {
 
 function formatError(error) {
   if (error?.message) return error.message;
-  return String(error || "未知错误");
+  return String(error || t("toolbox.common.unknownError"));
 }
 
 function formatValue(value) {

@@ -486,6 +486,57 @@
       "matchLine": "第 {line} 行 · {command}{unknown}",
       "matchUnknownTag": "（未知指令）",
       "matchHint": "可能来自插件或 Mod，建议确认来源后再保存。"
+    },
+    "mdmpReport": {
+      "subtitle": "解析 .mdmp / .dmp 中的客观字段，不做原因判断。",
+      "selectFailed": "选择崩溃转储失败: {error}",
+      "parseDone": "崩溃转储解析完成",
+      "parseFailed": "解析崩溃转储失败: {error}",
+      "loading": "正在解析崩溃转储",
+      "errorTitle": "解析失败",
+      "errorFallback": "无法解析崩溃转储文件",
+      "tab": {
+        "overview": "概览",
+        "exception": "异常",
+        "threads": "线程",
+        "modules": "模块",
+        "memory": "内存"
+      },
+      "summary": {
+        "threads": "线程",
+        "modules": "模块",
+        "memoryRanges": "内存范围"
+      },
+      "section": {
+        "fileInfo": "文件信息",
+        "system": "系统信息",
+        "process": "进程信息",
+        "exceptionSummary": "异常摘要",
+        "parseWarnings": "解析警告",
+        "exceptionInfo": "异常信息",
+        "exceptionContext": "异常上下文"
+      },
+      "label": {
+        "file": "文件",
+        "path": "路径",
+        "size": "大小",
+        "lastModified": "修改时间",
+        "signature": "签名",
+        "version": "版本",
+        "architecture": "架构",
+        "processorCount": "处理器数量",
+        "hitModule": "命中模块",
+        "name": "名称"
+      },
+      "empty": {
+        "noExceptionStream": "这个 dump 没有 ExceptionStream",
+        "noData": "没有可展示的数据"
+      },
+      "table": {
+        "searchPlaceholder": "搜索当前表格",
+        "count": "共 {count} 条",
+        "pageStatus": "第 {page} / {totalPages} 页 · {count} 条"
+      }
     }
   },
   "about": {

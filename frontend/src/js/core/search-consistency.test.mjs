@@ -136,14 +136,24 @@ test("局部小过滤器不冒充本地语法（占位文案里不出现 tag: / 
     assert.ok(!/tag:|re:|排除/.test(advertised), `${filter.name} 的占位文案不该宣称支持本地语法：${placeholder}`);
   }
 
-  // 动态生成的局部过滤器同样检查
+  // 动态生成的局部过滤器同样检查。
+  // autoexec / mdmp 的占位文案已 i18n 化（第 13 项十七/十八批）：源码接线 + 目录内容双查。
   const autoexec = read("src/js/features/diagnostics/autoexec-tool.js");
   const mdmp = read("src/js/features/diagnostics/mdmp-report.js");
+  const wiredFilters = [
+    { name: "autoexec 命令列表", source: autoexec, key: "toolbox.autoexec.searchPlaceholder" },
+    { name: "mdmp 表格", source: mdmp, key: "toolbox.mdmpReport.table.searchPlaceholder" },
+  ];
+  for (const filter of wiredFilters) {
+    assert.ok(filter.source.includes(`t("${filter.key}")`), `${filter.name} 的占位文案要走目录（源码接线）`);
+    const value = String(filter.key.split(".").reduce((node, part) => node?.[part], catalog) || "");
+    assert.ok(value, `${filter.name} 的占位文案要存在于目录`);
+    assert.ok(!/tag:|re: |排除/.test(value), `${filter.name} 的占位文案不该宣称支持本地语法：${value}`);
+  }
+  // 服务器地图的占位仍是源码字面量（未迁移），按原口径检查。
   const panelModal = read("src/js/features/servers/panel-modal.js");
-  for (const [name, source] of [["autoexec 命令列表", autoexec], ["mdmp 表格", mdmp], ["服务器地图", panelModal]]) {
-    const placeholders = [...source.matchAll(/placeholder\s*[:=]\s*"([^"]*)"/g)].map((match) => match[1]);
-    for (const value of placeholders) {
-      assert.ok(!/tag:|re: |排除/.test(value), `${name} 的占位文案不该宣称支持本地语法：${value}`);
-    }
+  const placeholders = [...panelModal.matchAll(/placeholder\s*[:=]\s*"([^"]*)"/g)].map((match) => match[1]);
+  for (const value of placeholders) {
+    assert.ok(!/tag:|re: |排除/.test(value), `服务器地图 的占位文案不该宣称支持本地语法：${value}`);
   }
 });

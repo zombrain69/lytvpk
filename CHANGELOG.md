@@ -1,5 +1,24 @@
 # Changelog
 
+## 未发布 — i18n：崩溃转储查看器（mdmp-report.js）（第 13 项第十八批）（2026-10-12）
+
+- `mdmp-report.js`：崩溃转储查看器窗口 JS 侧全量文案 —— 标签页表改「key 表 + 延迟取文案」
+  （`TABS` 五项 CJK 标签改 `labelKey` + `tabLabel()` 解析；`Streams` / `Raw JSON` 技术词保留）、
+  选择失败 / 解析完成 / 解析失败（render + toast 两处）的通知文案、弹窗标题
+  （复用 `toolbox.card.mdmp.title`）/ 副标题 / 关闭 aria、加载与错误两态（标题 / 兜底第三态）、
+  摘要卡五项、总览四节（文件信息 / Header / 系统信息 / 进程信息）的节标题与行标签、
+  异常视图（空态 / 异常信息节 / 命中模块 / 异常上下文节）、线程与模块表列、表格模板
+  （搜索占位 / 计数「共 {count} 条」/ 页码状态 / 分页按钮 / 空态）、`callApp` 后端不支持兜底、
+  `formatError` 未知错误兜底。
+- **复用**：`toolbox.common.close|paginationPrev|paginationNext|backendUnsupported|unknownError`、
+  `toolbox.card.mdmp.title`（工具卡片与弹窗共用标题）。
+- 目录新增 37 key（`toolbox.mdmpReport.*`：tab 5 / summary 3 / section 7 / label 10 / empty 2 /
+  table 3 / 散键 7）；既有条目零改动。
+- 测试：`search-consistency.test.mjs` 的 autoexec / mdmp 占位断言改「源码接线 + 目录内容」双查
+  （服务器地图维持字面量口径）；mdmp-report.js 扫描归零（CODE 49 → 0）、裸文本复查干净。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；`go test ./...` /
+  `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：快照 + autoexec 家族（snapshot-tool / autoexec-tool）（第 13 项第十七批）（2026-10-12）
 
 - `snapshot-tool.js`：Mod 快照窗口 JS 侧全量文案 —— 类型/动作标签表改「key 表 + 延迟取文案」
