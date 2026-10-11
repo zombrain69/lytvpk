@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import { appState } from "../state.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
@@ -26,7 +27,7 @@ export async function refreshTaskList() {
     if (requestId !== taskListRequestId || !listContainer.isConnected) return;
 
     if (!tasks || tasks.length === 0) {
-      listContainer.innerHTML = '<div class="empty-tasks" style="text-align: center; color: #888; padding: 20px;">暂无下载任务</div>';
+      listContainer.innerHTML = `<div class="empty-tasks" style="text-align: center; color: #888; padding: 20px;">${t("downloads.task.empty")}</div>`;
       return;
     }
 
@@ -57,11 +58,11 @@ export async function refreshTaskList() {
     const errorState = document.createElement("div");
     errorState.className = "empty-tasks";
     errorState.style.cssText = "text-align: center; color: #b42318; padding: 20px;";
-    errorState.textContent = "下载任务列表加载失败。";
+    errorState.textContent = t("downloads.task.loadFailed");
     const retryButton = document.createElement("button");
     retryButton.type = "button";
     retryButton.className = "btn btn-secondary btn-small";
-    retryButton.textContent = "重试";
+    retryButton.textContent = t("downloads.task.retry");
     retryButton.addEventListener("click", refreshTaskList);
     errorState.append(" ", retryButton);
     listContainer.replaceChildren(errorState);
@@ -85,14 +86,14 @@ export function createTaskElement(task) {
   };
 
   const statusText = {
-    pending: "等待中",
-    selecting_ip: "优选线路中...",
-    downloading: "下载中",
-    completed: "已完成",
-    failed: "失败",
-    cancelled: "已取消",
-    interrupted: "已中断",
-    paused: "已暂停",
+    pending: t("downloads.task.status.pending"),
+    selecting_ip: t("downloads.task.status.selectingIp"),
+    downloading: t("downloads.task.status.downloading"),
+    completed: t("downloads.task.status.completed"),
+    failed: t("downloads.task.status.failed"),
+    cancelled: t("downloads.task.status.cancelled"),
+    interrupted: t("downloads.task.status.interrupted"),
+    paused: t("downloads.task.status.paused"),
   };
 
   const taskId = escapeHtml(task.id);
@@ -103,7 +104,7 @@ export function createTaskElement(task) {
   const taskFileURL = escapeHtml(task.file_url || "");
   const progress = clampProgress(task.progress);
   const copyBtn = `
-    <button class="task-action-btn copy-link-btn" data-url="${taskFileURL}" title="复制下载链接">
+    <button class="task-action-btn copy-link-btn" data-url="${taskFileURL}" title="${t("downloads.task.action.copyLink")}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -114,13 +115,13 @@ export function createTaskElement(task) {
   if (task.status === "downloading" || task.status === "pending" || task.status === "selecting_ip") {
     actionButtons = `
       ${copyBtn}
-      <button class="task-action-btn pause-task-btn" data-id="${taskId}" title="暂停下载（已完成的区块会保留，之后可以继续）">
+      <button class="task-action-btn pause-task-btn" data-id="${taskId}" title="${t("downloads.task.action.pause")}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="9" y1="5" x2="9" y2="19"></line>
           <line x1="15" y1="5" x2="15" y2="19"></line>
         </svg>
       </button>
-      <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${taskId}" title="取消下载">
+      <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${taskId}" title="${t("downloads.task.action.cancel")}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -130,12 +131,12 @@ export function createTaskElement(task) {
     // 暂停是"保留断点"的状态：继续 = 断点续传，取消 = 丢弃这次下载。
     actionButtons = `
       ${copyBtn}
-      <button class="task-action-btn resume-task-btn" data-id="${taskId}" title="继续下载（只补没下完的区块）">
+      <button class="task-action-btn resume-task-btn" data-id="${taskId}" title="${t("downloads.task.action.resume")}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="6 4 20 12 6 20 6 4"></polygon>
         </svg>
       </button>
-      <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${taskId}" title="取消并丢弃已下载的临时数据">
+      <button class="task-action-btn cancel-btn cancel-task-btn" data-id="${taskId}" title="${t("downloads.task.action.cancelDiscard")}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -144,7 +145,7 @@ export function createTaskElement(task) {
   } else if (task.status === "failed" || task.status === "cancelled" || task.status === "interrupted") {
     actionButtons = `
       ${copyBtn}
-      <button class="task-action-btn retry-btn retry-task-btn" data-id="${taskId}" title="重试下载">
+      <button class="task-action-btn retry-btn retry-task-btn" data-id="${taskId}" title="${t("downloads.task.action.retry")}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M23 4v6h-6"></path>
           <path d="M1 20v-6h6"></path>
@@ -205,7 +206,7 @@ export function createTaskElement(task) {
       const url = copyLinkBtn.dataset.url;
       if (url) {
         navigator.clipboard.writeText(url)
-          .then(() => showNotification("下载链接已复制", "success"))
+          .then(() => showNotification(t("downloads.task.notification.linkCopied"), "success"))
           .catch((err) => {
             console.error("复制失败:", err);
             const el = document.createElement("textarea");
@@ -214,10 +215,10 @@ export function createTaskElement(task) {
             el.select();
             document.execCommand("copy");
             document.body.removeChild(el);
-            showNotification("下载链接已复制", "success");
+            showNotification(t("downloads.task.notification.linkCopied"), "success");
           });
       } else {
-        showError("无效的下载链接");
+        showError(t("downloads.common.invalidLink"));
       }
     });
   }
@@ -226,13 +227,13 @@ export function createTaskElement(task) {
   if (cancelBtn) {
     cancelBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      showConfirmModal("取消下载", "确定要取消这个下载任务吗？", async () => {
+      showConfirmModal(t("downloads.task.cancelTitle"), t("downloads.task.cancelConfirm"), async () => {
         try {
           await CancelDownloadTask(task.id);
-          showNotification("任务已取消", "info");
+          showNotification(t("downloads.task.notification.cancelled"), "info");
         } catch (err) {
           console.error("取消任务失败:", err);
-          showError("取消失败: " + err);
+          showError(t("downloads.task.error.cancelFailed", { error: err }));
         }
       });
     });
@@ -244,10 +245,10 @@ export function createTaskElement(task) {
       e.stopPropagation();
       try {
         await RetryDownloadTask(task.id);
-        showNotification("任务已重试", "success");
+        showNotification(t("downloads.task.notification.retried"), "success");
       } catch (err) {
         console.error("重试任务失败:", err);
-        showError("重试失败: " + err);
+        showError(t("downloads.task.error.retryFailed", { error: err }));
       }
     });
   }
@@ -258,10 +259,10 @@ export function createTaskElement(task) {
       e.stopPropagation();
       try {
         await PauseDownloadTask(task.id);
-        showNotification("已暂停，之后点「继续」会从断点接着下", "info");
+        showNotification(t("downloads.task.notification.paused"), "info");
       } catch (err) {
         console.error("暂停任务失败:", err);
-        showError("暂停失败: " + err);
+        showError(t("downloads.task.error.pauseFailed", { error: err }));
       }
     });
   }
@@ -272,10 +273,10 @@ export function createTaskElement(task) {
       e.stopPropagation();
       try {
         await ResumeDownloadTask(task.id);
-        showNotification("已继续下载", "success");
+        showNotification(t("downloads.task.notification.resumed"), "success");
       } catch (err) {
         console.error("继续任务失败:", err);
-        showError("继续失败: " + err);
+        showError(t("downloads.task.error.resumeFailed", { error: err }));
       }
     });
   }
@@ -290,12 +291,12 @@ export function createTaskElement(task) {
       autoRedownloadInput.disabled = true;
       try {
         await SetDownloadTaskAutoRedownload(task.id, enabled);
-        showNotification(enabled ? "已开启：该任务失败后自动重下一次" : "已关闭：该任务失败后不再自动重下", "info");
+        showNotification(enabled ? t("downloads.task.notification.autoRedownloadOn") : t("downloads.task.notification.autoRedownloadOff"), "info");
       } catch (err) {
         // 写回失败时把勾选状态还原，避免界面显示与后端不一致。
         autoRedownloadInput.checked = !enabled;
         console.error("切换任务自动重下失败:", err);
-        showError("切换自动重下失败: " + err);
+        showError(t("downloads.task.error.autoRedownloadFailed", { error: err }));
       } finally {
         autoRedownloadInput.disabled = false;
       }
@@ -313,9 +314,9 @@ export function formatTaskAutoRedownloadToggle(task, escapedTaskId = "") {
   const id = escapedTaskId || escapeHtml(task.id);
   const checked = task.auto_redownload === true ? " checked" : "";
   return `
-      <label class="task-auto-redownload" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; color: var(--text-tertiary); margin-top: 4px; cursor: pointer;" title="开启后，这个任务在下载失败时自动重试一次；用户主动取消的任务不会重试">
+      <label class="task-auto-redownload" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; color: var(--text-tertiary); margin-top: 4px; cursor: pointer;" title="${t("downloads.task.autoRedownloadHint")}">
         <input type="checkbox" class="task-auto-redownload-input" data-id="${id}"${checked}>
-        <span>失败后自动重下</span>
+        <span>${t("downloads.task.autoRedownloadLabel")}</span>
       </label>`;
 }
 
@@ -327,14 +328,14 @@ function createCompletedTaskActions(task) {
   const actions = document.createElement("div");
   actions.className = "task-completed-actions";
 
-  const renameBtn = createCompletedTaskButton("重命名", "task-rename-shortcut-btn");
+  const renameBtn = createCompletedTaskButton(t("downloads.task.action.rename"), "task-rename-shortcut-btn");
   renameBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
     await openCompletedTaskFile(task, renameFile);
   });
 
-  const tagsBtn = createCompletedTaskButton("设置标签", "task-tags-shortcut-btn");
+  const tagsBtn = createCompletedTaskButton(t("downloads.task.action.setTags"), "task-tags-shortcut-btn");
   tagsBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -357,7 +358,7 @@ function createCompletedTaskButton(label, extraClass) {
 async function openCompletedTaskFile(task, action) {
   const filePath = await resolveCompletedTaskFilePath(task);
   if (!filePath) {
-    showError("无法定位已下载的 VPK 文件，请刷新 Mod 列表后重试");
+    showError(t("downloads.task.error.fileNotFound"));
     return;
   }
 

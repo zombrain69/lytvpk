@@ -317,5 +317,110 @@
       "failed": "翻译失败: {error}",
       "paragraphFailed": "这一段翻译失败"
     }
+  },
+  "downloads": {
+    "common": {
+      "invalidLink": "无效的下载链接"
+    },
+    "task": {
+      "empty": "暂无下载任务",
+      "loadFailed": "下载任务列表加载失败。",
+      "retry": "重试",
+      "status": {
+        "pending": "等待中",
+        "selectingIp": "优选线路中...",
+        "downloading": "下载中",
+        "completed": "已完成",
+        "failed": "失败",
+        "cancelled": "已取消",
+        "interrupted": "已中断",
+        "paused": "已暂停"
+      },
+      "action": {
+        "copyLink": "复制下载链接",
+        "pause": "暂停下载（已完成的区块会保留，之后可以继续）",
+        "cancel": "取消下载",
+        "resume": "继续下载（只补没下完的区块）",
+        "cancelDiscard": "取消并丢弃已下载的临时数据",
+        "retry": "重试下载",
+        "rename": "重命名",
+        "setTags": "设置标签"
+      },
+      "notification": {
+        "linkCopied": "下载链接已复制",
+        "cancelled": "任务已取消",
+        "retried": "任务已重试",
+        "paused": "已暂停，之后点「继续」会从断点接着下",
+        "resumed": "已继续下载",
+        "autoRedownloadOn": "已开启：该任务失败后自动重下一次",
+        "autoRedownloadOff": "已关闭：该任务失败后不再自动重下"
+      },
+      "cancelTitle": "取消下载",
+      "cancelConfirm": "确定要取消这个下载任务吗？",
+      "error": {
+        "cancelFailed": "取消失败: {error}",
+        "retryFailed": "重试失败: {error}",
+        "pauseFailed": "暂停失败: {error}",
+        "resumeFailed": "继续失败: {error}",
+        "autoRedownloadFailed": "切换自动重下失败: {error}",
+        "fileNotFound": "无法定位已下载的 VPK 文件，请刷新 Mod 列表后重试"
+      },
+      "autoRedownloadLabel": "失败后自动重下",
+      "autoRedownloadHint": "开启后，这个任务在下载失败时自动重试一次；用户主动取消的任务不会重试"
+    },
+    "modal": {
+      "download": "下载",
+      "downloadGroup": "下载本组",
+      "downloadItem": "下载此文件",
+      "downloadAll": "全部下载",
+      "copyLink": "复制链接",
+      "unavailable": "不可下载",
+      "mainItem": "主物品",
+      "subItem": "子物品",
+      "noFile": "无文件",
+      "creatorLabel": "作者:",
+      "fileNameLabel": "文件名:",
+      "sizeLabel": "大小:",
+      "checking": "解析中...",
+      "optimizing": "正在优选线路...",
+      "downloadUrlPlaceholder": "解析后自动填充，或手动输入直链...",
+      "groupEmpty": "该合集内暂无可显示的文件",
+      "truncatedHint": "（{count} 个合集的子合集过多，仅展开到上限）",
+      "parsedWithFiles": "已解析 {groups} 组 / {files} 个可下载文件{hint}",
+      "parsedNoFiles": "已解析 {groups} 组，但没有可下载文件{hint}",
+      "notification": {
+        "linkCopied": "链接已复制",
+        "linksCopied": "已复制 {count} 个下载链接",
+        "groupAdded": "已添加本组任务到下载队列",
+        "added": "已添加到下载队列",
+        "batchAdded": "已添加 {count} 个任务到下载队列",
+        "optimizing": "正在优选最佳线路，完成后自动开始下载",
+        "alreadyQueued": "这些文件已在添加到下载队列，请勿重复点击",
+        "backgroundAdded": "已添加到后台下载队列"
+      },
+      "error": {
+        "noLinks": "没有可复制的下载链接",
+        "copyFailed": "复制失败",
+        "inputRequired": "请输入创意工坊链接或工坊ID",
+        "parseFailed": "解析失败: {error}",
+        "nothingDownloadable": "没有可下载的文件",
+        "addFailed": "添加任务失败",
+        "addFailedWithError": "添加任务失败: {error}",
+        "ipStatusUnavailable": "无法获取优选线路状态: {error}",
+        "ipCheckFailed": "优选线路状态检查失败: {error}",
+        "downloadUrlRequired": "请输入或解析下载链接",
+        "notFound": "未找到相关文件"
+      }
+    },
+    "history": {
+      "clearTitle": "清空解析历史",
+      "clearConfirm": "确定要清空所有解析历史记录吗？",
+      "cleared": "解析历史已清空",
+      "clearFailed": "清空解析历史失败: {error}"
+    },
+    "clipboard": {
+      "confirmTitle": "检测到创意工坊链接",
+      "confirmMessage": "剪贴板里是一条创意工坊链接：\n{link}\n\n要打开下载页并解析这个作品吗？"
+    }
   }
 }

@@ -7,6 +7,9 @@ import test from "node:test";
 // 免得出现"后端支持了但界面没有入口"的半成品。
 
 const source = readFileSync(new URL("./task-list.js", import.meta.url), "utf8");
+const catalog = JSON.parse(
+  readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+);
 
 test("任务列表接入暂停与继续两个后端方法", () => {
   assert.match(source, /PauseDownloadTask,/, "缺少 PauseDownloadTask 导入");
@@ -20,13 +23,16 @@ test("三种状态各有正确的按钮组合", () => {
   assert.match(source, /resume-task-btn/, "暂停中的任务要有继续按钮");
   // 暂停中的任务同时要能"取消并丢弃断点"。
   assert.match(source, /task\.status === "paused"[\s\S]{0,700}cancel-task-btn/, "暂停中也要能取消");
-  // 文案要说清"继续是断点续传"而不是重下。
-  assert.match(source, /只补没下完的区块/, "继续按钮要说明是断点续传");
-  assert.match(source, /已完成的区块会保留/, "暂停按钮要说明会保留进度");
+  // 文案要说清"继续是断点续传"而不是重下；文案本体在目录里。
+  assert.match(catalog.downloads.task.action.resume, /只补没下完的区块/, "继续按钮要说明是断点续传");
+  assert.match(source, /downloads\.task\.action\.resume/, "继续按钮文案来自目录");
+  assert.match(catalog.downloads.task.action.pause, /已完成的区块会保留/, "暂停按钮要说明会保留进度");
+  assert.match(source, /downloads\.task\.action\.pause/, "暂停按钮文案来自目录");
 });
 
 test("暂停状态有独立的显示名与颜色，并排在失败之前", () => {
-  assert.match(source, /paused: "已暂停"/, "缺少「已暂停」状态文案");
+  assert.match(source, /paused: t\("downloads\.task\.status\.paused"\)/, "缺少「已暂停」状态文案接线");
+  assert.equal(catalog.downloads.task.status.paused, "已暂停", "目录里要有「已暂停」");
   assert.match(source, /paused: "#2196f3"/, "缺少暂停状态颜色");
   assert.match(source, /paused: 3,\s*interrupted: 3,\s*failed: 3,/, "暂停应与中断/失败同档排序");
 });

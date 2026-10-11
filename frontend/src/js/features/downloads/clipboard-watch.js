@@ -13,6 +13,7 @@ import {
 import { CheckClipboardWorkshopLink } from "../../../../wailsjs/go/app/App";
 import { showConfirmModal } from "../modals/confirm.js";
 import { openWorkshopModalWithUrl } from "./workshop-modal.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let clipboardWatchTimer = null;
 let lastPolledAt = 0;
@@ -41,8 +42,8 @@ async function pollClipboardOnce() {
     if (!shouldOfferClipboardLink(link, lastOfferedLink, input?.value)) return;
     lastOfferedLink = link;
     showConfirmModal(
-      "检测到创意工坊链接",
-      `剪贴板里是一条创意工坊链接：\n${link}\n\n要打开下载页并解析这个作品吗？`,
+      t("downloads.clipboard.confirmTitle"),
+      t("downloads.clipboard.confirmMessage", { link }),
       async () => {
         await openWorkshopModalWithUrl(link);
       },

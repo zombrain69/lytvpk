@@ -1,5 +1,18 @@
 # Changelog
 
+## 未发布 — i18n：迁移下载页（downloads，6 个源文件）（2026-10-11）
+
+- `features/downloads/` 全部源文件的用户可见文案改走 `t()`：任务队列（状态名、按钮 tooltip、
+  空态 / 失败态、通知与错误提示、任务级自动重下开关）、工坊解析结果渲染（本组 / 单个下载按钮、
+  主 / 子物品标签、作者 / 文件名 / 大小标签、不可下载徽章、子合集截断提示、解析进度占位）、
+  解析历史下拉（清空确认与结果提示）、剪贴板识别确认弹窗；`workshop-history.mjs` 的
+  `工坊 #ID` 退化标题复用 `workshop.itemFallbackTitle`；目录新增 `downloads.*` 键组（81 个 key）。
+- `task-list-pause.test.mjs` / `task-list-auto-redownload.test.mjs` 由「在源码里找中文」
+  改为「源码接线 + 目录内容」双重校验（行为要求原样保留）。
+- 文档：`docs/development/i18n.md`、`docs/development/manual-verification.md` §13。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）565 项 0 失败；
+  `npm run build` 通过。
+
 ## 未发布 — i18n：迁移工坊浏览器页（workshop，9 个 JS 模块）（2026-10-11）
 
 - `features/workshop/` 全部 JS 模块的用户可见文案改走 `t()` —— 侧边分类名（表存 `nameKey`，

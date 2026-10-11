@@ -2,6 +2,8 @@
 // 后端存的是整份结果快照，这里只负责：把后端数据规整成界面能用的形状、
 // 把一次解析结果转成历史条目、以及生成列表标题。
 
+import { t } from "../../core/i18n-runtime.js";
+
 /** normalizeHistoryItems 过滤掉没有 rootId 的脏数据，并把字段类型收敛。 */
 export function normalizeHistoryItems(items) {
   if (!Array.isArray(items)) return [];
@@ -53,7 +55,7 @@ export function buildHistoryEntries(groups) {
 export function formatHistoryLabel(item) {
   const title = String(item?.title || "").trim();
   if (title) return title;
-  return `工坊 #${String(item?.rootId || "").trim()}`;
+  return t("workshop.itemFallbackTitle", { id: String(item?.rootId || "").trim() });
 }
 
 /** formatHistoryTime 把毫秒时间戳格式化成 `MM-DD HH:mm`（无有效时间返回空串）。 */

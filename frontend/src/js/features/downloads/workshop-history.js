@@ -2,6 +2,7 @@
 // 纯逻辑在 workshop-history.mjs（有单测），这里只负责 DOM 与后端调用。
 
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { escapeHtml } from "../../core/utils.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import {
@@ -111,15 +112,15 @@ export function recordWorkshopHistory(groups) {
 }
 
 function clearHistory() {
-  showConfirmModal("清空解析历史", "确定要清空所有解析历史记录吗？", async () => {
+  showConfirmModal(t("downloads.history.clearTitle"), t("downloads.history.clearConfirm"), async () => {
     try {
       await ClearWorkshopHistory();
       historyItems = [];
       renderHistoryList();
-      showNotification("解析历史已清空", "success");
+      showNotification(t("downloads.history.cleared"), "success");
     } catch (error) {
       console.error("清空解析历史失败:", error);
-      showError("清空解析历史失败: " + error);
+      showError(t("downloads.history.clearFailed", { error }));
     }
   });
 }

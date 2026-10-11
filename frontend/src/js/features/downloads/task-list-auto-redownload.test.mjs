@@ -8,6 +8,9 @@ import test from "node:test";
 // "后端支持了但界面没有入口"的半成品。
 
 const source = readFileSync(new URL("./task-list.js", import.meta.url), "utf8");
+const catalog = JSON.parse(
+  readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+);
 
 test("任务列表接入 SetDownloadTaskAutoRedownload", () => {
   assert.match(source, /SetDownloadTaskAutoRedownload,/, "缺少 SetDownloadTaskAutoRedownload 导入");
@@ -20,7 +23,8 @@ test("任务列表接入 SetDownloadTaskAutoRedownload", () => {
 
 test("渲染任务级开关并回显后端状态", () => {
   assert.match(source, /class="task-auto-redownload-input"/, "缺少任务级开关元素");
-  assert.match(source, /失败后自动重下/, "开关要有可读文案");
+  assert.equal(catalog.downloads.task.autoRedownloadLabel, "失败后自动重下", "开关要有可读文案");
+  assert.match(source, /t\("downloads\.task\.autoRedownloadLabel"\)/, "开关文案来自目录");
   assert.match(
     source,
     /task\.auto_redownload === true \? " checked" : ""/,
@@ -39,10 +43,12 @@ test("失败与已中断的任务也能单独开关", () => {
 
 test("写入失败要回滚勾选状态并提示", () => {
   assert.match(source, /autoRedownloadInput\.checked = !enabled;/, "失败时要回滚勾选");
-  assert.match(source, /切换自动重下失败/, "失败时要提示用户");
+  assert.match(catalog.downloads.task.error.autoRedownloadFailed, /切换自动重下失败/, "失败时要提示用户");
+  assert.match(source, /downloads\.task\.error\.autoRedownloadFailed/, "失败提示来自目录");
 });
 
 test("开关文案说明自动重下只做一次且不会覆盖主动取消", () => {
-  assert.match(source, /自动重试一次/, "要说明只自动重试一次");
-  assert.match(source, /主动取消的任务不会重试/, "要说明主动取消不重试");
+  assert.match(catalog.downloads.task.autoRedownloadHint, /自动重试一次/, "要说明只自动重试一次");
+  assert.match(catalog.downloads.task.autoRedownloadHint, /主动取消的任务不会重试/, "要说明主动取消不重试");
+  assert.match(source, /downloads\.task\.autoRedownloadHint/, "开关提示来自目录");
 });

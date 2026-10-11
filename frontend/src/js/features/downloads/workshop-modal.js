@@ -2,6 +2,7 @@ import { switchAppPage } from "../../core/ui-shell.js";
 import { showError, showNotification, showInfo } from "../../core/toast.js";
 import { getConfig } from "../../core/config.js";
 import { escapeHtml } from "../../core/utils.js";
+import { t } from "../../core/i18n-runtime.js";
 import { refreshTaskList } from "./task-list.js";
 import {
   GetWorkshopDetailsGrouped,
@@ -152,19 +153,19 @@ async function copyTextToClipboard(text) {
 export async function copyCurrentDownloadUrls() {
   const urls = getCurrentDownloadUrls();
   if (urls.length === 0) {
-    showError("没有可复制的下载链接");
+    showError(t("downloads.modal.error.noLinks"));
     return;
   }
 
   try {
     await copyTextToClipboard(urls.join("\n"));
     showNotification(
-      urls.length > 1 ? `已复制 ${urls.length} 个下载链接` : "链接已复制",
+      urls.length > 1 ? t("downloads.modal.notification.linksCopied", { count: urls.length }) : t("downloads.modal.notification.linkCopied"),
       "success"
     );
   } catch (err) {
     console.error("复制失败:", err);
-    showError("复制失败");
+    showError(t("downloads.modal.error.copyFailed"));
   }
 }
 
@@ -224,10 +225,10 @@ function resetWorkshopParseState() {
   }
   document.getElementById("workshop-url").value = "";
   document.getElementById("download-url").value = "";
-  document.getElementById("download-url").placeholder = "解析后自动填充，或手动输入直链...";
+  document.getElementById("download-url").placeholder = t("downloads.modal.downloadUrlPlaceholder");
   document.getElementById("workshop-result").classList.add("hidden");
   document.getElementById("workshop-result").innerHTML = "";
-  document.getElementById("download-workshop-btn").innerHTML = DOWNLOAD_ICON_SVG + "<span>下载</span>";
+  document.getElementById("download-workshop-btn").innerHTML = DOWNLOAD_ICON_SVG + `<span>${t("downloads.modal.download")}</span>`;
   document.getElementById("optimized-ip-container").classList.add("hidden");
   document.getElementById("use-optimized-ip-global").checked = false;
   currentWorkshopResult = null;
@@ -240,7 +241,7 @@ export async function checkWorkshopUrl() {
   const requestId = ++workshopParseRequestId;
   const url = document.getElementById("workshop-url").value.trim();
   if (!url) {
-    showError("请输入创意工坊链接或工坊ID");
+    showError(t("downloads.modal.error.inputRequired"));
     return;
   }
 
@@ -253,7 +254,7 @@ export async function checkWorkshopUrl() {
     workshopCheckButtonDefaultHTML = originalBtnText;
   }
   checkBtn.disabled = true;
-  checkBtn.innerHTML = '<span class="btn-spinner"></span> 解析中...';
+  checkBtn.innerHTML = `<span class="btn-spinner"></span> ${t("downloads.modal.checking")}`;
 
   result.classList.add("hidden");
   result.innerHTML = "";
@@ -282,7 +283,7 @@ export async function checkWorkshopUrl() {
     recordWorkshopHistory(groupedResult?.groups);
   } catch (err) {
     if (isWorkshopParseRequestActive(viewSession, requestId)) {
-      showError("解析失败: " + err);
+      showError(t("downloads.modal.error.parseFailed", { error: err }));
     }
   } finally {
     if (isWorkshopParseRequestActive(viewSession, requestId)) {
@@ -298,7 +299,7 @@ function renderWorkshopGroup(group, groupIndex) {
   groupDiv.dataset.groupIndex = String(groupIndex);
 
   const rootId = group.root_id || group.main?.publishedfileid || "";
-  const mainTitle = group.main?.title || `工坊 #${rootId}`;
+  const mainTitle = group.main?.title || t("workshop.itemFallbackTitle", { id: rootId });
   const downloadableCount = getGroupDownloadableItems(group).length;
 
   groupDiv.innerHTML = `
@@ -309,7 +310,7 @@ function renderWorkshopGroup(group, groupIndex) {
       </button>
       <div class="workshop-group-actions">
         <button class="btn btn-success download-group-btn" type="button" data-group-index="${groupIndex}" ${downloadableCount === 0 ? "disabled" : ""}>
-          ${DOWNLOAD_ICON_SVG}<span>下载本组</span>
+          ${DOWNLOAD_ICON_SVG}<span>${t("downloads.modal.downloadGroup")}</span>
         </button>
       </div>
     </div>
@@ -328,7 +329,7 @@ function renderWorkshopGroup(group, groupIndex) {
   if (renderedCount === 0) {
     const empty = document.createElement("p");
     empty.className = "workshop-group-empty";
-    empty.textContent = "该合集内暂无可显示的文件";
+    empty.textContent = t("downloads.modal.groupEmpty");
     body.appendChild(empty);
   }
 
@@ -343,25 +344,25 @@ function renderWorkshopItem(details, groupIndex, itemIndex, collectionGroup = fa
   itemDiv.className = `workshop-info workshop-group-item${isMain ? " workshop-main-item" : ""}`;
 
   const creatorHtml = details.creator && details.creator.trim() !== ""
-    ? `<p><strong>作者:</strong> <span>${escapeHtml(details.creator)}</span></p>`
+    ? `<p><strong>${t("downloads.modal.creatorLabel")}</strong> <span>${escapeHtml(details.creator)}</span></p>`
     : "";
   const previewUrl = details.preview_url || "";
-  const title = details.title || (isMain ? "主物品" : "子物品");
+  const title = details.title || (isMain ? t("downloads.modal.mainItem") : t("downloads.modal.subItem"));
   const filename = details.filename || "";
   const fileUrl = details.file_url || "";
   const fileSize = Number.parseInt(details.file_size, 10) || 0;
-  const itemTypeLabel = isMain ? "主物品" : "子物品";
+  const itemTypeLabel = isMain ? t("downloads.modal.mainItem") : t("downloads.modal.subItem");
 
   const actionsHtml = downloadable
     ? `
       <button class="btn btn-success download-item-btn" type="button" data-group-index="${groupIndex}" data-item-index="${itemIndex}">
-        ${DOWNLOAD_ICON_SVG}<span>下载此文件</span>
+        ${DOWNLOAD_ICON_SVG}<span>${t("downloads.modal.downloadItem")}</span>
       </button>
       <button class="btn btn-secondary copy-url-item-btn" type="button" data-url="${escapeHtml(fileUrl)}">
-        ${COPY_ICON_SVG}<span>复制链接</span>
+        ${COPY_ICON_SVG}<span>${t("downloads.modal.copyLink")}</span>
       </button>
     `
-    : `<span class="workshop-unavailable-badge">不可下载</span>`;
+    : `<span class="workshop-unavailable-badge">${t("downloads.modal.unavailable")}</span>`;
 
   itemDiv.innerHTML = `
     <div class="workshop-result-preview skeleton-anim">
@@ -375,8 +376,8 @@ function renderWorkshopItem(details, groupIndex, itemIndex, collectionGroup = fa
         <span class="workshop-item-role">${itemTypeLabel}</span>
         <h3>${escapeHtml(title)}</h3>
       </div>
-      <p><strong>文件名:</strong> <span>${escapeHtml(filename || "无文件")}</span></p>
-      <p><strong>大小:</strong> <span>${downloadable ? formatBytes(fileSize) : "-"}</span></p>
+      <p><strong>${t("downloads.modal.fileNameLabel")}</strong> <span>${escapeHtml(filename || t("downloads.modal.noFile"))}</span></p>
+      <p><strong>${t("downloads.modal.sizeLabel")}</strong> <span>${downloadable ? formatBytes(fileSize) : "-"}</span></p>
       ${creatorHtml}
       <div class="workshop-item-actions">
         ${actionsHtml}
@@ -434,7 +435,7 @@ function bindWorkshopResultEvents(result, viewSession) {
       const items = getGroupDownloadableItems(group);
       await startDownloadItems(
         items,
-        "已添加本组任务到下载队列",
+        t("downloads.modal.notification.groupAdded"),
         btn,
         () => isWorkshopViewActive(viewSession)
       );
@@ -449,7 +450,7 @@ function bindWorkshopResultEvents(result, viewSession) {
       const item = getGroupItems(getCurrentGroups()[groupIndex])[itemIndex];
       await startDownloadItems(
         [item],
-        "已添加到下载队列",
+        t("downloads.modal.notification.added"),
         btn,
         () => isWorkshopViewActive(viewSession)
       );
@@ -460,16 +461,16 @@ function bindWorkshopResultEvents(result, viewSession) {
     btn.addEventListener("click", async () => {
       const url = btn.dataset.url;
       if (!url) {
-        showError("无效的下载链接");
+        showError(t("downloads.common.invalidLink"));
         return;
       }
 
       try {
         await copyTextToClipboard(url);
-        showInfo("链接已复制");
+        showInfo(t("downloads.modal.notification.linkCopied"));
       } catch (err) {
         console.error("复制失败:", err);
-        showError("复制失败");
+        showError(t("downloads.modal.error.copyFailed"));
       }
     });
   });
@@ -487,7 +488,7 @@ async function startDownloadItems(
 ) {
   const downloadableItems = items.filter(isDownloadableDetail);
   if (downloadableItems.length === 0) {
-    showError("没有可下载的文件");
+    showError(t("downloads.modal.error.nothingDownloadable"));
     return 0;
   }
 
@@ -496,7 +497,7 @@ async function startDownloadItems(
     return key && !activeDownloadKeys.has(key);
   });
   if (pendingItems.length === 0) {
-    showInfo("这些文件已在添加到下载队列，请勿重复点击");
+    showInfo(t("downloads.modal.notification.alreadyQueued"));
     return 0;
   }
 
@@ -524,11 +525,11 @@ async function startDownloadItems(
       showInfo(
         pendingItems.length === 1
           ? successMessage
-          : `已添加 ${successCount} 个任务到下载队列`
+          : t("downloads.modal.notification.batchAdded", { count: successCount })
       );
       refreshTaskList();
     } else if (successCount === 0 && isViewActive()) {
-      showError("添加任务失败");
+      showError(t("downloads.modal.error.addFailed"));
     }
   } finally {
     if (isViewActive() && sourceButton?.isConnected) {
@@ -551,7 +552,7 @@ export async function downloadWorkshopFile() {
   } catch (error) {
     if (isWorkshopViewActive(viewSession)) {
       downloadRequestInFlight = false;
-      showError("无法获取优选线路状态: " + error);
+      showError(t("downloads.modal.error.ipStatusUnavailable", { error }));
     }
     return;
   }
@@ -566,9 +567,9 @@ export async function downloadWorkshopFile() {
     const originalText = btn?.innerHTML || "";
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = `<span class="btn-spinner"></span> 正在优选线路...`;
+      btn.innerHTML = `<span class="btn-spinner"></span> ${t("downloads.modal.optimizing")}`;
     }
-    showNotification("正在优选最佳线路，完成后自动开始下载", "info");
+    showNotification(t("downloads.modal.notification.optimizing"), "info");
 
     let pollCheckInFlight = false;
     const pollTimer = setInterval(async () => {
@@ -605,7 +606,7 @@ export async function downloadWorkshopFile() {
           btn.innerHTML = originalText;
         }
         downloadRequestInFlight = false;
-        showError("优选线路状态检查失败: " + error);
+        showError(t("downloads.modal.error.ipCheckFailed", { error }));
       } finally {
         pollCheckInFlight = false;
       }
@@ -622,7 +623,7 @@ export async function downloadWorkshopFile() {
     if (groupedItems.length > 0) {
       const successCount = await startDownloadItems(
         groupedItems,
-        "已添加到下载队列",
+        t("downloads.modal.notification.added"),
         btn,
         () => isWorkshopViewActive(viewSession)
       );
@@ -637,7 +638,7 @@ export async function downloadWorkshopFile() {
     const useOptimizedIP = config.workshopPreferredIP || false;
 
     if (!downloadUrl) {
-      showError("请输入或解析下载链接");
+      showError(t("downloads.modal.error.downloadUrlRequired"));
       return;
     }
 
@@ -668,12 +669,12 @@ export async function downloadWorkshopFile() {
     try {
       await StartDownloadTask(taskDetails, useOptimizedIP);
       if (!isWorkshopViewActive(viewSession)) return;
-      showInfo("已添加到后台下载队列");
+      showInfo(t("downloads.modal.notification.backgroundAdded"));
       resetWorkshopParseState();
       refreshTaskList();
     } catch (err) {
       if (isWorkshopViewActive(viewSession)) {
-        showError("添加任务失败: " + err);
+        showError(t("downloads.modal.error.addFailedWithError", { error: err }));
       }
     }
   } finally {
@@ -706,22 +707,22 @@ export function applyWorkshopGroups(groups, { viewSession = workshopViewSession 
   if (downloadUrlInput) downloadUrlInput.value = "";
 
   if (safeGroups.length === 0) {
-    showError("未找到相关文件");
+    showError(t("downloads.modal.error.notFound"));
     return false;
   }
 
   const downloadableItems = getAllDownloadableItems();
   // 子合集嵌套过深时后端会截断，这里给出明确提示，避免用户以为已经解析完整。
   const truncatedGroupCount = safeGroups.filter((group) => group?.child_collections_truncated).length;
-  const truncatedHint = truncatedGroupCount > 0 ? `（${truncatedGroupCount} 个合集的子合集过多，仅展开到上限）` : "";
+  const truncatedHint = truncatedGroupCount > 0 ? t("downloads.modal.truncatedHint", { count: truncatedGroupCount }) : "";
 
   if (downloadUrlInput) {
     downloadUrlInput.placeholder =
       downloadableItems.length > 0
-        ? `已解析 ${safeGroups.length} 组 / ${downloadableItems.length} 个可下载文件${truncatedHint}`
-        : `已解析 ${safeGroups.length} 组，但没有可下载文件${truncatedHint}`;
+        ? t("downloads.modal.parsedWithFiles", { groups: safeGroups.length, files: downloadableItems.length, hint: truncatedHint })
+        : t("downloads.modal.parsedNoFiles", { groups: safeGroups.length, hint: truncatedHint });
   }
-  if (downloadBtn) downloadBtn.innerHTML = DOWNLOAD_ICON_SVG + "<span>全部下载</span>";
+  if (downloadBtn) downloadBtn.innerHTML = DOWNLOAD_ICON_SVG + `<span>${t("downloads.modal.downloadAll")}</span>`;
 
   const hasSteamCDN = downloadableItems.some((details) =>
     String(details?.file_url || "").includes("cdn.steamusercontent.com")

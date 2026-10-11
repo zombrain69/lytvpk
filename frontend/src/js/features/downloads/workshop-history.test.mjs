@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
+
 import {
   buildHistoryEntries,
   formatHistoryLabel,
