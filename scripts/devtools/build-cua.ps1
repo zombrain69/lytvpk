@@ -1,4 +1,4 @@
-# 构建"带 CUA 调试桥"的 EXE，专门用于 UI 实机断言与目视。
+﻿# 构建"带 CUA 调试桥"的 EXE，专门用于 UI 实机断言与目视。
 #
 # 默认构建（`wails build`）与发布构建（`scripts/build-release.ps1`）**都不含**这个桥：
 # 桥的实现在 internal/app/cua_bridge_cua.go（`//go:build cua`），

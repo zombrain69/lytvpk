@@ -1,4 +1,4 @@
-# 只读备份当前 Mod 列表状态（addonlist.txt + 应用备份 + 本地记录 + Mod 清单）。
+﻿# 只读备份当前 Mod 列表状态（addonlist.txt + 应用备份 + 本地记录 + Mod 清单）。
 # 不复制、不移动、不修改任何 Mod 文件；用于调试 / 验证前留一份可恢复快照。
 #
 # 用法：
@@ -79,8 +79,7 @@ $lineCount = (Get-Content -LiteralPath $addonList).Count
     "copied: addonlist.txt, app-addonlist-backups/* ($((Get-ChildItem -LiteralPath (Join-Path $target 'app-addonlist-backups') -File).Count) files), config/*.json"
     "inventory: addons-inventory.txt (relative path, size, mtime of every .vpk under addons/)"
     "no mod file was created, moved, modified or deleted"
-)
-| Set-Content -LiteralPath (Join-Path $target 'README.txt') -Encoding utf8
+) | Set-Content -LiteralPath (Join-Path $target 'README.txt') -Encoding utf8
 
 "backup dir: $target"
 "addonlist sha256: $addonListHash"

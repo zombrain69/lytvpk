@@ -1,4 +1,4 @@
-# 向 WebView2 子窗口投递鼠标滚轮消息（用于自动化查看长页面）。
+﻿# 向 WebView2 子窗口投递鼠标滚轮消息（用于自动化查看长页面）。
 # 用法：pwsh -File scripts/devtools/scroll-window-at.ps1 -X 800 -Y 500 -Delta -600 -Times 6
 
 param(
