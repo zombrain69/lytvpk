@@ -184,6 +184,8 @@ export function GetAddonListInfo():Promise<app.AddonListInfo>;
 
 export function GetAddonListLoadOrderEntries():Promise<Array<app.AddonListLoadOrderEntry>>;
 
+export function GetAddonListRestoreCandidate():Promise<app.AddonListRestoreCandidate>;
+
 export function GetAddonListOrder():Promise<Array<string>>;
 
 export function GetAppConfig():Promise<app.ConfigFile>;
@@ -420,6 +422,8 @@ export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
 
 export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
 
+export function PreviewModPriorityLayers():Promise<app.AddonListLoadOrderPreview>;
+
 export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
 
 export function PreviewCustomTagRules(arg1:string):Promise<app.CustomTagRulePreview>;
@@ -465,6 +469,8 @@ export function RestartApplication():Promise<void>;
 export function RestartPanelServer(arg1:string):Promise<string>;
 
 export function RestoreAddonListBackup(arg1:string):Promise<app.AddonListInfo>;
+
+export function RestoreAddonListFirstEditBackup():Promise<app.AddonListInfo>;
 
 export function RestoreModSnapshot(arg1:string):Promise<app.ModSnapshotRestoreResult>;
 

@@ -11,8 +11,11 @@ import {
   ApplyModPriorityLayers,
   ClearModPriority,
   GetModPriorityPlan,
+  PreviewModPriorityLayers,
   SetModPriority,
 } from "../../../../wailsjs/go/app/App";
+import { confirmHtmlInApp } from "./confirm.js";
+import { buildWriteDiffHtml, hasWriteDiffChanges } from "./load-order-write-diff.mjs";
 import { refreshLoadOrderMap } from "../file-list/sorting.js";
 import { renderFileList } from "../file-list/render.js";
 import {
@@ -140,6 +143,21 @@ function stepTier(delta) {
 
 async function applyPriorityLayers() {
   try {
+    // 写前确认：先算一遍带差异的预览；没有变化就明说、不写盘（与后端空写保护一致）。
+    const plan = await PreviewModPriorityLayers();
+    if (!hasWriteDiffChanges(plan?.diff)) {
+      showNotification("当前顺序已经是分层顺序，无需写入 addonlist.txt", "info");
+      return;
+    }
+    const confirmed = await confirmHtmlInApp(
+      "写入前确认：按分层重排 addonlist.txt",
+      buildWriteDiffHtml(plan.diff, {
+        note: "按分层应用不会清理任何条目；写入前会自动留备份；所有 Mod 的游戏内开关状态保持不变。",
+      }),
+      "load-order-write-confirm",
+    );
+    if (!confirmed) return;
+
     const preview = await ApplyModPriorityLayers();
     const changed = Array.isArray(preview?.entries) ? preview.entries.length : 0;
     if (typeof onAppliedCallback === "function") {

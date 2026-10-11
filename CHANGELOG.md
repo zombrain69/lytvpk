@@ -1,5 +1,19 @@
 # Changelog
 
+## 未发布 — 加载顺序「写前差异确认」+「恢复上一份备份」入口（2026-10-09）
+
+- **写前差异确认**：`应用优化并写入` / `按分层应用` / 常用一键规则在写入 addonlist.txt 前，
+  先弹出条目级差异确认（条目数变化、重排条数＋「第 X 位 → 第 Y 位」明细（前 200 条）、
+  失效清理、重复合并）；没有变化时直接提示、不写盘。预览与写入共用同一份计划计算
+  （`buildAddonListWritePlan`），杜绝两边口径漂移。
+- **恢复上一份备份…**：加载顺序窗口左下角新入口 —— 在「首次编辑备份（`.lytvpk.bak`，游戏原始内容）」
+  与最新历史备份中取更近的一份，展示恢复差异后一键恢复；恢复前当前内容自动另存为 before-restore 备份。
+  配套新增 `GetAddonListRestoreCandidate` / `RestoreAddonListFirstEditBackup`，并把 `before-restore`
+  纳入备份类型识别（此前会被解析成 `before`）。
+- 绑定与文档同步：wailsjs 绑定 / `models.ts`、`docs/features/mod-management.md`、
+  调查文档 §8 结论（“写前预览 / 恢复按钮”问题收口）。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）563 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — 搜索支持 slot: 动作槽语法 + 新增「动作槽排序」（2026-10-09）
 
 本批次把「XDR 动作槽」接进检索与排序（用户文档见 `docs/features/mod-management.md`）：

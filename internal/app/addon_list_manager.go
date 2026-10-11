@@ -233,6 +233,11 @@ func (a *App) ListAddonListBackups() ([]AddonListBackup, error) {
 	if err != nil {
 		return nil, err
 	}
+	return listAddonListBackupsLocked(path)
+}
+
+// listAddonListBackupsLocked 的调用方必须已持有 addonListGuardMu。
+func listAddonListBackupsLocked(path string) ([]AddonListBackup, error) {
 	entries, err := os.ReadDir(addonListBackupDirectory(path))
 	if os.IsNotExist(err) {
 		return []AddonListBackup{}, nil
@@ -255,7 +260,7 @@ func (a *App) ListAddonListBackups() ([]AddonListBackup, error) {
 		kind := strings.SplitN(base, "-", 2)[0]
 		// 大多数备份类型是单个词；多词类型需要保留完整前缀，
 		// 其中 game-save 是旧版本遗留的标记，仍要能被识别。
-		for _, multiWordKind := range []string{"game-save", "before-profile-apply", "before-health-fix", "stale-cleanup", "before-snapshot-restore"} {
+		for _, multiWordKind := range []string{"game-save", "before-profile-apply", "before-health-fix", "before-restore", "stale-cleanup", "before-snapshot-restore"} {
 			if base == multiWordKind || strings.HasPrefix(base, multiWordKind+"-") {
 				kind = multiWordKind
 				break
@@ -319,6 +324,141 @@ func (a *App) RestoreAddonListBackup(name string) (AddonListInfo, error) {
 	a.applyAddonListGameStates()
 	a.setAddonListGuardStatus("", "")
 	return a.getAddonListInfoLocked()
+}
+
+// RestoreAddonListFirstEditBackup 恢复「首次编辑备份」（addonlist.txt.lytvpk.bak，LytVPK 首次改写前
+// 保存的游戏原始内容）。纪律与 RestoreAddonListBackup 一致：只读闸门、当前内容先另存为
+// before-restore 备份、原子覆盖、同步受保护快照。
+func (a *App) RestoreAddonListFirstEditBackup() (AddonListInfo, error) {
+	// 沙箱只读闸门：恢复备份会覆盖 addonlist.txt。
+	if err := rejectReadonlyLibraryWrite("恢复 addonlist.txt 首次编辑备份"); err != nil {
+		return AddonListInfo{}, err
+	}
+	a.addonListGuardMu.Lock()
+	defer a.addonListGuardMu.Unlock()
+
+	path, err := a.addonListPath()
+	if err != nil {
+		return AddonListInfo{}, err
+	}
+	content, err := os.ReadFile(path + ".lytvpk.bak")
+	if err != nil {
+		return AddonListInfo{}, fmt.Errorf("无法读取首次编辑备份: %w", err)
+	}
+	if current, err := os.ReadFile(path); err == nil {
+		if _, err := a.createAddonListBackupLocked("before-restore", current); err != nil {
+			return AddonListInfo{}, err
+		}
+	} else if !os.IsNotExist(err) {
+		return AddonListInfo{}, fmt.Errorf("无法读取当前 addonlist.txt: %w", err)
+	}
+	if err := writeAddonListBytesAtomically(path, content); err != nil {
+		return AddonListInfo{}, fmt.Errorf("无法恢复 addonlist.txt: %w", err)
+	}
+	if err := writeAddonListBytesAtomically(addonListManagedSnapshotPath(path), content); err != nil {
+		return AddonListInfo{}, fmt.Errorf("无法同步受保护版本: %w", err)
+	}
+	a.applyAddonListGameStates()
+	a.setAddonListGuardStatus("", "")
+	return a.getAddonListInfoLocked()
+}
+
+// AddonListRestoreCandidate 描述「恢复上一份备份」将使用哪一份备份，以及恢复会带来的条目差异。
+type AddonListRestoreCandidate struct {
+	Found     bool                `json:"found"`
+	Source    string              `json:"source"` // first-edit | managed
+	Name      string              `json:"name,omitempty"`
+	Kind      string              `json:"kind"`
+	CreatedAt string              `json:"createdAt"`
+	Size      int64               `json:"size"`
+	Diff      *AddonListWriteDiff `json:"diff,omitempty"`
+}
+
+// GetAddonListRestoreCandidate 选出「恢复上一份备份」的目标并计算差异：
+//   - 候选 = 首次编辑备份（.lytvpk.bak，游戏原始内容）与备份目录里最新一份中，修改时间更近者；
+//   - 差异 = 当前内容 → 备份内容（即"恢复后会发生什么"）。
+func (a *App) GetAddonListRestoreCandidate() (AddonListRestoreCandidate, error) {
+	a.addonListGuardMu.Lock()
+	defer a.addonListGuardMu.Unlock()
+
+	path, err := a.addonListPath()
+	if err != nil {
+		return AddonListRestoreCandidate{}, err
+	}
+
+	type restoreRef struct {
+		source    string
+		name      string
+		kind      string
+		createdAt string
+		size      int64
+		modTime   time.Time
+	}
+	refs := make([]restoreRef, 0, 2)
+	if info, statErr := os.Stat(path + ".lytvpk.bak"); statErr == nil && !info.IsDir() {
+		refs = append(refs, restoreRef{
+			source:    "first-edit",
+			kind:      "first-edit",
+			createdAt: info.ModTime().Format(time.RFC3339),
+			size:      info.Size(),
+			modTime:   info.ModTime(),
+		})
+	}
+	backups, listErr := listAddonListBackupsLocked(path)
+	if listErr != nil {
+		return AddonListRestoreCandidate{}, listErr
+	}
+	if len(backups) > 0 {
+		newest := backups[0]
+		if parsed, parseErr := time.Parse(time.RFC3339, newest.CreatedAt); parseErr == nil {
+			refs = append(refs, restoreRef{
+				source:    "managed",
+				name:      newest.Name,
+				kind:      newest.Kind,
+				createdAt: newest.CreatedAt,
+				size:      newest.Size,
+				modTime:   parsed,
+			})
+		}
+	}
+	if len(refs) == 0 {
+		return AddonListRestoreCandidate{}, nil
+	}
+	best := refs[0]
+	for _, ref := range refs[1:] {
+		if ref.modTime.After(best.modTime) {
+			best = ref
+		}
+	}
+
+	candidate := AddonListRestoreCandidate{
+		Found:     true,
+		Source:    best.source,
+		Name:      best.name,
+		Kind:      best.kind,
+		CreatedAt: best.createdAt,
+		Size:      best.size,
+	}
+
+	// 计算「当前 → 备份」的差异；读或解码失败时只缺差异，不影响恢复本身。
+	var backupBytes []byte
+	var readErr error
+	if best.source == "first-edit" {
+		backupBytes, readErr = os.ReadFile(path + ".lytvpk.bak")
+	} else {
+		backupBytes, readErr = os.ReadFile(filepath.Join(addonListBackupDirectory(path), best.name))
+	}
+	if readErr == nil {
+		if currentDoc, currentErr := readAddonListDocumentAtPath(path); currentErr == nil {
+			if backupDoc, decodeErr := decodeAddonListDocumentBytes(path, backupBytes); decodeErr == nil {
+				before := parseAddonListItems(currentDoc.content)
+				after := parseAddonListItems(backupDoc.content)
+				diff := diffAddonListForWrite(before, after, 0)
+				candidate.Diff = &diff
+			}
+		}
+	}
+	return candidate, nil
 }
 
 // DeleteAddonListBackup 删除一份历史备份。受保护版本和首次编辑备份不会受影响。

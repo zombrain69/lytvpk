@@ -54,6 +54,9 @@ type AddonListLoadOrderPreview struct {
 	// 对齐上游 a50cf4f：保存加载顺序顺手清理，addonlist.txt 不会越滚越大；
 	// 清理前一定会先留一份历史备份（kind=stale-cleanup）。
 	RemovedStale []string `json:"removedStale,omitempty"`
+	// Diff 是「当前内容 → 本次将写入内容」的条目级差异（写前确认弹窗用）。
+	// 预览与写入共用同一份计划计算，保证预览看到的数字就是落盘的结果。
+	Diff *AddonListWriteDiff `json:"diff,omitempty"`
 }
 
 // GetAddonListLoadOrderEntries 返回当前 addonlist.txt 的完整顺序。
@@ -69,17 +72,14 @@ func (a *App) GetAddonListLoadOrderEntries() ([]AddonListLoadOrderEntry, error) 
 	return makeAddonListLoadOrderEntries(uniqueList), nil
 }
 
-// PreviewAddonListLoadOrderPolicy 仅计算排序结果，不会改写 addonlist.txt。
+// PreviewAddonListLoadOrderPolicy 仅计算排序结果（含失效清理）与将要发生的条目差异，不会改写 addonlist.txt。
+// 预览与 Apply 共用同一份计划计算（buildAddonListWritePlan），保证「预览看到的」就是「落盘写入的」。
 func (a *App) PreviewAddonListLoadOrderPolicy(policy AddonListLoadOrderPolicy) (AddonListLoadOrderPreview, error) {
-	list, _, err := a.readAddonList()
+	plan, err := a.buildAddonListWritePlan(policy)
 	if err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
-	ordered, err := a.applyAddonListLoadOrderPolicy(list, policy)
-	if err != nil {
-		return AddonListLoadOrderPreview{}, err
-	}
-	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered)}, nil
+	return plan.preview(), nil
 }
 
 // ApplyAddonListLoadOrderPolicy 校验策略、原子写回 addonlist.txt，并同步运行时保护快照。
@@ -87,37 +87,76 @@ func (a *App) ApplyAddonListLoadOrderPolicy(policy AddonListLoadOrderPolicy) (Ad
 	a.addonListGuardMu.Lock()
 	defer a.addonListGuardMu.Unlock()
 
-	list, path, err := a.readAddonList()
+	plan, err := a.buildAddonListWritePlan(policy)
 	if err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
-	ordered, err := a.applyAddonListLoadOrderPolicy(list, policy)
-	if err != nil {
-		return AddonListLoadOrderPreview{}, err
-	}
-	ordered, removedStale := a.dropStaleAddonListItems(ordered)
-	if len(removedStale) > 0 {
+	if len(plan.removed) > 0 {
 		// 沙箱只读闸门：备份也会往游戏目录写文件，必须在落盘前拦住。
 		if gateErr := rejectReadonlyLibraryWrite("清理 addonlist.txt 失效条目"); gateErr != nil {
 			return AddonListLoadOrderPreview{}, gateErr
 		}
 		// 任何删除都要可恢复：清理前先按原文件内容留一份历史备份。
-		if raw, readErr := os.ReadFile(path); readErr == nil {
+		if raw, readErr := os.ReadFile(plan.path); readErr == nil {
 			if backup, backupErr := a.createAddonListBackupLocked("stale-cleanup", raw); backupErr != nil {
 				log.Printf("清理失效条目前的备份失败: %v", backupErr)
 			} else {
-				log.Printf("清理失效条目前的备份: %s（%d 条）", backup.Name, len(removedStale))
+				log.Printf("清理失效条目前的备份: %s（%d 条）", backup.Name, len(plan.removed))
 			}
 		}
 	}
 	// 事务化提交：写盘 + 快照同步一起成功，快照同步失败时回滚到写前内容。
-	if err := a.commitAddonListItemsLocked(path, ordered, nil); err != nil {
+	if err := a.commitAddonListItemsLocked(plan.path, plan.final, nil); err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
+	return plan.preview(), nil
+}
+
+// addonListWritePlan 是一次「加载顺序写入」的完整计划：预览与写入共用，
+// 保证「预览看到的」就是「真正落盘的」（真机踩过预览与应用口径不一致的坑）。
+type addonListWritePlan struct {
+	path    string
+	raw     []AddonListItem
+	unique  []AddonListItem
+	final   []AddonListItem
+	removed []string
+	diff    AddonListWriteDiff
+}
+
+func (plan addonListWritePlan) preview() AddonListLoadOrderPreview {
+	diff := plan.diff
 	return AddonListLoadOrderPreview{
-		Entries:      makeAddonListLoadOrderEntries(ordered),
-		RemovedStale: removedStale,
-	}, nil
+		Entries:      makeAddonListLoadOrderEntries(plan.final),
+		RemovedStale: plan.removed,
+		Diff:         &diff,
+	}
+}
+
+// buildAddonListWritePlan 计算写入计划（只读，不落盘，不建备份）。
+// ApplyAddonListLoadOrderPolicy 在锁内调用；Preview 直接调用（与既有行为一致，预览不持锁）。
+func (a *App) buildAddonListWritePlan(policy AddonListLoadOrderPolicy) (addonListWritePlan, error) {
+	list, path, err := a.readAddonList()
+	if err != nil {
+		return addonListWritePlan{}, err
+	}
+	unique, err := deduplicateAddonListItemsForLoadOrder(list)
+	if err != nil {
+		return addonListWritePlan{}, err
+	}
+	ordered, err := a.applyAddonListLoadOrderPolicy(unique, policy)
+	if err != nil {
+		return addonListWritePlan{}, err
+	}
+	final, removed := a.dropStaleAddonListItems(ordered)
+	plan := addonListWritePlan{
+		path:    path,
+		raw:     list,
+		unique:  unique,
+		final:   final,
+		removed: removed,
+	}
+	plan.diff = diffAddonListForWrite(unique, final, len(list)-len(unique))
+	return plan, nil
 }
 
 // dropStaleAddonListItems 丢掉 addonlist.txt 里"游戏已经不会加载"的条目：

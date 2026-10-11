@@ -297,7 +297,13 @@ func readAddonListDocumentAtPath(path string) (addonListDocument, error) {
 		}
 		return addonListDocument{path: path}, fmt.Errorf("无法读取 addonlist.txt: %w", err)
 	}
+	return decodeAddonListDocumentBytes(path, content)
+}
 
+// decodeAddonListDocumentBytes 按与主文件相同的探测顺序解码一份 addonlist 字节内容。
+// 备份 / 首次编辑备份（.lytvpk.bak）都是原始字节的副本，恢复预览同样走这里，
+// 保证「恢复会发生什么」与读主文件用的是同一套编码口径。
+func decodeAddonListDocumentBytes(path string, content []byte) (addonListDocument, error) {
 	doc := addonListDocument{path: path, encoding: addonListEncodingUTF8}
 	// 必须先检查 UTF-16 BOM。仅含 ASCII 的 UTF-16 文本也可能通过
 	// utf8.Valid（其中的 NUL 字节本身是合法 UTF-8），不能先按 UTF-8 返回。

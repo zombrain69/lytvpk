@@ -2078,6 +2078,11 @@
   max-width: 100%;
 }
 
+/* 「恢复上一份备份…」固定在最左：恢复是低频但关键的救急入口，不跟主操作抢视线。 */
+.load-order-btn-restore {
+  margin-right: auto;
+}
+
 .load-order-btn-cancel {
   padding: var(--spacing-2) var(--spacing-6);
 }

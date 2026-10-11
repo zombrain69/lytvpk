@@ -466,11 +466,32 @@ func (a *App) ApplyModPriorityLayers() (AddonListLoadOrderPreview, error) {
 	if addonListItemsEqualOrder(uniqueList, ordered) {
 		return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(uniqueList)}, nil
 	}
+	diff := diffAddonListForWrite(uniqueList, ordered, len(list)-len(uniqueList))
 	// 事务化提交：写盘 + 快照同步一起成功，快照同步失败时回滚到写前内容。
 	if err := a.commitAddonListItemsLocked(path, ordered, nil); err != nil {
 		return AddonListLoadOrderPreview{}, err
 	}
-	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered)}, nil
+	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered), Diff: &diff}, nil
+}
+
+// PreviewModPriorityLayers 与 ApplyModPriorityLayers 共用同一套计算，只读返回将发生的条目差异。
+// 注意：按分层应用与「应用优化并写入」不同，不做失效清理（与 Apply 的行为一致）。
+func (a *App) PreviewModPriorityLayers() (AddonListLoadOrderPreview, error) {
+	list, _, err := a.readAddonList()
+	if err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	unique, err := deduplicateAddonListItemsForLoadOrder(list)
+	if err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	layers, err := a.loadModPriorityLayers()
+	if err != nil {
+		return AddonListLoadOrderPreview{}, err
+	}
+	ordered := sortAddonListItemsByEffectiveLayer(unique, layers)
+	diff := diffAddonListForWrite(unique, ordered, len(list)-len(unique))
+	return AddonListLoadOrderPreview{Entries: makeAddonListLoadOrderEntries(ordered), Diff: &diff}, nil
 }
 
 func addonListItemsEqualOrder(left []AddonListItem, right []AddonListItem) bool {

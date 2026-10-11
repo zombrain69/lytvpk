@@ -119,3 +119,30 @@ export function confirmInApp(message, options = {}) {
     );
   });
 }
+
+/**
+ * 与 confirmInApp 相同，但正文渲染 HTML（调用方自行负责内容的转义与安全）。
+ * 用于「写前确认」这类需要结构化摘要的弹窗。
+ */
+export function confirmHtmlInApp(title, html, extraClass = "") {
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    showConfirmModal(
+      title,
+      html,
+      () => {
+        settle(true);
+      },
+      true,
+      extraClass,
+      () => {
+        settle(false);
+      },
+    );
+  });
+}

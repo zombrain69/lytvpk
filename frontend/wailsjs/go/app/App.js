@@ -358,6 +358,10 @@ export function GetAddonListLoadOrderEntries() {
   return window['go']['app']['App']['GetAddonListLoadOrderEntries']();
 }
 
+export function GetAddonListRestoreCandidate() {
+  return window['go']['app']['App']['GetAddonListRestoreCandidate']();
+}
+
 export function GetAddonListOrder() {
   return window['go']['app']['App']['GetAddonListOrder']();
 }
@@ -830,6 +834,10 @@ export function PreviewAddonListLoadOrderPolicy(arg1) {
   return window['go']['app']['App']['PreviewAddonListLoadOrderPolicy'](arg1);
 }
 
+export function PreviewModPriorityLayers() {
+  return window['go']['app']['App']['PreviewModPriorityLayers']();
+}
+
 export function PreviewAddonListMerge(arg1) {
   return window['go']['app']['App']['PreviewAddonListMerge'](arg1);
 }
@@ -920,6 +928,10 @@ export function RestartPanelServer(arg1) {
 
 export function RestoreAddonListBackup(arg1) {
   return window['go']['app']['App']['RestoreAddonListBackup'](arg1);
+}
+
+export function RestoreAddonListFirstEditBackup() {
+  return window['go']['app']['App']['RestoreAddonListFirstEditBackup']();
 }
 
 export function RestoreModSnapshot(arg1) {

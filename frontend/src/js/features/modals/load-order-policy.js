@@ -19,10 +19,15 @@ import {
 import {
   ApplyAddonListLoadOrderPolicy,
   GetAddonListLoadOrderEntries,
+  GetAddonListRestoreCandidate,
   GetVPKLoadOrder,
   PreviewAddonListLoadOrderPolicy,
+  RestoreAddonListBackup,
+  RestoreAddonListFirstEditBackup,
   SetVPKLoadOrder,
 } from "../../../../wailsjs/go/app/App";
+import { confirmHtmlInApp } from "./confirm.js";
+import { buildRestoreConfirmHtml, buildWriteDiffHtml, hasWriteDiffChanges } from "./load-order-write-diff.mjs";
 
 let currentLoadOrderFile = null;
 let currentOrder = -1;
@@ -208,6 +213,7 @@ function setupLoadOrderControls() {
   });
   document.getElementById("preview-load-order-policy-btn")?.addEventListener("click", previewLoadOrderPolicy);
   document.getElementById("apply-load-order-policy-btn")?.addEventListener("click", applyLoadOrderPolicy);
+  document.getElementById("restore-addonlist-backup-btn")?.addEventListener("click", restoreLatestAddonListBackup);
   initLoadOrderPriorityControls(async () => {
     await refreshModListAfterLoadOrderChange();
     const operation = beginLoadOrderOperation();
@@ -439,6 +445,23 @@ async function applyLoadOrderPolicy(options = {}) {
     constraints: currentPolicy.constraints.map((constraint) => ({ ...constraint })),
   };
   try {
+    // 写前确认：先拿带差异的预览（与写入共用同一份计划）；没有变化就明说、不写盘。
+    const preview = await PreviewAddonListLoadOrderPolicy(policy);
+    if (!isCurrentLoadOrderOperation(operation)) return;
+    if (!hasWriteDiffChanges(preview?.diff)) {
+      renderPreview(preview?.entries || [], "预览：没有需要写入的变化");
+      showNotification("当前内容已经是目标顺序，无需写入 addonlist.txt", "info");
+      return;
+    }
+    const confirmed = await confirmHtmlInApp(
+      "写入前确认：addonlist.txt 将发生变化",
+      buildWriteDiffHtml(preview.diff, {
+        note: "「移除」为失效条目清理（文件已不在磁盘）；写入前会自动留备份；所有 Mod 的游戏内开关状态保持不变。",
+      }),
+      "load-order-write-confirm",
+    );
+    if (!confirmed || !isCurrentLoadOrderOperation(operation)) return;
+
     const result = await ApplyAddonListLoadOrderPolicy(policy);
     await refreshModListAfterLoadOrderChange();
     if (!isCurrentLoadOrderOperation(operation)) return;
@@ -465,6 +488,36 @@ async function applyLoadOrderPolicy(options = {}) {
     if (!isCurrentLoadOrderOperation(operation)) return;
     console.error("应用加载顺序失败:", err);
     showError("写入失败: " + err);
+  }
+}
+
+// 恢复上一份备份：首次编辑备份（.lytvpk.bak，游戏原始内容）与历史备份里更新的一份，谁更新恢复谁。
+// 恢复会覆盖当前 addonlist.txt —— 后端会先把当前内容另存为 before-restore 备份（可再回退）。
+async function restoreLatestAddonListBackup() {
+  try {
+    const candidate = await GetAddonListRestoreCandidate();
+    if (!candidate?.found) {
+      showNotification("还没有可恢复的 addonlist.txt 备份", "info");
+      return;
+    }
+    const confirmed = await confirmHtmlInApp(
+      "恢复 addonlist.txt 备份",
+      buildRestoreConfirmHtml(candidate),
+      "load-order-write-confirm",
+    );
+    if (!confirmed) return;
+    if (candidate.source === "first-edit") {
+      await RestoreAddonListFirstEditBackup();
+    } else {
+      await RestoreAddonListBackup(candidate.name);
+    }
+    await refreshModListAfterLoadOrderChange();
+    const operation = beginLoadOrderOperation();
+    await refreshLoadOrderModal(operation);
+    showNotification("已恢复 addonlist.txt 备份（恢复前的内容已另存为 before-restore 备份）", "success");
+  } catch (err) {
+    console.error("恢复 addonlist.txt 备份失败:", err);
+    showError("恢复备份失败: " + err);
   }
 }
 
