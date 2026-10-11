@@ -8,6 +8,8 @@
 // 卡片上同时挂着“14 处覆盖”和“无冲突”两个自相矛盾的角标
 // （复现见 scoped-conflict-summary 的测试与真机快照）。
 
+import { t } from "../../core/i18n-runtime.js";
+
 export function conflictSeverityRank(severity) {
   if (severity === "critical") return 3;
   if (severity === "warning") return 2;
@@ -15,9 +17,9 @@ export function conflictSeverityRank(severity) {
 }
 
 function severityText(severity) {
-  if (severity === "critical") return "严重";
-  if (severity === "warning") return "警告";
-  return "普通";
+  if (severity === "critical") return t("conflicts.severityCritical");
+  if (severity === "warning") return t("conflicts.severityWarning");
+  return t("conflicts.severityNormal");
 }
 
 function ensureEntry(byPath, vpk) {
@@ -88,8 +90,8 @@ export function formatScopedConflictLabel(summary, options = {}) {
   const analyzed = options.analyzed !== false;
   if (!summary) {
     // 分析还没结果（被其他检测打断/重试用尽）时不能说“无冲突”。
-    if (!analyzed) return "待分析";
-    return matchedBaseline ? "无冲突" : "未参与对比";
+    if (!analyzed) return t("conflicts.badgePending");
+    return matchedBaseline ? t("conflicts.badgeNoConflict") : t("conflicts.badgeNotCompared");
   }
 
   const groups = Number(summary.groups || 0);
@@ -98,30 +100,30 @@ export function formatScopedConflictLabel(summary, options = {}) {
   const overrideFiles = Number(summary.overrideFiles || 0);
 
   if (groups === 0 && overrideFiles === 0) {
-    return matchedBaseline ? "无冲突" : "未参与对比";
+    return matchedBaseline ? t("conflicts.badgeNoConflict") : t("conflicts.badgeNotCompared");
   }
   if (groups === 0) {
-    return `无冲突 · 覆盖 ${overrideFiles} 处`;
+    return t("conflicts.badgeWithOverrides", { count: overrideFiles });
   }
   const severity = severityText(summary.severity);
   if (overrideFiles > 0) {
-    return `冲突 ${groups} 组 · 覆盖 ${overrideFiles} 处 · ${severity}`;
+    return t("conflicts.badgeSummary", { groups, files: overrideFiles, severity });
   }
-  return `冲突 ${groups} 组 · ${files} 文件 · ${severity}`;
+  return t("conflicts.badgeSummaryFiles", { groups, files, severity });
 }
 
 /** buildScopedConflictTitle 生成角标悬停说明（区分“没重叠”与“不参与对比”）。 */
 export function buildScopedConflictTitle(summary, options = {}) {
   const matchedBaseline = options.matchedBaseline !== false;
   const analyzed = options.analyzed !== false;
-  const scopeLabel = String(options.scopeLabel || "游戏内开启");
+  const scopeLabel = String(options.scopeLabel || t("conflicts.scope.ruleEnabled"));
   if (!summary) {
     if (!analyzed) {
-      return `本次与“${scopeLabel}”的对比分析还没有结果（可能被其他冲突检测打断）；点工具栏的“对比范围 → 应用并分析”可重试`;
+      return t("conflicts.badgeTitleNotAnalyzed", { scope: scopeLabel });
     }
     return matchedBaseline
-      ? `已与“${scopeLabel}”对比：未发现重叠文件`
-      : `此 Mod 不满足对比范围“${scopeLabel}”，本次分析未把它计入对比`;
+      ? t("conflicts.badgeTitleNoOverlap", { scope: scopeLabel })
+      : t("conflicts.badgeTitleNotInScope", { scope: scopeLabel });
   }
   const groups = Number(summary.groups || 0);
   const files = Number(summary.files || 0);
@@ -129,17 +131,19 @@ export function buildScopedConflictTitle(summary, options = {}) {
   const overrideFiles = Number(summary.overrideFiles || 0);
   const parts = [];
   if (groups > 0) {
-    parts.push(`冲突 ${groups} 组（${files} 个文件，最高严重度：${severityText(summary.severity)}）`);
+    parts.push(t("conflicts.badgeTitleGroup", { groups, files, severity: severityText(summary.severity) }));
   }
   if (overrides > 0) {
     const winners = Array.isArray(summary.winners) ? summary.winners.filter(Boolean) : [];
-    const winnerText = winners.length ? `，胜者：${winners.join("、")}` : "";
-    parts.push(`覆盖 ${overrides} 组（${overrideFiles} 个文件，胜负已按 addonlist.txt 判定${winnerText}）`);
+    const winnerText = winners.length
+      ? t("conflicts.badgeWinnersSuffix", { names: winners.join("、") })
+      : "";
+    parts.push(t("conflicts.badgeTitleOverride", { groups: overrides, files: overrideFiles, winners: winnerText }));
   }
   if (parts.length === 0) {
-    return `已与“${scopeLabel}”对比：未发现重叠文件`;
+    return t("conflicts.badgeTitleNoOverlap", { scope: scopeLabel });
   }
-  return `与“${scopeLabel}”对比：${parts.join("；")}。点击查看详情`;
+  return t("conflicts.badgeTitleSummary", { scope: scopeLabel, parts: parts.join("；") });
 }
 
 function conflictFileHasTag(file, wanted) {

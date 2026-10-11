@@ -4,20 +4,26 @@
 //   tags   → 严重度（严重 / 警告 / 提示）+ 同层（有确定的有效分层）+ 未记录（有参与者没写进 addonlist）
 
 import { describeFieldSearch, highlightSpecFor, searchByFields } from "../../core/field-search.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
-const SEVERITY_LABELS = { critical: "严重", warning: "警告", info: "提示" };
+const SEVERITY_LABEL_KEYS = {
+  critical: "conflicts.severityCritical",
+  warning: "conflicts.severityWarning",
+  info: "conflicts.severityHint",
+};
 
 /** conflictSeverityLabel 把后端的 severity 值翻成界面上的中文。 */
 export function conflictSeverityLabel(severity) {
-  return SEVERITY_LABELS[String(severity || "").trim()] || "提示";
+  const key = SEVERITY_LABEL_KEYS[String(severity || "").trim()];
+  return key ? t(key) : t("conflicts.severityHint");
 }
 
 /** conflictGroupTags 返回这一组冲突的 `tag:` 分类值。 */
 export function conflictGroupTags(group) {
   const tags = [conflictSeverityLabel(group?.severity)];
   const vpkFiles = Array.isArray(group?.vpk_files) ? group.vpk_files : [];
-  if (group?.layer !== null && group?.layer !== undefined) tags.push("同层");
-  if (vpkFiles.some((vpk) => Number(vpk?.order) < 0)) tags.push("未记录");
+  if (group?.layer !== null && group?.layer !== undefined) tags.push(t("conflicts.searchTagSameLayer"));
+  if (vpkFiles.some((vpk) => Number(vpk?.order) < 0)) tags.push(t("conflicts.searchTagUnrecorded"));
   return tags;
 }
 
@@ -48,7 +54,7 @@ export function searchConflictGroups(groups, query) {
 
 /** describeConflictSearch 生成计数文案。 */
 export function describeConflictSearch({ total = 0, matched = 0, query = "", regexInvalid = "" } = {}) {
-  return describeFieldSearch({ total, matched, query, regexInvalid, noun: "组冲突" });
+  return describeFieldSearch({ total, matched, query, regexInvalid, noun: t("conflicts.searchNoun") });
 }
 
 /** conflictHighlightSpec 给出高亮参数（交给 highlightMatches）。 */

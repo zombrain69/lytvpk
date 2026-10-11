@@ -1,6 +1,7 @@
 import { appState } from "../state.js";
 import { getConfig, saveConfig } from "../../core/config.js";
 import { formatPriorityLabel } from "../file-list/priority-label.mjs";
+import { t } from "../../core/i18n-runtime.js";
 import {
   applyConflictFixSuggestion,
   loadConflictFixSuggestions,
@@ -160,11 +161,11 @@ async function applyConflictOrderMove(path, targetPath, direction, options = {})
     .flatMap((item) => item.vpk_files || [])
     .find((item) => item.path === targetPath);
   if (!targetVpk || (direction !== "before" && direction !== "after")) {
-    throw new Error("未找到对应的冲突目标 Mod，请刷新冲突分析后重试");
+    throw new Error(t("conflicts.orderTargetMissing"));
   }
   const nextPriority = getConflictRelativeDestination(path, targetVpk, direction);
   if (!Number.isInteger(nextPriority)) {
-    throw new Error("冲突目标 Mod 尚未取得有效的 addonlist.txt 优先级");
+    throw new Error(t("conflicts.orderPriorityMissing"));
   }
   await SetVPKLoadOrder(path, nextPriority);
   await refreshConflictOrderMap();
@@ -172,10 +173,10 @@ async function applyConflictOrderMove(path, targetPath, direction, options = {})
   renderConflictResults(currentConflictResult);
   showNotification?.(
     source === "drag"
-      ? "已按拖动位置调整该 Mod 的加载顺序（优先级）"
+      ? t("conflicts.orderMovedByDrag")
       : direction === "before"
-        ? "Mod 已提前到上方冲突 Mod 之前"
-        : "Mod 已延后到下方冲突 Mod 之后，覆盖优先级通常更高",
+        ? t("conflicts.orderMovedBefore")
+        : t("conflicts.orderMovedAfter"),
     "success",
   );
 }
@@ -247,7 +248,7 @@ function syncConflictScopeDialog() {
   if (tagInput) {
     const placeholder = document.createElement("option");
     placeholder.value = "";
-    placeholder.textContent = "选择标签…";
+    placeholder.textContent = t("conflicts.scope.tagPlaceholder");
     tagInput.replaceChildren(placeholder);
     getAvailableConflictTags().forEach((tag) => {
       const option = document.createElement("option");
@@ -265,7 +266,9 @@ function syncConflictScopeDialog() {
   const priorityAwareInput = document.getElementById("conflict-priority-aware");
   if (priorityAwareInput) priorityAwareInput.checked = options.priorityAware === true;
   const targetCount = document.getElementById("conflict-scope-target-count");
-  if (targetCount) targetCount.textContent = `${(appState.vpkFiles || []).length} 个当前筛选目标`;
+  if (targetCount) {
+    targetCount.textContent = t("conflicts.scope.targetCount", { count: (appState.vpkFiles || []).length });
+  }
   refreshConflictScopeDialogPreview();
 }
 
@@ -284,15 +287,15 @@ function refreshConflictScopeDialogPreview() {
   const preview = document.getElementById("conflict-scope-preview");
   if (preview) {
     preview.textContent = changed
-      ? `${formatConflictScopeText(draft, "将按")}（点“应用并分析”生效）`
-      : formatConflictScopeText(saved, "当前");
+      ? `${formatConflictScopeText(draft, t("conflicts.scope.prefixWillApply"))}${t("conflicts.scope.previewSuffix")}`
+      : formatConflictScopeText(saved, t("conflicts.scope.prefixCurrent"));
   }
 
   const modeHint = document.getElementById("conflict-scope-mode-hint");
   if (modeHint) {
     modeHint.textContent = described.usesCombination
-      ? "例如“游戏内开启 + 创意工坊”可只比较已开启的工坊 Mod；“根目录或创意工坊”可覆盖两类来源。"
-      : "当前只勾选了 1 个条件 —— 此时“满足全部”与“满足任一”结果相同，多勾选几个条件后组合方式才会生效。";
+      ? t("conflicts.scope.modeHintMulti")
+      : t("conflicts.scope.modeHintSingle");
   }
   document.querySelectorAll("[data-conflict-match-mode]").forEach((button) => {
     const disabled = !described.usesCombination;
@@ -391,7 +394,7 @@ function persistConflictPriorityAware(priorityAware) {
     config.conflictPriorityAware = next;
     Promise.resolve(saveConfig(config)).catch((error) => {
       console.error("保存冲突分析设置失败:", error);
-      showError?.("保存冲突分析设置失败: " + error);
+      showError?.(t("conflicts.configSaveFailed", { error: String(error) }));
     });
   } catch (error) {
     console.error("保存冲突分析设置失败:", error);
@@ -412,7 +415,7 @@ export function showConflictModal(options = {}) {
   }
   resetConflictModal();
   const titleEl = document.querySelector("#conflict-modal .modal-header h2");
-  if (titleEl) titleEl.textContent = options.title || "Mod冲突检测";
+  if (titleEl) titleEl.textContent = options.title || t("conflicts.title");
   if (options.result) {
     currentSeverityFilter = options.severityFilter || "all";
     updateFilterButtons();
@@ -440,7 +443,7 @@ export function hideConflictModal() {
   const list = document.getElementById("conflict-list");
   if (list) list.replaceChildren();
   const titleEl = document.querySelector("#conflict-modal .modal-header h2");
-  if (titleEl) titleEl.textContent = "Mod冲突检测";
+  if (titleEl) titleEl.textContent = t("conflicts.title");
 }
 
 function resetConflictModal() {
@@ -455,7 +458,7 @@ function resetConflictModal() {
   const progressBar = document.getElementById("conflict-progress-bar");
   if (progressBar) progressBar.style.width = "0%";
   const progressText = document.getElementById("conflict-progress-text");
-  if (progressText) progressText.textContent = "准备开始...";
+  if (progressText) progressText.textContent = t("conflicts.progressPreparing");
   currentConflictResult = null;
 
   // 重置筛选状态
@@ -470,7 +473,7 @@ function setConflictChecking(checking) {
   const startButton = document.getElementById("start-conflict-check-btn");
   if (startButton) {
     startButton.disabled = checking;
-    startButton.textContent = checking ? "检测中..." : "开始检测";
+    startButton.textContent = checking ? t("conflicts.checking") : t("conflicts.startCheck");
   }
 }
 
@@ -487,22 +490,22 @@ function updateScopedConflictControl() {
   if (status) {
     if (appState.conflictAnalysisLoading) {
       status.textContent = scopedConflictRetryCount > 0
-        ? `等待其他冲突检测完成…（第 ${scopedConflictRetryCount} 次重试）`
-        : "分析中…";
+        ? t("conflicts.retryWaiting", { attempt: scopedConflictRetryCount })
+        : t("conflicts.analyzing");
       status.className = "conflict-analysis-status loading";
     } else if (appState.conflictAnalysisEnabled) {
       const count = (appState.vpkFiles || []).length;
       const groups = appState.conflictAnalysisResult?.total_conflicts || 0;
       const overrides = appState.conflictAnalysisResult?.total_overrides || 0;
-      const scopeLabel = appState.conflictAnalysisScopeLabel || "游戏内开启";
+      const scopeLabel = appState.conflictAnalysisScopeLabel || t("conflicts.scope.ruleEnabled");
       // 开启“按加载顺序判定胜负”后，多数重叠会判成覆盖关系；
       // 状态栏只说“0 组冲突”会让人以为什么都没有。
       status.textContent = overrides > 0
-        ? `已分析 ${count} 个筛选目标 · 对比：${scopeLabel} · 冲突 ${groups} 组 / 覆盖 ${overrides} 组`
-        : `已分析 ${count} 个筛选目标 · 对比：${scopeLabel} · ${groups} 组冲突`;
+        ? t("conflicts.statusAnalyzedWithOverrides", { count, scope: scopeLabel, groups, overrides })
+        : t("conflicts.statusAnalyzed", { count, scope: scopeLabel, groups });
       status.className = "conflict-analysis-status active";
     } else {
-      status.textContent = "默认关闭，按当前筛选分析";
+      status.textContent = t("conflicts.statusIdle");
       status.className = "conflict-analysis-status";
     }
   }
@@ -512,14 +515,14 @@ function updateConflictScopeSummary() {
   const scopeSummary = document.getElementById("conflict-scope-summary");
   if (!scopeSummary) return;
   if (!appState.conflictAnalysisEnabled) {
-    scopeSummary.textContent = "全量诊断：当前 addons 与 workshop 中的全部 Mod";
-    scopeSummary.title = "全量诊断会扫描当前 addons 与 workshop 中的全部 VPK 文件";
+    scopeSummary.textContent = t("conflicts.scopeSummaryFull");
+    scopeSummary.title = t("conflicts.scopeSummaryFullTitle");
     return;
   }
-  const scopeLabel = appState.conflictAnalysisScopeLabel || "游戏内开启";
+  const scopeLabel = appState.conflictAnalysisScopeLabel || t("conflicts.scope.ruleEnabled");
   const targetCount = (appState.vpkFiles || []).length;
-  scopeSummary.textContent = `目标：${targetCount} · 对比：${scopeLabel}`;
-  scopeSummary.title = `当前冲突分析范围：${scopeLabel}`;
+  scopeSummary.textContent = t("conflicts.scopeSummaryTargets", { count: targetCount, scope: scopeLabel });
+  scopeSummary.title = t("conflicts.scopeSummaryTitle", { scope: scopeLabel });
 }
 
 export async function toggleScopedConflictAnalysis(enabled) {
@@ -571,7 +574,7 @@ async function executeScopedConflictAnalysis({ silent = false, retry = false } =
     appState.conflictAnalysisLoading = false;
     updateScopedConflictControl();
     renderFileList?.();
-    if (!silent) showError?.("当前后端不支持按筛选结果分析冲突，请重新构建应用");
+    if (!silent) showError?.(t("conflicts.backendUnsupported"));
     return;
   }
 
@@ -583,7 +586,7 @@ async function executeScopedConflictAnalysis({ silent = false, retry = false } =
     appState.conflictByPath = new Map();
     updateScopedConflictControl();
     renderFileList?.();
-    showError?.(`当前筛选包含 ${files.length} 个 Mod；当前最多支持 ${SCOPED_CONFLICT_MAX_VPKS} 个目标，请缩小筛选范围后再分析`);
+    showError?.(t("conflicts.tooManyTargets", { count: files.length, max: SCOPED_CONFLICT_MAX_VPKS }));
     return;
   }
 
@@ -614,14 +617,14 @@ async function executeScopedConflictAnalysis({ silent = false, retry = false } =
     if (!silent) {
       const conflicts = Number(appState.conflictAnalysisResult.total_conflicts || 0);
       const overrides = Number(appState.conflictAnalysisResult.total_overrides || 0);
-      const scopeLabel = appState.conflictAnalysisScopeLabel || "游戏内开启";
+      const scopeLabel = appState.conflictAnalysisScopeLabel || t("conflicts.scope.ruleEnabled");
       const findings = [];
-      if (conflicts > 0) findings.push(`${conflicts} 组潜在冲突`);
-      if (overrides > 0) findings.push(`${overrides} 组已判定覆盖`);
+      if (conflicts > 0) findings.push(t("conflicts.findingConflicts", { count: conflicts }));
+      if (overrides > 0) findings.push(t("conflicts.findingOverrides", { count: overrides }));
       showNotification?.(
         findings.length
-          ? `已将当前筛选的 ${files.length} 个 Mod 与“${scopeLabel}”对比，发现 ${findings.join("、")}`
-          : `已将当前筛选的 ${files.length} 个 Mod 与“${scopeLabel}”对比，未发现文件重叠`,
+          ? t("conflicts.analysisDone", { count: files.length, scope: scopeLabel, findings: findings.join("、") })
+          : t("conflicts.analysisClean", { count: files.length, scope: scopeLabel }),
         conflicts > 0 ? "warning" : overrides > 0 ? "info" : "success",
       );
     }
@@ -648,7 +651,7 @@ async function executeScopedConflictAnalysis({ silent = false, retry = false } =
       appState.conflictByPath = new Map();
       updateScopedConflictControl();
       renderFileList?.();
-      showError?.("其他冲突检测占用时间过长，本次对比范围分析没有结果；请稍后重新点“应用并分析”");
+      showError?.(t("conflicts.retryExhausted"));
       return;
     }
     appState.conflictAnalysisEnabled = false;
@@ -657,7 +660,7 @@ async function executeScopedConflictAnalysis({ silent = false, retry = false } =
     appState.conflictByPath = new Map();
     updateScopedConflictControl();
     renderFileList?.();
-    showError?.("分析当前筛选目标与所选对比范围的冲突失败: " + error);
+    showError?.(t("conflicts.analysisFailed", { error: String(error) }));
   } finally {
     // 任何异常、过期或组件卸载路径都不能把列表永久留在 pending 状态。
     // 只有当前代次负责清理；更新后的代次由自己的分析或防抖定时器负责。
@@ -701,7 +704,10 @@ export function runScopedConflictAnalysis(options = {}) {
 export async function showConflictDetailsForFile(filePath) {
   const result = appState.conflictAnalysisResult;
   if (!appState.conflictAnalysisEnabled || appState.conflictAnalysisLoading || !result) {
-    showNotification?.(`请先开启并等待当前筛选目标与“${appState.conflictAnalysisScopeLabel || "游戏内开启"}”的冲突分析完成`, "info");
+    showNotification?.(
+      t("conflicts.needAnalysisFirst", { scope: appState.conflictAnalysisScopeLabel || t("conflicts.scope.ruleEnabled") }),
+      "info",
+    );
     return;
   }
 
@@ -710,13 +716,16 @@ export async function showConflictDetailsForFile(filePath) {
   // 已判定的覆盖关系同样要能点开：否则角标写着“N 处覆盖”，点进去却说没有冲突。
   const overrides = (result.override_groups || []).filter((group) => involvesFile(group));
   if (groups.length === 0 && overrides.length === 0) {
-    showNotification?.(`这个 Mod 与“${appState.conflictAnalysisScopeLabel || "游戏内开启"}”没有发现重叠文件`, "success");
+    showNotification?.(
+      t("conflicts.noOverlapForMod", { scope: appState.conflictAnalysisScopeLabel || t("conflicts.scope.ruleEnabled") }),
+      "success",
+    );
     return;
   }
 
   await refreshConflictOrderMap();
   showConflictModal({
-    title: "Mod 冲突详情",
+    title: t("conflicts.detailTitle"),
     severityFilter: "all",
     result: {
       total_conflicts: groups.length,
@@ -727,12 +736,12 @@ export async function showConflictDetailsForFile(filePath) {
   });
 }
 
-// 筛选说明文本
-const filterDescriptions = {
-  critical: "大概率导致客户端崩溃，建议立即处理",
-  warning: "可能导致功能异常或显示错误",
-  info: "一般性冲突，通常不影响游戏体验",
-  all: "显示所有冲突分组",
+// 筛选说明文本（key 表：模块求值期不取文案）。
+const FILTER_DESCRIPTION_KEYS = {
+  critical: "conflicts.filterDescCritical",
+  warning: "conflicts.filterDescWarning",
+  info: "conflicts.filterDescInfo",
+  all: "conflicts.filterDescAll",
 };
 
 // 更新筛选按钮状态和说明
@@ -747,7 +756,8 @@ function updateFilterButtons() {
   // 更新说明文本
   const descEl = document.getElementById("conflict-filter-desc");
   if (descEl) {
-    descEl.textContent = filterDescriptions[currentSeverityFilter] || "";
+    const descriptionKey = FILTER_DESCRIPTION_KEYS[currentSeverityFilter];
+    descEl.textContent = descriptionKey ? t(descriptionKey) : "";
   }
 }
 
@@ -810,7 +820,7 @@ export async function startConflictCheck() {
     renderConflictResults(result);
   } catch (err) {
     if (runId === conflictCheckRunId && isConflictModalVisible) {
-      showError("冲突检测失败: " + err);
+      showError(t("conflicts.checkFailed", { error: String(err) }));
       document.getElementById("conflict-progress-container")?.classList.add("hidden");
       const startButton = document.getElementById("start-conflict-check-btn");
       if (startButton) startButton.style.display = "";
@@ -848,7 +858,7 @@ function renderConflictResults(result) {
 
   if (totalConflicts === 0 && overrideGroups.length === 0) {
     document.getElementById("conflict-results")?.classList.add("hidden");
-    setConflictEmptyMessage("未发现Mod冲突");
+    setConflictEmptyMessage(t("conflicts.emptyNone"));
     document.getElementById("conflict-empty")?.classList.remove("hidden");
     return;
   }
@@ -867,7 +877,9 @@ function renderConflictResults(result) {
     if (groups.length === 0) {
       // 没有冲突但存在覆盖关系时，只在这里提示冲突列表为空。
       list.appendChild(
-        createConflictEmptyState(totalConflicts === 0 ? "未发现冲突" : "当前筛选条件下无冲突"),
+        createConflictEmptyState(
+          totalConflicts === 0 ? t("conflicts.emptyNoConflict") : t("conflicts.emptyFiltered"),
+        ),
       );
     } else {
       const pageCount = Math.ceil(groups.length / CONFLICT_PAGE_SIZE);
@@ -962,7 +974,7 @@ function syncConflictFixSectionUI() {
   body?.classList.toggle("hidden", !conflictFixExpanded);
   if (toggle) {
     toggle.setAttribute("aria-expanded", String(conflictFixExpanded));
-    toggle.textContent = conflictFixExpanded ? "收起建议" : `展开建议（${count} 条）`;
+    toggle.textContent = conflictFixExpanded ? t("conflicts.fixCollapse") : t("conflicts.fixExpand", { count });
     toggle.disabled = count === 0;
   }
 }
@@ -1001,12 +1013,12 @@ function renderConflictFixRows() {
       button.type = "button";
       button.className = "btn btn-small btn-secondary conflict-fix-apply";
       button.dataset.fixIndex = String(index);
-      button.textContent = `设置分层 ${suggestion.suggestedTier}`;
+      button.textContent = t("conflicts.fixSetTier", { tier: suggestion.suggestedTier });
       row.appendChild(button);
     } else {
       const hint = document.createElement("span");
       hint.className = "conflict-fix-manual";
-      hint.textContent = "需手动处理";
+      hint.textContent = t("conflicts.fixManual");
       row.appendChild(hint);
     }
     list.appendChild(row);
@@ -1032,7 +1044,9 @@ async function renderConflictFixSection() {
 
   section.classList.remove("hidden");
   const countEl = document.getElementById("conflict-fix-count");
-  if (countEl) countEl.textContent = `${currentConflictFixSuggestions.length} 条`;
+  if (countEl) {
+    countEl.textContent = t("conflicts.fixCount", { count: currentConflictFixSuggestions.length });
+  }
 
   syncConflictFixSectionUI();
   renderConflictFixRows();
@@ -1067,7 +1081,7 @@ function renderConflictModIgnoreSection(result) {
 
   section.classList.remove("hidden");
   const countEl = document.getElementById("conflict-mod-ignore-count");
-  if (countEl) countEl.textContent = `${total} 项`;
+  if (countEl) countEl.textContent = t("conflicts.modIgnoreCount", { count: total });
 
   list.replaceChildren();
   annotations.slice(0, CONFLICT_MOD_IGNORE_LIMIT).forEach((annotation) => {
@@ -1090,7 +1104,10 @@ function renderConflictModIgnoreSection(result) {
   if (annotations.length > CONFLICT_MOD_IGNORE_LIMIT || total > annotations.length) {
     const more = document.createElement("div");
     more.className = "conflict-mod-ignore-more";
-    more.textContent = `仅显示前 ${Math.min(annotations.length, CONFLICT_MOD_IGNORE_LIMIT)} 项，共 ${total} 项`;
+    more.textContent = t("conflicts.modIgnoreMore", {
+      shown: Math.min(annotations.length, CONFLICT_MOD_IGNORE_LIMIT),
+      total,
+    });
     list.appendChild(more);
   }
 }
@@ -1135,7 +1152,9 @@ function renderConflictOverrideSection(groups) {
     // 覆盖关系区也受同一套检索影响：被过滤掉时把"显示 / 总数"写清楚。
     const total = (currentConflictResult?.override_groups || []).length;
     const filtered = Boolean(currentConflictQuery.trim()) || currentSeverityFilter !== "all";
-    countEl.textContent = filtered && total > groups.length ? `${groups.length} / ${total} 组（已过滤）` : `${groups.length} 组`;
+    countEl.textContent = filtered && total > groups.length
+      ? t("conflicts.overrideCountFiltered", { shown: groups.length, total })
+      : t("conflicts.overrideCount", { count: groups.length });
   }
 
   list.replaceChildren();
@@ -1151,7 +1170,9 @@ function renderConflictOverrideSection(groups) {
   const moreEl = document.getElementById("conflict-override-more");
   if (moreEl) {
     const hiddenCount = groups.length - CONFLICT_OVERRIDE_LIMIT;
-    moreEl.textContent = hiddenCount > 0 ? `仅显示前 ${CONFLICT_OVERRIDE_LIMIT} 组，另有 ${hiddenCount} 组覆盖关系未显示` : "";
+    moreEl.textContent = hiddenCount > 0
+      ? t("conflicts.overrideMore", { limit: CONFLICT_OVERRIDE_LIMIT, hidden: hiddenCount })
+      : "";
     moreEl.classList.toggle("hidden", hiddenCount <= 0);
   }
 }
@@ -1209,26 +1230,36 @@ function createConflictGroupElement(group, renderOptions = {}) {
       const nextConflict = getConflictRelativeTarget(orderedVpkFiles, index, "after");
       const canMoveUp = !isDisabled && Boolean(previousConflict && Number.isInteger(getConflictPriority(previousConflict)));
       const canMoveDown = !isDisabled && Boolean(nextConflict && Number.isInteger(getConflictPriority(nextConflict)));
-      const previousLabel = previousConflict?.title || previousConflict?.name || "上方冲突 Mod";
-      const nextLabel = nextConflict?.title || nextConflict?.name || "下方冲突 Mod";
-      const btnText = isWorkshop ? "复制到 addons" : isDisabled ? "启用" : "禁用";
+      const previousLabel = previousConflict?.title || previousConflict?.name || t("conflicts.vpkUpperFallback");
+      const nextLabel = nextConflict?.title || nextConflict?.name || t("conflicts.vpkLowerFallback");
+      const btnText = isWorkshop
+        ? t("conflicts.vpkCopyToAddons")
+        : isDisabled
+          ? t("conflicts.vpkEnable")
+          : t("conflicts.vpkDisable");
       const btnClass = isWorkshop ? "btn-transfer" : isDisabled ? "btn-enable" : "btn-disable";
-      const title = isWorkshop ? "复制到 addons，并关闭 workshop 原件" : isDisabled ? "启用此 Mod" : "禁用此 Mod";
-      const gameStateText = file?.gameStateKnown ? (file.gameEnabled ? "游戏开关：开" : "游戏开关：关") : "游戏开关：未记录";
+      const title = isWorkshop
+        ? t("conflicts.vpkCopyTitle")
+        : isDisabled
+          ? t("conflicts.vpkEnableTitle")
+          : t("conflicts.vpkDisableTitle");
+      const gameStateText = file?.gameStateKnown
+        ? (file.gameEnabled ? t("conflicts.vpkGameStateOn") : t("conflicts.vpkGameStateOff"))
+        : t("conflicts.vpkGameStateUnrecorded");
 
       return `
         <div class="conflict-vpk-item" data-path="${escapeHtml(vpk.path)}" data-location="${escapeHtml(vpk.location || "")}">
           <div class="conflict-vpk-info">
             <span class="conflict-vpk-title" title="${escapeHtml(vpk.title || vpk.name)}">${highlightOrEscape(displayName)}</span>
             <span class="conflict-vpk-filename" title="${escapeHtml(vpk.name)}">${highlightOrEscape(fileName)}</span>
-            <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? `顺序号来自 addonlist.txt（数字越大越靠后加载，覆盖同一资源时更可能生效）；有效分层 ${Number.isInteger(vpk.layer) && vpk.layer >= 0 ? vpk.layer : priority - 1}。未设置分层时有效分层等于顺序号` : "该 Mod 尚未写入 addonlist.txt"}">${escapeHtml(priorityLabel)}</span>
-            ${isOverride ? `<span class="conflict-vpk-winner ${vpk.path === winnerPath ? "active" : ""}">${vpk.path === winnerPath ? "生效" : "被覆盖"}</span>` : ""}
+            <span class="conflict-vpk-priority ${hasPriority ? "known" : "unknown"}" title="${hasPriority ? t("conflicts.vpkPriorityKnown", { tier: Number.isInteger(vpk.layer) && vpk.layer >= 0 ? vpk.layer : priority - 1 }) : t("conflicts.vpkPriorityUnknown")}">${escapeHtml(priorityLabel)}</span>
+            ${isOverride ? `<span class="conflict-vpk-winner ${vpk.path === winnerPath ? "active" : ""}">${vpk.path === winnerPath ? t("conflicts.vpkWinner") : t("conflicts.vpkOverridden")}</span>` : ""}
           </div>
-          <div class="conflict-vpk-actions" role="group" aria-label="Mod操作">
-            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-target-path="${escapeHtml(previousConflict?.path || "")}" data-order-direction="before" data-default-label="↑ 提前" ${canMoveUp ? "" : "disabled"} title="${canMoveUp ? `提前到“${escapeHtml(previousLabel)}”之前` : isDisabled ? "disabled 目录中的 Mod 需先启用后调整优先级" : previousConflict ? "上方冲突 Mod 尚未取得有效优先级" : "已经是当前冲突列表最上方"}">↑ 提前</button>
-            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-target-path="${escapeHtml(nextConflict?.path || "")}" data-order-direction="after" data-default-label="↓ 延后" ${canMoveDown ? "" : "disabled"} title="${canMoveDown ? `延后到“${escapeHtml(nextLabel)}”之后；通常提高其覆盖优先级` : isDisabled ? "disabled 目录中的 Mod 需先启用后调整优先级" : nextConflict ? "下方冲突 Mod 尚未取得有效优先级" : "已经是当前冲突列表最下方"}">↓ 延后</button>
-            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-detail" data-path="${escapeHtml(vpk.path)}" title="查看 Mod 详情">详情</button>
-            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-game" data-path="${escapeHtml(vpk.path)}" ${isDisabled || !file ? "disabled" : ""} title="${isDisabled ? "文件位于 disabled 目录，无法编辑游戏开关" : file?.gameStateKnown ? "编辑 addonlist.txt 中的游戏开关" : "未记录：选择游戏内关闭、游戏内启用或禁用"}">${gameStateText}</button>
+          <div class="conflict-vpk-actions" role="group" aria-label="${t("conflicts.vpkActionsAria")}">
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-target-path="${escapeHtml(previousConflict?.path || "")}" data-order-direction="before" data-default-label="${t("conflicts.vpkMoveUp")}" ${canMoveUp ? "" : "disabled"} title="${canMoveUp ? t("conflicts.vpkMoveUpTarget", { name: escapeHtml(previousLabel) }) : isDisabled ? t("conflicts.vpkMoveDisabled") : previousConflict ? t("conflicts.vpkMoveUpNoPriority") : t("conflicts.vpkMoveUpTopmost")}">${t("conflicts.vpkMoveUp")}</button>
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-order" data-path="${escapeHtml(vpk.path)}" data-target-path="${escapeHtml(nextConflict?.path || "")}" data-order-direction="after" data-default-label="${t("conflicts.vpkMoveDown")}" ${canMoveDown ? "" : "disabled"} title="${canMoveDown ? t("conflicts.vpkMoveDownTarget", { name: escapeHtml(nextLabel) }) : isDisabled ? t("conflicts.vpkMoveDisabled") : nextConflict ? t("conflicts.vpkMoveDownNoPriority") : t("conflicts.vpkMoveDownBottommost")}">${t("conflicts.vpkMoveDown")}</button>
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-detail" data-path="${escapeHtml(vpk.path)}" title="${t("conflicts.vpkDetailTitle")}">${t("conflicts.vpkDetail")}</button>
+            <button type="button" class="btn btn-small btn-conflict-action btn-conflict-game" data-path="${escapeHtml(vpk.path)}" ${isDisabled || !file ? "disabled" : ""} title="${isDisabled ? t("conflicts.vpkGameDisabledTitle") : file?.gameStateKnown ? t("conflicts.vpkGameEditTitle") : t("conflicts.vpkGameUnrecordedTitle")}">${gameStateText}</button>
             <button type="button" class="btn btn-small btn-conflict-action ${btnClass}" data-path="${escapeHtml(vpk.path)}" data-location="${escapeHtml(vpk.location)}" data-default-label="${escapeHtml(btnText)}" title="${title}">${btnText}</button>
           </div>
         </div>
@@ -1237,25 +1268,25 @@ function createConflictGroupElement(group, renderOptions = {}) {
     .join("");
 
     // 严重程度标签文本
-    let severityText = "普通";
-    if (severity === "critical") severityText = "严重";
-    if (severity === "warning") severityText = "警告";
+    let severityText = t("conflicts.severityNormal");
+    if (severity === "critical") severityText = t("conflicts.severityCritical");
+    if (severity === "warning") severityText = t("conflicts.severityWarning");
 
     groupEl.innerHTML = `
             <div class="conflict-header">
                 <div class="conflict-title-section">
                     <div class="conflict-severity-row">
                         <span class="severity-badge ${severity}">${severityText}</span>
-                        ${isOverride ? '<span class="severity-badge override">覆盖</span>' : ""}
+                        ${isOverride ? `<span class="severity-badge override">${t("conflicts.overrideBadge")}</span>` : ""}
                         ${
                           !isOverride && Number.isInteger(group.layer)
-                            ? `<span class="severity-badge layer" title="这些 Mod 的有效分层相同，先后顺序未定义，因此属于真冲突">同层 ${group.layer}</span>`
+                            ? `<span class="severity-badge layer" title="${t("conflicts.groupSameLayerTitle")}">${t("conflicts.groupSameLayer", { layer: group.layer })}</span>`
                             : ""
                         }
-                        <span class="conflict-file-count">${fileCount} ${isOverride ? "个覆盖文件" : "个冲突文件"}</span>
+                        <span class="conflict-file-count">${isOverride ? t("conflicts.groupFileCountOverride", { count: fileCount }) : t("conflicts.groupFileCountConflict", { count: fileCount })}</span>
                         ${
                           movableVpkFiles.length >= 2
-                            ? '<span class="conflict-drag-hint" title="长按任意一行并上下拖动即可调整加载顺序（优先级）；也可以继续用行内的「提前 / 延后」按钮">长按拖动可排序</span>'
+                            ? `<span class="conflict-drag-hint" title="${t("conflicts.groupDragHintTitle")}">${t("conflicts.groupDragHint")}</span>`
                             : ""
                         }
                     </div>
@@ -1292,7 +1323,7 @@ function createConflictGroupElement(group, renderOptions = {}) {
             try {
               await applyConflictOrderMove(path, targetPath, direction, { source: "drag" });
             } catch (error) {
-              showError?.("拖动调整优先级失败: " + error);
+              showError?.(t("conflicts.vpkDragFailed", { error: String(error) }));
               // 失败时也要把 DOM 顺序还原成真实顺序
               renderConflictResults(currentConflictResult);
             }
@@ -1335,7 +1366,7 @@ function createConflictGroupElement(group, renderOptions = {}) {
             return;
           }
 
-          btn.textContent = "处理中...";
+          btn.textContent = t("conflicts.vpkProcessing");
 
           if (location === "workshop") {
             // workshop 文件复制到插件目录，并保留原件作为受保护的关闭来源
@@ -1352,9 +1383,9 @@ function createConflictGroupElement(group, renderOptions = {}) {
             await startConflictCheck();
           }
         } catch (err) {
-          showError("操作失败: " + err);
+          showError(t("conflicts.vpkOperationFailed", { error: String(err) }));
           // 恢复按钮状态
-          btn.textContent = btn.dataset.defaultLabel || "重试";
+          btn.textContent = btn.dataset.defaultLabel || t("conflicts.vpkRetry");
           btn.disabled = false;
         }
       });
@@ -1374,13 +1405,13 @@ function loadConflictDetails(details, group) {
     delete details.dataset.loading;
     return;
   }
-  inner.innerHTML = '<div class="file-tree-loading">正在加载文件树...</div>';
+  inner.innerHTML = `<div class="file-tree-loading">${t("conflicts.treeLoading")}</div>`;
 
   requestAnimationFrame(() => {
     const tree = buildTree(group.files || []);
     const fileCount = Number(group.file_count ?? (group.files || []).length);
     const truncatedNote = group.files_truncated
-      ? `<div class="file-tree-note">当前仅展示前 ${(group.files || []).length} 个文件，完整冲突数为 ${fileCount} 个。</div>`
+      ? `<div class="file-tree-note">${t("conflicts.treeTruncated", { shown: (group.files || []).length, total: fileCount })}</div>`
       : "";
     inner.innerHTML = `<div class="file-tree">${truncatedNote}${renderTree(tree)}</div>`;
     details.dataset.loaded = "true";
@@ -1478,7 +1509,7 @@ function renderConflictPagination(totalCount) {
   pagination.innerHTML = `
     <div class="conflict-pagination-info">${start}-${end} / ${totalCount}</div>
     <div class="conflict-pagination-controls">
-      <button class="conflict-page-btn" data-page="${currentConflictPage - 1}" ${currentConflictPage === 1 ? "disabled" : ""}>上一页</button>
+      <button class="conflict-page-btn" data-page="${currentConflictPage - 1}" ${currentConflictPage === 1 ? "disabled" : ""}>${t("conflicts.paginationPrev")}</button>
       ${visiblePages
         .map((page) =>
           page === "..."
@@ -1486,7 +1517,7 @@ function renderConflictPagination(totalCount) {
             : `<button class="conflict-page-btn ${page === currentConflictPage ? "active" : ""}" data-page="${page}">${page}</button>`,
         )
         .join("")}
-      <button class="conflict-page-btn" data-page="${currentConflictPage + 1}" ${currentConflictPage === pageCount ? "disabled" : ""}>下一页</button>
+      <button class="conflict-page-btn" data-page="${currentConflictPage + 1}" ${currentConflictPage === pageCount ? "disabled" : ""}>${t("conflicts.paginationNext")}</button>
     </div>
   `;
 
@@ -1562,73 +1593,73 @@ function getFileCategory(filePath) {
 
   // 🔴 严重 (Critical)
   if (lower === "particles/particles_manifest.txt") {
-    return { label: "全局特效", className: "tag-critical" };
+    return { label: t("conflicts.fileCategoryEffect"), className: "tag-critical" };
   }
   if (lower === "scripts/soundmixers.txt") {
-    return { label: "全局混音", className: "tag-critical" };
+    return { label: t("conflicts.fileCategorySoundmix"), className: "tag-critical" };
   }
   if (lower.endsWith(".bsp")) {
-    return { label: "地图文件", className: "tag-critical" };
+    return { label: t("conflicts.fileCategoryMap"), className: "tag-critical" };
   }
   if (lower.endsWith(".nav")) {
-    return { label: "导航网格", className: "tag-critical" };
+    return { label: t("conflicts.fileCategoryNav"), className: "tag-critical" };
   }
   if (lower.startsWith("missions/") && lower.endsWith(".txt")) {
-    return { label: "任务脚本", className: "tag-critical" };
+    return { label: t("conflicts.fileCategoryMission"), className: "tag-critical" };
   }
   if (lower.startsWith("scripts/") && lower.endsWith(".txt")) {
     if (lower.startsWith("scripts/vscripts/")) {
-      return { label: "VScript", className: "tag-warning" };
+      return { label: t("conflicts.fileCategoryVscript"), className: "tag-warning" };
     }
-    return { label: "核心脚本", className: "tag-critical" };
+    return { label: t("conflicts.fileCategoryCoreScript"), className: "tag-critical" };
   }
 
   // 🟡 告警 (Warning)
   if (lower === "sound/sound.cache") {
-    return { label: "音频缓存", className: "tag-warning" };
+    return { label: t("conflicts.fileCategorySoundCache"), className: "tag-warning" };
   }
   if (lower.endsWith(".phy")) {
-    return { label: "物理模型", className: "tag-warning" };
+    return { label: t("conflicts.fileCategoryPhys"), className: "tag-warning" };
   }
   if (lower.startsWith("resource/") && lower.endsWith(".res")) {
-    return { label: "界面资源", className: "tag-warning" };
+    return { label: t("conflicts.fileCategoryUiResource"), className: "tag-warning" };
   }
   if (lower.startsWith("scripts/vscripts/")) {
-    return { label: "VScript", className: "tag-warning" };
+    return { label: t("conflicts.fileCategoryVscript"), className: "tag-warning" };
   }
   if (
     lower.endsWith(".vscript") ||
     lower.endsWith(".nut") ||
     lower.endsWith(".nuc")
   ) {
-    return { label: "VScript", className: "tag-warning" };
+    return { label: t("conflicts.fileCategoryVscript"), className: "tag-warning" };
   }
   if (lower.endsWith(".db")) {
-    return { label: "数据库", className: "tag-warning" };
+    return { label: t("conflicts.fileCategoryDatabase"), className: "tag-warning" };
   }
   if (lower.endsWith(".vtx") || lower.endsWith(".vvd")) {
-    return { label: "模型数据", className: "tag-warning" };
+    return { label: t("conflicts.fileCategoryModelData"), className: "tag-warning" };
   }
   if (lower.endsWith(".ttf") || lower.endsWith(".otf")) {
-    return { label: "字体文件", className: "tag-warning" };
+    return { label: t("conflicts.fileCategoryFont"), className: "tag-warning" };
   }
 
   // 🟢 一般 (Info)
   if (lower.endsWith(".vtf")) {
-    return { label: "纹理", className: "tag-info" };
+    return { label: t("conflicts.fileCategoryTexture"), className: "tag-info" };
   }
   if (lower.endsWith(".vmt")) {
-    return { label: "材质", className: "tag-info" };
+    return { label: t("conflicts.fileCategoryMaterial"), className: "tag-info" };
   }
   if (lower.endsWith(".mdl")) {
-    return { label: "模型", className: "tag-info" };
+    return { label: t("conflicts.fileCategoryModel"), className: "tag-info" };
   }
   if (lower.endsWith(".wav") || lower.endsWith(".mp3")) {
-    return { label: "音频", className: "tag-info" };
+    return { label: t("conflicts.fileCategoryAudio"), className: "tag-info" };
   }
   if (lower.endsWith(".cfg")) {
-    return { label: "配置", className: "tag-info" };
+    return { label: t("conflicts.fileCategoryConfig"), className: "tag-info" };
   }
 
-  return { label: "其他", className: "tag-info" };
+  return { label: t("conflicts.fileCategoryOther"), className: "tag-info" };
 }

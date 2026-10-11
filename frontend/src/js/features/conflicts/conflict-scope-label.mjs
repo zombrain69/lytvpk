@@ -7,13 +7,15 @@
 //   - 多条件：写“同时满足 / 满足任一：A + B / A / B”；
 // 并暴露 usesCombination 供界面决定是否禁用组合开关。
 
+import { t } from "../../core/i18n-runtime.js";
+
 export const CONFLICT_SCOPE_DEFAULT_RULES = Object.freeze([{ type: "enabled", value: "" }]);
 
-const RULE_LABELS = Object.freeze({
-  enabled: "游戏内开启",
-  not_disabled: "未禁用",
-  root: "根目录",
-  workshop: "创意工坊",
+const RULE_LABEL_KEYS = Object.freeze({
+  enabled: "conflicts.scope.ruleEnabled",
+  not_disabled: "conflicts.scope.ruleNotDisabled",
+  root: "conflicts.scope.labelRoot",
+  workshop: "conflicts.scope.labelWorkshop",
 });
 
 /** conflictScopeRuleLabel 生成单个条件的显示名；未知类型回落为原样输出。 */
@@ -21,9 +23,12 @@ export function conflictScopeRuleLabel(rule) {
   const type = String(rule?.type || "").trim().toLowerCase();
   if (type === "tag") {
     const value = String(rule?.value || "").trim();
-    return value ? `标签：${value}` : "标签：未指定";
+    return value
+      ? t("conflicts.scope.labelTag", { value })
+      : t("conflicts.scope.labelTagUnspecified");
   }
-  return RULE_LABELS[type] || String(rule?.type || "");
+  const labelKey = RULE_LABEL_KEYS[type];
+  return labelKey ? t(labelKey) : String(rule?.type || "");
 }
 
 /** normalizeConflictScopeRules 复刻后端语义：空清单 = 默认“游戏内开启”。 */
@@ -48,7 +53,7 @@ export function describeConflictScope(options = {}) {
   }
   const joined =
     matchMode === "and" ? ruleLabels.join(" + ") : ruleLabels.join(" / ");
-  const prefix = matchMode === "and" ? "同时满足" : "满足任一";
+  const prefix = matchMode === "and" ? t("conflicts.scope.matchAll") : t("conflicts.scope.matchAny");
   return { label: `${prefix}：${joined}`, usesCombination: true, ruleLabels, matchMode };
 }
 
@@ -58,7 +63,7 @@ export function describeConflictScope(options = {}) {
  */
 export function conflictScopeSummaryLabel(options = {}) {
   const { label } = describeConflictScope(options);
-  return options.priorityAware === true ? `${label} · 按加载顺序判定覆盖` : label;
+  return options.priorityAware === true ? `${label} · ${t("conflicts.scope.prioritySuffix")}` : label;
 }
 
 /**
@@ -66,8 +71,9 @@ export function conflictScopeSummaryLabel(options = {}) {
  *
  * @param {"当前"|"将按"|string} prefix
  */
-export function formatConflictScopeText(options = {}, prefix = "当前") {
-  return `${prefix}：${conflictScopeSummaryLabel(options)}`;
+export function formatConflictScopeText(options = {}, prefix = "") {
+  const effectivePrefix = prefix || t("conflicts.scope.prefixCurrent");
+  return `${effectivePrefix}：${conflictScopeSummaryLabel(options)}`;
 }
 
 /**

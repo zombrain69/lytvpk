@@ -12,7 +12,6 @@ import {
 } from "../../core/reading-comfort.mjs";
 import { createAutoexecSettingsController } from "./autoexec-settings-controller.mjs";
 import {
-  CONFLICT_IGNORE_LIST_DESCRIPTION,
   formatConflictIgnoreList,
   parseConflictIgnoreList,
 } from "../conflicts/conflict-ignore-options.mjs";
@@ -774,7 +773,7 @@ export async function renderSettingsPage(deps) {
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
                 <div class="setting-row-label">${t("settings.addonlist.conflict.ignoreList.label")}</div>
-                <div class="setting-row-desc">${escapeHtml(CONFLICT_IGNORE_LIST_DESCRIPTION)}${t("settings.addonlist.conflict.ignoreList.descSuffix")}</div>
+                <div class="setting-row-desc">${escapeHtml(t("settings.addonlist.conflict.ignoreList.desc"))}${t("settings.addonlist.conflict.ignoreList.descSuffix")}</div>
               </div>
               <textarea id="settings-conflict-ignore-files" class="settings-conflict-ignore-editor" rows="6" spellcheck="false" placeholder="materials/shared.vtf&#10;scripts/vscripts/">${escapeHtml(formatConflictIgnoreList(getConfig().conflictIgnoreFiles))}</textarea>
               <div class="addonlist-action-row">

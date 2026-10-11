@@ -23,7 +23,9 @@ test("冲突卡片接了长按拖拽，并且复用「提前/延后」的写入�
   // 按钮分支与拖拽分支都必须走 applyConflictOrderMove
   assert.match(source, /await applyConflictOrderMove\(path, btn\.dataset\.targetPath, btn\.dataset\.orderDirection\)/);
   assert.match(source, /applyConflictOrderMove\(path, targetPath, direction, \{ source: "drag" \}\)/);
-  assert.match(source, /长按拖动可排序/);
+  const messages = JSON.parse(read("src/messages/zh-CN.json"));
+  assert.equal(messages.conflicts.groupDragHint, "长按拖动可排序");
+  assert.match(source, /t\("conflicts\.groupDragHint"\)/);
 });
 
 test("修复建议默认收起，点按钮才展开（且展开时给全部建议）", () => {

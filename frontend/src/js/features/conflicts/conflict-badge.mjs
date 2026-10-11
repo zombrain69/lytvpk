@@ -3,13 +3,15 @@
 // 后端 GetConflictBadges 已按路径给出每个 Mod 的冲突/覆盖文件数与严重度，
 // 这里只负责把它变成列表上的一行短标签，以及决定是否需要提示。
 
+import { t } from "../../core/i18n-runtime.js";
+
 export function formatConflictBadgeLabel(badge) {
   if (!badge) return "";
   const conflicts = Number(badge.conflictFiles || 0);
   const overrides = Number(badge.overrideFiles || 0);
   const parts = [];
-  if (conflicts > 0) parts.push(`${conflicts} 处冲突`);
-  if (overrides > 0) parts.push(`${overrides} 处覆盖`);
+  if (conflicts > 0) parts.push(t("conflicts.badgeCountConflicts", { count: conflicts }));
+  if (overrides > 0) parts.push(t("conflicts.badgeCountOverrides", { count: overrides }));
   return parts.join(" · ");
 }
 

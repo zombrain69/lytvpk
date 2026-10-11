@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+import { t } from "../../core/i18n-runtime.js";
+
+installTestCatalog();
+
 import {
   conflictGroupTags,
   conflictHighlightSpec,
@@ -88,7 +93,11 @@ test("冲突弹窗真的接上了统一检索", () => {
   assert.match(source, /describeConflictSearch\(/, "要有命中计数");
   assert.match(source, /conflictHighlightSpec\(/, "命中项要高亮");
   assert.match(source, /CONFLICT_SEARCH_HELP_VARIANT|buildSearchHelpHtml/, "要有语法提示（与其它面板同源）");
-  assert.match(source, /已过滤/, "覆盖关系区被过滤时要写清「显示 / 总数」");
+  assert.match(source, /conflicts\.overrideCountFiltered/, "覆盖关系区被过滤时要写清「显示 / 总数」（文案键）");
+  assert.ok(
+    t("conflicts.overrideCountFiltered", { shown: 3, total: 9 }).includes("已过滤"),
+    "目录文案要保留「已过滤」字样",
+  );
 });
 
 // 真机踩出来的坑：字段里有完整路径，排除词如果也用模糊匹配，

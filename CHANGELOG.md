@@ -1,5 +1,34 @@
 # Changelog
 
+## 未发布 — i18n：迁移冲突检测家族（conflicts，8 个源文件）（第 13 项第一批）（2026-10-11）
+
+- `conflicts.js` 全部用户可见文案改走 `t()`（109 处；3 处 console 诊断保持原样）：
+  弹窗标题与开始按钮两态、进度与状态文案（含重试等待）、对比范围摘要与预览行、
+  空态与筛选说明（`filterDescriptions` 改 `FILTER_DESCRIPTION_KEYS` key 表，模块求值期不取文案）、
+  修复建议区（展开/收起、设置分层、需手动处理、计数）、忽略与覆盖区计数（含「已过滤」）、
+  分组卡片全部文本与悬停说明（严重度徽标、覆盖徽标、同层、文件计数、拖拽提示、
+  提前/延后/详情/游戏开关/启停按钮及其 title）、文件树加载与截断提示、分页、文件分类 19 类标签。
+- 纯文案层四个 `.mjs` 一并迁移：`conflict-scope-label.mjs`（规则名 `RULE_LABELS` 改
+  `RULE_LABEL_KEYS`、标签条件、同时满足/满足任一前缀、覆盖判定后缀、当前/将按前缀词）、
+  `conflict-search.mjs`（严重度标签、`tag:` 分类值`同层/未记录`、检索名词）、
+  `scoped-conflict-summary.mjs`（角标与悬停说明全部模板，含胜者后缀）、
+  `conflict-badge.mjs`（`N 处冲突 / N 处覆盖`）；另迁移 `conflict-recheck.js`（建议操作三条提示）
+  与 `singleton-conflict.js`（同类互斥提示句）。
+- `conflict-ignore-options.mjs` 的说明常量升级为目录 key
+  （`settings.addonlist.conflict.ignoreList.desc`），`settings-page.js` 改为 `t()` 取值；
+  该常量除设置页外无消费者，导出随之移除。
+- 目录新增 152 key：`conflicts.*` 150（组内 44 → 194）+ `mods.singletonConflict.prompt` +
+  `settings.addonlist.conflict.ignoreList.desc`；既有条目值零改动。
+- 测试：四个纯模块测试与 `conflict-row-drag-static.test.mjs` 注入 `installTestCatalog()`
+  （纯模块也断言真实中文文案）；`conflict-search.test.mjs` 的「已过滤」源码断言改为
+  「源码接线 + 目录内容」双重校验。
+- 说明（留档）：共享的 `core/field-search.mjs` 计数模板（「匹配 N / M 个…」）与
+  `file-list/search-help.mjs` 语法说明书不在本批范围，随 file-list 轮次迁移；
+  冲突检索的 `tag:` 分类值随界面语言变化，与用户检索输入保持同一语言。
+- 验证：`node --test`（frontend，118 文件）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变
+  （人工验收项见 manual-verification.md 第 13 节）。
+
 ## 未发布 — i18n：app-runtime 协议/事件提示 + shell 导航迁移（第 11 项）（2026-10-11）
 
 - `app-runtime.js` 全部用户可见提示改走 `t()`（23 处）：初始化失败 / 前端崩溃报告两条兜底文案

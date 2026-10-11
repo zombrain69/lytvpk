@@ -6,6 +6,7 @@
 
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { EventsOn } from "../../../../wailsjs/runtime/runtime";
 import {
   GetConflictBadges,
@@ -83,7 +84,7 @@ export async function loadConflictFixSuggestions() {
  */
 export async function applyConflictFixSuggestion(suggestion) {
   if (!suggestion || suggestion.action !== "set-tier" || !suggestion.targetKey) {
-    showError("这条建议需要手动处理（请先让该 Mod 写入 addonlist.txt）");
+    showError(t("conflicts.fixApplyManualRequired"));
     return false;
   }
   if (pendingSuggestionApply) return false;
@@ -95,7 +96,10 @@ export async function applyConflictFixSuggestion(suggestion) {
       Number(suggestion.suggestedTier),
     );
     showNotification(
-      `已把“${suggestion.targetName || suggestion.targetKey}”的分层设为 ${suggestion.suggestedTier}；到“编辑加载顺序”点“按分层应用”后生效`,
+      t("conflicts.fixApplied", {
+        name: suggestion.targetName || suggestion.targetKey,
+        tier: suggestion.suggestedTier,
+      }),
       "success",
     );
     if (typeof onSuggestionsChanged === "function") {
@@ -103,7 +107,7 @@ export async function applyConflictFixSuggestion(suggestion) {
     }
     return true;
   } catch (error) {
-    showError("保存分层失败: " + String(error?.message || error));
+    showError(t("conflicts.fixSaveFailed", { error: String(error?.message || error) }));
     return false;
   } finally {
     pendingSuggestionApply = false;

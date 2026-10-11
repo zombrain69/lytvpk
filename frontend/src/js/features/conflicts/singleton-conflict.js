@@ -6,6 +6,8 @@
 
 const CHOICES = new Set(["replace", "coexist", "cancel"]);
 
+import { t } from "../../core/i18n-runtime.js";
+
 export function promptSingletonConflict(conflict) {
   const modal = document.getElementById("singleton-conflict-modal");
   if (!modal) return Promise.resolve("coexist");
@@ -13,7 +15,9 @@ export function promptSingletonConflict(conflict) {
   const message = document.getElementById("singleton-conflict-message");
   const list = document.getElementById("singleton-conflict-list");
   if (message) {
-    message.textContent = `检测到同类的 Mod 已经在游戏内启用：${conflict?.label || conflict?.key || ""}。`;
+    message.textContent = t("mods.singletonConflict.prompt", {
+      label: conflict?.label || conflict?.key || "",
+    });
   }
   if (list) {
     list.innerHTML = "";
