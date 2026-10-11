@@ -1,5 +1,21 @@
 # Changelog
 
+## 未发布 — i18n：设置页富文本说明迁完（片段 key）（2026-10-11）
+
+- 5 处内联 `<strong>/<code>/<br>` 的富文本说明用「片段 key」迁移：代码标签与占位符示例
+  （`{path}` / `{dir}` / `.meta` / `pak01_dir.vpk` / `stock-files` / `suite_inheritance.json` 等）
+  留在模板里，周围的文字片段进目录 —— `settings.interface.openWith.help.*`（12 键）、
+  `settings.workshop.data.enrich.descBeforeMeta / descAfterMeta / descTail`、
+  `settings.addonlist.stockWhitelist.descHead / descMid / descTail`、
+  `settings.addonlist.maintenance.suite.descHead / descTail`、
+  `settings.addonlist.maintenance.customTags.descHead / descStrongLabel / descAfterStrong /
+  descStrongTag / descTail / exampleLabel / exampleJson`。
+- `open-with-settings.test.mjs` 的「留空 = 系统默认」与 `settings-bindings.test.mjs` 的
+  「抓取工坊官方标签与统计」断言改为「源码接线 + 目录内容」双重校验
+  （后者原先靠源码注释侥幸通过）。
+- 文档：`docs/development/i18n.md` 残留段更新。
+- 验证：`node --test`（frontend）565 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — i18n：迁移设置页主文件（settings-page.js / problem-mod-scan.js / settings.js）（2026-10-11）
 
 - `settings-page.js` 全部用户可见文案改走 `t()`：四个导航项、五个分区（网络加速、显示偏好、
@@ -17,8 +33,8 @@
   「kind → 文案 key → zh-CN.json → 文档表格」；`reading-comfort-settings.test.mjs` /
   `strategy-group-batch.test.mjs` 改「源码接线 + 目录内容」双重校验。
 - 5 处内联 `<strong>/<code>/<br>` 的富文本说明（打开文件方式 / 工坊官方标签与统计 /
-  游戏原版文件白名单 / 套件继承快照 / 自定义标签规则）与弹窗静态骨架同类，
-  **留待专门轮次**（记 i18n.md 与开发路线图）；模块内注释与 console 诊断不迁移，
+  游戏原版文件白名单 / 套件继承快照 / 自定义标签规则）随后用「片段 key」补迁（见上一节）；
+  模块内注释与 console 诊断不迁移，
   `config.workshopTranslateCustomAPIKey` 的 "已设置" 为配置哨兵值、保持原样。
 - 文档：`docs/development/i18n.md`、`docs/development/manual-verification.md` §13。
 - 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）565 项 0 失败；

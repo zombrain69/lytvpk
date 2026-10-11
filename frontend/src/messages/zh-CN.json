@@ -893,7 +893,21 @@
         "argsLabel": "参数模板",
         "argsPlaceholder": "例如 /O /T /L=\"{dir}\"",
         "save": "保存",
-        "reset": "恢复默认"
+        "reset": "恢复默认",
+        "help": {
+          "leaveEmptyLabel": "留空 = 系统默认",
+          "afterLeaveEmpty": "（Windows 用资源管理器定位并选中文件，行为与以前完全一致）。",
+          "beforeProgramExample": "想换成别的程序就填程序路径（例如 ",
+          "afterProgramExample": "）与参数模板，只填命令名（如 ",
+          "afterCommandName": "）时会交给 PATH 查找。",
+          "placeholdersLabel": "参数模板占位符：",
+          "wordPath": " 完整路径、",
+          "wordDir": " 所在目录、",
+          "wordName": " 文件名",
+          "fireaxeNoteBefore": "（也兼容 FireAxe 的 ",
+          "fireaxeNoteAfter": " = 完整路径）；模板里一个占位符都不写时，会自动把完整路径追加到最后。",
+          "quoteExample": "参数里的空格用双引号包住，例如 "
+        }
       }
     },
     "workshop": {
@@ -942,7 +956,10 @@
           "missing": "本地没有文件 {count} 个",
           "failed": "官方接口没返回 {count} 个",
           "done": "工坊官方资料抓取完成：{parts}",
-          "failure": "抓取工坊官方资料失败: {error}"
+          "failure": "抓取工坊官方资料失败: {error}",
+          "descBeforeMeta": "向 Steam 官方接口补取工坊自带的分类标签（如 Survivors / Sounds / Single Player）与订阅数、收藏数、浏览量，写进每个工坊 Mod 的同名 ",
+          "descAfterMeta": "。抓过之后，「准备给智能体材料」的清单里会多出 ",
+          "descTail": "，分组建议的准确率会更高。只读远端数据，不改 Mod 文件与 addonlist。"
         }
       },
       "collections": {
@@ -1183,7 +1200,10 @@
         "statusFailed": "读取白名单状态失败: {error}",
         "parsing": "正在解析原版 pak01_dir.vpk…",
         "generated": "已按类别生成原版文件白名单批次",
-        "generateFailed": "生成失败: {error}"
+        "generateFailed": "生成失败: {error}",
+        "descHead": "原版文件白名单用于降低“两个 Mod 各带一份原版文件”造成的误报，只影响忽略判定，不会改写任何文件。默认启用内置的引擎胶水批次；可按类别从本机原版 ",
+        "descMid": " 生成增量批次，生成结果保存在配置目录的 ",
+        "descTail": " 下，删除文件即可停用该类别。"
       },
       "profiles": {
         "cardTitle": "启用方案",
@@ -1293,7 +1313,9 @@
           "resetDetail": "，原有 {count} 个命名空间记录",
           "resetDone": "已重置套件继承快照{detail}，并按当前 Mod 重新扫描。",
           "resetDoneNotify": "已重置套件继承快照{detail}",
-          "resetFailed": "重置套件继承快照失败: {error}"
+          "resetFailed": "重置套件继承快照失败: {error}",
+          "descHead": "同一个作者命名空间（套件）里的标签继承结果会记在本机的 ",
+          "descTail": "：只增不减，所以你删掉几个同套件的 Mod 也不会突然掉标签。重置会清空这份记录，下一次扫描按当前 Mod 重新推导；重置只会少继承、不会少标，Mod 文件与 addonlist.txt 都不受影响。"
         },
         "customTags": {
           "cardTitle": "自定义标签规则",
@@ -1312,7 +1334,14 @@
           "saving": "正在保存并重扫…",
           "saved": "已保存 {count} 条规则并重新扫描",
           "savedNotify": "自定义标签规则已生效（{count} 条），已重新扫描",
-          "saveFailed": "保存自定义标签规则失败: {error}"
+          "saveFailed": "保存自定义标签规则失败: {error}",
+          "descHead": "按",
+          "descStrongLabel": "文件名 / 标题 / 已识别标签",
+          "descAfterStrong": "再补一层自定义标签，用于你自己的命名习惯（例如\"三角洲\"\"写实包\"）。口径与内置规则一致：",
+          "descStrongTag": "只增不减",
+          "descTail": "，不改动也不删除自动识别结果，也不参与冲突/优先级判定。保存后会重新扫描一次全库。",
+          "exampleLabel": "示例：",
+          "exampleJson": "{\"version\":1,\"rules\":[{\"tag\":\"三角洲\",\"nameContains\":[\"三角洲\",\"delta\"]},{\"tag\":\"贴图包\",\"anyTags\":[\"贴图\"]}]}"
         }
       },
       "dns": {

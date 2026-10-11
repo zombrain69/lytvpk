@@ -8,6 +8,9 @@ import test from "node:test";
 const settingsPage = readFileSync(new URL("./settings-page.js", import.meta.url), "utf8");
 const runtime = readFileSync(new URL("../app-runtime.js", import.meta.url), "utf8");
 const configSource = readFileSync(new URL("../../core/config.js", import.meta.url), "utf8");
+const catalog = JSON.parse(
+  readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+);
 
 test("设置页有程序 / 参数两个输入框与保存、恢复默认按钮", () => {
   assert.match(settingsPage, /id="settings-open-with-program"/, "缺少程序输入框");
@@ -15,7 +18,13 @@ test("设置页有程序 / 参数两个输入框与保存、恢复默认按钮",
   assert.match(settingsPage, /id="settings-open-with-save"/, "缺少保存按钮");
   assert.match(settingsPage, /id="settings-open-with-reset"/, "缺少恢复默认按钮");
   assert.match(settingsPage, /\{path\}|\{dir\}|\{name\}/, "界面要说明占位符写法");
-  assert.match(settingsPage, /留空.*系统默认|系统默认.*留空/, "要写清留空等于系统默认");
+  // 文案本体已迁入目录：源码留接线，文字断言目录内容。
+  assert.match(
+    settingsPage,
+    /settings\.interface\.openWith\.help\.leaveEmptyLabel/,
+    "要写清留空等于系统默认（接线）",
+  );
+  assert.match(catalog.settings.interface.openWith.help.leaveEmptyLabel, /留空 = 系统默认/);
 });
 
 test("保存/恢复默认用事件委托绑定并调用后端 SetOpenWithSettings", () => {

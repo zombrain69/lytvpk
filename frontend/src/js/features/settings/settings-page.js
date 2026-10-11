@@ -463,12 +463,11 @@ export async function renderSettingsPage(deps) {
               <div class="setting-row-info">
                 <div class="setting-row-label">${t("settings.interface.openWith.label")}</div>
                 <div class="setting-row-desc">
-                  <strong>留空 = 系统默认</strong>（Windows 用资源管理器定位并选中文件，行为与以前完全一致）。<br>
-                  想换成别的程序就填程序路径（例如 <code>C:\Tools\totalcmd\TOTALCMD64.EXE</code>）与参数模板，
-                  只填命令名（如 <code>code</code>）时会交给 PATH 查找。<br>
-                  参数模板占位符：<code>{path}</code> 完整路径、<code>{dir}</code> 所在目录、<code>{name}</code> 文件名
-                  （也兼容 FireAxe 的 <code>{0}</code> = 完整路径）；模板里一个占位符都不写时，会自动把完整路径追加到最后。
-                  参数里的空格用双引号包住，例如 <code>/O /T /L="{dir}"</code>。
+                  <strong>${t("settings.interface.openWith.help.leaveEmptyLabel")}</strong>${t("settings.interface.openWith.help.afterLeaveEmpty")}<br>
+                  ${t("settings.interface.openWith.help.beforeProgramExample")}<code>C:\Tools\totalcmd\TOTALCMD64.EXE</code>${t("settings.interface.openWith.help.afterProgramExample")}<code>code</code>${t("settings.interface.openWith.help.afterCommandName")}<br>
+                  ${t("settings.interface.openWith.help.placeholdersLabel")}<code>{path}</code>${t("settings.interface.openWith.help.wordPath")}<code>{dir}</code>${t("settings.interface.openWith.help.wordDir")}<code>{name}</code>${t("settings.interface.openWith.help.wordName")}
+                  ${t("settings.interface.openWith.help.fireaxeNoteBefore")}<code>{0}</code>${t("settings.interface.openWith.help.fireaxeNoteAfter")}
+                  ${t("settings.interface.openWith.help.quoteExample")}<code>/O /T /L="{dir}"</code>。
                 </div>
               </div>
             </div>
@@ -552,12 +551,7 @@ export async function renderSettingsPage(deps) {
             <div class="setting-row">
               <div class="setting-row-info">
                 <div class="setting-row-label">${t("settings.workshop.data.enrich.label")}</div>
-                <div class="setting-row-desc">
-                  向 Steam 官方接口补取工坊自带的分类标签（如 Survivors / Sounds / Single Player）
-                  与订阅数、收藏数、浏览量，写进每个工坊 Mod 的同名 <code>.meta</code>。
-                  抓过之后，「准备给智能体材料」的清单里会多出 <code>workshop.steamTags</code>，
-                  分组建议的准确率会更高。只读远端数据，不改 Mod 文件与 addonlist。
-                </div>
+                <div class="setting-row-desc">${t("settings.workshop.data.enrich.descBeforeMeta")}<code>.meta</code>${t("settings.workshop.data.enrich.descAfterMeta")}<code>workshop.steamTags</code>${t("settings.workshop.data.enrich.descTail")}</div>
               </div>
               <div class="setting-row-control">
                 <button type="button" id="settings-workshop-enrich" class="trigger-check-btn">
@@ -791,11 +785,7 @@ export async function renderSettingsPage(deps) {
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
                 <div class="setting-row-label">${t("settings.addonlist.stockWhitelist.label")}</div>
-                <div class="setting-row-desc">
-                  原版文件白名单用于降低“两个 Mod 各带一份原版文件”造成的误报，只影响忽略判定，不会改写任何文件。
-                  默认启用内置的引擎胶水批次；可按类别从本机原版 <code>pak01_dir.vpk</code> 生成增量批次，
-                  生成结果保存在配置目录的 <code>stock-files</code> 下，删除文件即可停用该类别。
-                </div>
+                <div class="setting-row-desc">${t("settings.addonlist.stockWhitelist.descHead")}<code>pak01_dir.vpk</code>${t("settings.addonlist.stockWhitelist.descMid")}<code>stock-files</code>${t("settings.addonlist.stockWhitelist.descTail")}</div>
               </div>
               <div class="addonlist-action-row">
                 <button type="button" id="settings-stock-whitelist-generate" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.stockWhitelist.generate")}</button>
@@ -920,12 +910,7 @@ export async function renderSettingsPage(deps) {
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
                 <div class="setting-row-label">${t("settings.addonlist.maintenance.suite.label")}</div>
-                <div class="setting-row-desc">
-                  同一个作者命名空间（套件）里的标签继承结果会记在本机的 <code>suite_inheritance.json</code>：
-                  只增不减，所以你删掉几个同套件的 Mod 也不会突然掉标签。
-                  重置会清空这份记录，下一次扫描按当前 Mod 重新推导；重置只会少继承、不会少标，
-                  Mod 文件与 addonlist.txt 都不受影响。
-                </div>
+                <div class="setting-row-desc">${t("settings.addonlist.maintenance.suite.descHead")}<code>suite_inheritance.json</code>${t("settings.addonlist.maintenance.suite.descTail")}</div>
               </div>
             <div class="addonlist-action-row settings-profile-capture-row">
               <button type="button" id="settings-reset-suite-inheritance" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.maintenance.suite.reset")}</button>
@@ -938,11 +923,9 @@ export async function renderSettingsPage(deps) {
               <div class="setting-row-info">
                 <div class="setting-row-label">${t("settings.addonlist.maintenance.customTags.label")}</div>
                 <div class="setting-row-desc">
-                  按<strong>文件名 / 标题 / 已识别标签</strong>再补一层自定义标签，用于你自己的命名习惯（例如"三角洲""写实包"）。
-                  口径与内置规则一致：<strong>只增不减</strong>，不改动也不删除自动识别结果，也不参与冲突/优先级判定。
-                  保存后会重新扫描一次全库。
-                  <br>示例：
-                  <code>{"version":1,"rules":[{"tag":"三角洲","nameContains":["三角洲","delta"]},{"tag":"贴图包","anyTags":["贴图"]}]}</code>
+                  ${t("settings.addonlist.maintenance.customTags.descHead")}<strong>${t("settings.addonlist.maintenance.customTags.descStrongLabel")}</strong>${t("settings.addonlist.maintenance.customTags.descAfterStrong")}<strong>${t("settings.addonlist.maintenance.customTags.descStrongTag")}</strong>${t("settings.addonlist.maintenance.customTags.descTail")}
+                  <br>${t("settings.addonlist.maintenance.customTags.exampleLabel")}
+                  <code>${t("settings.addonlist.maintenance.customTags.exampleJson")}</code>
                 </div>
               </div>
               <textarea id="settings-custom-tag-rules" class="settings-conflict-ignore-editor" rows="6" spellcheck="false" placeholder='${t("settings.addonlist.maintenance.customTags.placeholder")}'>${escapeHtml(customTagRulesText)}</textarea>

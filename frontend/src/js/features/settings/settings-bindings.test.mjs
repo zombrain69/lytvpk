@@ -14,6 +14,9 @@ import test from "node:test";
 const SETTINGS_PAGE_URL = new URL("./settings-page.js", import.meta.url);
 const APP_RUNTIME_URL = new URL("../app-runtime.js", import.meta.url);
 const SETTINGS_MODULE_URL = new URL("./settings.js", import.meta.url);
+const catalog = JSON.parse(
+  readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+);
 
 const BINDING_PREFIXES = [
   "Get", "Set", "List", "Capture", "Apply", "Delete", "Import", "Export", "Preview",
@@ -276,7 +279,9 @@ test("设置页有「抓取工坊官方标签与统计」入口，并真的调�
   const runtime = readFileSync(APP_RUNTIME_URL, "utf8");
   assert.match(page, /id="settings-workshop-enrich"/, "缺少抓取按钮");
   assert.match(page, /deps\.EnrichAllWorkshopMetadata\(\)/, "按钮要真的调用后端");
-  assert.match(page, /工坊官方标签与统计/, "按钮要有说明文案");
+  // 文案本体已迁入目录：源码留接线（t 键名），文字断言目录内容。
+  assert.match(page, /settings\.workshop\.data\.enrich\.label/, "按钮要有说明文案（接线）");
+  assert.match(catalog.settings.workshop.data.enrich.label, /工坊官方标签与统计/);
   assert.match(runtime, /EnrichAllWorkshopMetadata/, "app-runtime 必须注入该绑定");
 });
 
