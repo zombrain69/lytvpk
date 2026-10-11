@@ -1,4 +1,5 @@
 import { buildSettingsDeps } from "./settings-deps.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 // settingsDeps 保存 configureSettings 注入的完整依赖对象。
 // renderSettingsPage 需要全部绑定（策略组权重、启用方案、依赖、体检…），
@@ -87,9 +88,9 @@ export async function renderSettingsPageWithDeps() {
         message.className = "settings-read-warning";
         message.setAttribute("role", "alert");
         const title = document.createElement("strong");
-        title.textContent = "设置页面加载失败。";
+        title.textContent = t("settings.page.loadFailed");
         const detail = document.createElement("span");
-        detail.textContent = `请稍后重试；若问题持续存在，请重启应用。原因：${String(error?.message || error || "未知错误")}`;
+        detail.textContent = t("settings.page.loadFailedDetail", { error: String(error?.message || error || t("settings.page.unknownError")) });
         message.append(title, detail);
         container.replaceChildren(message);
       }

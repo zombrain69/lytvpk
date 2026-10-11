@@ -19,6 +19,9 @@ const settingsSource = readFileSync(
 );
 const groupUiSource = readFileSync(path.join(here, "group-ui.js"), "utf8");
 const cssSource = readFileSync(path.resolve(here, "../../../css/app/mods.css"), "utf8");
+const catalog = JSON.parse(
+  readFileSync(path.resolve(here, "../../../messages/zh-CN.json"), "utf8"),
+);
 
 test("独立窗口的结构在 index.html 里（头部 / 滚动区 / 底部）", () => {
   assert.match(indexHtml, /id="strategy-group-modal"/, "缺少策略组管理窗口");
@@ -286,7 +289,13 @@ test("设置页不再自带策略组管理界面", () => {
     "设置页不应再渲染组列表",
   );
   // 指针式入口允许保留，并且只能有一个按钮，避免又长回一整块管理界面。
-  assert.match(settingsSource, /策略组已经搬到独立窗口/, "设置页要说明入口去哪了");
+  // 文案本体已迁入目录：源码只留接线，文字内容断言目录。
+  assert.match(settingsSource, /settings\.addonlist\.strategyGroups\.desc/, "设置页要说明入口去哪了（接线）");
+  assert.match(
+    catalog.settings.addonlist.strategyGroups.desc,
+    /策略组已经搬到独立窗口/,
+    "目录里要有入口去向说明",
+  );
 });
 
 test("勾选与组归属变化会驱动窗口刷新", () => {

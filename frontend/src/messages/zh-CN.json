@@ -756,6 +756,672 @@
         "getMissing": "当前后端未提供 GetAutoexecConfig 接口",
         "saveMissing": "当前后端未提供 SaveAutoexecConfig 接口"
       }
+    },
+    "nav": {
+      "network": "网络设置",
+      "interface": "界面设置",
+      "workshop": "工坊设置",
+      "addonlist": "游戏配置"
+    },
+    "page": {
+      "apiUnavailable": "当前后端未提供此设置接口",
+      "readFailed": "读取失败",
+      "readWarningTitle": "部分设置状态暂时无法从后端读取，已显示上次保存的值：",
+      "readAddonListFailed": "无法读取 addonlist.txt 状态",
+      "readAutoexecFailed": "无法读取 autoexec.cfg",
+      "readProfilesFailed": "无法读取启用方案",
+      "readDependenciesFailed": "无法读取依赖记录",
+      "loadFailed": "设置页面加载失败。",
+      "loadFailedDetail": "请稍后重试；若问题持续存在，请重启应用。原因：{error}",
+      "unknownError": "未知错误"
+    },
+    "readLabels": {
+      "preferredIP": "优选 IP",
+      "fixedIP": "固定 IP",
+      "metaEnabled": "工坊信息存储",
+      "updateCheck": "Mod 更新检测",
+      "autoRedownload": "自动重下",
+      "browserTarget": "工坊跳转目标",
+      "translateProvider": "翻译服务",
+      "customBaseUrl": "自定义 AI Base URL",
+      "customModel": "自定义 AI 模型",
+      "customApiKey": "自定义 AI 密钥状态",
+      "ipSelecting": "优选 IP 状态",
+      "bestIP": "当前优选 IP",
+      "bestIPAddress": "当前优选 IP 地址"
+    },
+    "network": {
+      "cardTitle": "网络加速",
+      "enable": {
+        "label": "开启优选 IP 加速",
+        "desc": "加速创意工坊图片与文件下载"
+      },
+      "mode": {
+        "label": "加速模式",
+        "auto": "自动优选最佳 IP（推荐）",
+        "fixed": "手动指定 IP"
+      },
+      "ip": {
+        "selecting": "正在优选最佳线路...",
+        "notReady": "尚未获取到优选 IP",
+        "statusFixed": "当前固定 IP: {label}",
+        "statusAuto": "当前优选 IP: {label}",
+        "customCategory": "自定义",
+        "uncategorized": "未分类",
+        "fixedPlaceholder": "例如: 23.59.72.59",
+        "loadingOptions": "正在加载推荐固定 IP...",
+        "optionsFailed": "候选 IP 加载失败，可自建服务器并填写 IP",
+        "triggerPrompt": "选择优选 IP，也可自建服务器并填写 IP",
+        "triggerEmpty": "暂无候选 IP，可自建服务器并填写 IP",
+        "ipOn": "已开启优选 IP 加速",
+        "ipOff": "已关闭优选 IP 加速",
+        "updateFailed": "更新优选 IP 设置失败: {error}",
+        "modeFailed": "切换 IP 模式失败: {error}",
+        "fixedUpdated": "已更新固定 IP 设置",
+        "fixedFailed": "更新固定 IP 设置失败: {error}"
+      },
+      "dns": {
+        "statusCustom": "当前：自定义 DNS {address}",
+        "statusSystem": "当前：系统 DNS"
+      }
+    },
+    "interface": {
+      "display": {
+        "cardTitle": "显示偏好"
+      },
+      "displayMode": {
+        "label": "显示模式",
+        "desc": "切换文件列表的显示布局",
+        "list": "列表",
+        "card": "卡片",
+        "saveFailed": "保存显示模式失败: {error}"
+      },
+      "uiScale": {
+        "label": "界面缩放",
+        "desc": "调整整个应用的文字和间距；也可使用 Ctrl +、Ctrl -、Ctrl 0",
+        "decrease": "减小界面缩放",
+        "increase": "增大界面缩放",
+        "percentLabel": "界面缩放百分比",
+        "saveFailed": "保存界面缩放失败: {error}"
+      },
+      "boxSelection": {
+        "label": "框选模式",
+        "desc": "拖拽绘制选择框，批量选择 VPK 文件",
+        "on": "已开启框选模式",
+        "off": "已关闭框选模式",
+        "saveFailed": "保存框选模式失败: {error}"
+      },
+      "textSize": {
+        "label": "文字大小",
+        "desc": "只改文字大小、不动布局；与上面的「界面缩放」相乘生效，方便在 2K / 4K 屏上把字调清楚"
+      },
+      "readingComfort": {
+        "label": "阅读舒适度",
+        "desc": "调整行距与文字对比度：当前「{current}」——柔和＝行距更松、对比更柔（长时间看不累）；高对比＝文字更深、适合强光或弱视",
+        "saved": "文字大小：{textSize} · 阅读舒适度：{comfort}",
+        "failed": "保存阅读设置失败: {error}"
+      },
+      "ctrlClick": {
+        "label": "Ctrl+单击选择",
+        "desc": "按住 Ctrl 键并单击 Mod，可快速选中或取消选中；Shift+单击可按当前排序选择连续范围",
+        "on": "已开启 Ctrl+单击选择",
+        "off": "已关闭 Ctrl+单击选择",
+        "saveFailed": "保存 Ctrl+单击选择失败: {error}"
+      },
+      "filterLayout": {
+        "label": "筛选布局",
+        "desc": "切换后立即应用到 Mod 列表。两种布局保留相同的筛选能力：简洁模式更省空间；经典模式直接展示常用条件与预设入口。",
+        "compact": {
+          "title": "简洁下拉",
+          "hint": "节省空间，适合专注浏览",
+          "badge": "紧凑"
+        },
+        "classic": {
+          "title": "经典展开",
+          "hint": "常用条件直观可点",
+          "badge": "详细"
+        },
+        "classicOn": "已切换到经典展开筛选布局",
+        "compactOn": "已切换到简洁下拉筛选布局",
+        "saveFailed": "保存筛选布局失败: {error}"
+      },
+      "openWith": {
+        "cardTitle": "打开文件方式（可选）",
+        "label": "用其它程序打开 / 定位 Mod",
+        "programLabel": "程序",
+        "programPlaceholder": "留空 = 使用系统默认",
+        "argsLabel": "参数模板",
+        "argsPlaceholder": "例如 /O /T /L=\"{dir}\"",
+        "save": "保存",
+        "reset": "恢复默认"
+      }
+    },
+    "workshop": {
+      "data": {
+        "cardTitle": "工坊数据",
+        "meta": {
+          "label": "开启工坊信息存储",
+          "desc": "为工坊文件创建 .meta 文件，存储名称、作者等信息",
+          "on": "已开启工坊信息存储",
+          "off": "已关闭工坊信息存储",
+          "saveFailed": "更新工坊信息存储失败: {error}",
+          "refreshFailed": "工坊信息存储已保存，但列表刷新失败，请点击刷新按钮重试"
+        },
+        "updateCheck": {
+          "label": "开启Mod更新检测",
+          "desc": "每天自动检测含有工坊信息的Mod是否有新版本，需要先开启工坊信息存储",
+          "trigger": "立即触发检测",
+          "on": "已开启Mod更新检测",
+          "off": "已关闭Mod更新检测",
+          "saveFailed": "更新 Mod 检测设置失败: {error}",
+          "checking": "检测中...",
+          "checkDone": "检测完成，发现 {count} 个Mod有更新",
+          "checkClean": "检测完成，所有Mod均为最新版本",
+          "checkFailed": "检测失败: {error}"
+        },
+        "autoRedownload": {
+          "label": "下载失败后自动重下一次",
+          "desc": "默认关闭。开启后，新下载任务在失败时会自动重试一次（用户主动取消不会重试）；也可以在下载任务列表里单独开关某个任务。",
+          "on": "已开启：下载失败后自动重下一次",
+          "off": "已关闭自动重下",
+          "saveFailed": "保存自动重下设置失败: {error}"
+        },
+        "clipboard": {
+          "label": "剪贴板工坊链接自动识别",
+          "desc": "默认开启。复制创意工坊链接（或作品 ID）后切回本应用，会提示是否打开下载页并解析，不用再手动粘贴。窗口不在前台时不会读取剪贴板。",
+          "on": "已开启：剪贴板里的工坊链接会自动提示",
+          "off": "已关闭剪贴板工坊链接识别",
+          "saveFailed": "保存剪贴板识别设置失败: {error}"
+        },
+        "enrich": {
+          "label": "抓取工坊官方标签与统计",
+          "action": "开始抓取",
+          "running": "抓取中...",
+          "updated": "更新 {count} 个",
+          "unchanged": "本来就最新 {count} 个",
+          "missing": "本地没有文件 {count} 个",
+          "failed": "官方接口没返回 {count} 个",
+          "done": "工坊官方资料抓取完成：{parts}",
+          "failure": "抓取工坊官方资料失败: {error}"
+        }
+      },
+      "collections": {
+        "label": "工坊合集",
+        "desc": "把工坊合集保存成一条本地记录：之后可以“跟随节点”检查合集新增/下架的成员，并一键把本地缺失的成员加入下载队列。删除记录不会删除已下载的 Mod。",
+        "inputPlaceholder": "粘贴合集链接或合集 ID",
+        "capture": "保存合集",
+        "checkAll": "检查全部更新",
+        "itemMeta": "合集 {id} · {summary}{lastChecked}",
+        "lastChecked": " · 上次检查 {time}",
+        "downloadMissing": "下载缺失成员",
+        "refresh": "检查更新",
+        "delete": "删除记录",
+        "empty": "还没有保存过工坊合集。",
+        "needInput": "请先粘贴合集链接或合集 ID",
+        "parsing": "正在解析合集…",
+        "saved": "已保存合集「{title}」：{summary}",
+        "savedNotify": "工坊合集已保存",
+        "saveFailed": "保存合集失败: {error}",
+        "checkingAll": "正在检查全部合集…",
+        "checkFailed": "检查合集更新失败: {error}",
+        "downloadFailed": "下载合集失败: {error}",
+        "deleteConfirm": "删除这条合集记录？已下载的 Mod 文件不会被删除。",
+        "deleteConfirmTitle": "删除合集记录",
+        "deleted": "已删除合集记录",
+        "deleteFailed": "删除合集记录失败: {error}"
+      },
+      "browser": {
+        "cardTitle": "浏览器跳转",
+        "label": "跳转目标",
+        "desc": "选择“使用浏览器打开”时跳转的网站",
+        "mirror": "镜像站 l4d2ws.com",
+        "steam": "Steam 官方工坊",
+        "switchedMirror": "已切换到镜像站",
+        "switchedSteam": "已切换到 Steam 官方",
+        "switchFailed": "切换工坊浏览目标失败: {error}"
+      },
+      "translate": {
+        "cardTitle": "描述翻译",
+        "provider": {
+          "label": "翻译服务",
+          "desc": "用于创意工坊详情页的描述翻译",
+          "microsoft": "微软",
+          "custom": "自定义AI"
+        },
+        "custom": {
+          "title": "自定义AI配置",
+          "baseUrlPlaceholder": "Base URL，如 https://api.openai.com/v1",
+          "apiKeySetSuffix": "（已设置）",
+          "apiKeySetPlaceholder": "API Key（已设置）",
+          "modelPlaceholder": "模型ID，如 gpt-4o",
+          "baseUrlUpdated": "已更新自定义AI Base URL",
+          "baseUrlFailed": "更新自定义AI Base URL 失败: {error}",
+          "apiKeyUpdated": "已更新自定义AI API Key",
+          "apiKeyFailed": "更新自定义AI API Key 失败: {error}",
+          "modelUpdated": "已更新自定义AI模型ID",
+          "modelFailed": "更新自定义AI模型ID失败: {error}"
+        },
+        "switched": {
+          "microsoft": "已切换到微软翻译",
+          "yandex": "已切换到 Yandex 翻译",
+          "custom": "已切换到自定义AI翻译",
+          "default": "已切换翻译服务"
+        },
+        "switchFailed": "切换翻译服务失败: {error}"
+      }
+    },
+    "addonlist": {
+      "dirNotChosen": "尚未选择 Left 4 Dead 2 的 addons 目录",
+      "fileExists": "文件存在",
+      "fileMissing": "文件不存在，将在保存时创建",
+      "modifiedAt": "修改于 {time}",
+      "openLocation": "打开文件位置",
+      "targetFile": "目标文件",
+      "saveSnapshot": "保存当前配置为受保护版本",
+      "createBackup": "创建历史备份",
+      "autoexec": {
+        "cardTitle": "autoexec.cfg 编辑器与控制台指令小贴士",
+        "desc": "编辑后保存会保留游戏文件原有的编码、BOM 和换行格式；内容只写入文件，不会在本程序中执行。未知指令可能来自插件或 Mod。",
+        "contentLabel": "autoexec.cfg 内容",
+        "save": "保存 autoexec.cfg",
+        "reload": "重新读取",
+        "analysisSummary": "已识别 {known} 个已收录指令，{unknown} 个未知指令{risks}",
+        "riskHigh": "；高风险 {count}",
+        "riskMedium": "；中风险 {count}",
+        "analysisFailed": "指令识别失败：{error}",
+        "savedReloadFailed": "已保存 autoexec.cfg，但刷新文件状态失败: {error}",
+        "saved": "已保存 autoexec.cfg（编码与换行格式已保留）",
+        "saveFailed": "保存 autoexec.cfg 失败: {error}",
+        "reloaded": "已重新读取 autoexec.cfg",
+        "reloadFailed": "重新读取 autoexec.cfg 失败: {error}",
+        "openFailed": "打开 autoexec.cfg 位置失败: {error}",
+        "searchFailed": "搜索指令说明失败: {error}",
+        "help": {
+          "title": "常用指令说明",
+          "searchPlaceholder": "搜索命令或含义",
+          "empty": "未找到匹配指令"
+        },
+        "matchLine": "第 {line} 行 · {command}{unknown}",
+        "matchUnknownSuffix": "（未知指令）",
+        "matchAdvice": "可能来自插件或 Mod，建议确认来源后再保存。"
+      },
+      "lifecycle": {
+        "cardTitle": "addonlist.txt 生命周期管理",
+        "desc": "这里管理游戏实际读取的配置文件：先保存受保护版本，再按需创建历史备份；开启监控后，检测到游戏覆盖或删除时会自动恢复并保留外部内容。",
+        "ariaLabel": "addonlist.txt 生命周期",
+        "step1": {
+          "title": "1. 保存",
+          "desc": "记录当前字节和编码"
+        },
+        "step2": {
+          "title": "2. 备份",
+          "desc": "保留手动/恢复前版本"
+        },
+        "step3": {
+          "title": "3. 监控",
+          "desc": "覆盖后自动恢复"
+        },
+        "step4": {
+          "title": "4. 删除",
+          "desc": "删除前仍可恢复"
+        }
+      },
+      "unrecordedPlacement": {
+        "label": "未记录 Mod 首次开启时的位置",
+        "desc": "仅影响点击“未记录”后首次写入 addonlist.txt 的 Mod；已记录 Mod 的开关不会移动。默认放在列表末尾，避免改变已有 Mod 的相对加载顺序；成功后会提示实际优先级编号。",
+        "ariaLabel": "未记录 Mod 首次开启时的加载顺序位置",
+        "optionEnd": "列表末尾（默认，不重排已有 Mod）",
+        "optionStart": "列表顶部（优先级 #1）",
+        "optionAfterEnabled": "紧跟最后一个游戏内已开启 Mod",
+        "updated": "已更新未记录 Mod 首次开启时的加载顺序位置",
+        "failed": "保存未记录 Mod 插入位置失败: {error}"
+      },
+      "state": {
+        "exists": "存在",
+        "missing": "不存在"
+      },
+      "status": {
+        "fileState": "文件状态",
+        "encodingSize": "编码 / 大小",
+        "lastModified": "最后修改",
+        "snapshot": "受保护版本",
+        "snapshotSaved": "已保存",
+        "snapshotFailed": "未保存"
+      },
+      "guard": {
+        "label": "监控并自动恢复",
+        "desc": "默认关闭。仅在你手动开启后，应用运行期间才会检测游戏稳定写入或删除 addonlist.txt 的情况，恢复受保护版本并保留被覆盖内容的备份。",
+        "lastRestore": "最近自动恢复：{time}",
+        "status": "监控状态：{status}",
+        "on": "已开启 addonlist.txt 自动恢复监控",
+        "off": "已关闭 addonlist.txt 自动恢复监控",
+        "failed": "更新监控状态失败: {error}"
+      },
+      "delete": {
+        "button": "删除 addonlist.txt",
+        "confirmTitle": "删除 addonlist.txt",
+        "confirm": "删除 addonlist.txt？程序会先创建历史备份；自动恢复监控会关闭，受保护版本也会移除。",
+        "hint": "删除前会自动保留一份可恢复的历史备份，同时关闭监控并移除受保护版本。",
+        "done": "已删除 addonlist.txt，并保留删除前备份",
+        "failed": "删除 addonlist.txt 失败"
+      },
+      "backups": {
+        "cardTitle": "历史备份",
+        "restore": "恢复",
+        "delete": "删除",
+        "empty": "暂无历史备份。创建备份、恢复备份、自动恢复和删除配置前都会在这里保留记录。",
+        "kind": {
+          "manual": "手动备份",
+          "external": "游戏覆盖前",
+          "gameSave": "旧版短时保护写入前",
+          "before": "恢复/删除前",
+          "beforeProfileApply": "应用启用方案前",
+          "beforeHealthFix": "体检修复前",
+          "fallback": "历史备份"
+        },
+        "restoreConfirmTitle": "恢复历史备份",
+        "restoreConfirm": "恢复这份备份？当前 addonlist.txt 会先自动备份，然后被替换。",
+        "restored": "已恢复 addonlist.txt 备份并同步受保护版本",
+        "restoreFailed": "恢复备份失败",
+        "deleteConfirmTitle": "删除历史备份",
+        "deleteConfirm": "删除这份历史备份？该操作不可撤销。",
+        "deleted": "已删除历史备份",
+        "deleteFailed": "删除备份失败"
+      },
+      "actions": {
+        "snapshotSaved": "已保存 addonlist.txt 受保护版本",
+        "snapshotFailed": "保存受保护版本失败",
+        "backupCreated": "已创建 addonlist.txt 历史备份",
+        "backupFailed": "创建备份失败",
+        "openFailed": "打开 addonlist.txt 位置失败: {error}"
+      },
+      "merge": {
+        "cardTitle": "融合其他 Mod 文件夹配置",
+        "desc": "选择另一份 addonlist.txt。新增 Mod 会保留来源开关；相同 Mod 的冲突默认保留当前开关，可逐项勾选采用来源开关。",
+        "select": "选择其他 addonlist.txt",
+        "cancel": "取消本次融合",
+        "empty": "未选择来源配置。此功能也适用于临时维护的任意 Mod 文件夹。",
+        "source": "来源：{value}",
+        "added": "新增 {count} 项（沿用来源开关）",
+        "conflicts": "开关冲突 {count} 项",
+        "currentState": "当前：{state}",
+        "stateOn": "开启",
+        "stateOff": "关闭",
+        "adoptSource": "勾选采用来源",
+        "apply": "应用融合",
+        "readDone": "已读取融合差异，请确认冲突项的开关选择",
+        "readFailed": "读取融合差异失败",
+        "applied": "已融合 addonlist.txt 配置",
+        "applyFailed": "融合 addonlist.txt 失败"
+      },
+      "conflict": {
+        "cardTitle": "Mod 冲突分析",
+        "priorityAware": {
+          "label": "默认按加载顺序判定胜负",
+          "desc": "开启后，能在 addonlist.txt 中判定先后顺序的重叠会归入“覆盖关系”，只有无法判定胜负的重叠才计为冲突。",
+          "on": "已开启：按加载顺序判定覆盖",
+          "off": "已关闭：所有重叠都按冲突显示",
+          "saveFailed": "保存冲突分析设置失败: {error}"
+        },
+        "ignoreList": {
+          "label": "冲突忽略清单",
+          "descSuffix": "清单对所有冲突检测入口生效。",
+          "save": "保存忽略清单",
+          "saved": "已保存 {count} 条忽略规则",
+          "cleared": "已清空忽略清单",
+          "notify": "冲突忽略清单已保存",
+          "retry": "保存失败，请重试",
+          "saveFailed": "保存冲突忽略清单失败: {error}"
+        }
+      },
+      "stockWhitelist": {
+        "label": "游戏原版文件白名单",
+        "generate": "从原版 pak01 生成批次",
+        "reload": "刷新白名单状态",
+        "degraded": "（有批次解析失败，已跳过）",
+        "status": "内置 {builtin} 批 / 自定义 {user} 批，共 {total} 条路径{degraded}",
+        "statusFailed": "读取白名单状态失败: {error}",
+        "parsing": "正在解析原版 pak01_dir.vpk…",
+        "generated": "已按类别生成原版文件白名单批次",
+        "generateFailed": "生成失败: {error}"
+      },
+      "profiles": {
+        "cardTitle": "启用方案",
+        "desc": "把当前 addonlist.txt 的开关与加载顺序保存为方案，之后可以一键切回；方案能导出成文件分享给别人。应用方案前会自动备份当前 addonlist.txt，方案未记录的 Mod 会保留原开关并排在最后。",
+        "namePlaceholder": "方案名称，例如 写实包",
+        "capture": "保存当前为方案",
+        "import": "导入方案",
+        "includeAutomation": {
+          "title": "勾选后，方案会一并保存当前策略组与依赖声明，应用时整体恢复",
+          "label": "同时保存策略组与依赖"
+        },
+        "entryCount": "{count} 个条目",
+        "apply": "应用",
+        "export": "导出",
+        "delete": "删除",
+        "empty": "还没有保存任何方案。保存后这里会列出可一键切换的方案。",
+        "needName": "请先填写方案名称",
+        "saved": "已保存方案“{name}”",
+        "captureFailed": "保存方案失败: {error}",
+        "imported": "已导入方案“{name}”",
+        "importFailed": "导入方案失败: {error}",
+        "applyConfirmTitle": "应用启用方案",
+        "applyConfirm": "应用这个启用方案？当前 addonlist.txt 会先自动备份，然后按方案的开关与顺序重写。",
+        "applyFailed": "应用方案失败: {error}",
+        "exported": "方案已导出到 {path}",
+        "exportFailed": "导出方案失败: {error}",
+        "deleteConfirmTitle": "删除方案",
+        "deleteConfirm": "删除这个方案？该操作不可撤销，但不会改动当前 addonlist.txt。",
+        "deleted": "方案已删除",
+        "deleteFailed": "删除方案失败: {error}"
+      },
+      "strategyGroups": {
+        "cardTitle": "策略组",
+        "desc": "策略组已经搬到独立窗口：在 Mod 管理页打开「分组」菜单，点「策略组管理…」即可建组、按策略应用、调整组权重与上级分组，并支持多选批量管理。这里不再重复一份。",
+        "open": "打开策略组管理窗口…"
+      },
+      "dependencies": {
+        "cardTitle": "Mod 依赖",
+        "desc": "依赖由你自己声明：在 Mod 管理页勾选一个“主 Mod”和它的依赖项，回到这里选择主 Mod 并保存。体检会提示“依赖被关闭”和“依赖文件缺失”，并支持一键启用依赖。",
+        "targetAria": "选择主 Mod",
+        "noSelection": "请先勾选 Mod",
+        "save": "把其它 {count} 个设为依赖",
+        "itemPrefix": "依赖：{list}",
+        "none": "无",
+        "enable": "启用依赖",
+        "delete": "删除",
+        "empty": "还没有声明任何依赖。",
+        "pickFirst": "请先在 Mod 管理页勾选一个主 Mod 和至少一个依赖项",
+        "saved": "已保存 {count} 个依赖",
+        "saveFailed": "保存依赖失败: {error}",
+        "enableFailed": "启用依赖失败: {error}",
+        "deleteConfirmTitle": "删除依赖声明",
+        "deleteConfirm": "删除这条依赖声明？不会改动 addonlist.txt。",
+        "deleted": "依赖声明已删除",
+        "deleteFailed": "删除依赖失败: {error}"
+      },
+      "health": {
+        "cardTitle": "Mod 体检",
+        "desc": "只读检查 addonlist.txt 与磁盘文件是否一致：条目缺少文件、只剩 disabled 副本、未写入开关记录、重复条目；深度扫描还会逐个解析 VPK 找出损坏文件。",
+        "deepScan": "深度扫描（较慢）",
+        "run": "开始体检",
+        "fixDuplicates": "清理重复条目",
+        "fixMissing": "清理失效条目",
+        "fixDependencies": "启用缺失依赖",
+        "copyReport": "复制报告",
+        "saveReport": "保存报告",
+        "searchPlaceholder": "搜索问题（对象名 / 路径 / 提示文案；支持 -排除 / re: 正则 / tag:严重度或类型）",
+        "searchAria": "搜索体检问题",
+        "searchHelpTitle": "搜索语法说明书",
+        "searchHelpAria": "体检搜索语法说明书",
+        "hiddenMore": "另有 {count} 条未显示",
+        "emptyHint": "点击“开始体检”运行检查。",
+        "regexInvalid": "正则表达式无效：{error}",
+        "noMatch": "没有匹配「{query}」的问题；清空搜索框可看到全部 {total} 条。",
+        "clean": "未发现问题。",
+        "autofixBar": "其中 {total} 项可以自动修复：{actions}。其余问题需要人工判断，不会自动改动任何文件。",
+        "autofixEntry": "{label}（{count}）",
+        "fixButton": "修复",
+        "displayLimit": "仅显示前 {limit} 条，另有 {hidden} 条未显示。",
+        "running": "正在体检…",
+        "runFailed": "体检失败: {error}",
+        "fixDuplicatesDone": "已清理 {count} 条重复条目",
+        "fixDuplicatesNone": "没有需要清理的重复条目",
+        "fixDuplicatesFailed": "清理重复条目失败: {error}",
+        "fixMissingConfirmTitle": "清理缺失条目",
+        "fixMissingConfirm": "删除那些在磁盘上已经找不到文件的 addonlist.txt 条目？\n· 写盘前会自动建立「体检修复前」备份\n· 工坊 Mod 在文件重新下载后会被游戏按默认状态加载",
+        "fixMissingDone": "已清理 {count} 条失效条目",
+        "fixMissingNone": "没有需要清理的失效条目",
+        "fixMissingFailed": "清理失效条目失败: {error}",
+        "noFixTarget": "这条依赖问题没有可操作目标：请在 Mod 管理页选中主 Mod 后手动启用依赖",
+        "fixDependenciesConfirmTitle": "启用依赖",
+        "fixDependenciesConfirm": "给 {name} 打开它声明的全部依赖？\n· 写盘前会自动建立「启用依赖前」备份（文件名前缀 before-dependency-fix）\n· 只改写 addonlist.txt 里这些依赖的开关，不动别的 Mod 与文件",
+        "fixDependenciesFailed": "启用缺失依赖失败: {error}",
+        "reportCopied": "体检报告已复制到剪贴板",
+        "copyReportFailed": "复制报告失败: {error}",
+        "reportSaved": "体检报告已保存：{path}",
+        "saveReportFailed": "保存报告失败: {error}"
+      },
+      "maintenance": {
+        "cardTitle": "分类与标签维护",
+        "suite": {
+          "label": "套件继承快照",
+          "reset": "重置套件继承快照",
+          "resetConfirmTitle": "重置套件继承快照",
+          "resetConfirm": "重置套件继承快照？这会清空本机记录的「套件 → 继承标签」结果，然后按当前 Mod 重新扫描。它只会少继承、不会少标，Mod 文件与 addonlist.txt 都不受影响。",
+          "resetting": "正在重置并按当前 Mod 重新扫描…",
+          "resetDetail": "，原有 {count} 个命名空间记录",
+          "resetDone": "已重置套件继承快照{detail}，并按当前 Mod 重新扫描。",
+          "resetDoneNotify": "已重置套件继承快照{detail}",
+          "resetFailed": "重置套件继承快照失败: {error}"
+        },
+        "customTags": {
+          "cardTitle": "自定义标签规则",
+          "label": "规则文件（JSON）",
+          "placeholder": "{\"version\":1,\"rules\":[{\"tag\":\"我的分类\",\"nameContains\":[\"关键词\"]}]}",
+          "preview": "校验并预览命中",
+          "save": "保存并重扫",
+          "ruleIssue": "规则 #{index}：{message}",
+          "ruleHit": "「{tag}」命中 {count} 个 Mod{samples}",
+          "ruleHitSamples": " · 例如：{samples}",
+          "empty": "还没有规则。",
+          "previewing": "正在试算命中…",
+          "previewSummary": "共 {count} 条规则{issues}",
+          "previewIssues": "，{count} 条有问题",
+          "previewFailed": "校验规则失败: {error}",
+          "saving": "正在保存并重扫…",
+          "saved": "已保存 {count} 条规则并重新扫描",
+          "savedNotify": "自定义标签规则已生效（{count} 条），已重新扫描",
+          "saveFailed": "保存自定义标签规则失败: {error}"
+        }
+      },
+      "dns": {
+        "cardTitle": "工坊 DNS",
+        "desc": "工坊列表、详情与链接解析打不开时，多数是域名解析问题（优选 IP 解决不了）。这里可以只给\"工坊数据请求\"换一个 DNS：不改系统 DNS，也不影响 Mod 文件下载与图片加速。保存后立刻对新请求生效，不需要重启。",
+        "mode": {
+          "label": "解析方式",
+          "desc": "默认跟随系统 DNS；填自定义地址会覆盖工坊请求的域名解析。",
+          "system": "系统 DNS",
+          "custom": "自定义 DNS"
+        },
+        "address": {
+          "label": "自定义 DNS 地址",
+          "placeholder": "例如 119.29.29.29 或 223.5.5.5（只填地址，不带端口）"
+        },
+        "save": "保存 DNS 设置",
+        "invalid": "自定义 DNS 地址不合法：只填一个 IPv4 或 IPv6 地址，不要带端口或域名",
+        "switchedCustom": "工坊 DNS 已切换为 {address}（立即生效）",
+        "switchedSystem": "工坊 DNS 已切回系统 DNS（立即生效）",
+        "saveFailed": "保存工坊 DNS 失败: {error}"
+      }
+    },
+    "problemScan": {
+      "title": "问题 Mod 查找",
+      "intro": {
+        "heading": "用二分法缩小问题 Mod 范围",
+        "body": "工具会记录当前启用列表，每轮只保留当前测试半区在根目录中，让你进游戏验证问题是否还存在，然后继续缩小候选范围。",
+        "suitable": {
+          "title": "适合的情况",
+          "body": "单个根目录 Mod 导致客户端崩溃、贴图异常、数据混乱或其他可复现问题。"
+        },
+        "scope": {
+          "title": "参与范围",
+          "body": "只处理 addons 根目录中当前已启用的 VPK；创意工坊目录和 disabled 目录中的文件不会参与。"
+        },
+        "boundary": {
+          "title": "结果边界",
+          "body": "多个 Mod 组合冲突、随机复现、服务器脚本或游戏本体问题可能无法准确定位。"
+        },
+        "during": {
+          "title": "查找期间",
+          "body": "开始后弹框不能直接关闭。退出查找模式会先恢复开始前的启用列表，避免误改你的 Mod 状态。"
+        },
+        "warning": "每轮切换 Mod 前请确认游戏已关闭；切换完成后再启动游戏验证。",
+        "cancel": "稍后再说",
+        "start": "开始查找"
+      },
+      "start": {
+        "preparing": "正在准备...",
+        "failed": "开始查找失败: {error}"
+      },
+      "active": {
+        "titleResumed": "继续问题 Mod 查找",
+        "title": "问题 Mod 查找中",
+        "round": "当前轮次",
+        "candidates": "候选 Mod",
+        "disabled": "当前已禁用",
+        "listTitle": "当前测试列表",
+        "listDescDefault": "默认显示当前仍留在根目录中参与验证的 Mod；点击显示全部候选可查看本轮二分状态。",
+        "listDescAll": "当前显示本轮候选；带“本轮禁用测试”标记的 Mod 已移入 disabled，已排除的其他 Mod 也会保持禁用。",
+        "showAll": "显示全部候选",
+        "showEnabledOnly": "只看当前启用",
+        "launch": "启动 L4D2 验证",
+        "tested": "我已完成验证",
+        "gameClosed": "我确认 Left 4 Dead 2 已关闭，可以继续切换 Mod 状态",
+        "stillExists": "问题还在",
+        "gone": "问题不见了",
+        "exit": "退出查找模式",
+        "footerHint": "查找模式进行中，弹框会保持打开以保护当前排查状态。"
+      },
+      "resumed": {
+        "notice": "已恢复未完成的问题 Mod 查找"
+      },
+      "found": {
+        "title": "已找到可疑 Mod",
+        "fallbackName": "已缩小到最后一个候选",
+        "body": "已恢复查找开始前的启用列表。这个结果基于单个 Mod 导致问题的假设；如果问题仍不稳定，可能是组合冲突或非 Mod 原因。",
+        "disable": "禁用问题 Mod",
+        "disableDone": "已禁用问题 Mod",
+        "disabledNote": "该 Mod 已移动到 disabled 目录。",
+        "finish": "完成"
+      },
+      "emptyList": "当前没有可显示的 Mod",
+      "candidate": {
+        "disabledRound": "本轮禁用测试",
+        "enabledRound": "当前启用测试"
+      },
+      "launching": "正在启动 Left 4 Dead 2...",
+      "launchFailed": "启动游戏失败: {error}",
+      "submit": {
+        "processing": "处理中...",
+        "failed": "提交结果失败: {error}"
+      },
+      "disable": {
+        "missingPath": "找不到问题 Mod 文件路径，请刷新后手动禁用",
+        "pending": "正在禁用...",
+        "failed": "禁用问题 Mod 失败: {error}"
+      },
+      "exit": {
+        "pending": "正在恢复...",
+        "done": "已退出查找模式，并恢复开始前的启用列表",
+        "failed": "退出查找失败: {error}"
+      },
+      "button": {
+        "confirm": "确定"
+      },
+      "display": {
+        "unknownMod": "未知 Mod"
+      }
     }
   },
   "strategyGroups": {

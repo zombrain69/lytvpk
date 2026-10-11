@@ -7,6 +7,7 @@ import {
   ToggleVPKFile,
 } from "../../../../wailsjs/go/app/App";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
 
 let activeSession = null;
@@ -36,56 +37,56 @@ export async function openProblemModScanIntro() {
   activeSession = null;
   const modal = getModal();
   setModalMode("intro");
-  setTitle("问题 Mod 查找");
+  setTitle(t("settings.problemScan.title"));
 
   getBody().innerHTML = `
     <div class="problem-scan-intro">
       <div class="problem-scan-hero">
         <div class="problem-scan-hero-icon" aria-hidden="true">${boltIcon()}</div>
         <div>
-          <h3>用二分法缩小问题 Mod 范围</h3>
-          <p>工具会记录当前启用列表，每轮只保留当前测试半区在根目录中，让你进游戏验证问题是否还存在，然后继续缩小候选范围。</p>
+          <h3>${t("settings.problemScan.intro.heading")}</h3>
+          <p>${t("settings.problemScan.intro.body")}</p>
         </div>
       </div>
       <div class="problem-scan-note-grid">
         <section class="problem-scan-note">
           <span class="problem-scan-note-icon">${checkIcon()}</span>
           <div>
-            <h4>适合的情况</h4>
-            <p>单个根目录 Mod 导致客户端崩溃、贴图异常、数据混乱或其他可复现问题。</p>
+            <h4>${t("settings.problemScan.intro.suitable.title")}</h4>
+            <p>${t("settings.problemScan.intro.suitable.body")}</p>
           </div>
         </section>
         <section class="problem-scan-note">
           <span class="problem-scan-note-icon">${folderIcon()}</span>
           <div>
-            <h4>参与范围</h4>
-            <p>只处理 addons 根目录中当前已启用的 VPK；创意工坊目录和 disabled 目录中的文件不会参与。</p>
+            <h4>${t("settings.problemScan.intro.scope.title")}</h4>
+            <p>${t("settings.problemScan.intro.scope.body")}</p>
           </div>
         </section>
         <section class="problem-scan-note">
           <span class="problem-scan-note-icon">${alertIcon()}</span>
           <div>
-            <h4>结果边界</h4>
-            <p>多个 Mod 组合冲突、随机复现、服务器脚本或游戏本体问题可能无法准确定位。</p>
+            <h4>${t("settings.problemScan.intro.boundary.title")}</h4>
+            <p>${t("settings.problemScan.intro.boundary.body")}</p>
           </div>
         </section>
         <section class="problem-scan-note">
           <span class="problem-scan-note-icon">${lockIcon()}</span>
           <div>
-            <h4>查找期间</h4>
-            <p>开始后弹框不能直接关闭。退出查找模式会先恢复开始前的启用列表，避免误改你的 Mod 状态。</p>
+            <h4>${t("settings.problemScan.intro.during.title")}</h4>
+            <p>${t("settings.problemScan.intro.during.body")}</p>
           </div>
         </section>
       </div>
       <div class="problem-scan-warning">
-        每轮切换 Mod 前请确认游戏已关闭；切换完成后再启动游戏验证。
+        ${t("settings.problemScan.intro.warning")}
       </div>
     </div>
   `;
 
   getFooter().innerHTML = `
-    <button type="button" class="btn btn-secondary" id="problem-scan-intro-cancel">稍后再说</button>
-    <button type="button" class="btn btn-primary" id="problem-scan-start">开始查找</button>
+    <button type="button" class="btn btn-secondary" id="problem-scan-intro-cancel">${t("settings.problemScan.intro.cancel")}</button>
+    <button type="button" class="btn btn-primary" id="problem-scan-start">${t("settings.problemScan.intro.start")}</button>
   `;
 
   document.getElementById("problem-scan-intro-cancel")?.addEventListener("click", hideModal);
@@ -95,7 +96,7 @@ export async function openProblemModScanIntro() {
 
 async function startProblemScan() {
   const startBtn = document.getElementById("problem-scan-start");
-  setButtonPending(startBtn, "正在准备...");
+  setButtonPending(startBtn, t("settings.problemScan.start.preparing"));
   try {
     const session = await StartProblemModScan();
     await safeRefreshFiles();
@@ -105,8 +106,8 @@ async function startProblemScan() {
       renderActiveSession(session);
     }
   } catch (error) {
-    showError("开始查找失败: " + error);
-    setButtonReady(startBtn, "开始查找");
+    showError(t("settings.problemScan.start.failed", { error }));
+    setButtonReady(startBtn, t("settings.problemScan.intro.start"));
   }
 }
 
@@ -120,31 +121,31 @@ function renderActiveSession(session, options = {}) {
   const enabledCandidates = session.currentEnabled || [];
 
   setModalMode("active");
-  setTitle(options.resumed ? "继续问题 Mod 查找" : "问题 Mod 查找中");
+  setTitle(options.resumed ? t("settings.problemScan.active.titleResumed") : t("settings.problemScan.active.title"));
   getBody().innerHTML = `
     <div class="problem-scan-active">
       <div class="problem-scan-progress">
         <div class="problem-scan-stat">
-          <span>当前轮次</span>
+          <span>${t("settings.problemScan.active.round")}</span>
           <strong>${session.round || 1}</strong>
         </div>
         <div class="problem-scan-stat">
-          <span>候选 Mod</span>
+          <span>${t("settings.problemScan.active.candidates")}</span>
           <strong>${candidateCount}</strong>
         </div>
         <div class="problem-scan-stat">
-          <span>当前已禁用</span>
+          <span>${t("settings.problemScan.active.disabled")}</span>
           <strong>${disabledCount}</strong>
         </div>
       </div>
       <div class="problem-scan-round-card">
         <div class="problem-scan-round-title">
           <div>
-            <h3>当前测试列表</h3>
-            <p id="problem-scan-list-desc">默认显示当前仍留在根目录中参与验证的 Mod；点击显示全部候选可查看本轮二分状态。</p>
+            <h3>${t("settings.problemScan.active.listTitle")}</h3>
+            <p id="problem-scan-list-desc">${t("settings.problemScan.active.listDescDefault")}</p>
           </div>
           <button type="button" class="btn btn-small btn-outline problem-scan-toggle-list" id="problem-scan-toggle-candidates">
-            显示全部候选
+            ${t("settings.problemScan.active.showAll")}
           </button>
         </div>
         <div class="problem-scan-candidate-list" id="problem-scan-candidate-list">
@@ -152,23 +153,23 @@ function renderActiveSession(session, options = {}) {
         </div>
       </div>
       <div class="problem-scan-actions">
-        <button type="button" class="btn btn-primary" id="problem-scan-launch">${playIcon()}<span>启动 L4D2 验证</span></button>
-        <button type="button" class="btn btn-outline" id="problem-scan-tested">我已完成验证</button>
+        <button type="button" class="btn btn-primary" id="problem-scan-launch">${playIcon()}<span>${t("settings.problemScan.active.launch")}</span></button>
+        <button type="button" class="btn btn-outline" id="problem-scan-tested">${t("settings.problemScan.active.tested")}</button>
       </div>
       <div class="problem-scan-feedback hidden" id="problem-scan-feedback">
         <label class="problem-scan-closed-check">
           <input type="checkbox" id="problem-scan-game-closed">
-          <span>我确认 Left 4 Dead 2 已关闭，可以继续切换 Mod 状态</span>
+          <span>${t("settings.problemScan.active.gameClosed")}</span>
         </label>
         <div class="problem-scan-result-actions">
-          <button type="button" class="btn btn-primary problem-scan-result-btn" data-result="still_exists" disabled>问题还在</button>
-          <button type="button" class="btn btn-success problem-scan-result-btn" data-result="gone" disabled>问题不见了</button>
-          <button type="button" class="btn btn-secondary" id="problem-scan-exit" disabled>退出查找模式</button>
+          <button type="button" class="btn btn-primary problem-scan-result-btn" data-result="still_exists" disabled>${t("settings.problemScan.active.stillExists")}</button>
+          <button type="button" class="btn btn-success problem-scan-result-btn" data-result="gone" disabled>${t("settings.problemScan.active.gone")}</button>
+          <button type="button" class="btn btn-secondary" id="problem-scan-exit" disabled>${t("settings.problemScan.active.exit")}</button>
         </div>
       </div>
     </div>
   `;
-  getFooter().innerHTML = `<div class="problem-scan-footer-hint">查找模式进行中，弹框会保持打开以保护当前排查状态。</div>`;
+  getFooter().innerHTML = `<div class="problem-scan-footer-hint">${t("settings.problemScan.active.footerHint")}</div>`;
 
   document.getElementById("problem-scan-launch")?.addEventListener("click", launchProblemScanGame);
   document.getElementById("problem-scan-tested")?.addEventListener("click", showProblemScanFeedback);
@@ -183,7 +184,7 @@ function renderActiveSession(session, options = {}) {
 
   modal.classList.remove("hidden");
   if (options.resumed) {
-    showNotification("已恢复未完成的问题 Mod 查找", "info");
+    showNotification(t("settings.problemScan.resumed.notice"), "info");
   }
 }
 
@@ -191,13 +192,13 @@ function renderFoundSession(session) {
   activeSession = null;
   const suspect = session.suspiciousMod;
   setModalMode("found");
-  setTitle("已找到可疑 Mod");
+  setTitle(t("settings.problemScan.found.title"));
   getBody().innerHTML = `
     <div class="problem-scan-found">
       <div class="problem-scan-found-icon">${checkIcon()}</div>
-      <h3>${suspect ? escapeHtml(displayName(suspect)) : "已缩小到最后一个候选"}</h3>
+      <h3>${suspect ? escapeHtml(displayName(suspect)) : t("settings.problemScan.found.fallbackName")}</h3>
       ${suspect ? `<p class="problem-scan-found-path">${escapeHtml(suspect.name)}</p>` : ""}
-      <p>已恢复查找开始前的启用列表。这个结果基于单个 Mod 导致问题的假设；如果问题仍不稳定，可能是组合冲突或非 Mod 原因。</p>
+      <p>${t("settings.problemScan.found.body")}</p>
     </div>
   `;
   renderFoundFooter(suspect);
@@ -217,7 +218,7 @@ function renderFoundFooter(suspect) {
     disableBtn.type = "button";
     disableBtn.className = "btn btn-danger";
     disableBtn.id = "problem-scan-disable-suspect";
-    disableBtn.textContent = "禁用问题 Mod";
+    disableBtn.textContent = t("settings.problemScan.found.disable");
     footer.appendChild(disableBtn);
   }
 
@@ -225,7 +226,7 @@ function renderFoundFooter(suspect) {
   finishBtn.type = "button";
   finishBtn.className = "btn btn-primary";
   finishBtn.id = "problem-scan-finish";
-  finishBtn.textContent = "完成";
+  finishBtn.textContent = t("settings.problemScan.found.finish");
   footer.appendChild(finishBtn);
 }
 
@@ -239,19 +240,19 @@ function toggleProblemScanCandidateList(session, disabledNames) {
   if (showingAll) {
     list.dataset.showingAll = "false";
     list.innerHTML = renderCandidateList(session.currentEnabled || [], disabledNames);
-    button.textContent = "显示全部候选";
-    if (desc) desc.textContent = "默认显示当前仍留在根目录中参与验证的 Mod；点击显示全部候选可查看本轮二分状态。";
+    button.textContent = t("settings.problemScan.active.showAll");
+    if (desc) desc.textContent = t("settings.problemScan.active.listDescDefault");
   } else {
     list.dataset.showingAll = "true";
     list.innerHTML = renderCandidateList(session.currentCandidates || [], disabledNames);
-    button.textContent = "只看当前启用";
-    if (desc) desc.textContent = "当前显示本轮候选；带“本轮禁用测试”标记的 Mod 已移入 disabled，已排除的其他 Mod 也会保持禁用。";
+    button.textContent = t("settings.problemScan.active.showEnabledOnly");
+    if (desc) desc.textContent = t("settings.problemScan.active.listDescAll");
   }
 }
 
 function renderCandidateList(items, disabledNames) {
   if (!items || items.length === 0) {
-    return `<div class="problem-scan-empty-list">当前没有可显示的 Mod</div>`;
+    return `<div class="problem-scan-empty-list">${t("settings.problemScan.emptyList")}</div>`;
   }
   return items.map((item) => renderCandidateItem(item, disabledNames.has(item.name))).join("");
 }
@@ -266,7 +267,7 @@ function renderCandidateItem(item, disabled) {
       </div>
       <div class="problem-scan-candidate-meta">
         ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
-        <strong>${disabled ? "本轮禁用测试" : "当前启用测试"}</strong>
+        <strong>${disabled ? t("settings.problemScan.candidate.disabledRound") : t("settings.problemScan.candidate.enabledRound")}</strong>
       </div>
     </div>
   `;
@@ -275,9 +276,9 @@ function renderCandidateItem(item, disabled) {
 async function launchProblemScanGame() {
   try {
     await LaunchL4D2ForProblemScan();
-    showNotification("正在启动 Left 4 Dead 2...", "success");
+    showNotification(t("settings.problemScan.launching"), "success");
   } catch (error) {
-    showError("启动游戏失败: " + error);
+    showError(t("settings.problemScan.launchFailed", { error }));
   }
 }
 
@@ -299,7 +300,7 @@ function syncProblemScanFeedbackButtons() {
 
 async function submitProblemScanResult(result, button) {
   if (!activeSession) return;
-  setButtonPending(button, "处理中...");
+  setButtonPending(button, t("settings.problemScan.submit.processing"));
   try {
     const session = await SubmitProblemModScanResult(result);
     await safeRefreshFiles();
@@ -309,18 +310,18 @@ async function submitProblemScanResult(result, button) {
       renderActiveSession(session);
     }
   } catch (error) {
-    showError("提交结果失败: " + error);
+    showError(t("settings.problemScan.submit.failed", { error }));
     renderActiveSession(activeSession);
   }
 }
 
 async function disableSuspiciousMod(suspect, button) {
   if (!suspect?.path) {
-    showError("找不到问题 Mod 文件路径，请刷新后手动禁用");
+    showError(t("settings.problemScan.disable.missingPath"));
     return;
   }
 
-  setButtonPending(button, "正在禁用...");
+  setButtonPending(button, t("settings.problemScan.disable.pending"));
   try {
     await ToggleVPKFile(suspect.path);
     await safeRefreshFiles();
@@ -328,7 +329,7 @@ async function disableSuspiciousMod(suspect, button) {
     if (button) {
       button.classList.remove("btn-danger");
       button.classList.add("btn-secondary");
-      button.textContent = "已禁用问题 Mod";
+      button.textContent = t("settings.problemScan.found.disableDone");
       button.disabled = true;
     }
 
@@ -336,28 +337,28 @@ async function disableSuspiciousMod(suspect, button) {
     if (foundBody && !foundBody.querySelector(".problem-scan-found-status")) {
       const status = document.createElement("p");
       status.className = "problem-scan-found-status";
-      status.textContent = "该 Mod 已移动到 disabled 目录。";
+      status.textContent = t("settings.problemScan.found.disabledNote");
       foundBody.appendChild(status);
     }
 
-    showNotification("已禁用问题 Mod", "success");
+    showNotification(t("settings.problemScan.found.disableDone"), "success");
   } catch (error) {
-    showError("禁用问题 Mod 失败: " + error);
-    setButtonReady(button, "禁用问题 Mod");
+    showError(t("settings.problemScan.disable.failed", { error }));
+    setButtonReady(button, t("settings.problemScan.found.disable"));
   }
 }
 
 async function exitProblemScan() {
   const exitBtn = document.getElementById("problem-scan-exit");
-  setButtonPending(exitBtn, "正在恢复...");
+  setButtonPending(exitBtn, t("settings.problemScan.exit.pending"));
   try {
     await RestoreProblemModScan();
     await safeRefreshFiles();
     hideModal();
-    showNotification("已退出查找模式，并恢复开始前的启用列表", "success");
+    showNotification(t("settings.problemScan.exit.done"), "success");
   } catch (error) {
-    showError("退出查找失败: " + error);
-    setButtonReady(exitBtn, "退出查找模式");
+    showError(t("settings.problemScan.exit.failed", { error }));
+    setButtonReady(exitBtn, t("settings.problemScan.active.exit"));
   }
 }
 
@@ -406,11 +407,11 @@ function setButtonPending(button, label) {
 function setButtonReady(button, label) {
   if (!button) return;
   button.disabled = false;
-  button.textContent = label || button.dataset.originalText || "确定";
+  button.textContent = label || button.dataset.originalText || t("settings.problemScan.button.confirm");
 }
 
 function displayName(item) {
-  return item?.title && item.title !== item.name ? item.title : item?.name || "未知 Mod";
+  return item?.title && item.title !== item.name ? item.title : item?.name || t("settings.problemScan.display.unknownMod");
 }
 
 function getAppliedDisabled(session) {

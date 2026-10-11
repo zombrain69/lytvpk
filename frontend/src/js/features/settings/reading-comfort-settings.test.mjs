@@ -9,15 +9,18 @@ const settingsSource = readFileSync(new URL("./settings-page.js", import.meta.ur
 const runtimeSource = readFileSync(new URL("../app-runtime.js", import.meta.url), "utf8");
 const cssSource = readFileSync(new URL("../../../css/app/reading-comfort.css", import.meta.url), "utf8");
 const mainCssSource = readFileSync(new URL("../../../css/main.css", import.meta.url), "utf8");
+const catalog = JSON.parse(readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"));
 
 test("设置页有文字大小与阅读舒适度两组单选", () => {
   assert.match(settingsSource, /id="settings-text-size"/, "缺少文字大小分组");
   assert.match(settingsSource, /id="settings-reading-comfort"/, "缺少阅读舒适度分组");
   assert.match(settingsSource, /TEXT_SIZE_OPTIONS\.map/, "文字大小档位应由选项表生成");
   assert.match(settingsSource, /READING_COMFORT_OPTIONS\.map/, "舒适度档位应由选项表生成");
-  // 说明文案要讲清"只改文字、不动布局"和"行距/对比度"。
-  assert.match(settingsSource, /只改文字大小、不动布局/);
-  assert.match(settingsSource, /调整行距与文字对比度/);
+  // 说明文案要讲清"只改文字、不动布局"和"行距/对比度"；文案本体已迁入目录。
+  assert.match(settingsSource, /settings\.interface\.textSize\.desc/, "文字大小说明要从目录取文案");
+  assert.match(settingsSource, /settings\.interface\.readingComfort\.desc/, "阅读舒适度说明要从目录取文案");
+  assert.match(catalog.settings.interface.textSize.desc, /只改文字大小、不动布局/);
+  assert.match(catalog.settings.interface.readingComfort.desc, /调整行距与文字对比度/);
 });
 
 test("改档位会写回配置并立刻生效", () => {

@@ -1,5 +1,29 @@
 # Changelog
 
+## 未发布 — i18n：迁移设置页主文件（settings-page.js / problem-mod-scan.js / settings.js）（2026-10-11）
+
+- `settings-page.js` 全部用户可见文案改走 `t()`：四个导航项、五个分区（网络加速、显示偏好、
+  工坊数据与工坊合集、浏览器跳转、描述翻译、游戏配置）的标题 / 说明 / 按钮 / 选项 /
+  占位符 / aria 标签、全部通知提示（开关回滚、抓取汇总、检测结果、方案与备份操作）、
+  全部确认弹窗（删除依赖 / 应用方案 / 删除方案 / 恢复与删除备份 / 删除 addonlist.txt /
+  重置套件继承快照 / 清理缺失条目 / 启用缺失依赖 / 删除合集记录）、体检统计条与检索状态、
+  备份类型名、IP 选择与工坊 DNS 状态；`problem-mod-scan.js`（「问题 Mod 查找」弹窗）
+  简介 / 进行中 / 找到结果三种视图与全部提示；`settings.js` 加载失败兜底。
+- 目录新增 `settings.nav.*` / `settings.page.*` / `settings.readLabels.*` /
+  `settings.network.*` / `settings.interface.*` / `settings.workshop.*` /
+  `settings.addonlist.*` / `settings.problemScan.*` 键组。
+- 体检统计条改用动作 `shortLabel`（不再从 label `replace("一键修复：")`）。
+- Go 三层一致性测试（`internal/app/repo_consistency_test.go`）同步改为
+  「kind → 文案 key → zh-CN.json → 文档表格」；`reading-comfort-settings.test.mjs` /
+  `strategy-group-batch.test.mjs` 改「源码接线 + 目录内容」双重校验。
+- 5 处内联 `<strong>/<code>/<br>` 的富文本说明（打开文件方式 / 工坊官方标签与统计 /
+  游戏原版文件白名单 / 套件继承快照 / 自定义标签规则）与弹窗静态骨架同类，
+  **留待专门轮次**（记 i18n.md 与开发路线图）；模块内注释与 console 诊断不迁移，
+  `config.workshopTranslateCustomAPIKey` 的 "已设置" 为配置哨兵值、保持原样。
+- 文档：`docs/development/i18n.md`、`docs/development/manual-verification.md` §13。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）565 项 0 失败；
+  `npm run build` 通过。
+
 ## 未发布 — i18n：迁移设置页文案层（settings 子模块 .mjs）（2026-10-11）
 
 - `features/settings/` 的 9 个纯模块 `.mjs` 的用户可见文案改走 `t()`（这批服务设置页内部

@@ -1,4 +1,5 @@
 import { attachLineNumberGutter } from "../../core/line-number-editor.js";
+import { t } from "../../core/i18n-runtime.js";
 import { applyUIScale, MAX_UI_SCALE, MIN_UI_SCALE, normalizeUIScale, UI_SCALE_STEP } from "../../core/ui-scale.js";
 import {
   READING_COMFORT_OPTIONS,
@@ -179,11 +180,11 @@ export async function renderSettingsPage(deps) {
   const readSetting = async (label, reader, fallback) => {
     try {
       if (typeof reader !== "function") {
-        throw new Error("当前后端未提供此设置接口");
+        throw new Error(t("settings.page.apiUnavailable"));
       }
       return await reader();
     } catch (error) {
-      settingsReadErrors.push(`${label}：${String(error?.message || error || "读取失败")}`);
+      settingsReadErrors.push(`${label}：${String(error?.message || error || t("settings.page.readFailed"))}`);
       return fallback;
     }
   };
@@ -191,16 +192,16 @@ export async function renderSettingsPage(deps) {
     ? config.unrecordedModLoadOrderPlacement
     : "end";
 
-  const enabled = await readSetting("优选 IP", GetWorkshopPreferredIP, Boolean(config.workshopPreferredIP));
-  const fixedIP = await readSetting("固定 IP", GetWorkshopFixedIP, config.workshopFixedIP || "");
+  const enabled = await readSetting(t("settings.readLabels.preferredIP"), GetWorkshopPreferredIP, Boolean(config.workshopPreferredIP));
+  const fixedIP = await readSetting(t("settings.readLabels.fixedIP"), GetWorkshopFixedIP, config.workshopFixedIP || "");
   const useFixedIP = enabled && fixedIP !== "";
   // 工坊 DNS（对齐上游 5ce7ef5 的最小版本）：配置缺省/非法时按"系统 DNS"显示。
   const workshopDNS = config.workshopDNS && typeof config.workshopDNS === "object" ? config.workshopDNS : {};
   const workshopDNSMode = workshopDNS.mode === "custom" ? "custom" : "system";
   const workshopDNSAddress = workshopDNSMode === "custom" ? String(workshopDNS.customAddress || "") : "";
   const workshopDNSStatus = workshopDNSMode === "custom"
-    ? `当前：自定义 DNS ${workshopDNSAddress}`
-    : "当前：系统 DNS";
+    ? t("settings.network.dns.statusCustom", { address: workshopDNSAddress })
+    : t("settings.network.dns.statusSystem");
   // 自定义标签规则：读不到就显示空模板（读取失败不该让整页渲染失败）。
   let customTagRulesText = "";
   try {
@@ -209,24 +210,24 @@ export async function renderSettingsPage(deps) {
     console.warn("读取自定义标签规则失败:", error);
     customTagRulesText = "";
   }
-  const metaEnabled = await readSetting("工坊信息存储", GetWorkshopMetaEnabled, Boolean(config.workshopMetaEnabled));
+  const metaEnabled = await readSetting(t("settings.readLabels.metaEnabled"), GetWorkshopMetaEnabled, Boolean(config.workshopMetaEnabled));
   // 更新检测依赖工坊信息存储。旧配置可能留下两者不一致的组合；渲染时
   // 以实际可执行的状态为准，避免禁用的开关仍显示内容和操作入口。
-  const storedUpdateCheckEnabled = await readSetting("Mod 更新检测", GetWorkshopUpdateCheckEnabled, Boolean(config.workshopUpdateCheckEnabled));
+  const storedUpdateCheckEnabled = await readSetting(t("settings.readLabels.updateCheck"), GetWorkshopUpdateCheckEnabled, Boolean(config.workshopUpdateCheckEnabled));
   const updateCheckEnabled = Boolean(metaEnabled && storedUpdateCheckEnabled);
-  const autoRedownloadEnabled = await readSetting("自动重下", GetWorkshopAutoRedownload, false);
+  const autoRedownloadEnabled = await readSetting(t("settings.readLabels.autoRedownload"), GetWorkshopAutoRedownload, false);
   // 剪贴板工坊链接自动识别（对齐 FireAxe 的默认开启）：存在 config.json，读前端配置即可。
   const autoDetectWorkshopLink = deps.getConfig().autoDetectWorkshopLink !== false;
-  const browserTarget = await readSetting("工坊跳转目标", GetWorkshopBrowserTarget, config.workshopBrowserTarget || "mirror");
-  const translateProvider = await readSetting("翻译服务", GetWorkshopTranslateProvider, config.workshopTranslateProvider || "microsoft");
-  const customBaseURL = await readSetting("自定义 AI Base URL", GetWorkshopTranslateCustomBaseURL, config.workshopTranslateCustomBaseURL || "");
-  const customModelId = await readSetting("自定义 AI 模型", GetWorkshopTranslateCustomModelId, config.workshopTranslateCustomModelId || "");
-  const hasCustomAPIKey = await readSetting("自定义 AI 密钥状态", HasWorkshopTranslateCustomAPIKey, Boolean(config.workshopTranslateCustomAPIKey));
-  const isSelecting = enabled ? await readSetting("优选 IP 状态", IsSelectingIP, false) : false;
+  const browserTarget = await readSetting(t("settings.readLabels.browserTarget"), GetWorkshopBrowserTarget, config.workshopBrowserTarget || "mirror");
+  const translateProvider = await readSetting(t("settings.readLabels.translateProvider"), GetWorkshopTranslateProvider, config.workshopTranslateProvider || "microsoft");
+  const customBaseURL = await readSetting(t("settings.readLabels.customBaseUrl"), GetWorkshopTranslateCustomBaseURL, config.workshopTranslateCustomBaseURL || "");
+  const customModelId = await readSetting(t("settings.readLabels.customModel"), GetWorkshopTranslateCustomModelId, config.workshopTranslateCustomModelId || "");
+  const hasCustomAPIKey = await readSetting(t("settings.readLabels.customApiKey"), HasWorkshopTranslateCustomAPIKey, Boolean(config.workshopTranslateCustomAPIKey));
+  const isSelecting = enabled ? await readSetting(t("settings.readLabels.ipSelecting"), IsSelectingIP, false) : false;
   const ipOptions = [];
-  const bestIPOption = enabled && !isSelecting ? await readSetting("当前优选 IP", GetCurrentBestIPOption, null) : null;
+  const bestIPOption = enabled && !isSelecting ? await readSetting(t("settings.readLabels.bestIP"), GetCurrentBestIPOption, null) : null;
   const bestIP = getIPOptionIP(bestIPOption) || (enabled && !isSelecting
-    ? await readSetting("当前优选 IP 地址", GetCurrentBestIP, "")
+    ? await readSetting(t("settings.readLabels.bestIPAddress"), GetCurrentBestIP, "")
     : "");
   let addonListInfo = null;
   let workshopCollections = [];
@@ -243,7 +244,7 @@ export async function renderSettingsPage(deps) {
     addonListInfo = addonListManagerState.info;
     addonListBackups = addonListManagerState.backups;
   } catch (error) {
-    addonListError = String(error?.message || error || "无法读取 addonlist.txt 状态");
+    addonListError = String(error?.message || error || t("settings.page.readAddonListFailed"));
   }
   let autoexecInfo = null;
   let autoexecError = "";
@@ -256,7 +257,7 @@ export async function renderSettingsPage(deps) {
       if (typeof AnalyzeAutoexecCommands === "function") autoexecMatches = await AnalyzeAutoexecCommands(autoexecInfo?.content || "");
     }
   } catch (error) {
-    autoexecError = String(error?.message || error || "无法读取 autoexec.cfg");
+    autoexecError = String(error?.message || error || t("settings.page.readAutoexecFailed"));
   }
   let modEnableProfiles = [];
   let modEnableProfilesError = "";
@@ -265,7 +266,7 @@ export async function renderSettingsPage(deps) {
       modEnableProfiles = (await ListModEnableProfiles()) || [];
     }
   } catch (error) {
-    modEnableProfilesError = String(error?.message || error || "无法读取启用方案");
+    modEnableProfilesError = String(error?.message || error || t("settings.page.readProfilesFailed"));
   }
   // 策略组的生命周期已经不在这里：Mod 管理页「分组 → 策略组管理…」打开独立窗口，
   // 由 features/mod-groups/strategy-group-manager.js 直接读写 groups.json。
@@ -276,7 +277,7 @@ export async function renderSettingsPage(deps) {
       modDependencies = (await ListModDependencies()) || [];
     }
   } catch (error) {
-    modDependenciesError = String(error?.message || error || "无法读取依赖记录");
+    modDependenciesError = String(error?.message || error || t("settings.page.readDependenciesFailed"));
   }
   const selectedModOptions = [...(appState.selectedFiles || [])].map((path) => {
     const file = (appState.allVpkFiles || []).find((item) => item.path === path);
@@ -292,38 +293,38 @@ export async function renderSettingsPage(deps) {
   let ipStatusText = "";
   if (enabled) {
     if (isSelecting) {
-      ipStatusText = "正在优选最佳线路...";
+      ipStatusText = t("settings.network.ip.selecting");
     } else if (bestIP) {
-      const optionLabel = formatIPOptionLabel(bestIPOption || { ip: bestIP, category: useFixedIP ? "自定义" : "" });
-      ipStatusText = useFixedIP ? `当前固定 IP: ${optionLabel}` : `当前优选 IP: ${optionLabel}`;
+      const optionLabel = formatIPOptionLabel(bestIPOption || { ip: bestIP, category: useFixedIP ? t("settings.network.ip.customCategory") : "" });
+      ipStatusText = useFixedIP ? t("settings.network.ip.statusFixed", { label: optionLabel }) : t("settings.network.ip.statusAuto", { label: optionLabel });
     } else {
-      ipStatusText = "尚未获取到优选 IP";
+      ipStatusText = t("settings.network.ip.notReady");
     }
   }
 
   container.innerHTML = `
     ${settingsReadErrors.length ? `
       <div class="settings-read-warning" role="status">
-        <strong>部分设置状态暂时无法从后端读取，已显示上次保存的值：</strong>
+        <strong>${t("settings.page.readWarningTitle")}</strong>
         <span>${escapeHtml(settingsReadErrors.join("；"))}</span>
       </div>
     ` : ""}
     <div class="settings-layout embedded-settings">
       <div class="settings-sidebar">
-        <button class="settings-nav-item active" data-panel="network">网络设置</button>
-        <button class="settings-nav-item" data-panel="interface">界面设置</button>
-        <button class="settings-nav-item" data-panel="workshop">工坊设置</button>
-        <button class="settings-nav-item" data-panel="addonlist">游戏配置</button>
+        <button class="settings-nav-item active" data-panel="network">${t("settings.nav.network")}</button>
+        <button class="settings-nav-item" data-panel="interface">${t("settings.nav.interface")}</button>
+        <button class="settings-nav-item" data-panel="workshop">${t("settings.nav.workshop")}</button>
+        <button class="settings-nav-item" data-panel="addonlist">${t("settings.nav.addonlist")}</button>
       </div>
       <div class="settings-content">
         <div class="settings-panels-track">
         <div class="settings-panel active" id="settings-panel-network">
           <div class="setting-card">
-            <div class="setting-card-title">网络加速</div>
+            <div class="setting-card-title">${t("settings.network.cardTitle")}</div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">开启优选 IP 加速</div>
-                <div class="setting-row-desc">加速创意工坊图片与文件下载</div>
+                <div class="setting-row-label">${t("settings.network.enable.label")}</div>
+                <div class="setting-row-desc">${t("settings.network.enable.desc")}</div>
                 ${
                   ipStatusText
                     ? `<div class="setting-row-status-line">
@@ -338,17 +339,17 @@ export async function renderSettingsPage(deps) {
               </label>
             </div>
             <div id="settings-ip-mode-section" class="setting-indent" style="${enabled ? "" : "display:none"}">
-              <div class="setting-row-label">加速模式</div>
+              <div class="setting-row-label">${t("settings.network.mode.label")}</div>
               <div class="setting-radio-group">
-                <label class="setting-radio-label"><input type="radio" name="settings-ip-mode" value="auto" ${useFixedIP ? "" : "checked"}><span>自动优选最佳 IP（推荐）</span></label>
-                <label class="setting-radio-label"><input type="radio" name="settings-ip-mode" value="fixed" ${useFixedIP ? "checked" : ""}><span>手动指定 IP</span></label>
+                <label class="setting-radio-label"><input type="radio" name="settings-ip-mode" value="auto" ${useFixedIP ? "" : "checked"}><span>${t("settings.network.mode.auto")}</span></label>
+                <label class="setting-radio-label"><input type="radio" name="settings-ip-mode" value="fixed" ${useFixedIP ? "checked" : ""}><span>${t("settings.network.mode.fixed")}</span></label>
               </div>
               <div id="settings-fixed-ip-tools" class="settings-fixed-ip-tools" style="${useFixedIP ? "" : "display:none"}">
                 <div class="single-select-dropdown settings-ip-option-dropdown">
                   <button type="button" id="settings-ip-option-trigger" class="select-trigger"></button>
                   <div id="settings-ip-option-menu" class="select-menu settings-ip-option-menu hidden"></div>
                 </div>
-                <input type="text" id="settings-fixed-ip" class="form-input" value="${escapeAttr(fixedIP)}" placeholder="例如: 23.59.72.59">
+                <input type="text" id="settings-fixed-ip" class="form-input" value="${escapeAttr(fixedIP)}" placeholder="${t("settings.network.ip.fixedPlaceholder")}">
               </div>
             </div>
           </div>
@@ -356,39 +357,39 @@ export async function renderSettingsPage(deps) {
 
         <div class="settings-panel" id="settings-panel-interface">
           <div class="setting-card">
-            <div class="setting-card-title">显示偏好</div>
+            <div class="setting-card-title">${t("settings.interface.display.cardTitle")}</div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">显示模式</div>
-                <div class="setting-row-desc">切换文件列表的显示布局</div>
+                <div class="setting-row-label">${t("settings.interface.displayMode.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.displayMode.desc")}</div>
               </div>
               <div class="mode-toggle-group">
                 <label class="mode-option ${appState.displayMode === "list" ? "active" : ""}">
                   <input type="radio" name="settings-display-mode" value="list" ${appState.displayMode === "list" ? "checked" : ""}>
-                  <span class="mode-text">列表</span>
+                  <span class="mode-text">${t("settings.interface.displayMode.list")}</span>
                 </label>
                 <label class="mode-option ${appState.displayMode === "card" ? "active" : ""}">
                   <input type="radio" name="settings-display-mode" value="card" ${appState.displayMode === "card" ? "checked" : ""}>
-                  <span class="mode-text">卡片</span>
+                  <span class="mode-text">${t("settings.interface.displayMode.card")}</span>
                 </label>
               </div>
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">界面缩放</div>
-                <div class="setting-row-desc">调整整个应用的文字和间距；也可使用 Ctrl +、Ctrl -、Ctrl 0</div>
+                <div class="setting-row-label">${t("settings.interface.uiScale.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.uiScale.desc")}</div>
               </div>
-              <div class="ui-scale-control" aria-label="界面缩放">
-                <button type="button" class="ui-scale-button" id="settings-ui-scale-decrease" aria-label="减小界面缩放">A−</button>
-                <input type="range" id="settings-ui-scale" data-ui-scale-input min="80" max="140" step="5" value="${Math.round(normalizeUIScale(getConfig().uiScale) * 100)}" aria-label="界面缩放百分比">
+              <div class="ui-scale-control" aria-label="${t("settings.interface.uiScale.label")}">
+                <button type="button" class="ui-scale-button" id="settings-ui-scale-decrease" aria-label="${t("settings.interface.uiScale.decrease")}">A−</button>
+                <input type="range" id="settings-ui-scale" data-ui-scale-input min="80" max="140" step="5" value="${Math.round(normalizeUIScale(getConfig().uiScale) * 100)}" aria-label="${t("settings.interface.uiScale.percentLabel")}">
                 <output class="ui-scale-value" data-ui-scale-value for="settings-ui-scale">${Math.round(normalizeUIScale(getConfig().uiScale) * 100)}%</output>
-                <button type="button" class="ui-scale-button" id="settings-ui-scale-increase" aria-label="增大界面缩放">A+</button>
+                <button type="button" class="ui-scale-button" id="settings-ui-scale-increase" aria-label="${t("settings.interface.uiScale.increase")}">A+</button>
               </div>
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">框选模式</div>
-                <div class="setting-row-desc">拖拽绘制选择框，批量选择 VPK 文件</div>
+                <div class="setting-row-label">${t("settings.interface.boxSelection.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.boxSelection.desc")}</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="settings-box-selection" ${appState.boxSelectionEnabled ? "checked" : ""}>
@@ -397,10 +398,10 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">文字大小</div>
-                <div class="setting-row-desc">只改文字大小、不动布局；与上面的「界面缩放」相乘生效，方便在 2K / 4K 屏上把字调清楚</div>
+                <div class="setting-row-label">${t("settings.interface.textSize.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.textSize.desc")}</div>
               </div>
-              <div class="mode-toggle-group" id="settings-text-size" role="radiogroup" aria-label="文字大小">
+              <div class="mode-toggle-group" id="settings-text-size" role="radiogroup" aria-label="${t("settings.interface.textSize.label")}">
                 ${TEXT_SIZE_OPTIONS.map((option) => `
                   <label class="mode-option ${normalizeTextSize(getConfig().textSize) === option.key ? "active" : ""}" title="${escapeHtml(option.description)}">
                     <input type="radio" name="settings-text-size" value="${option.key}" ${normalizeTextSize(getConfig().textSize) === option.key ? "checked" : ""}>
@@ -410,10 +411,10 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">阅读舒适度</div>
-                <div class="setting-row-desc">调整行距与文字对比度：当前「${escapeHtml(readingComfortLabel(getConfig().readingComfort))}」——柔和＝行距更松、对比更柔（长时间看不累）；高对比＝文字更深、适合强光或弱视</div>
+                <div class="setting-row-label">${t("settings.interface.readingComfort.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.readingComfort.desc", { current: escapeHtml(readingComfortLabel(getConfig().readingComfort)) })}</div>
               </div>
-              <div class="mode-toggle-group" id="settings-reading-comfort" role="radiogroup" aria-label="阅读舒适度">
+              <div class="mode-toggle-group" id="settings-reading-comfort" role="radiogroup" aria-label="${t("settings.interface.readingComfort.label")}">
                 ${READING_COMFORT_OPTIONS.map((option) => `
                   <label class="mode-option ${normalizeReadingComfort(getConfig().readingComfort) === option.key ? "active" : ""}" title="${escapeHtml(option.description)}">
                     <input type="radio" name="settings-reading-comfort" value="${option.key}" ${normalizeReadingComfort(getConfig().readingComfort) === option.key ? "checked" : ""}>
@@ -423,8 +424,8 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">Ctrl+单击选择</div>
-                <div class="setting-row-desc">按住 Ctrl 键并单击 Mod，可快速选中或取消选中；Shift+单击可按当前排序选择连续范围</div>
+                <div class="setting-row-label">${t("settings.interface.ctrlClick.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.ctrlClick.desc")}</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="settings-ctrl-click-selection" ${appState.ctrlClickSelectionEnabled ? "checked" : ""}>
@@ -433,34 +434,34 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row setting-row-filter-layout">
               <div class="setting-row-info">
-                <div class="setting-row-label">筛选布局</div>
-                <div class="setting-row-desc">切换后立即应用到 Mod 列表。两种布局保留相同的筛选能力：简洁模式更省空间；经典模式直接展示常用条件与预设入口。</div>
+                <div class="setting-row-label">${t("settings.interface.filterLayout.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.filterLayout.desc")}</div>
               </div>
-              <div class="mode-toggle-group filter-layout-toggle" role="radiogroup" aria-label="筛选布局">
+              <div class="mode-toggle-group filter-layout-toggle" role="radiogroup" aria-label="${t("settings.interface.filterLayout.label")}">
                 <label class="mode-option filter-layout-option filter-layout-option-compact ${appState.filterLayoutMode !== "classic" ? "active" : ""}">
                   <input type="radio" name="settings-filter-layout" value="compact" ${appState.filterLayoutMode !== "classic" ? "checked" : ""}>
                   <span class="filter-layout-option-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="4" rx="1"></rect><rect x="3" y="10" width="18" height="4" rx="1"></rect><rect x="3" y="16" width="11" height="4" rx="1"></rect></svg>
                   </span>
-                  <span class="filter-layout-option-copy"><strong>简洁下拉</strong><small>节省空间，适合专注浏览</small></span>
-                  <span class="filter-layout-option-badge">紧凑</span>
+                  <span class="filter-layout-option-copy"><strong>${t("settings.interface.filterLayout.compact.title")}</strong><small>${t("settings.interface.filterLayout.compact.hint")}</small></span>
+                  <span class="filter-layout-option-badge">${t("settings.interface.filterLayout.compact.badge")}</span>
                 </label>
                 <label class="mode-option filter-layout-option filter-layout-option-classic ${appState.filterLayoutMode === "classic" ? "active" : ""}">
                   <input type="radio" name="settings-filter-layout" value="classic" ${appState.filterLayoutMode === "classic" ? "checked" : ""}>
                   <span class="filter-layout-option-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><path d="M14 17.5h7"></path></svg>
                   </span>
-                  <span class="filter-layout-option-copy"><strong>经典展开</strong><small>常用条件直观可点</small></span>
-                  <span class="filter-layout-option-badge">详细</span>
+                  <span class="filter-layout-option-copy"><strong>${t("settings.interface.filterLayout.classic.title")}</strong><small>${t("settings.interface.filterLayout.classic.hint")}</small></span>
+                  <span class="filter-layout-option-badge">${t("settings.interface.filterLayout.classic.badge")}</span>
                 </label>
               </div>
             </div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">打开文件方式（可选）</div>
+            <div class="setting-card-title">${t("settings.interface.openWith.cardTitle")}</div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">用其它程序打开 / 定位 Mod</div>
+                <div class="setting-row-label">${t("settings.interface.openWith.label")}</div>
                 <div class="setting-row-desc">
                   <strong>留空 = 系统默认</strong>（Windows 用资源管理器定位并选中文件，行为与以前完全一致）。<br>
                   想换成别的程序就填程序路径（例如 <code>C:\Tools\totalcmd\TOTALCMD64.EXE</code>）与参数模板，
@@ -473,16 +474,16 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">程序</div>
+                <div class="setting-row-label">${t("settings.interface.openWith.programLabel")}</div>
                 <input type="text" id="settings-open-with-program" class="form-input"
-                  placeholder="留空 = 使用系统默认" value="${escapeAttr(getConfig().openWithProgram || "")}">
+                  placeholder="${t("settings.interface.openWith.programPlaceholder")}" value="${escapeAttr(getConfig().openWithProgram || "")}">
               </div>
             </div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">参数模板</div>
+                <div class="setting-row-label">${t("settings.interface.openWith.argsLabel")}</div>
                 <input type="text" id="settings-open-with-arguments" class="form-input"
-                  placeholder='例如 /O /T /L="{dir}"' value="${escapeAttr(getConfig().openWithArguments || "")}">
+                  placeholder='${t("settings.interface.openWith.argsPlaceholder")}' value="${escapeAttr(getConfig().openWithArguments || "")}">
               </div>
             </div>
             <div class="setting-row">
@@ -491,9 +492,9 @@ export async function renderSettingsPage(deps) {
               </div>
               <div class="setting-row-control">
                 <button type="button" class="trigger-check-btn" id="settings-open-with-save">
-                  <span class="trigger-check-text">保存</span>
+                  <span class="trigger-check-text">${t("settings.interface.openWith.save")}</span>
                 </button>
-                <button type="button" class="btn btn-outline btn-small" id="settings-open-with-reset">恢复默认</button>
+                <button type="button" class="btn btn-outline btn-small" id="settings-open-with-reset">${t("settings.interface.openWith.reset")}</button>
               </div>
             </div>
           </div>
@@ -501,11 +502,11 @@ export async function renderSettingsPage(deps) {
 
         <div class="settings-panel" id="settings-panel-workshop">
           <div class="setting-card">
-            <div class="setting-card-title">工坊数据</div>
+            <div class="setting-card-title">${t("settings.workshop.data.cardTitle")}</div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">开启工坊信息存储</div>
-                <div class="setting-row-desc">为工坊文件创建 .meta 文件，存储名称、作者等信息</div>
+                <div class="setting-row-label">${t("settings.workshop.data.meta.label")}</div>
+                <div class="setting-row-desc">${t("settings.workshop.data.meta.desc")}</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="settings-meta-enabled" ${metaEnabled ? "checked" : ""}>
@@ -514,8 +515,8 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row ${metaEnabled ? "" : "setting-row-disabled"}" id="settings-update-check-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">开启Mod更新检测</div>
-                <div class="setting-row-desc">每天自动检测含有工坊信息的Mod是否有新版本，需要先开启工坊信息存储</div>
+                <div class="setting-row-label">${t("settings.workshop.data.updateCheck.label")}</div>
+                <div class="setting-row-desc">${t("settings.workshop.data.updateCheck.desc")}</div>
               </div>
               <label class="toggle-switch ${metaEnabled ? "" : "toggle-switch-disabled"}">
                 <input type="checkbox" id="settings-update-check-enabled" ${updateCheckEnabled ? "checked" : ""} ${metaEnabled ? "" : "disabled"}>
@@ -525,13 +526,13 @@ export async function renderSettingsPage(deps) {
             <div id="settings-update-check-section" class="setting-indent" style="${updateCheckEnabled ? "" : "display:none"}">
               <button class="trigger-check-btn" id="settings-manual-check-btn" ${metaEnabled && updateCheckEnabled ? "" : "disabled"}>
                 <svg class="trigger-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
-                <span class="trigger-check-text">立即触发检测</span>
+                <span class="trigger-check-text">${t("settings.workshop.data.updateCheck.trigger")}</span>
               </button>
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">下载失败后自动重下一次</div>
-                <div class="setting-row-desc">默认关闭。开启后，新下载任务在失败时会自动重试一次（用户主动取消不会重试）；也可以在下载任务列表里单独开关某个任务。</div>
+                <div class="setting-row-label">${t("settings.workshop.data.autoRedownload.label")}</div>
+                <div class="setting-row-desc">${t("settings.workshop.data.autoRedownload.desc")}</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="settings-auto-redownload" ${autoRedownloadEnabled ? "checked" : ""}>
@@ -540,11 +541,8 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">剪贴板工坊链接自动识别</div>
-                <div class="setting-row-desc">
-                  默认开启。复制创意工坊链接（或作品 ID）后切回本应用，会提示是否打开下载页并解析，
-                  不用再手动粘贴。窗口不在前台时不会读取剪贴板。
-                </div>
+                <div class="setting-row-label">${t("settings.workshop.data.clipboard.label")}</div>
+                <div class="setting-row-desc">${t("settings.workshop.data.clipboard.desc")}</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="settings-auto-detect-workshop-link" ${autoDetectWorkshopLink ? "checked" : ""}>
@@ -553,7 +551,7 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">抓取工坊官方标签与统计</div>
+                <div class="setting-row-label">${t("settings.workshop.data.enrich.label")}</div>
                 <div class="setting-row-desc">
                   向 Steam 官方接口补取工坊自带的分类标签（如 Survivors / Sounds / Single Player）
                   与订阅数、收藏数、浏览量，写进每个工坊 Mod 的同名 <code>.meta</code>。
@@ -563,28 +561,25 @@ export async function renderSettingsPage(deps) {
               </div>
               <div class="setting-row-control">
                 <button type="button" id="settings-workshop-enrich" class="trigger-check-btn">
-                  <span class="trigger-check-text">开始抓取</span>
+                  <span class="trigger-check-text">${t("settings.workshop.data.enrich.action")}</span>
                 </button>
               </div>
             </div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">工坊合集</div>
-                <div class="setting-row-desc">
-                  把工坊合集保存成一条本地记录：之后可以“跟随节点”检查合集新增/下架的成员，
-                  并一键把本地缺失的成员加入下载队列。删除记录不会删除已下载的 Mod。
-                </div>
+                <div class="setting-row-label">${t("settings.workshop.collections.label")}</div>
+                <div class="setting-row-desc">${t("settings.workshop.collections.desc")}</div>
               </div>
               <div class="addonlist-action-row settings-profile-capture-row">
                 <input
                   type="text"
                   id="settings-collection-input"
                   class="settings-profile-name-input"
-                  placeholder="粘贴合集链接或合集 ID"
+                  placeholder="${t("settings.workshop.collections.inputPlaceholder")}"
                   autocomplete="off"
                 >
-                <button type="button" id="settings-collection-capture" class="trigger-check-btn addonlist-action-btn">保存合集</button>
-                <button type="button" id="settings-collection-check-all" class="trigger-check-btn addonlist-action-btn ${workshopCollections.length > 0 ? "" : "hidden"}">检查全部更新</button>
+                <button type="button" id="settings-collection-capture" class="trigger-check-btn addonlist-action-btn">${t("settings.workshop.collections.capture")}</button>
+                <button type="button" id="settings-collection-check-all" class="trigger-check-btn addonlist-action-btn ${workshopCollections.length > 0 ? "" : "hidden"}">${t("settings.workshop.collections.checkAll")}</button>
               </div>
               <p id="settings-collection-status" class="setting-row-status">${escapeHtml(workshopCollectionStatusText || workshopCollectionsError)}</p>
               ${workshopCollections.length > 0 ? `
@@ -593,43 +588,43 @@ export async function renderSettingsPage(deps) {
                     <div class="settings-profile-item">
                       <div class="settings-profile-main">
                         <strong>${escapeHtml(link.title || link.collectionId)}</strong>
-                        <span>合集 ${escapeHtml(link.collectionId)} · ${escapeHtml(formatCollectionSummary(link))}${link.lastCheckedAt ? ` · 上次检查 ${escapeHtml(link.lastCheckedAt)}` : ""}</span>
+                        <span>${t("settings.workshop.collections.itemMeta", { id: escapeHtml(link.collectionId), summary: escapeHtml(formatCollectionSummary(link)), lastChecked: link.lastCheckedAt ? t("settings.workshop.collections.lastChecked", { time: escapeHtml(link.lastCheckedAt) }) : "" })}</span>
                       </div>
                       <div class="settings-profile-actions">
-                        <button type="button" class="settings-collection-download" data-collection-id="${escapeAttr(link.id)}">下载缺失成员</button>
-                        <button type="button" class="settings-collection-refresh" data-collection-id="${escapeAttr(link.id)}">检查更新</button>
-                        <button type="button" class="settings-collection-delete" data-collection-id="${escapeAttr(link.id)}">删除记录</button>
+                        <button type="button" class="settings-collection-download" data-collection-id="${escapeAttr(link.id)}">${t("settings.workshop.collections.downloadMissing")}</button>
+                        <button type="button" class="settings-collection-refresh" data-collection-id="${escapeAttr(link.id)}">${t("settings.workshop.collections.refresh")}</button>
+                        <button type="button" class="settings-collection-delete" data-collection-id="${escapeAttr(link.id)}">${t("settings.workshop.collections.delete")}</button>
                       </div>
                     </div>
                   `).join("")}
                 </div>
-              ` : `<div class="setting-row-desc">还没有保存过工坊合集。</div>`}
+              ` : `<div class="setting-row-desc">${t("settings.workshop.collections.empty")}</div>`}
             </div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">浏览器跳转</div>
+            <div class="setting-card-title">${t("settings.workshop.browser.cardTitle")}</div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">跳转目标</div>
-                <div class="setting-row-desc">选择“使用浏览器打开”时跳转的网站</div>
+                <div class="setting-row-label">${t("settings.workshop.browser.label")}</div>
+                <div class="setting-row-desc">${t("settings.workshop.browser.desc")}</div>
               </div>
               <div class="setting-radio-group">
-                <label class="setting-radio-label"><input type="radio" name="settings-browser-target" value="mirror" ${browserTarget === "mirror" ? "checked" : ""}><span>镜像站 l4d2ws.com</span></label>
-                <label class="setting-radio-label"><input type="radio" name="settings-browser-target" value="steam" ${browserTarget === "steam" ? "checked" : ""}><span>Steam 官方工坊</span></label>
+                <label class="setting-radio-label"><input type="radio" name="settings-browser-target" value="mirror" ${browserTarget === "mirror" ? "checked" : ""}><span>${t("settings.workshop.browser.mirror")}</span></label>
+                <label class="setting-radio-label"><input type="radio" name="settings-browser-target" value="steam" ${browserTarget === "steam" ? "checked" : ""}><span>${t("settings.workshop.browser.steam")}</span></label>
               </div>
             </div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">描述翻译</div>
+            <div class="setting-card-title">${t("settings.workshop.translate.cardTitle")}</div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">翻译服务</div>
-                <div class="setting-row-desc">用于创意工坊详情页的描述翻译</div>
+                <div class="setting-row-label">${t("settings.workshop.translate.provider.label")}</div>
+                <div class="setting-row-desc">${t("settings.workshop.translate.provider.desc")}</div>
               </div>
               <div class="mode-toggle-group settings-translate-provider-toggle">
                 <label class="mode-option ${translateProvider === "microsoft" ? "active" : ""}">
                   <input type="radio" name="settings-translate-provider" value="microsoft" ${translateProvider === "microsoft" ? "checked" : ""}>
-                  <span class="mode-text">微软</span>
+                  <span class="mode-text">${t("settings.workshop.translate.provider.microsoft")}</span>
                 </label>
                 <label class="mode-option ${translateProvider === "yandex" ? "active" : ""}">
                   <input type="radio" name="settings-translate-provider" value="yandex" ${translateProvider === "yandex" ? "checked" : ""}>
@@ -637,16 +632,16 @@ export async function renderSettingsPage(deps) {
                 </label>
                 <label class="mode-option ${translateProvider === "custom" ? "active" : ""}">
                   <input type="radio" name="settings-translate-provider" value="custom" ${translateProvider === "custom" ? "checked" : ""}>
-                  <span class="mode-text">自定义AI</span>
+                  <span class="mode-text">${t("settings.workshop.translate.provider.custom")}</span>
                 </label>
               </div>
             </div>
             <div id="settings-translate-custom-section" class="setting-indent" style="${translateProvider === "custom" ? "" : "display:none"}">
-              <div class="setting-row-label" style="margin-bottom:8px">自定义AI配置</div>
+              <div class="setting-row-label" style="margin-bottom:8px">${t("settings.workshop.translate.custom.title")}</div>
               <div class="setting-custom-input-group" style="display:flex;flex-direction:column;gap:8px">
-                <input type="text" id="settings-translate-custom-baseurl" class="form-input" value="${escapeAttr(customBaseURL)}" placeholder="Base URL，如 https://api.openai.com/v1">
-                <input type="password" id="settings-translate-custom-apikey" class="form-input" value="" placeholder="API Key${hasCustomAPIKey ? "（已设置）" : ""}">
-                <input type="text" id="settings-translate-custom-modelid" class="form-input" value="${escapeAttr(customModelId)}" placeholder="模型ID，如 gpt-4o">
+                <input type="text" id="settings-translate-custom-baseurl" class="form-input" value="${escapeAttr(customBaseURL)}" placeholder="${t("settings.workshop.translate.custom.baseUrlPlaceholder")}">
+                <input type="password" id="settings-translate-custom-apikey" class="form-input" value="" placeholder="API Key${hasCustomAPIKey ? t("settings.workshop.translate.custom.apiKeySetSuffix") : ""}">
+                <input type="text" id="settings-translate-custom-modelid" class="form-input" value="${escapeAttr(customModelId)}" placeholder="${t("settings.workshop.translate.custom.modelPlaceholder")}">
               </div>
             </div>
           </div>
@@ -654,82 +649,82 @@ export async function renderSettingsPage(deps) {
 
         <div class="settings-panel" id="settings-panel-addonlist">
           <div class="setting-card autoexec-card">
-            <div class="setting-card-title">autoexec.cfg 编辑器与控制台指令小贴士</div>
-            <div class="setting-row-desc">编辑后保存会保留游戏文件原有的编码、BOM 和换行格式；内容只写入文件，不会在本程序中执行。未知指令可能来自插件或 Mod。</div>
+            <div class="setting-card-title">${t("settings.addonlist.autoexec.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.autoexec.desc")}</div>
             <div class="autoexec-layout">
               <div class="autoexec-editor-column">
                 <div class="autoexec-meta" id="settings-autoexec-meta">
-                  <span class="autoexec-path">${escapeHtml(autoexecInfo?.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</span>
-                  <span>${autoexecInfo?.exists ? "文件存在" : "文件不存在，将在保存时创建"}</span>
+                  <span class="autoexec-path">${escapeHtml(autoexecInfo?.path || t("settings.addonlist.dirNotChosen"))}</span>
+                  <span>${autoexecInfo?.exists ? t("settings.addonlist.fileExists") : t("settings.addonlist.fileMissing")}</span>
                   <span>${escapeHtml(autoexecInfo?.encoding || "UTF-8")} · ${escapeHtml(autoexecInfo?.lineEnding || "CRLF")}</span>
                   <span>${formatAddonListBytes(autoexecInfo?.size)}</span>
-                  ${autoexecInfo?.lastModified ? `<span>修改于 ${escapeHtml(formatAddonListTime(autoexecInfo.lastModified))}</span>` : ""}
+                  ${autoexecInfo?.lastModified ? `<span>${t("settings.addonlist.modifiedAt", { time: escapeHtml(formatAddonListTime(autoexecInfo.lastModified)) })}</span>` : ""}
                 </div>
                 ${autoexecError ? `<div class="addonlist-status-error">${escapeHtml(autoexecError)}</div>` : ""}
                 <div class="autoexec-editor-shell">
                   <pre class="autoexec-line-numbers" id="settings-autoexec-line-numbers" aria-hidden="true"></pre>
-                  <textarea id="settings-autoexec-content" class="autoexec-editor" spellcheck="false" wrap="off" aria-label="autoexec.cfg 内容">${escapeHtml(autoexecInfo?.content || "")}</textarea>
+                  <textarea id="settings-autoexec-content" class="autoexec-editor" spellcheck="false" wrap="off" aria-label="${t("settings.addonlist.autoexec.contentLabel")}">${escapeHtml(autoexecInfo?.content || "")}</textarea>
                 </div>
                 <div class="addonlist-action-row autoexec-action-row">
-                  <button type="button" id="settings-autoexec-save" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo ? "" : "disabled"}>保存 autoexec.cfg</button>
-                  <button type="button" id="settings-autoexec-reload" class="trigger-check-btn addonlist-action-btn">重新读取</button>
-                  <button type="button" id="settings-autoexec-open" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo?.exists ? "" : "disabled"}>打开文件位置</button>
+                  <button type="button" id="settings-autoexec-save" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo ? "" : "disabled"}>${t("settings.addonlist.autoexec.save")}</button>
+                  <button type="button" id="settings-autoexec-reload" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.autoexec.reload")}</button>
+                  <button type="button" id="settings-autoexec-open" class="trigger-check-btn addonlist-action-btn" ${autoexecInfo?.exists ? "" : "disabled"}>${t("settings.addonlist.openLocation")}</button>
                 </div>
-                <div class="autoexec-analysis" id="settings-autoexec-analysis">已识别 ${autoexecMatches.filter((item) => item.known).length} 个已收录指令，${autoexecMatches.filter((item) => !item.known).length} 个未知指令</div>
+                <div class="autoexec-analysis" id="settings-autoexec-analysis">${t("settings.addonlist.autoexec.analysisSummary", { known: autoexecMatches.filter((item) => item.known).length, unknown: autoexecMatches.filter((item) => !item.known).length, risks: "" })}</div>
                 <div class="autoexec-matches" id="settings-autoexec-matches"></div>
               </div>
               <aside class="autoexec-help-column">
-                <div class="autoexec-help-title">常用指令说明</div>
-                <input type="search" id="settings-autoexec-help-search" class="form-input" placeholder="搜索命令或含义">
+                <div class="autoexec-help-title">${t("settings.addonlist.autoexec.help.title")}</div>
+                <input type="search" id="settings-autoexec-help-search" class="form-input" placeholder="${t("settings.addonlist.autoexec.help.searchPlaceholder")}">
                 <div id="settings-autoexec-help-list" class="autoexec-help-list"></div>
               </aside>
             </div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">addonlist.txt 生命周期管理</div>
-            <div class="setting-row-desc">这里管理游戏实际读取的配置文件：先保存受保护版本，再按需创建历史备份；开启监控后，检测到游戏覆盖或删除时会自动恢复并保留外部内容。</div>
-            <div class="addonlist-lifecycle-steps" aria-label="addonlist.txt 生命周期">
-              <div class="addonlist-lifecycle-step"><strong>1. 保存</strong><span>记录当前字节和编码</span></div>
-              <div class="addonlist-lifecycle-step"><strong>2. 备份</strong><span>保留手动/恢复前版本</span></div>
-              <div class="addonlist-lifecycle-step"><strong>3. 监控</strong><span>覆盖后自动恢复</span></div>
-              <div class="addonlist-lifecycle-step"><strong>4. 删除</strong><span>删除前仍可恢复</span></div>
+            <div class="setting-card-title">${t("settings.addonlist.lifecycle.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.lifecycle.desc")}</div>
+            <div class="addonlist-lifecycle-steps" aria-label="${t("settings.addonlist.lifecycle.ariaLabel")}">
+              <div class="addonlist-lifecycle-step"><strong>${t("settings.addonlist.lifecycle.step1.title")}</strong><span>${t("settings.addonlist.lifecycle.step1.desc")}</span></div>
+              <div class="addonlist-lifecycle-step"><strong>${t("settings.addonlist.lifecycle.step2.title")}</strong><span>${t("settings.addonlist.lifecycle.step2.desc")}</span></div>
+              <div class="addonlist-lifecycle-step"><strong>${t("settings.addonlist.lifecycle.step3.title")}</strong><span>${t("settings.addonlist.lifecycle.step3.desc")}</span></div>
+              <div class="addonlist-lifecycle-step"><strong>${t("settings.addonlist.lifecycle.step4.title")}</strong><span>${t("settings.addonlist.lifecycle.step4.desc")}</span></div>
             </div>
             <div class="setting-row addonlist-status-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">目标文件</div>
-                <div class="setting-row-desc addonlist-path">${escapeHtml(addonListInfo?.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</div>
+                <div class="setting-row-label">${t("settings.addonlist.targetFile")}</div>
+                <div class="setting-row-desc addonlist-path">${escapeHtml(addonListInfo?.path || t("settings.addonlist.dirNotChosen"))}</div>
                 ${addonListError ? `<div class="addonlist-status-error">${escapeHtml(addonListError)}</div>` : ""}
               </div>
             </div>
             <div class="setting-row addonlist-unrecorded-placement-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">未记录 Mod 首次开启时的位置</div>
-                <div class="setting-row-desc">仅影响点击“未记录”后首次写入 addonlist.txt 的 Mod；已记录 Mod 的开关不会移动。默认放在列表末尾，避免改变已有 Mod 的相对加载顺序；成功后会提示实际优先级编号。</div>
+                <div class="setting-row-label">${t("settings.addonlist.unrecordedPlacement.label")}</div>
+                <div class="setting-row-desc">${t("settings.addonlist.unrecordedPlacement.desc")}</div>
               </div>
-              <select id="settings-unrecorded-mod-load-order-placement" class="form-input addonlist-unrecorded-placement-select" aria-label="未记录 Mod 首次开启时的加载顺序位置">
-                <option value="end" ${unrecordedModLoadOrderPlacement === "end" ? "selected" : ""}>列表末尾（默认，不重排已有 Mod）</option>
-                <option value="start" ${unrecordedModLoadOrderPlacement === "start" ? "selected" : ""}>列表顶部（优先级 #1）</option>
-                <option value="after-enabled" ${unrecordedModLoadOrderPlacement === "after-enabled" ? "selected" : ""}>紧跟最后一个游戏内已开启 Mod</option>
+              <select id="settings-unrecorded-mod-load-order-placement" class="form-input addonlist-unrecorded-placement-select" aria-label="${t("settings.addonlist.unrecordedPlacement.ariaLabel")}">
+                <option value="end" ${unrecordedModLoadOrderPlacement === "end" ? "selected" : ""}>${t("settings.addonlist.unrecordedPlacement.optionEnd")}</option>
+                <option value="start" ${unrecordedModLoadOrderPlacement === "start" ? "selected" : ""}>${t("settings.addonlist.unrecordedPlacement.optionStart")}</option>
+                <option value="after-enabled" ${unrecordedModLoadOrderPlacement === "after-enabled" ? "selected" : ""}>${t("settings.addonlist.unrecordedPlacement.optionAfterEnabled")}</option>
               </select>
             </div>
             ${addonListInfo ? `
               <div class="addonlist-status-grid">
-                <div><span>文件状态</span><strong>${addonListInfo.exists ? "存在" : "不存在"}</strong></div>
-                <div><span>编码 / 大小</span><strong>${escapeHtml(addonListInfo.encoding || "—")} / ${formatAddonListBytes(addonListInfo.size)}</strong></div>
-                <div><span>最后修改</span><strong>${escapeHtml(formatAddonListTime(addonListInfo.lastModified))}</strong></div>
-                <div><span>受保护版本</span><strong>${addonListInfo.managedSnapshotExists ? "已保存" : "未保存"}</strong></div>
+                <div><span>${t("settings.addonlist.status.fileState")}</span><strong>${addonListInfo.exists ? t("settings.addonlist.state.exists") : t("settings.addonlist.state.missing")}</strong></div>
+                <div><span>${t("settings.addonlist.status.encodingSize")}</span><strong>${escapeHtml(addonListInfo.encoding || "—")} / ${formatAddonListBytes(addonListInfo.size)}</strong></div>
+                <div><span>${t("settings.addonlist.status.lastModified")}</span><strong>${escapeHtml(formatAddonListTime(addonListInfo.lastModified))}</strong></div>
+                <div><span>${t("settings.addonlist.status.snapshot")}</span><strong>${addonListInfo.managedSnapshotExists ? t("settings.addonlist.status.snapshotSaved") : t("settings.addonlist.status.snapshotFailed")}</strong></div>
               </div>
               <div class="addonlist-action-row">
-                <button type="button" id="settings-addonlist-save-snapshot" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>保存当前配置为受保护版本</button>
-                <button type="button" id="settings-addonlist-create-backup" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>创建历史备份</button>
-                <button type="button" id="settings-addonlist-open" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>打开文件位置</button>
+                <button type="button" id="settings-addonlist-save-snapshot" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>${t("settings.addonlist.saveSnapshot")}</button>
+                <button type="button" id="settings-addonlist-create-backup" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>${t("settings.addonlist.createBackup")}</button>
+                <button type="button" id="settings-addonlist-open" class="trigger-check-btn addonlist-action-btn" ${addonListInfo.exists ? "" : "disabled"}>${t("settings.addonlist.openLocation")}</button>
               </div>
               <div class="setting-row addonlist-guard-row">
                 <div class="setting-row-info">
-                  <div class="setting-row-label">监控并自动恢复</div>
-                  <div class="setting-row-desc">默认关闭。仅在你手动开启后，应用运行期间才会检测游戏稳定写入或删除 addonlist.txt 的情况，恢复受保护版本并保留被覆盖内容的备份。</div>
-                  ${addonListInfo.lastGuardRestore ? `<div class="setting-row-status">最近自动恢复：${escapeHtml(formatAddonListTime(addonListInfo.lastGuardRestore))}</div>` : ""}
-                  ${addonListInfo.lastGuardError ? `<div class="addonlist-status-error">监控状态：${escapeHtml(addonListInfo.lastGuardError)}</div>` : ""}
+                  <div class="setting-row-label">${t("settings.addonlist.guard.label")}</div>
+                  <div class="setting-row-desc">${t("settings.addonlist.guard.desc")}</div>
+                  ${addonListInfo.lastGuardRestore ? `<div class="setting-row-status">${t("settings.addonlist.guard.lastRestore", { time: escapeHtml(formatAddonListTime(addonListInfo.lastGuardRestore)) })}</div>` : ""}
+                  ${addonListInfo.lastGuardError ? `<div class="addonlist-status-error">${t("settings.addonlist.guard.status", { status: escapeHtml(addonListInfo.lastGuardError) })}</div>` : ""}
                 </div>
                 <label class="toggle-switch">
                   <input type="checkbox" id="settings-addonlist-guard" ${addonListInfo.guardEnabled ? "checked" : ""} ${addonListInfo.exists || addonListInfo.managedSnapshotExists ? "" : "disabled"}>
@@ -737,13 +732,13 @@ export async function renderSettingsPage(deps) {
                 </label>
               </div>
               <div class="addonlist-danger-zone">
-                <button type="button" id="settings-addonlist-delete" class="trigger-check-btn addonlist-danger-btn" ${addonListInfo.exists ? "" : "disabled"}>删除 addonlist.txt</button>
-                <span>删除前会自动保留一份可恢复的历史备份，同时关闭监控并移除受保护版本。</span>
+                <button type="button" id="settings-addonlist-delete" class="trigger-check-btn addonlist-danger-btn" ${addonListInfo.exists ? "" : "disabled"}>${t("settings.addonlist.delete.button")}</button>
+                <span>${t("settings.addonlist.delete.hint")}</span>
               </div>
             ` : ""}
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">历史备份</div>
+            <div class="setting-card-title">${t("settings.addonlist.backups.cardTitle")}</div>
             ${addonListInfo ? (addonListBackups.length > 0 ? `
               <div class="addonlist-backup-list">
                 ${addonListBackups.map((backup) => `
@@ -753,29 +748,29 @@ export async function renderSettingsPage(deps) {
                       <span>${escapeHtml(formatAddonListTime(backup.createdAt))} · ${formatAddonListBytes(backup.size)}</span>
                     </div>
                     <div class="addonlist-backup-actions">
-                      <button type="button" class="addonlist-backup-restore" data-addonlist-backup="${escapeAttr(backup.name)}">恢复</button>
-                      <button type="button" class="addonlist-backup-delete" data-addonlist-backup="${escapeAttr(backup.name)}">删除</button>
+                      <button type="button" class="addonlist-backup-restore" data-addonlist-backup="${escapeAttr(backup.name)}">${t("settings.addonlist.backups.restore")}</button>
+                      <button type="button" class="addonlist-backup-delete" data-addonlist-backup="${escapeAttr(backup.name)}">${t("settings.addonlist.backups.delete")}</button>
                     </div>
                   </div>
                 `).join("")}
               </div>
-            ` : `<div class="setting-row-desc">暂无历史备份。创建备份、恢复备份、自动恢复和删除配置前都会在这里保留记录。</div>`) : ""}
+            ` : `<div class="setting-row-desc">${t("settings.addonlist.backups.empty")}</div>`) : ""}
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">融合其他 Mod 文件夹配置</div>
-            <div class="setting-row-desc">选择另一份 addonlist.txt。新增 Mod 会保留来源开关；相同 Mod 的冲突默认保留当前开关，可逐项勾选采用来源开关。</div>
+            <div class="setting-card-title">${t("settings.addonlist.merge.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.merge.desc")}</div>
             <div class="addonlist-action-row addonlist-merge-action-row">
-              <button type="button" id="settings-addonlist-select-merge-source" class="trigger-check-btn addonlist-action-btn">选择其他 addonlist.txt</button>
-              ${addonListMergePreview ? `<button type="button" id="settings-addonlist-cancel-merge" class="trigger-check-btn addonlist-secondary-btn">取消本次融合</button>` : ""}
+              <button type="button" id="settings-addonlist-select-merge-source" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.merge.select")}</button>
+              ${addonListMergePreview ? `<button type="button" id="settings-addonlist-cancel-merge" class="trigger-check-btn addonlist-secondary-btn">${t("settings.addonlist.merge.cancel")}</button>` : ""}
             </div>
             ${renderAddonListMergePreview(addonListMergePreview)}
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">Mod 冲突分析</div>
+            <div class="setting-card-title">${t("settings.addonlist.conflict.cardTitle")}</div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">默认按加载顺序判定胜负</div>
-                <div class="setting-row-desc">开启后，能在 addonlist.txt 中判定先后顺序的重叠会归入“覆盖关系”，只有无法判定胜负的重叠才计为冲突。</div>
+                <div class="setting-row-label">${t("settings.addonlist.conflict.priorityAware.label")}</div>
+                <div class="setting-row-desc">${t("settings.addonlist.conflict.priorityAware.desc")}</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="settings-conflict-priority-aware" ${getConfig().conflictPriorityAware === true ? "checked" : ""}>
@@ -784,18 +779,18 @@ export async function renderSettingsPage(deps) {
             </div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">冲突忽略清单</div>
-                <div class="setting-row-desc">${escapeHtml(CONFLICT_IGNORE_LIST_DESCRIPTION)}清单对所有冲突检测入口生效。</div>
+                <div class="setting-row-label">${t("settings.addonlist.conflict.ignoreList.label")}</div>
+                <div class="setting-row-desc">${escapeHtml(CONFLICT_IGNORE_LIST_DESCRIPTION)}${t("settings.addonlist.conflict.ignoreList.descSuffix")}</div>
               </div>
               <textarea id="settings-conflict-ignore-files" class="settings-conflict-ignore-editor" rows="6" spellcheck="false" placeholder="materials/shared.vtf&#10;scripts/vscripts/">${escapeHtml(formatConflictIgnoreList(getConfig().conflictIgnoreFiles))}</textarea>
               <div class="addonlist-action-row">
-                <button type="button" id="settings-conflict-save-ignore" class="trigger-check-btn addonlist-action-btn">保存忽略清单</button>
+                <button type="button" id="settings-conflict-save-ignore" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.conflict.ignoreList.save")}</button>
                 <span id="settings-conflict-ignore-status" class="setting-row-status"></span>
               </div>
             </div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">游戏原版文件白名单</div>
+                <div class="setting-row-label">${t("settings.addonlist.stockWhitelist.label")}</div>
                 <div class="setting-row-desc">
                   原版文件白名单用于降低“两个 Mod 各带一份原版文件”造成的误报，只影响忽略判定，不会改写任何文件。
                   默认启用内置的引擎胶水批次；可按类别从本机原版 <code>pak01_dir.vpk</code> 生成增量批次，
@@ -803,22 +798,22 @@ export async function renderSettingsPage(deps) {
                 </div>
               </div>
               <div class="addonlist-action-row">
-                <button type="button" id="settings-stock-whitelist-generate" class="trigger-check-btn addonlist-action-btn">从原版 pak01 生成批次</button>
-                <button type="button" id="settings-stock-whitelist-reload" class="trigger-check-btn addonlist-action-btn">刷新白名单状态</button>
+                <button type="button" id="settings-stock-whitelist-generate" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.stockWhitelist.generate")}</button>
+                <button type="button" id="settings-stock-whitelist-reload" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.stockWhitelist.reload")}</button>
                 <span id="settings-stock-whitelist-status" class="setting-row-status"></span>
               </div>
             </div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">启用方案</div>
-            <div class="setting-row-desc">把当前 addonlist.txt 的开关与加载顺序保存为方案，之后可以一键切回；方案能导出成文件分享给别人。应用方案前会自动备份当前 addonlist.txt，方案未记录的 Mod 会保留原开关并排在最后。</div>
+            <div class="setting-card-title">${t("settings.addonlist.profiles.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.profiles.desc")}</div>
             <div class="addonlist-action-row settings-profile-capture-row">
-              <input type="text" id="settings-profile-name" class="settings-profile-name-input" maxlength="60" placeholder="方案名称，例如 写实包">
-              <button type="button" id="settings-profile-capture" class="trigger-check-btn addonlist-action-btn" ${addonListInfo?.exists ? "" : "disabled"}>保存当前为方案</button>
-              <button type="button" id="settings-profile-import" class="trigger-check-btn addonlist-secondary-btn">导入方案</button>
-              <label class="settings-health-deep-toggle" title="勾选后，方案会一并保存当前策略组与依赖声明，应用时整体恢复">
+              <input type="text" id="settings-profile-name" class="settings-profile-name-input" maxlength="60" placeholder="${t("settings.addonlist.profiles.namePlaceholder")}">
+              <button type="button" id="settings-profile-capture" class="trigger-check-btn addonlist-action-btn" ${addonListInfo?.exists ? "" : "disabled"}>${t("settings.addonlist.profiles.capture")}</button>
+              <button type="button" id="settings-profile-import" class="trigger-check-btn addonlist-secondary-btn">${t("settings.addonlist.profiles.import")}</button>
+              <label class="settings-health-deep-toggle" title="${t("settings.addonlist.profiles.includeAutomation.title")}">
                 <input type="checkbox" id="settings-profile-include-automation">
-                <span>同时保存策略组与依赖</span>
+                <span>${t("settings.addonlist.profiles.includeAutomation.label")}</span>
               </label>
             </div>
             <p id="settings-profile-status" class="setting-row-status">${escapeHtml(modEnableProfilesError)}</p>
@@ -828,35 +823,35 @@ export async function renderSettingsPage(deps) {
                   <div class="settings-profile-item">
                     <div class="settings-profile-main">
                       <strong>${escapeHtml(profile.name)}</strong>
-                      <span>${(profile.entries || []).length} 个条目${profile.description ? ` · ${escapeHtml(profile.description)}` : ""}</span>
+                      <span>${t("settings.addonlist.profiles.entryCount", { count: (profile.entries || []).length })}${profile.description ? ` · ${escapeHtml(profile.description)}` : ""}</span>
                     </div>
                     <div class="settings-profile-actions">
-                      <button type="button" class="settings-profile-apply" data-profile-id="${escapeAttr(profile.id)}">应用</button>
-                      <button type="button" class="settings-profile-export" data-profile-id="${escapeAttr(profile.id)}">导出</button>
-                      <button type="button" class="settings-profile-delete" data-profile-id="${escapeAttr(profile.id)}">删除</button>
+                      <button type="button" class="settings-profile-apply" data-profile-id="${escapeAttr(profile.id)}">${t("settings.addonlist.profiles.apply")}</button>
+                      <button type="button" class="settings-profile-export" data-profile-id="${escapeAttr(profile.id)}">${t("settings.addonlist.profiles.export")}</button>
+                      <button type="button" class="settings-profile-delete" data-profile-id="${escapeAttr(profile.id)}">${t("settings.addonlist.profiles.delete")}</button>
                     </div>
                   </div>
                 `).join("")}
               </div>
-            ` : `<div class="setting-row-desc">还没有保存任何方案。保存后这里会列出可一键切换的方案。</div>`}
+            ` : `<div class="setting-row-desc">${t("settings.addonlist.profiles.empty")}</div>`}
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">策略组</div>
-            <div class="setting-row-desc">策略组已经搬到独立窗口：在 Mod 管理页打开「分组」菜单，点「策略组管理…」即可建组、按策略应用、调整组权重与上级分组，并支持多选批量管理。这里不再重复一份。</div>
+            <div class="setting-card-title">${t("settings.addonlist.strategyGroups.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.strategyGroups.desc")}</div>
             <div class="addonlist-action-row settings-profile-capture-row">
-              <button type="button" id="settings-open-strategy-manager" class="btn btn-small btn-outline">打开策略组管理窗口…</button>
+              <button type="button" id="settings-open-strategy-manager" class="btn btn-small btn-outline">${t("settings.addonlist.strategyGroups.open")}</button>
             </div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">Mod 依赖</div>
-            <div class="setting-row-desc">依赖由你自己声明：在 Mod 管理页勾选一个“主 Mod”和它的依赖项，回到这里选择主 Mod 并保存。体检会提示“依赖被关闭”和“依赖文件缺失”，并支持一键启用依赖。</div>
+            <div class="setting-card-title">${t("settings.addonlist.dependencies.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.dependencies.desc")}</div>
             <div class="addonlist-action-row settings-profile-capture-row">
-              <select id="settings-dependency-target" class="settings-strategy-select" aria-label="选择主 Mod" ${selectedModOptions.length > 0 ? "" : "disabled"}>
+              <select id="settings-dependency-target" class="settings-strategy-select" aria-label="${t("settings.addonlist.dependencies.targetAria")}" ${selectedModOptions.length > 0 ? "" : "disabled"}>
                 ${selectedModOptions.length > 0
                   ? selectedModOptions.map((item) => `<option value="${escapeAttr(item.path)}">${escapeHtml(item.label)}</option>`).join("")
-                  : `<option value="">请先勾选 Mod</option>`}
+                  : `<option value="">${t("settings.addonlist.dependencies.noSelection")}</option>`}
               </select>
-              <button type="button" id="settings-dependency-save" class="trigger-check-btn addonlist-action-btn" ${selectedModOptions.length > 1 ? "" : "disabled"}>把其它 ${Math.max(selectedModOptions.length - 1, 0)} 个设为依赖</button>
+              <button type="button" id="settings-dependency-save" class="trigger-check-btn addonlist-action-btn" ${selectedModOptions.length > 1 ? "" : "disabled"}>${t("settings.addonlist.dependencies.save", { count: Math.max(selectedModOptions.length - 1, 0) })}</button>
             </div>
             <p id="settings-dependency-status" class="setting-row-status">${escapeHtml(modDependenciesError)}</p>
             ${modDependencies.length > 0 ? `
@@ -865,31 +860,31 @@ export async function renderSettingsPage(deps) {
                   <div class="settings-profile-item">
                     <div class="settings-profile-main">
                       <strong>${escapeHtml(record.name)}</strong>
-                      <span>依赖：${escapeHtml((record.dependencies || []).map((item) => item.name).join("、") || "无")}</span>
+                      <span>${t("settings.addonlist.dependencies.itemPrefix", { list: escapeHtml((record.dependencies || []).map((item) => item.name).join("、") || t("settings.addonlist.dependencies.none")) })}</span>
                     </div>
                     <div class="settings-profile-actions">
-                      <button type="button" class="settings-dependency-enable" data-dependency-key="${escapeAttr(record.key)}" data-dependency-name="${escapeAttr(record.name)}">启用依赖</button>
-                      <button type="button" class="settings-dependency-delete" data-dependency-key="${escapeAttr(record.key)}">删除</button>
+                      <button type="button" class="settings-dependency-enable" data-dependency-key="${escapeAttr(record.key)}" data-dependency-name="${escapeAttr(record.name)}">${t("settings.addonlist.dependencies.enable")}</button>
+                      <button type="button" class="settings-dependency-delete" data-dependency-key="${escapeAttr(record.key)}">${t("settings.addonlist.dependencies.delete")}</button>
                     </div>
                   </div>
                 `).join("")}
               </div>
-            ` : `<div class="setting-row-desc">还没有声明任何依赖。</div>`}
+            ` : `<div class="setting-row-desc">${t("settings.addonlist.dependencies.empty")}</div>`}
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">Mod 体检</div>
-            <div class="setting-row-desc">只读检查 addonlist.txt 与磁盘文件是否一致：条目缺少文件、只剩 disabled 副本、未写入开关记录、重复条目；深度扫描还会逐个解析 VPK 找出损坏文件。</div>
+            <div class="setting-card-title">${t("settings.addonlist.health.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.health.desc")}</div>
             <div class="addonlist-action-row settings-profile-capture-row">
               <label class="settings-health-deep-toggle">
                 <input type="checkbox" id="settings-health-deep">
-                <span>深度扫描（较慢）</span>
+                <span>${t("settings.addonlist.health.deepScan")}</span>
               </label>
-              <button type="button" id="settings-health-run" class="trigger-check-btn addonlist-action-btn">开始体检</button>
-              <button type="button" id="settings-health-fix-duplicates" class="trigger-check-btn addonlist-secondary-btn" disabled>清理重复条目</button>
-              <button type="button" id="settings-health-fix-missing" class="trigger-check-btn addonlist-secondary-btn" disabled>清理失效条目</button>
-              <button type="button" id="settings-health-fix-dependencies" class="trigger-check-btn addonlist-secondary-btn" disabled>启用缺失依赖</button>
-              <button type="button" id="settings-health-copy" class="trigger-check-btn addonlist-secondary-btn" disabled>复制报告</button>
-              <button type="button" id="settings-health-save" class="trigger-check-btn addonlist-secondary-btn" disabled>保存报告</button>
+              <button type="button" id="settings-health-run" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.health.run")}</button>
+              <button type="button" id="settings-health-fix-duplicates" class="trigger-check-btn addonlist-secondary-btn" disabled>${t("settings.addonlist.health.fixDuplicates")}</button>
+              <button type="button" id="settings-health-fix-missing" class="trigger-check-btn addonlist-secondary-btn" disabled>${t("settings.addonlist.health.fixMissing")}</button>
+              <button type="button" id="settings-health-fix-dependencies" class="trigger-check-btn addonlist-secondary-btn" disabled>${t("settings.addonlist.health.fixDependencies")}</button>
+              <button type="button" id="settings-health-copy" class="trigger-check-btn addonlist-secondary-btn" disabled>${t("settings.addonlist.health.copyReport")}</button>
+              <button type="button" id="settings-health-save" class="trigger-check-btn addonlist-secondary-btn" disabled>${t("settings.addonlist.health.saveReport")}</button>
             </div>
             <p id="settings-health-summary" class="setting-row-status"></p>
             <!-- 体检结果检索：与其它列表同一套语法（对象名 / 路径 / 提示文案 + tag: 严重度与类型） -->
@@ -898,15 +893,15 @@ export async function renderSettingsPage(deps) {
                 type="search"
                 id="settings-health-search"
                 class="settings-health-search"
-                placeholder="搜索问题（对象名 / 路径 / 提示文案；支持 -排除 / re: 正则 / tag:严重度或类型）"
-                aria-label="搜索体检问题"
+                placeholder="${t("settings.addonlist.health.searchPlaceholder")}"
+                aria-label="${t("settings.addonlist.health.searchAria")}"
                 autocomplete="off"
               >
               <button
                 type="button"
                 id="settings-health-search-help-btn"
                 class="search-help-btn"
-                title="搜索语法说明书"
+                title="${t("settings.addonlist.health.searchHelpTitle")}"
                 aria-expanded="false"
                 aria-controls="settings-health-search-help-popover"
               >?</button>
@@ -914,17 +909,17 @@ export async function renderSettingsPage(deps) {
                 id="settings-health-search-help-popover"
                 class="search-help-popover hidden"
                 role="dialog"
-                aria-label="体检搜索语法说明书"
+                aria-label="${t("settings.addonlist.health.searchHelpAria")}"
               ></div>
               <span id="settings-health-search-count" class="settings-health-search-count" aria-live="polite"></span>
             </div>
             <div id="settings-health-issues" class="settings-health-issues"></div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">分类与标签维护</div>
+            <div class="setting-card-title">${t("settings.addonlist.maintenance.cardTitle")}</div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">套件继承快照</div>
+                <div class="setting-row-label">${t("settings.addonlist.maintenance.suite.label")}</div>
                 <div class="setting-row-desc">
                   同一个作者命名空间（套件）里的标签继承结果会记在本机的 <code>suite_inheritance.json</code>：
                   只增不减，所以你删掉几个同套件的 Mod 也不会突然掉标签。
@@ -933,15 +928,15 @@ export async function renderSettingsPage(deps) {
                 </div>
               </div>
             <div class="addonlist-action-row settings-profile-capture-row">
-              <button type="button" id="settings-reset-suite-inheritance" class="trigger-check-btn addonlist-action-btn">重置套件继承快照</button>
+              <button type="button" id="settings-reset-suite-inheritance" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.maintenance.suite.reset")}</button>
               <span id="settings-suite-inheritance-status" class="setting-row-status"></span>
             </div>
           </div>
           <div class="setting-card">
-            <div class="setting-card-title">自定义标签规则</div>
+            <div class="setting-card-title">${t("settings.addonlist.maintenance.customTags.cardTitle")}</div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
-                <div class="setting-row-label">规则文件（JSON）</div>
+                <div class="setting-row-label">${t("settings.addonlist.maintenance.customTags.label")}</div>
                 <div class="setting-row-desc">
                   按<strong>文件名 / 标题 / 已识别标签</strong>再补一层自定义标签，用于你自己的命名习惯（例如"三角洲""写实包"）。
                   口径与内置规则一致：<strong>只增不减</strong>，不改动也不删除自动识别结果，也不参与冲突/优先级判定。
@@ -950,10 +945,10 @@ export async function renderSettingsPage(deps) {
                   <code>{"version":1,"rules":[{"tag":"三角洲","nameContains":["三角洲","delta"]},{"tag":"贴图包","anyTags":["贴图"]}]}</code>
                 </div>
               </div>
-              <textarea id="settings-custom-tag-rules" class="settings-conflict-ignore-editor" rows="6" spellcheck="false" placeholder='{"version":1,"rules":[{"tag":"我的分类","nameContains":["关键词"]}]}'>${escapeHtml(customTagRulesText)}</textarea>
+              <textarea id="settings-custom-tag-rules" class="settings-conflict-ignore-editor" rows="6" spellcheck="false" placeholder='${t("settings.addonlist.maintenance.customTags.placeholder")}'>${escapeHtml(customTagRulesText)}</textarea>
               <div class="addonlist-action-row">
-                <button type="button" id="settings-custom-tag-rules-preview" class="trigger-check-btn addonlist-secondary-btn">校验并预览命中</button>
-                <button type="button" id="settings-custom-tag-rules-save" class="trigger-check-btn addonlist-action-btn">保存并重扫</button>
+                <button type="button" id="settings-custom-tag-rules-preview" class="trigger-check-btn addonlist-secondary-btn">${t("settings.addonlist.maintenance.customTags.preview")}</button>
+                <button type="button" id="settings-custom-tag-rules-save" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.maintenance.customTags.save")}</button>
                 <span id="settings-custom-tag-rules-status" class="setting-row-status"></span>
               </div>
               <div id="settings-custom-tag-rules-preview-list" class="settings-health-issues"></div>
@@ -961,28 +956,24 @@ export async function renderSettingsPage(deps) {
           </div>
         </div>
           <div class="setting-card">
-            <div class="setting-card-title">工坊 DNS</div>
-            <div class="setting-row-desc">
-              工坊列表、详情与链接解析打不开时，多数是域名解析问题（优选 IP 解决不了）。
-              这里可以只给"工坊数据请求"换一个 DNS：不改系统 DNS，也不影响 Mod 文件下载与图片加速。
-              保存后立刻对新请求生效，不需要重启。
-            </div>
+            <div class="setting-card-title">${t("settings.addonlist.dns.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.dns.desc")}</div>
             <div class="setting-row">
               <div class="setting-row-info">
-                <div class="setting-row-label">解析方式</div>
-                <div class="setting-row-desc">默认跟随系统 DNS；填自定义地址会覆盖工坊请求的域名解析。</div>
+                <div class="setting-row-label">${t("settings.addonlist.dns.mode.label")}</div>
+                <div class="setting-row-desc">${t("settings.addonlist.dns.mode.desc")}</div>
               </div>
               <div class="setting-radio-group">
-                <label class="setting-radio-label"><input type="radio" name="settings-workshop-dns-mode" value="system" ${workshopDNSMode === "custom" ? "" : "checked"}><span>系统 DNS</span></label>
-                <label class="setting-radio-label"><input type="radio" name="settings-workshop-dns-mode" value="custom" ${workshopDNSMode === "custom" ? "checked" : ""}><span>自定义 DNS</span></label>
+                <label class="setting-radio-label"><input type="radio" name="settings-workshop-dns-mode" value="system" ${workshopDNSMode === "custom" ? "" : "checked"}><span>${t("settings.addonlist.dns.mode.system")}</span></label>
+                <label class="setting-radio-label"><input type="radio" name="settings-workshop-dns-mode" value="custom" ${workshopDNSMode === "custom" ? "checked" : ""}><span>${t("settings.addonlist.dns.mode.custom")}</span></label>
               </div>
             </div>
             <div id="settings-workshop-dns-section" class="setting-indent" style="${workshopDNSMode === "custom" ? "" : "display:none"}">
-              <div class="setting-row-label">自定义 DNS 地址</div>
-              <input type="text" id="settings-workshop-dns-address" class="form-input" value="${escapeAttr(workshopDNSAddress)}" placeholder="例如 119.29.29.29 或 223.5.5.5（只填地址，不带端口）" autocomplete="off" spellcheck="false">
+              <div class="setting-row-label">${t("settings.addonlist.dns.address.label")}</div>
+              <input type="text" id="settings-workshop-dns-address" class="form-input" value="${escapeAttr(workshopDNSAddress)}" placeholder="${t("settings.addonlist.dns.address.placeholder")}" autocomplete="off" spellcheck="false">
             </div>
             <div class="addonlist-action-row">
-              <button type="button" id="settings-workshop-dns-save" class="trigger-check-btn addonlist-action-btn">保存 DNS 设置</button>
+              <button type="button" id="settings-workshop-dns-save" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.dns.save")}</button>
               <span id="settings-workshop-dns-status" class="setting-row-status">${escapeHtml(workshopDNSStatus)}</span>
             </div>
           </div>
@@ -1046,7 +1037,7 @@ function renderModHealthIssues(container, report) {
       query: healthSearchQuery,
       regexInvalid: healthSearchResult.regexInvalid,
     });
-    countEl.textContent = [base, hiddenCount > 0 ? `另有 ${hiddenCount} 条未显示` : ""].filter(Boolean).join(" · ");
+    countEl.textContent = [base, hiddenCount > 0 ? t("settings.addonlist.health.hiddenMore", { count: hiddenCount }) : ""].filter(Boolean).join(" · ");
   }
 
   if (rows.length === 0) {
@@ -1054,12 +1045,12 @@ function renderModHealthIssues(container, report) {
     empty.className = "setting-row-desc";
     const invalidRegex = healthSearchResult?.regexInvalid || "";
     empty.textContent = !report
-      ? "点击“开始体检”运行检查。"
+      ? t("settings.addonlist.health.emptyHint")
       : invalidRegex
-        ? `正则表达式无效：${invalidRegex}`
+        ? t("settings.addonlist.health.regexInvalid", { error: invalidRegex })
         : healthSearchQuery.trim()
-          ? `没有匹配「${healthSearchQuery.trim()}」的问题；清空搜索框可看到全部 ${issues.length} 条。`
-          : "未发现问题。";
+          ? t("settings.addonlist.health.noMatch", { query: healthSearchQuery.trim(), total: issues.length })
+          : t("settings.addonlist.health.clean");
     container.appendChild(empty);
     return;
   }
@@ -1069,9 +1060,12 @@ function renderModHealthIssues(container, report) {
   if (autoFix.total > 0) {
     const bar = document.createElement("div");
     bar.className = "settings-health-autofix";
-    bar.textContent = `其中 ${autoFix.total} 项可以自动修复：` +
-      autoFix.actions.map((item) => `${item.label.replace("一键修复：", "")}（${item.count}）`).join("、") +
-      "。其余问题需要人工判断，不会自动改动任何文件。";
+    bar.textContent = t("settings.addonlist.health.autofixBar", {
+      total: autoFix.total,
+      actions: autoFix.actions
+        .map((item) => t("settings.addonlist.health.autofixEntry", { label: item.shortLabel, count: item.count }))
+        .join("、"),
+    });
     container.appendChild(bar);
   }
 
@@ -1111,7 +1105,7 @@ function renderModHealthIssues(container, report) {
       fix.type = "button";
       fix.className = "btn btn-small btn-outline settings-health-issue-fix";
       fix.dataset.fixAction = item.autoFix.id;
-      fix.textContent = "修复";
+      fix.textContent = t("settings.addonlist.health.fixButton");
       fix.title = item.autoFix.title;
       fix.addEventListener("click", () => void healthIssueAutoFix(item.autoFix.id, item.fixTarget));
       row.appendChild(fix);
@@ -1122,7 +1116,7 @@ function renderModHealthIssues(container, report) {
   if (hiddenCount > 0) {
     const more = document.createElement("div");
     more.className = "setting-row-desc";
-    more.textContent = `仅显示前 ${HEALTH_ISSUE_DISPLAY_LIMIT} 条，另有 ${hiddenCount} 条未显示。`;
+    more.textContent = t("settings.addonlist.health.displayLimit", { limit: HEALTH_ISSUE_DISPLAY_LIMIT, hidden: hiddenCount });
     container.appendChild(more);
   }
 }
@@ -1147,16 +1141,16 @@ function bindModDependencySettings(deps) {
       targetSelect?.value || "",
     );
     if (!target || dependencies.length === 0) {
-      setStatus("请先在 Mod 管理页勾选一个主 Mod 和至少一个依赖项");
+      setStatus(t("settings.addonlist.dependencies.pickFirst"));
       return;
     }
     saveButton.disabled = true;
     try {
       await deps.SetModDependencies(target, dependencies);
-      deps.showNotification(`已保存 ${dependencies.length} 个依赖`, "success");
+      deps.showNotification(t("settings.addonlist.dependencies.saved", { count: dependencies.length }), "success");
       refresh();
     } catch (error) {
-      setStatus("保存依赖失败: " + String(error?.message || error));
+      setStatus(t("settings.addonlist.dependencies.saveFailed", { error: String(error?.message || error) }));
     } finally {
       saveButton.disabled = false;
     }
@@ -1177,7 +1171,7 @@ function bindModDependencySettings(deps) {
         deps.refreshFilesKeepFilter?.();
         refresh();
       } catch (error) {
-        setStatus("启用依赖失败: " + String(error?.message || error));
+        setStatus(t("settings.addonlist.dependencies.enableFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     });
@@ -1187,16 +1181,20 @@ function bindModDependencySettings(deps) {
     button.addEventListener("click", async () => {
       const key = button.dataset.dependencyKey;
       if (!key) return;
-      if (!(await confirmInApp("删除这条依赖声明？不会改动 addonlist.txt。", { title: "删除依赖声明" }))) {
+      if (
+        !(await confirmInApp(t("settings.addonlist.dependencies.deleteConfirm"), {
+          title: t("settings.addonlist.dependencies.deleteConfirmTitle"),
+        }))
+      ) {
         return;
       }
       button.disabled = true;
       try {
         await deps.DeleteModDependencies(key);
-        deps.showNotification("依赖声明已删除", "success");
+        deps.showNotification(t("settings.addonlist.dependencies.deleted"), "success");
         refresh();
       } catch (error) {
-        setStatus("删除依赖失败: " + String(error?.message || error));
+        setStatus(t("settings.addonlist.dependencies.deleteFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     });
@@ -1277,7 +1275,7 @@ function bindModHealthCheckSettings(deps) {
 
   runButton?.addEventListener("click", async () => {
     runButton.disabled = true;
-    if (summary) summary.textContent = "正在体检…";
+    if (summary) summary.textContent = t("settings.addonlist.health.running");
     try {
       const report = await runCheck();
       deps.showNotification(
@@ -1285,7 +1283,7 @@ function bindModHealthCheckSettings(deps) {
         Number(report?.totalIssues) > 0 ? "warning" : "success",
       );
     } catch (error) {
-      if (summary) summary.textContent = "体检失败: " + String(error?.message || error);
+      if (summary) summary.textContent = t("settings.addonlist.health.runFailed", { error: String(error?.message || error) });
     } finally {
       runButton.disabled = false;
     }
@@ -1298,13 +1296,13 @@ function bindModHealthCheckSettings(deps) {
     try {
       const removed = await deps.RemoveDuplicateAddonListEntries();
       deps.showNotification(
-        removed > 0 ? `已清理 ${removed} 条重复条目` : "没有需要清理的重复条目",
+        removed > 0 ? t("settings.addonlist.health.fixDuplicatesDone", { count: removed }) : t("settings.addonlist.health.fixDuplicatesNone"),
         "success",
       );
       deps.refreshFilesKeepFilter?.();
       await runCheck();
     } catch (error) {
-      if (summary) summary.textContent = "清理重复条目失败: " + String(error?.message || error);
+      if (summary) summary.textContent = t("settings.addonlist.health.fixDuplicatesFailed", { error: String(error?.message || error) });
     } finally {
       fixButton.disabled = false;
     }
@@ -1313,22 +1311,20 @@ function bindModHealthCheckSettings(deps) {
   const fixMissingEntries = async () => {
     // 用应用内确认弹窗：WebView2 的原生 confirm 在锁屏 / 自动化环境下会阻塞页面。
     showConfirmModal(
-      "清理缺失条目",
-      "删除那些在磁盘上已经找不到文件的 addonlist.txt 条目？\n" +
-        "· 写盘前会自动建立「体检修复前」备份\n" +
-        "· 工坊 Mod 在文件重新下载后会被游戏按默认状态加载",
+      t("settings.addonlist.health.fixMissingConfirmTitle"),
+      t("settings.addonlist.health.fixMissingConfirm"),
       async () => {
         fixMissingButton.disabled = true;
         try {
           const removed = await deps.RemoveMissingFileAddonListEntries();
           deps.showNotification(
-            removed > 0 ? `已清理 ${removed} 条失效条目` : "没有需要清理的失效条目",
+            removed > 0 ? t("settings.addonlist.health.fixMissingDone", { count: removed }) : t("settings.addonlist.health.fixMissingNone"),
             "success",
           );
           deps.refreshFilesKeepFilter?.();
           await runCheck();
         } catch (error) {
-          if (summary) summary.textContent = "清理失效条目失败: " + String(error?.message || error);
+          if (summary) summary.textContent = t("settings.addonlist.health.fixMissingFailed", { error: String(error?.message || error) });
         } finally {
           fixMissingButton.disabled = false;
         }
@@ -1341,15 +1337,13 @@ function bindModHealthCheckSettings(deps) {
   const fixDependenciesFor = async (target) => {
     const key = String(target || "").trim();
     if (!key) {
-      if (summary) summary.textContent = "这条依赖问题没有可操作目标：请在 Mod 管理页选中主 Mod 后手动启用依赖";
+      if (summary) summary.textContent = t("settings.addonlist.health.noFixTarget");
       return;
     }
     // 与其它修复动作一致：写盘前先用应用内确认框说明会改什么（WebView2 的原生 confirm 会阻塞页面）。
     showConfirmModal(
-      "启用依赖",
-      `给 ${key} 打开它声明的全部依赖？\n` +
-        "· 写盘前会自动建立「启用依赖前」备份（文件名前缀 before-dependency-fix）\n" +
-        "· 只改写 addonlist.txt 里这些依赖的开关，不动别的 Mod 与文件",
+      t("settings.addonlist.health.fixDependenciesConfirmTitle"),
+      t("settings.addonlist.health.fixDependenciesConfirm", { name: key }),
       async () => {
         try {
           const result = await deps.EnableModDependencies(key);
@@ -1360,7 +1354,7 @@ function bindModHealthCheckSettings(deps) {
           deps.refreshFilesKeepFilter?.();
           await runCheck();
         } catch (error) {
-          if (summary) summary.textContent = "启用依赖失败: " + String(error?.message || error);
+          if (summary) summary.textContent = t("settings.addonlist.dependencies.enableFailed", { error: String(error?.message || error) });
         }
       },
     );
@@ -1387,7 +1381,7 @@ function bindModHealthCheckSettings(deps) {
       deps.refreshFilesKeepFilter?.();
       await runCheck();
     } catch (error) {
-      if (summary) summary.textContent = "启用缺失依赖失败: " + String(error?.message || error);
+      if (summary) summary.textContent = t("settings.addonlist.health.fixDependenciesFailed", { error: String(error?.message || error) });
     } finally {
       fixDependenciesButton.disabled = false;
     }
@@ -1400,9 +1394,9 @@ function bindModHealthCheckSettings(deps) {
     if (!currentReport) return;
     try {
       await copyTextToClipboard(buildCurrentReportMarkdown());
-      deps.showNotification("体检报告已复制到剪贴板", "success");
+      deps.showNotification(t("settings.addonlist.health.reportCopied"), "success");
     } catch (error) {
-      if (summary) summary.textContent = "复制报告失败: " + String(error?.message || error);
+      if (summary) summary.textContent = t("settings.addonlist.health.copyReportFailed", { error: String(error?.message || error) });
     }
   });
 
@@ -1411,12 +1405,12 @@ function bindModHealthCheckSettings(deps) {
     saveReportButton.disabled = true;
     try {
       const path = await deps.SaveModHealthReport(buildCurrentReportMarkdown());
-      deps.showNotification(`体检报告已保存：${path}`, "success");
+      deps.showNotification(t("settings.addonlist.health.reportSaved", { path }), "success");
       if (typeof deps.OpenFileLocation === "function") {
         await deps.OpenFileLocation(path);
       }
     } catch (error) {
-      if (summary) summary.textContent = "保存报告失败: " + String(error?.message || error);
+      if (summary) summary.textContent = t("settings.addonlist.health.saveReportFailed", { error: String(error?.message || error) });
     } finally {
       saveReportButton.disabled = false;
     }
@@ -1442,7 +1436,7 @@ function bindModEnableProfileSettings(deps) {
   captureButton?.addEventListener("click", async () => {
     const name = (nameInput?.value || "").trim();
     if (!name) {
-      setStatus("请先填写方案名称");
+      setStatus(t("settings.addonlist.profiles.needName"));
       nameInput?.focus();
       return;
     }
@@ -1454,10 +1448,10 @@ function bindModEnableProfileSettings(deps) {
         await deps.CaptureModEnableProfile(name, "");
       }
       if (nameInput) nameInput.value = "";
-      deps.showNotification(`已保存方案“${name}”`, "success");
+      deps.showNotification(t("settings.addonlist.profiles.saved", { name }), "success");
       refresh();
     } catch (error) {
-      setStatus("保存方案失败: " + String(error?.message || error));
+      setStatus(t("settings.addonlist.profiles.captureFailed", { error: String(error?.message || error) }));
     } finally {
       captureButton.disabled = false;
     }
@@ -1470,10 +1464,10 @@ function bindModEnableProfileSettings(deps) {
       if (!imported?.id) {
         return; // 用户取消
       }
-      deps.showNotification(`已导入方案“${imported.name}”`, "success");
+      deps.showNotification(t("settings.addonlist.profiles.imported", { name: imported.name }), "success");
       refresh();
     } catch (error) {
-      setStatus("导入方案失败: " + String(error?.message || error));
+      setStatus(t("settings.addonlist.profiles.importFailed", { error: String(error?.message || error) }));
     } finally {
       importButton.disabled = false;
     }
@@ -1484,10 +1478,9 @@ function bindModEnableProfileSettings(deps) {
       const id = button.dataset.profileId;
       if (!id) return;
       if (
-        !(await confirmInApp(
-          "应用这个启用方案？当前 addonlist.txt 会先自动备份，然后按方案的开关与顺序重写。",
-          { title: "应用启用方案" },
-        ))
+        !(await confirmInApp(t("settings.addonlist.profiles.applyConfirm"), {
+          title: t("settings.addonlist.profiles.applyConfirmTitle"),
+        }))
       ) {
         return;
       }
@@ -1498,7 +1491,7 @@ function bindModEnableProfileSettings(deps) {
         deps.refreshFilesKeepFilter?.();
         refresh();
       } catch (error) {
-        setStatus("应用方案失败: " + String(error?.message || error));
+        setStatus(t("settings.addonlist.profiles.applyFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     });
@@ -1514,9 +1507,9 @@ function bindModEnableProfileSettings(deps) {
         if (!targetPath) {
           return; // 用户取消
         }
-        deps.showNotification(`方案已导出到 ${targetPath}`, "success");
+        deps.showNotification(t("settings.addonlist.profiles.exported", { path: targetPath }), "success");
       } catch (error) {
-        setStatus("导出方案失败: " + String(error?.message || error));
+        setStatus(t("settings.addonlist.profiles.exportFailed", { error: String(error?.message || error) }));
       } finally {
         button.disabled = false;
       }
@@ -1528,8 +1521,8 @@ function bindModEnableProfileSettings(deps) {
       const id = button.dataset.profileId;
       if (!id) return;
       if (
-        !(await confirmInApp("删除这个方案？该操作不可撤销，但不会改动当前 addonlist.txt。", {
-          title: "删除方案",
+        !(await confirmInApp(t("settings.addonlist.profiles.deleteConfirm"), {
+          title: t("settings.addonlist.profiles.deleteConfirmTitle"),
         }))
       ) {
         return;
@@ -1537,10 +1530,10 @@ function bindModEnableProfileSettings(deps) {
       button.disabled = true;
       try {
         await deps.DeleteModEnableProfile(id);
-        deps.showNotification("方案已删除", "success");
+        deps.showNotification(t("settings.addonlist.profiles.deleted"), "success");
         refresh();
       } catch (error) {
-        setStatus("删除方案失败: " + String(error?.message || error));
+        setStatus(t("settings.addonlist.profiles.deleteFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     });
@@ -1571,12 +1564,12 @@ function bindConflictAnalysisSettings(deps) {
         }
       }
       deps.showNotification(
-        enabled ? "已开启：按加载顺序判定覆盖" : "已关闭：所有重叠都按冲突显示",
+        enabled ? t("settings.addonlist.conflict.priorityAware.on") : t("settings.addonlist.conflict.priorityAware.off"),
         "success",
       );
     } catch (error) {
       priorityToggle.checked = !enabled;
-      deps.showNotification("保存冲突分析设置失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.conflict.priorityAware.saveFailed", { error }), "error");
     } finally {
       priorityToggle.disabled = false;
     }
@@ -1594,12 +1587,14 @@ function bindConflictAnalysisSettings(deps) {
       await deps.saveConfig(config);
       if (editor) editor.value = formatConflictIgnoreList(entries);
       if (status) {
-        status.textContent = entries.length ? `已保存 ${entries.length} 条忽略规则` : "已清空忽略清单";
+        status.textContent = entries.length
+          ? t("settings.addonlist.conflict.ignoreList.saved", { count: entries.length })
+          : t("settings.addonlist.conflict.ignoreList.cleared");
       }
-      deps.showNotification("冲突忽略清单已保存", "success");
+      deps.showNotification(t("settings.addonlist.conflict.ignoreList.notify"), "success");
     } catch (error) {
-      if (status) status.textContent = "保存失败，请重试";
-      deps.showNotification("保存冲突忽略清单失败: " + error, "error");
+      if (status) status.textContent = t("settings.addonlist.conflict.ignoreList.retry");
+      deps.showNotification(t("settings.addonlist.conflict.ignoreList.saveFailed", { error }), "error");
     } finally {
       saveButton.disabled = false;
     }
@@ -1610,15 +1605,20 @@ function bindConflictAnalysisSettings(deps) {
   const describeWhitelistStatus = (state) => {
     if (!state) return "";
     const userCount = (state.userBatches || []).length;
-    const degraded = state.degraded ? "（有批次解析失败，已跳过）" : "";
-    return `内置 ${(state.builtinBatches || []).length} 批 / 自定义 ${userCount} 批，共 ${state.totalPaths || 0} 条路径${degraded}`;
+    const degraded = state.degraded ? t("settings.addonlist.stockWhitelist.degraded") : "";
+    return t("settings.addonlist.stockWhitelist.status", {
+      builtin: (state.builtinBatches || []).length,
+      user: userCount,
+      total: state.totalPaths || 0,
+      degraded,
+    });
   };
   const reloadWhitelistStatus = async () => {
     try {
       const state = await deps.GetStockWhitelistStatus();
       if (whitelistStatus) whitelistStatus.textContent = describeWhitelistStatus(state);
     } catch (error) {
-      if (whitelistStatus) whitelistStatus.textContent = "读取白名单状态失败: " + String(error?.message || error);
+      if (whitelistStatus) whitelistStatus.textContent = t("settings.addonlist.stockWhitelist.statusFailed", { error: String(error?.message || error) });
     }
   };
   void reloadWhitelistStatus();
@@ -1626,13 +1626,13 @@ function bindConflictAnalysisSettings(deps) {
   const generateButton = document.getElementById("settings-stock-whitelist-generate");
   generateButton?.addEventListener("click", async () => {
     generateButton.disabled = true;
-    if (whitelistStatus) whitelistStatus.textContent = "正在解析原版 pak01_dir.vpk…";
+    if (whitelistStatus) whitelistStatus.textContent = t("settings.addonlist.stockWhitelist.parsing");
     try {
       const state = await deps.GenerateStockWhitelistBatchesFromGame();
       if (whitelistStatus) whitelistStatus.textContent = describeWhitelistStatus(state);
-      deps.showNotification("已按类别生成原版文件白名单批次", "success");
+      deps.showNotification(t("settings.addonlist.stockWhitelist.generated"), "success");
     } catch (error) {
-      if (whitelistStatus) whitelistStatus.textContent = "生成失败: " + String(error?.message || error);
+      if (whitelistStatus) whitelistStatus.textContent = t("settings.addonlist.stockWhitelist.generateFailed", { error: String(error?.message || error) });
     } finally {
       generateButton.disabled = false;
     }
@@ -1662,21 +1662,26 @@ function bindConflictAnalysisSettings(deps) {
     const input = document.getElementById("settings-collection-input");
     const raw = String(input?.value || "").trim();
     if (!raw) {
-      setCollectionStatus("请先粘贴合集链接或合集 ID");
+      setCollectionStatus(t("settings.workshop.collections.needInput"));
       return;
     }
     const button = event.currentTarget;
     button.disabled = true;
-    setCollectionStatus("正在解析合集…");
+    setCollectionStatus(t("settings.workshop.collections.parsing"));
     try {
       const collectionId = await deps.ParseWorkshopID(raw);
       const link = await deps.CaptureWorkshopCollection(collectionId);
       if (input) input.value = "";
-      setCollectionStatus(`已保存合集「${link.title || link.collectionId}」：${formatCollectionSummary(link)}`);
-      deps.showNotification("工坊合集已保存", "success");
+      setCollectionStatus(
+        t("settings.workshop.collections.saved", {
+          title: link.title || link.collectionId,
+          summary: formatCollectionSummary(link),
+        }),
+      );
+      deps.showNotification(t("settings.workshop.collections.savedNotify"), "success");
       void refreshCollections();
     } catch (error) {
-      setCollectionStatus("保存合集失败: " + String(error?.message || error));
+      setCollectionStatus(t("settings.workshop.collections.saveFailed", { error: String(error?.message || error) }));
     } finally {
       button.disabled = false;
     }
@@ -1685,7 +1690,7 @@ function bindConflictAnalysisSettings(deps) {
   document.getElementById("settings-collection-check-all")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
-    setCollectionStatus("正在检查全部合集…");
+    setCollectionStatus(t("settings.workshop.collections.checkingAll"));
     try {
       const results = (await deps.CheckWorkshopCollectionUpdates()) || [];
       // 后端现在逐条检查：坏记录不再让整轮失败，失败原因在 result.error 里，
@@ -1693,7 +1698,7 @@ function bindConflictAnalysisSettings(deps) {
       setCollectionStatus(formatCollectionCheckAllSummary(results));
       void refreshCollections();
     } catch (error) {
-      setCollectionStatus("检查合集更新失败: " + String(error?.message || error));
+      setCollectionStatus(t("settings.workshop.collections.checkFailed", { error: String(error?.message || error) }));
     } finally {
       button.disabled = false;
     }
@@ -1707,7 +1712,7 @@ function bindConflictAnalysisSettings(deps) {
         setCollectionStatus(`${result.title || result.collectionId}：${formatCollectionRefreshSummary(result)}`);
         void refreshCollections();
       } catch (error) {
-        setCollectionStatus("检查合集更新失败: " + String(error?.message || error));
+        setCollectionStatus(t("settings.workshop.collections.checkFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     });
@@ -1720,7 +1725,7 @@ function bindConflictAnalysisSettings(deps) {
         setCollectionStatus(formatCollectionQueueSummary(queued));
         deps.showNotification(formatCollectionQueueSummary(queued), "success");
       } catch (error) {
-        setCollectionStatus("下载合集失败: " + String(error?.message || error));
+        setCollectionStatus(t("settings.workshop.collections.downloadFailed", { error: String(error?.message || error) }));
       } finally {
         button.disabled = false;
       }
@@ -1729,8 +1734,8 @@ function bindConflictAnalysisSettings(deps) {
   document.querySelectorAll("#settings-page-content .settings-collection-delete").forEach((button) => {
     button.addEventListener("click", async () => {
       if (
-        !(await confirmInApp("删除这条合集记录？已下载的 Mod 文件不会被删除。", {
-          title: "删除合集记录",
+        !(await confirmInApp(t("settings.workshop.collections.deleteConfirm"), {
+          title: t("settings.workshop.collections.deleteConfirmTitle"),
         }))
       ) {
         return;
@@ -1738,10 +1743,10 @@ function bindConflictAnalysisSettings(deps) {
       button.disabled = true;
       try {
         await deps.DeleteWorkshopCollection(button.dataset.collectionId);
-        setCollectionStatus("已删除合集记录");
+        setCollectionStatus(t("settings.workshop.collections.deleted"));
         void refreshCollections();
       } catch (error) {
-        setCollectionStatus("删除合集记录失败: " + String(error?.message || error));
+        setCollectionStatus(t("settings.workshop.collections.deleteFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     });
@@ -1841,11 +1846,14 @@ function bindSettingsPage(deps) {
       config.workshopPreferredIP = enabled;
       await deps.saveConfig(config);
       ipSection.style.display = enabled ? "block" : "none";
-      deps.showNotification(enabled ? "已开启优选 IP 加速" : "已关闭优选 IP 加速", enabled ? "success" : "info");
+      deps.showNotification(
+        enabled ? t("settings.network.ip.ipOn") : t("settings.network.ip.ipOff"),
+        enabled ? "success" : "info",
+      );
     } catch (error) {
       ipToggle.checked = previousEnabled;
       ipSection.style.display = previousEnabled ? "block" : "none";
-      deps.showNotification("更新优选 IP 设置失败: " + error, "error");
+      deps.showNotification(t("settings.network.ip.updateFailed", { error }), "error");
     } finally {
       ipToggle.disabled = false;
     }
@@ -1875,7 +1883,7 @@ function bindSettingsPage(deps) {
             if (autoRadio) autoRadio.checked = true;
             if (fixedTools) fixedTools.style.display = "none";
           }
-          deps.showNotification("切换 IP 模式失败: " + error, "error");
+          deps.showNotification(t("settings.network.ip.modeFailed", { error }), "error");
         } finally {
           radio.disabled = false;
         }
@@ -1897,12 +1905,12 @@ function bindSettingsPage(deps) {
       updateIPOptionTrigger(ipOptionTrigger, ipOptions, fixedIP);
       syncIPOptionMenuActive(ipOptionMenu, fixedIP);
       await refreshIPStatus();
-      deps.showNotification("已更新固定 IP 设置", "success");
+      deps.showNotification(t("settings.network.ip.fixedUpdated"), "success");
     } catch (error) {
       fixedInput.value = previousFixedIP;
       updateIPOptionTrigger(ipOptionTrigger, ipOptions, previousFixedIP);
       syncIPOptionMenuActive(ipOptionMenu, previousFixedIP);
-      deps.showNotification("更新固定 IP 设置失败: " + error, "error");
+      deps.showNotification(t("settings.network.ip.fixedFailed", { error }), "error");
     } finally {
       fixedInput.disabled = false;
     }
@@ -1919,20 +1927,30 @@ function bindSettingsPage(deps) {
     (preview?.issues || []).forEach((issue) => {
       const row = document.createElement("div");
       row.className = "addonlist-status-error";
-      row.textContent = `规则 #${Number(issue.index) + 1}：${issue.message}`;
+      row.textContent = t("settings.addonlist.maintenance.customTags.ruleIssue", {
+        index: Number(issue.index) + 1,
+        message: issue.message,
+      });
       customRulesPreviewList.appendChild(row);
     });
     (preview?.items || []).forEach((item) => {
       const row = document.createElement("div");
       row.className = "setting-row-desc";
       const samples = (item.samples || []).slice(0, 3).join("、");
-      row.textContent = `「${item.tag}」命中 ${item.matchCount} 个 Mod${samples ? ` · 例如：${samples}` : ""}`;
+      const samplesPart = samples
+        ? t("settings.addonlist.maintenance.customTags.ruleHitSamples", { samples })
+        : "";
+      row.textContent = t("settings.addonlist.maintenance.customTags.ruleHit", {
+        tag: item.tag,
+        count: item.matchCount,
+        samples: samplesPart,
+      });
       customRulesPreviewList.appendChild(row);
     });
     if ((preview?.items || []).length === 0 && (preview?.issues || []).length === 0) {
       const row = document.createElement("div");
       row.className = "setting-row-desc";
-      row.textContent = "还没有规则。";
+      row.textContent = t("settings.addonlist.maintenance.customTags.empty");
       customRulesPreviewList.appendChild(row);
     }
   };
@@ -1940,16 +1958,22 @@ function bindSettingsPage(deps) {
   document.getElementById("settings-custom-tag-rules-preview")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
-    if (customRulesStatus) customRulesStatus.textContent = "正在试算命中…";
+    if (customRulesStatus) customRulesStatus.textContent = t("settings.addonlist.maintenance.customTags.previewing");
     try {
       const preview = await deps.PreviewCustomTagRules(customRulesEditor?.value || "");
       if (customRulesStatus) {
-        customRulesStatus.textContent = `共 ${preview?.ruleCount || 0} 条规则${(preview?.issues || []).length ? `，${preview.issues.length} 条有问题` : ""}`;
+        const issuesPart = (preview?.issues || []).length
+          ? t("settings.addonlist.maintenance.customTags.previewIssues", { count: preview.issues.length })
+          : "";
+        customRulesStatus.textContent = t("settings.addonlist.maintenance.customTags.previewSummary", {
+          count: preview?.ruleCount || 0,
+          issues: issuesPart,
+        });
       }
       renderCustomRulesPreview(preview);
     } catch (error) {
       if (customRulesStatus) customRulesStatus.textContent = "";
-      deps.showNotification("校验规则失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.maintenance.customTags.previewFailed", { error }), "error");
     } finally {
       button.disabled = false;
     }
@@ -1958,16 +1982,16 @@ function bindSettingsPage(deps) {
   document.getElementById("settings-custom-tag-rules-save")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
-    if (customRulesStatus) customRulesStatus.textContent = "正在保存并重扫…";
+    if (customRulesStatus) customRulesStatus.textContent = t("settings.addonlist.maintenance.customTags.saving");
     try {
       const count = await deps.SaveCustomTagRules(customRulesEditor?.value || "");
       await deps.ScanVPKFiles();
       await deps.refreshFilesKeepFilter?.({ silent: true });
-      if (customRulesStatus) customRulesStatus.textContent = `已保存 ${count} 条规则并重新扫描`;
-      deps.showNotification(`自定义标签规则已生效（${count} 条），已重新扫描`, "success");
+      if (customRulesStatus) customRulesStatus.textContent = t("settings.addonlist.maintenance.customTags.saved", { count });
+      deps.showNotification(t("settings.addonlist.maintenance.customTags.savedNotify", { count }), "success");
     } catch (error) {
       if (customRulesStatus) customRulesStatus.textContent = "";
-      deps.showNotification("保存自定义标签规则失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.maintenance.customTags.saveFailed", { error }), "error");
     } finally {
       button.disabled = false;
     }
@@ -1988,7 +2012,7 @@ function bindSettingsPage(deps) {
     const address = (dnsAddressInput?.value || "").trim();
     // 前端先做一次同样的校验：错误立刻提示，不用等后端往返。
     if (mode === "custom" && !isValidDNSAddress(address)) {
-      deps.showNotification("自定义 DNS 地址不合法：只填一个 IPv4 或 IPv6 地址，不要带端口或域名", "error");
+      deps.showNotification(t("settings.addonlist.dns.invalid"), "error");
       dnsAddressInput?.focus();
       return;
     }
@@ -2000,11 +2024,18 @@ function bindSettingsPage(deps) {
       // 避免后续其它设置保存时把旧值写回去。
       await deps.saveConfig({ workshopDNS: saved });
       if (status) {
-        status.textContent = saved?.mode === "custom" ? `当前：自定义 DNS ${saved.customAddress}` : "当前：系统 DNS";
+        status.textContent = saved?.mode === "custom"
+          ? t("settings.network.dns.statusCustom", { address: saved.customAddress })
+          : t("settings.network.dns.statusSystem");
       }
-      deps.showNotification(saved?.mode === "custom" ? `工坊 DNS 已切换为 ${saved.customAddress}（立即生效）` : "工坊 DNS 已切回系统 DNS（立即生效）", "success");
+      deps.showNotification(
+        saved?.mode === "custom"
+          ? t("settings.addonlist.dns.switchedCustom", { address: saved.customAddress })
+          : t("settings.addonlist.dns.switchedSystem"),
+        "success",
+      );
     } catch (error) {
-      deps.showNotification("保存工坊 DNS 失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.dns.saveFailed", { error }), "error");
     } finally {
       dnsSaveButton.disabled = false;
     }
@@ -2033,7 +2064,7 @@ function bindSettingsPage(deps) {
         const rollbackConfig = deps.getConfig();
         rollbackConfig.uiScale = previousScale;
         Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("界面缩放配置回滚失败:", rollbackError));
-        deps.showNotification("保存界面缩放失败: " + error, "error");
+        deps.showNotification(t("settings.interface.uiScale.saveFailed", { error }), "error");
       });
     return scale;
   };
@@ -2058,11 +2089,14 @@ function bindSettingsPage(deps) {
     try {
       await deps.saveConfig(config);
       deps.showNotification(
-        `文字大小：${textSizeLabel(applied.textSize)} · 阅读舒适度：${readingComfortLabel(applied.comfort)}`,
+        t("settings.interface.readingComfort.saved", {
+          textSize: textSizeLabel(applied.textSize),
+          comfort: readingComfortLabel(applied.comfort),
+        }),
         "success",
       );
     } catch (error) {
-      deps.showNotification("保存阅读设置失败: " + error, "error");
+      deps.showNotification(t("settings.interface.readingComfort.failed", { error }), "error");
     }
   };
 
@@ -2121,7 +2155,7 @@ function bindSettingsPage(deps) {
         const rollbackConfig = deps.getConfig();
         rollbackConfig.displayMode = previousMode;
         Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("显示模式配置回滚失败:", rollbackError));
-        deps.showNotification("保存显示模式失败: " + error, "error");
+        deps.showNotification(t("settings.interface.displayMode.saveFailed", { error }), "error");
       } finally {
         if (changeToken === displayModeChangeToken) controls.forEach((input) => { input.disabled = false; });
       }
@@ -2164,7 +2198,12 @@ function bindSettingsPage(deps) {
         .then(() => deps.saveConfig(config))
         .then(() => {
           if (changeToken !== filterLayoutChangeToken) return;
-          deps.showNotification(nextMode === "classic" ? "已切换到经典展开筛选布局" : "已切换到简洁下拉筛选布局", "success");
+          deps.showNotification(
+        nextMode === "classic"
+          ? t("settings.interface.filterLayout.classicOn")
+          : t("settings.interface.filterLayout.compactOn"),
+        "success",
+      );
         })
         .catch((error) => {
           // A newer click owns the UI and must not be rolled back by an older
@@ -2181,7 +2220,7 @@ function bindSettingsPage(deps) {
           Promise.resolve(deps.renderTagFilters?.()).catch((renderError) => {
             console.error("筛选布局回滚渲染失败:", renderError);
           });
-          deps.showNotification("保存筛选布局失败: " + error, "error");
+          deps.showNotification(t("settings.interface.filterLayout.saveFailed", { error }), "error");
         });
     });
   });
@@ -2197,7 +2236,10 @@ function bindSettingsPage(deps) {
       const config = deps.getConfig();
       config.boxSelectionEnabled = enabled;
       await deps.saveConfig(config);
-      deps.showNotification(enabled ? "已开启框选模式" : "已关闭框选模式", "info");
+      deps.showNotification(
+        enabled ? t("settings.interface.boxSelection.on") : t("settings.interface.boxSelection.off"),
+        "info",
+      );
     } catch (error) {
       if (changeToken !== boxSelectionChangeToken) return;
       toggle.checked = previousEnabled;
@@ -2205,7 +2247,7 @@ function bindSettingsPage(deps) {
       const rollbackConfig = deps.getConfig();
       rollbackConfig.boxSelectionEnabled = previousEnabled;
       Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("框选模式配置回滚失败:", rollbackError));
-      deps.showNotification("保存框选模式失败: " + error, "error");
+      deps.showNotification(t("settings.interface.boxSelection.saveFailed", { error }), "error");
     } finally {
       if (changeToken === boxSelectionChangeToken) toggle.disabled = false;
     }
@@ -2222,7 +2264,10 @@ function bindSettingsPage(deps) {
       const config = deps.getConfig();
       config.ctrlClickSelectionEnabled = enabled;
       await deps.saveConfig(config);
-      deps.showNotification(enabled ? "已开启 Ctrl+单击选择" : "已关闭 Ctrl+单击选择", "info");
+      deps.showNotification(
+        enabled ? t("settings.interface.ctrlClick.on") : t("settings.interface.ctrlClick.off"),
+        "info",
+      );
     } catch (error) {
       if (changeToken !== ctrlClickSelectionChangeToken) return;
       toggle.checked = previousEnabled;
@@ -2230,7 +2275,7 @@ function bindSettingsPage(deps) {
       const rollbackConfig = deps.getConfig();
       rollbackConfig.ctrlClickSelectionEnabled = previousEnabled;
       Promise.resolve(deps.saveConfig(rollbackConfig)).catch((rollbackError) => console.error("Ctrl+单击选择配置回滚失败:", rollbackError));
-      deps.showNotification("保存 Ctrl+单击选择失败: " + error, "error");
+      deps.showNotification(t("settings.interface.ctrlClick.saveFailed", { error }), "error");
     } finally {
       if (changeToken === ctrlClickSelectionChangeToken) toggle.disabled = false;
     }
@@ -2264,7 +2309,10 @@ function bindSettingsPage(deps) {
       if (changeToken !== workshopSettingsChangeToken) return;
       deps.appState.workshopUpdateCheckEnabled = nextUpdateCheckEnabled;
       syncWorkshopDataControls(metaEnabled, nextUpdateCheckEnabled);
-      deps.showNotification(metaEnabled ? "已开启工坊信息存储" : "已关闭工坊信息存储", metaEnabled ? "success" : "info");
+      deps.showNotification(
+        metaEnabled ? t("settings.workshop.data.meta.on") : t("settings.workshop.data.meta.off"),
+        metaEnabled ? "success" : "info",
+      );
     } catch (error) {
       if (changeToken !== workshopSettingsChangeToken) return;
       // 若后续级联步骤失败，尽力恢复已成功写入的 setter；即使恢复同样失败，
@@ -2285,7 +2333,7 @@ function bindSettingsPage(deps) {
       }
       deps.appState.workshopUpdateCheckEnabled = previousUpdateCheckEnabled;
       syncWorkshopDataControls(previousMetaEnabled, previousUpdateCheckEnabled);
-      deps.showNotification("更新工坊信息存储失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.data.meta.saveFailed", { error }), "error");
     } finally {
       if (changeToken === workshopSettingsChangeToken) {
         // 失败路径已将控件恢复到旧状态；这里必须按当前 DOM 状态重新启用，
@@ -2303,7 +2351,7 @@ function bindSettingsPage(deps) {
       await deps.refreshFilesKeepFilter();
     } catch (refreshError) {
       console.error("工坊信息存储设置已保存，但列表刷新失败:", refreshError);
-      deps.showNotification("工坊信息存储已保存，但列表刷新失败，请点击刷新按钮重试", "warning");
+      deps.showNotification(t("settings.workshop.data.meta.refreshFailed"), "warning");
     }
   });
 
@@ -2324,7 +2372,10 @@ function bindSettingsPage(deps) {
       await deps.saveConfig(config);
       if (changeToken !== workshopSettingsChangeToken) return;
       syncWorkshopDataControls(metaEnabled, enabled);
-      deps.showNotification(enabled ? "已开启Mod更新检测" : "已关闭Mod更新检测", enabled ? "success" : "info");
+      deps.showNotification(
+        enabled ? t("settings.workshop.data.updateCheck.on") : t("settings.workshop.data.updateCheck.off"),
+        enabled ? "success" : "info",
+      );
     } catch (error) {
       if (changeToken !== workshopSettingsChangeToken) return;
       try {
@@ -2339,7 +2390,7 @@ function bindSettingsPage(deps) {
       }
       deps.appState.workshopUpdateCheckEnabled = previousEnabled;
       syncWorkshopDataControls(metaEnabled, previousEnabled);
-      deps.showNotification("更新 Mod 检测设置失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.data.updateCheck.saveFailed", { error }), "error");
     } finally {
       if (changeToken === workshopSettingsChangeToken) {
         const currentMetaEnabled = Boolean(document.getElementById("settings-meta-enabled")?.checked);
@@ -2358,12 +2409,12 @@ function bindSettingsPage(deps) {
     try {
       await deps.SetWorkshopAutoRedownload(enabled);
       deps.showNotification(
-        enabled ? "已开启：下载失败后自动重下一次" : "已关闭自动重下",
+        enabled ? t("settings.workshop.data.autoRedownload.on") : t("settings.workshop.data.autoRedownload.off"),
         "success",
       );
     } catch (error) {
       toggle.checked = !enabled;
-      deps.showNotification("保存自动重下设置失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.data.autoRedownload.saveFailed", { error }), "error");
     } finally {
       toggle.disabled = false;
     }
@@ -2385,12 +2436,12 @@ function bindSettingsPage(deps) {
       config.autoDetectWorkshopLink = enabled;
       await deps.saveConfig(config);
       deps.showNotification(
-        enabled ? "已开启：剪贴板里的工坊链接会自动提示" : "已关闭剪贴板工坊链接识别",
+        enabled ? t("settings.workshop.data.clipboard.on") : t("settings.workshop.data.clipboard.off"),
         enabled ? "success" : "info",
       );
     } catch (error) {
       toggle.checked = !enabled;
-      deps.showNotification("保存剪贴板识别设置失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.data.clipboard.saveFailed", { error }), "error");
     } finally {
       toggle.disabled = false;
     }
@@ -2401,16 +2452,16 @@ function bindSettingsPage(deps) {
     const label = button.querySelector(".trigger-check-text") || button;
     const original = label.textContent;
     button.disabled = true;
-    label.textContent = "抓取中...";
+    label.textContent = t("settings.workshop.data.enrich.running");
     try {
       const result = await deps.EnrichAllWorkshopMetadata();
-      const parts = [`更新 ${result?.updated || 0} 个`];
-      if (result?.unchanged) parts.push(`本来就最新 ${result.unchanged} 个`);
-      if (result?.missing?.length) parts.push(`本地没有文件 ${result.missing.length} 个`);
-      if (result?.failed?.length) parts.push(`官方接口没返回 ${result.failed.length} 个`);
-      deps.showNotification(`工坊官方资料抓取完成：${parts.join("，")}`, "success");
+      const parts = [t("settings.workshop.data.enrich.updated", { count: result?.updated || 0 })];
+      if (result?.unchanged) parts.push(t("settings.workshop.data.enrich.unchanged", { count: result.unchanged }));
+      if (result?.missing?.length) parts.push(t("settings.workshop.data.enrich.missing", { count: result.missing.length }));
+      if (result?.failed?.length) parts.push(t("settings.workshop.data.enrich.failed", { count: result.failed.length }));
+      deps.showNotification(t("settings.workshop.data.enrich.done", { parts: parts.join("，") }), "success");
     } catch (error) {
-      deps.showNotification("抓取工坊官方资料失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.data.enrich.failure", { error }), "error");
     } finally {
       button.disabled = false;
       label.textContent = original;
@@ -2421,7 +2472,7 @@ function bindSettingsPage(deps) {
     const btn = document.getElementById("settings-manual-check-btn");
     if (!btn || btn.disabled) return;
     btn.disabled = true;
-    btn.innerHTML = '<span class="btn-spinner"></span> 检测中...';
+    btn.innerHTML = `<span class="btn-spinner"></span> ${t("settings.workshop.data.updateCheck.checking")}`;
     btn.style.pointerEvents = "none";
     try {
       const result = await deps.CheckModUpdates();
@@ -2429,15 +2480,20 @@ function bindSettingsPage(deps) {
       config.lastUpdateCheckTime = String(Date.now());
       await deps.saveConfig(config);
       const count = result?.total_updates || 0;
-      deps.showNotification(count > 0 ? `检测完成，发现 ${count} 个Mod有更新` : "检测完成，所有Mod均为最新版本", count > 0 ? "info" : "success");
+      deps.showNotification(
+        count > 0
+          ? t("settings.workshop.data.updateCheck.checkDone", { count })
+          : t("settings.workshop.data.updateCheck.checkClean"),
+        count > 0 ? "info" : "success",
+      );
       await deps.refreshFilesKeepFilter();
     } catch (err) {
-      deps.showNotification("检测失败: " + err, "error");
+      deps.showNotification(t("settings.workshop.data.updateCheck.checkFailed", { error: err }), "error");
     } finally {
       // 无论检测、保存时间戳还是刷新失败，都必须恢复按钮，避免窗口永久卡在“检测中”。
       btn.disabled = false;
       const checkIcon = '<svg class="trigger-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>';
-      btn.innerHTML = checkIcon + '<span class="trigger-check-text">立即触发检测</span>';
+      btn.innerHTML = checkIcon + `<span class="trigger-check-text">${t("settings.workshop.data.updateCheck.trigger")}</span>`;
       btn.style.pointerEvents = "";
     }
   });
@@ -2452,11 +2508,16 @@ function bindSettingsPage(deps) {
         const config = deps.getConfig();
         config.workshopBrowserTarget = radio.value;
         await deps.saveConfig(config);
-        deps.showNotification(radio.value === "mirror" ? "已切换到镜像站" : "已切换到 Steam 官方", "success");
+        deps.showNotification(
+        radio.value === "mirror"
+          ? t("settings.workshop.browser.switchedMirror")
+          : t("settings.workshop.browser.switchedSteam"),
+        "success",
+      );
       } catch (error) {
         const previousRadio = document.querySelector(`input[name="settings-browser-target"][value="${previousTarget}"]`);
         if (previousRadio) previousRadio.checked = true;
-        deps.showNotification("切换工坊浏览目标失败: " + error, "error");
+        deps.showNotification(t("settings.workshop.browser.switchFailed", { error }), "error");
       } finally {
         radio.disabled = false;
       }
@@ -2481,11 +2542,11 @@ function bindSettingsPage(deps) {
           customSection.style.display = radio.value === "custom" ? "" : "none";
         }
         const messages = {
-          microsoft: "已切换到微软翻译",
-          yandex: "已切换到 Yandex 翻译",
-          custom: "已切换到自定义AI翻译",
+          microsoft: t("settings.workshop.translate.switched.microsoft"),
+          yandex: t("settings.workshop.translate.switched.yandex"),
+          custom: t("settings.workshop.translate.switched.custom"),
         };
-        deps.showNotification(messages[radio.value] || "已切换翻译服务", "success");
+        deps.showNotification(messages[radio.value] || t("settings.workshop.translate.switched.default"), "success");
       } catch (error) {
         const previousRadio = document.querySelector(`input[name="settings-translate-provider"][value="${previousProvider}"]`);
         if (previousRadio) {
@@ -2494,7 +2555,7 @@ function bindSettingsPage(deps) {
           previousRadio.closest(".mode-option")?.classList.add("active");
         }
         if (customSection) customSection.style.display = previousProvider === "custom" ? "" : "none";
-        deps.showNotification("切换翻译服务失败: " + error, "error");
+        deps.showNotification(t("settings.workshop.translate.switchFailed", { error }), "error");
       } finally {
         radio.disabled = false;
       }
@@ -2515,10 +2576,10 @@ function bindSettingsPage(deps) {
       const config = deps.getConfig();
       config.workshopTranslateCustomBaseURL = url;
       await deps.saveConfig(config);
-      deps.showNotification("已更新自定义AI Base URL", "success");
+      deps.showNotification(t("settings.workshop.translate.custom.baseUrlUpdated"), "success");
     } catch (error) {
       customBaseURLInput.value = previousURL;
-      deps.showNotification("更新自定义AI Base URL 失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.translate.custom.baseUrlFailed", { error }), "error");
     } finally {
       customBaseURLInput.disabled = false;
     }
@@ -2535,10 +2596,10 @@ function bindSettingsPage(deps) {
       await deps.saveConfig(config);
       customAPIKeyInput.value = "";
       // 直接赋值，避免用户重复更新密钥时把“（已设置）”叠加多次。
-      customAPIKeyInput.setAttribute("placeholder", "API Key（已设置）");
-      deps.showNotification("已更新自定义AI API Key", "success");
+      customAPIKeyInput.setAttribute("placeholder", t("settings.workshop.translate.custom.apiKeySetPlaceholder"));
+      deps.showNotification(t("settings.workshop.translate.custom.apiKeyUpdated"), "success");
     } catch (error) {
-      deps.showNotification("更新自定义AI API Key 失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.translate.custom.apiKeyFailed", { error }), "error");
     } finally {
       customAPIKeyInput.disabled = false;
     }
@@ -2553,10 +2614,10 @@ function bindSettingsPage(deps) {
       const config = deps.getConfig();
       config.workshopTranslateCustomModelId = modelId;
       await deps.saveConfig(config);
-      deps.showNotification("已更新自定义AI模型ID", "success");
+      deps.showNotification(t("settings.workshop.translate.custom.modelUpdated"), "success");
     } catch (error) {
       customModelIdInput.value = previousModelID;
-      deps.showNotification("更新自定义AI模型ID失败: " + error, "error");
+      deps.showNotification(t("settings.workshop.translate.custom.modelFailed", { error }), "error");
     } finally {
       customModelIdInput.disabled = false;
     }
@@ -2578,11 +2639,11 @@ function bindSettingsPage(deps) {
     if (!autoexecMeta) return;
     const data = info || {};
     autoexecMeta.innerHTML = `
-      <span class="autoexec-path">${escapeHtml(data.path || "尚未选择 Left 4 Dead 2 的 addons 目录")}</span>
-      <span>${data.exists ? "文件存在" : "文件不存在，将在保存时创建"}</span>
+      <span class="autoexec-path">${escapeHtml(data.path || t("settings.addonlist.dirNotChosen"))}</span>
+      <span>${data.exists ? t("settings.addonlist.fileExists") : t("settings.addonlist.fileMissing")}</span>
       <span>${escapeHtml(data.encoding || "UTF-8")} · ${escapeHtml(data.lineEnding || "CRLF")}</span>
       <span>${formatAddonListBytes(data.size)}</span>
-      ${data.lastModified ? `<span>修改于 ${escapeHtml(formatAddonListTime(data.lastModified))}</span>` : ""}
+      ${data.lastModified ? `<span>${t("settings.addonlist.modifiedAt", { time: escapeHtml(formatAddonListTime(data.lastModified)) })}</span>` : ""}
     `;
   };
   const updateAutoexecAnalysis = async () => {
@@ -2596,13 +2657,19 @@ function bindSettingsPage(deps) {
       const highRisk = matches.filter((item) => item.known && item.help?.risk?.startsWith("高")).length;
       const mediumRisk = matches.filter((item) => item.known && item.help?.risk?.startsWith("中")).length;
       if (autoexecAnalysis) {
-        autoexecAnalysis.textContent = `已识别 ${known} 个已收录指令，${unknown} 个未知指令${highRisk ? `；高风险 ${highRisk}` : ""}${mediumRisk ? `；中风险 ${mediumRisk}` : ""}`;
+        const risks =
+          (highRisk ? t("settings.addonlist.autoexec.riskHigh", { count: highRisk }) : "") +
+          (mediumRisk ? t("settings.addonlist.autoexec.riskMedium", { count: mediumRisk }) : "");
+        autoexecAnalysis.textContent = t("settings.addonlist.autoexec.analysisSummary", { known, unknown, risks });
         autoexecAnalysis.classList.toggle("is-warning", unknown > 0 || highRisk > 0);
       }
       renderAutoexecMatches(autoexecMatchesEl, matches);
     } catch (error) {
       if (requestId !== autoexecAnalysisRequest) return;
-      if (autoexecAnalysis) autoexecAnalysis.textContent = `指令识别失败：${String(error?.message || error)}`;
+      if (autoexecAnalysis)
+        autoexecAnalysis.textContent = t("settings.addonlist.autoexec.analysisFailed", {
+          error: String(error?.message || error),
+        });
     }
   };
   const scheduleAutoexecAnalysis = () => {
@@ -2636,13 +2703,13 @@ function bindSettingsPage(deps) {
     try {
       const result = await autoexecController.save(autoexecEditor.value);
       if (result.reloadError) {
-        deps.showNotification("已保存 autoexec.cfg，但刷新文件状态失败: " + result.reloadError, "warning");
+        deps.showNotification(t("settings.addonlist.autoexec.savedReloadFailed", { error: result.reloadError }), "warning");
       } else {
         applyAutoexecInfo(result.info);
-        deps.showNotification("已保存 autoexec.cfg（编码与换行格式已保留）", "success");
+        deps.showNotification(t("settings.addonlist.autoexec.saved"), "success");
       }
     } catch (error) {
-      deps.showNotification("保存 autoexec.cfg 失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.autoexec.saveFailed", { error }), "error");
     } finally {
       if (button) button.disabled = false;
     }
@@ -2653,9 +2720,9 @@ function bindSettingsPage(deps) {
     button.disabled = true;
     try {
       await reloadAutoexecEditor();
-      deps.showNotification("已重新读取 autoexec.cfg", "info");
+      deps.showNotification(t("settings.addonlist.autoexec.reloaded"), "info");
     } catch (error) {
-      deps.showNotification("重新读取 autoexec.cfg 失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.autoexec.reloadFailed", { error }), "error");
     } finally {
       button.disabled = false;
     }
@@ -2666,7 +2733,7 @@ function bindSettingsPage(deps) {
     try {
       await deps.OpenFileLocation(info.path);
     } catch (error) {
-      deps.showNotification("打开 autoexec.cfg 位置失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.autoexec.openFailed", { error }), "error");
     }
   });
   const autoexecHelpSearch = document.getElementById("settings-autoexec-help-search");
@@ -2686,7 +2753,7 @@ function bindSettingsPage(deps) {
       renderHelpList(items);
     } catch (error) {
       if (requestId !== autoexecHelpSearchRequest) return;
-      deps.showNotification("搜索指令说明失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.autoexec.searchFailed", { error }), "error");
     }
   };
   autoexecHelpSearch?.addEventListener("input", () => {
@@ -2737,11 +2804,11 @@ function bindSettingsPage(deps) {
   };
 
   document.getElementById("settings-addonlist-save-snapshot")?.addEventListener("click", (event) => {
-    void runAddonListAction(event.currentTarget, () => deps.SaveAddonListManagedSnapshot(), "已保存 addonlist.txt 受保护版本", "保存受保护版本失败");
+    void runAddonListAction(event.currentTarget, () => deps.SaveAddonListManagedSnapshot(), t("settings.addonlist.actions.snapshotSaved"), t("settings.addonlist.actions.snapshotFailed"));
   });
 
   document.getElementById("settings-addonlist-create-backup")?.addEventListener("click", (event) => {
-    void runAddonListAction(event.currentTarget, () => deps.CreateAddonListBackup(), "已创建 addonlist.txt 历史备份", "创建备份失败");
+    void runAddonListAction(event.currentTarget, () => deps.CreateAddonListBackup(), t("settings.addonlist.actions.backupCreated"), t("settings.addonlist.actions.backupFailed"));
   });
 
   // 套件继承快照的手动重置入口（用户口径：唯一会"少继承"的操作，所以必须显式确认）。
@@ -2750,24 +2817,26 @@ function bindSettingsPage(deps) {
     const button = event.currentTarget;
     if (button.disabled) return;
     const confirmed = await confirmInApp(
-      "重置套件继承快照？这会清空本机记录的「套件 → 继承标签」结果，然后按当前 Mod 重新扫描。它只会少继承、不会少标，Mod 文件与 addonlist.txt 都不受影响。",
-      { title: "重置套件继承快照" },
+      t("settings.addonlist.maintenance.suite.resetConfirm"),
+      { title: t("settings.addonlist.maintenance.suite.resetConfirmTitle") },
     );
     if (!confirmed) return;
 
     const status = document.getElementById("settings-suite-inheritance-status");
     button.disabled = true;
-    if (status) status.textContent = "正在重置并按当前 Mod 重新扫描…";
+    if (status) status.textContent = t("settings.addonlist.maintenance.suite.resetting");
     try {
       const namespaces = await deps.ResetSuiteInheritanceSnapshot();
       await deps.ScanVPKFiles();
       await deps.refreshFilesKeepFilter?.({ silent: true });
-      const detail = namespaces > 0 ? `，原有 ${namespaces} 个命名空间记录` : "";
-      if (status) status.textContent = `已重置套件继承快照${detail}，并按当前 Mod 重新扫描。`;
-      deps.showNotification(`已重置套件继承快照${detail}`, "success");
+      const detail = namespaces > 0
+        ? t("settings.addonlist.maintenance.suite.resetDetail", { count: namespaces })
+        : "";
+      if (status) status.textContent = t("settings.addonlist.maintenance.suite.resetDone", { detail });
+      deps.showNotification(t("settings.addonlist.maintenance.suite.resetDoneNotify", { detail }), "success");
     } catch (error) {
       if (status) status.textContent = "";
-      deps.showNotification("重置套件继承快照失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.maintenance.suite.resetFailed", { error }), "error");
     } finally {
       button.disabled = false;
     }
@@ -2779,7 +2848,7 @@ function bindSettingsPage(deps) {
     try {
       await deps.OpenFileLocation(path);
     } catch (error) {
-      deps.showNotification("打开 addonlist.txt 位置失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.actions.openFailed", { error }), "error");
     }
   });
 
@@ -2792,10 +2861,10 @@ function bindSettingsPage(deps) {
       const config = deps.getConfig();
       config.unrecordedModLoadOrderPlacement = placement;
       await deps.saveConfig(config);
-      deps.showNotification("已更新未记录 Mod 首次开启时的加载顺序位置", "success");
+      deps.showNotification(t("settings.addonlist.unrecordedPlacement.updated"), "success");
     } catch (error) {
       select.value = previousPlacement;
-      deps.showNotification("保存未记录 Mod 插入位置失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.unrecordedPlacement.failed", { error }), "error");
     } finally {
       select.disabled = false;
     }
@@ -2812,11 +2881,14 @@ function bindSettingsPage(deps) {
       const config = deps.getConfig();
       config.addonListGuardEnabled = enabled;
       await deps.saveConfig(config);
-      deps.showNotification(enabled ? "已开启 addonlist.txt 自动恢复监控" : "已关闭 addonlist.txt 自动恢复监控", enabled ? "success" : "info");
+      deps.showNotification(
+        enabled ? t("settings.addonlist.guard.on") : t("settings.addonlist.guard.off"),
+        enabled ? "success" : "info",
+      );
       await refreshAddonListPanel();
     } catch (error) {
       toggle.checked = !enabled;
-      deps.showNotification("更新监控状态失败: " + error, "error");
+      deps.showNotification(t("settings.addonlist.guard.failed", { error }), "error");
     } finally {
       toggle.disabled = false;
     }
@@ -2827,8 +2899,8 @@ function bindSettingsPage(deps) {
       const name = button.dataset.addonlistBackup;
       if (
         !name ||
-        !(await confirmInApp("恢复这份备份？当前 addonlist.txt 会先自动备份，然后被替换。", {
-          title: "恢复历史备份",
+        !(await confirmInApp(t("settings.addonlist.backups.restoreConfirm"), {
+          title: t("settings.addonlist.backups.restoreConfirmTitle"),
         }))
       ) {
         return;
@@ -2836,25 +2908,30 @@ function bindSettingsPage(deps) {
       await runAddonListAction(button, async () => {
         await deps.RestoreAddonListBackup(name);
         await refreshAddonListFiles();
-      }, "已恢复 addonlist.txt 备份并同步受保护版本", "恢复备份失败");
+      }, t("settings.addonlist.backups.restored"), t("settings.addonlist.backups.restoreFailed"));
     });
   });
 
   document.querySelectorAll(".addonlist-backup-delete").forEach((button) => {
     button.addEventListener("click", async () => {
       const name = button.dataset.addonlistBackup;
-      if (!name || !(await confirmInApp("删除这份历史备份？该操作不可撤销。", { title: "删除历史备份" }))) {
+      if (
+        !name ||
+        !(await confirmInApp(t("settings.addonlist.backups.deleteConfirm"), {
+          title: t("settings.addonlist.backups.deleteConfirmTitle"),
+        }))
+      ) {
         return;
       }
-      await runAddonListAction(button, () => deps.DeleteAddonListBackup(name), "已删除历史备份", "删除备份失败");
+      await runAddonListAction(button, () => deps.DeleteAddonListBackup(name), t("settings.addonlist.backups.deleted"), t("settings.addonlist.backups.deleteFailed"));
     });
   });
 
   document.getElementById("settings-addonlist-delete")?.addEventListener("click", async (event) => {
     if (
       !(await confirmInApp(
-        "删除 addonlist.txt？程序会先创建历史备份；自动恢复监控会关闭，受保护版本也会移除。",
-        { title: "删除 addonlist.txt" },
+        t("settings.addonlist.delete.confirm"),
+        { title: t("settings.addonlist.delete.confirmTitle") },
       ))
     ) {
       return;
@@ -2862,7 +2939,7 @@ function bindSettingsPage(deps) {
     await runAddonListAction(event.currentTarget, async () => {
       await deps.DeleteAddonList();
       await refreshAddonListFiles();
-    }, "已删除 addonlist.txt，并保留删除前备份", "删除 addonlist.txt 失败");
+    }, t("settings.addonlist.delete.done"), t("settings.addonlist.delete.failed"));
   });
 
   document.getElementById("settings-addonlist-select-merge-source")?.addEventListener("click", async (event) => {
@@ -2870,9 +2947,9 @@ function bindSettingsPage(deps) {
       const sourcePath = await deps.SelectAddonListMergeSource();
       if (!sourcePath) return;
       addonListMergePreview = await deps.PreviewAddonListMerge(sourcePath);
-      deps.showNotification("已读取融合差异，请确认冲突项的开关选择", "info");
+      deps.showNotification(t("settings.addonlist.merge.readDone"), "info");
       await refreshAddonListPanel();
-    }, null, "读取融合差异失败", false);
+    }, null, t("settings.addonlist.merge.readFailed"), false);
   });
 
   document.getElementById("settings-addonlist-cancel-merge")?.addEventListener("click", async () => {
@@ -2889,23 +2966,23 @@ function bindSettingsPage(deps) {
       await deps.ApplyAddonListMerge(addonListMergePreview.sourcePath, sourceWinsKeys);
       addonListMergePreview = null;
       await refreshAddonListFiles();
-    }, "已融合 addonlist.txt 配置", "融合 addonlist.txt 失败");
+    }, t("settings.addonlist.merge.applied"), t("settings.addonlist.merge.applyFailed"));
   });
 
 }
 
 function renderAddonListMergePreview(preview) {
   if (!preview) {
-    return `<div class="setting-row-desc addonlist-merge-empty">未选择来源配置。此功能也适用于临时维护的任意 Mod 文件夹。</div>`;
+    return `<div class="setting-row-desc addonlist-merge-empty">${t("settings.addonlist.merge.empty")}</div>`;
   }
   const added = Array.isArray(preview.added) ? preview.added : [];
   const conflicts = Array.isArray(preview.conflicts) ? preview.conflicts : [];
   return `
     <div class="addonlist-merge-preview">
-      <div class="addonlist-merge-source">来源：${escapeHtml(preview.sourcePath || "")}</div>
+      <div class="addonlist-merge-source">${t("settings.addonlist.merge.source", { value: escapeHtml(preview.sourcePath || "") })}</div>
       <div class="addonlist-merge-summary">
-        <span>新增 ${added.length} 项（沿用来源开关）</span>
-        <span>开关冲突 ${conflicts.length} 项</span>
+        <span>${t("settings.addonlist.merge.added", { count: added.length })}</span>
+        <span>${t("settings.addonlist.merge.conflicts", { count: conflicts.length })}</span>
       </div>
       ${conflicts.length > 0 ? `
         <div class="addonlist-merge-conflicts">
@@ -2913,14 +2990,18 @@ function renderAddonListMergePreview(preview) {
             <label class="addonlist-merge-conflict">
               <input type="checkbox" data-addonlist-merge-key="${escapeAttr(conflict.key || "")}">
               <span class="addonlist-merge-conflict-name">${escapeHtml(conflict.key || "")}</span>
-              <span class="addonlist-merge-state">当前：${conflict.currentEnabled ? "开启" : "关闭"}</span>
-              <span class="addonlist-merge-state">来源：${conflict.sourceEnabled ? "开启" : "关闭"}</span>
-              <span class="addonlist-merge-adopt">勾选采用来源</span>
+              <span class="addonlist-merge-state">${t("settings.addonlist.merge.currentState", {
+                state: conflict.currentEnabled ? t("settings.addonlist.merge.stateOn") : t("settings.addonlist.merge.stateOff"),
+              })}</span>
+              <span class="addonlist-merge-state">${t("settings.addonlist.merge.source", {
+                value: conflict.sourceEnabled ? t("settings.addonlist.merge.stateOn") : t("settings.addonlist.merge.stateOff"),
+              })}</span>
+              <span class="addonlist-merge-adopt">${t("settings.addonlist.merge.adoptSource")}</span>
             </label>
           `).join("")}
         </div>
       ` : ""}
-      <button type="button" id="settings-addonlist-apply-merge" class="trigger-check-btn addonlist-action-btn" ${added.length || conflicts.length ? "" : "disabled"}>应用融合</button>
+      <button type="button" id="settings-addonlist-apply-merge" class="trigger-check-btn addonlist-action-btn" ${added.length || conflicts.length ? "" : "disabled"}>${t("settings.addonlist.merge.apply")}</button>
     </div>
   `;
 }
@@ -2993,12 +3074,12 @@ function renderIPOptionDropdown({
         syncIPOptionMenuActive(menu, option.ip);
         await onStatusUpdate?.();
         menu.classList.add("hidden");
-        showNotification("已更新固定 IP 设置", "success");
+        showNotification(t("settings.network.ip.fixedUpdated"), "success");
       } catch (error) {
         fixedInput.value = previousFixedIP;
         updateIPOptionTrigger(trigger, normalizedOptions, previousFixedIP);
         syncIPOptionMenuActive(menu, previousFixedIP);
-        showNotification("更新固定 IP 设置失败: " + error, "error");
+        showNotification(t("settings.network.ip.fixedFailed", { error }), "error");
       } finally {
         optionButtons.forEach((item) => {
           item.disabled = false;
@@ -3031,7 +3112,7 @@ async function loadIPOptionsForDropdown({
 }) {
   if (!trigger || !menu || typeof GetWorkshopIPOptions !== "function") return;
 
-  trigger.textContent = "正在加载推荐固定 IP...";
+  trigger.textContent = t("settings.network.ip.loadingOptions");
   trigger.classList.add("is-disabled");
   trigger.disabled = true;
   menu.textContent = "";
@@ -3053,7 +3134,7 @@ async function loadIPOptionsForDropdown({
     });
     await onStatusUpdate?.();
   } catch (error) {
-    trigger.textContent = "候选 IP 加载失败，可自建服务器并填写 IP";
+    trigger.textContent = t("settings.network.ip.optionsFailed");
     trigger.classList.add("is-disabled");
     trigger.disabled = true;
   }
@@ -3078,11 +3159,11 @@ function updateIPOptionTrigger(trigger, options, ip) {
   if (option) {
     trigger.textContent = formatIPOptionLabel(option);
   } else if (ip) {
-    trigger.textContent = formatIPOptionLabel({ ip, category: "自定义" });
+    trigger.textContent = formatIPOptionLabel({ ip, category: t("settings.network.ip.customCategory") });
   } else if (options?.length) {
-    trigger.textContent = "选择优选 IP，也可自建服务器并填写 IP";
+    trigger.textContent = t("settings.network.ip.triggerPrompt");
   } else {
-    trigger.textContent = "暂无候选 IP，可自建服务器并填写 IP";
+    trigger.textContent = t("settings.network.ip.triggerEmpty");
   }
 }
 
@@ -3104,20 +3185,23 @@ async function updateIPStatus({
 
   const isSelecting = await IsSelectingIP();
   if (isSelecting) {
-    statusEl.textContent = "正在优选最佳线路...";
+    statusEl.textContent = t("settings.network.ip.selecting");
     return;
   }
 
   const bestIPOption = await GetCurrentBestIPOption();
   const bestIP = getIPOptionIP(bestIPOption) || (await GetCurrentBestIP());
   if (!bestIP) {
-    statusEl.textContent = "尚未获取到优选 IP";
+    statusEl.textContent = t("settings.network.ip.notReady");
     return;
   }
 
   const useFixedIP = getUseFixedIP?.() || false;
-  const option = bestIPOption || findIPOption(ipOptions, bestIP) || { ip: bestIP, category: useFixedIP ? "自定义" : "" };
-  statusEl.textContent = `${useFixedIP ? "当前固定 IP" : "当前优选 IP"}: ${formatIPOptionLabel(option)}`;
+  const option = bestIPOption ||
+    findIPOption(ipOptions, bestIP) || { ip: bestIP, category: useFixedIP ? t("settings.network.ip.customCategory") : "" };
+  statusEl.textContent = useFixedIP
+    ? t("settings.network.ip.statusFixed", { label: formatIPOptionLabel(option) })
+    : t("settings.network.ip.statusAuto", { label: formatIPOptionLabel(option) });
 }
 
 function findIPOption(options = [], ip) {
@@ -3136,7 +3220,7 @@ function getIPOptionIP(option) {
   return String(option?.ip || option?.IP || "").trim();
 }
 
-function getIPOptionCategory(option, fallback = "未分类") {
+function getIPOptionCategory(option, fallback = t("settings.network.ip.uncategorized")) {
   const rawCategory = option?.category ?? option?.Category;
   const category = String(rawCategory ?? fallback).trim();
   return category || fallback;
@@ -3278,7 +3362,7 @@ function renderAutoexecHelpList(container, items) {
   if (list.length === 0) {
     const empty = document.createElement("div");
     empty.className = "autoexec-help-empty";
-    empty.textContent = "未找到匹配指令";
+    empty.textContent = t("settings.addonlist.autoexec.help.empty");
     container.appendChild(empty);
     return;
   }
@@ -3315,13 +3399,17 @@ function renderAutoexecMatches(container, items) {
     row.className = `autoexec-match ${item.known ? "is-known" : "is-unknown"}`;
     const title = document.createElement("div");
     title.className = "autoexec-match-title";
-    title.textContent = `第 ${item.line} 行 · ${item.command}${item.known ? "" : "（未知指令）"}`;
+    title.textContent = t("settings.addonlist.autoexec.matchLine", {
+      line: item.line,
+      command: item.command,
+      unknown: item.known ? "" : t("settings.addonlist.autoexec.matchUnknownSuffix"),
+    });
     row.appendChild(title);
     const detail = document.createElement("div");
     detail.className = "autoexec-match-detail";
     detail.textContent = item.known && item.help
       ? `${item.help.summary} · ${item.help.scope} · ${item.help.risk} · ${item.help.source}`
-      : "可能来自插件或 Mod，建议确认来源后再保存。";
+      : t("settings.addonlist.autoexec.matchAdvice");
     row.appendChild(detail);
     container.appendChild(row);
   });
@@ -3352,15 +3440,16 @@ function formatAddonListTime(value) {
 }
 
 function formatAddonListBackupKind(kind) {
-  const labels = {
-    manual: "手动备份",
-    external: "游戏覆盖前",
-    "game-save": "旧版短时保护写入前",
-    before: "恢复/删除前",
-    "before-profile-apply": "应用启用方案前",
-    "before-health-fix": "体检修复前",
+  const keys = {
+    manual: "settings.addonlist.backups.kind.manual",
+    external: "settings.addonlist.backups.kind.external",
+    "game-save": "settings.addonlist.backups.kind.gameSave",
+    before: "settings.addonlist.backups.kind.before",
+    "before-profile-apply": "settings.addonlist.backups.kind.beforeProfileApply",
+    "before-health-fix": "settings.addonlist.backups.kind.beforeHealthFix",
   };
-  return labels[String(kind || "")] || "历史备份";
+  const key = keys[String(kind || "")];
+  return key ? t(key) : t("settings.addonlist.backups.kind.fallback");
 }
 
 function parseAddonListManagerState(payload) {

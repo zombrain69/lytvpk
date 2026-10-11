@@ -69,18 +69,39 @@ func TestHealthIssueKindsHaveLabelAndDocRow(t *testing.T) {
 		t.Fatalf("提取到的体检类型只有 %d 个，正则可能失效", len(kinds))
 	}
 
+	// 标签文案自 i18n 迁移后存放在前端文案目录（zh-CN.json），
+	// 映射表只保留 kind → 文案 key；三层一致性变成 kind → key → 目录文案 → 文档。
 	labelSource := readRepoFile(t, "frontend/src/js/features/settings/health-report-format.mjs")
-	labelPattern := regexp.MustCompile(`([a-z_]+):\s*"([^"]+)"`)
-	labels := map[string]string{}
+	labelPattern := regexp.MustCompile(`([a-z_]+):\s*"(settings\.health\.kind\.[A-Za-z0-9]+)"`)
+	labelKeys := map[string]string{}
 	for _, match := range labelPattern.FindAllStringSubmatch(labelSource, -1) {
-		labels[match[1]] = match[2]
+		labelKeys[match[1]] = match[2]
+	}
+
+	var catalog struct {
+		Settings struct {
+			Health struct {
+				Kind map[string]string `json:"kind"`
+			} `json:"health"`
+		} `json:"settings"`
+	}
+	if err := json.Unmarshal([]byte(readRepoFile(t, "frontend/src/messages/zh-CN.json")), &catalog); err != nil {
+		t.Fatalf("解析 zh-CN.json 失败: %v", err)
+	}
+	if len(catalog.Settings.Health.Kind) < 10 {
+		t.Fatalf("目录里的体检类型标签只有 %d 个，可能结构被破坏", len(catalog.Settings.Health.Kind))
 	}
 
 	doc := readRepoFile(t, "docs/toolbox/mod-health-check.md")
 	for kind := range kinds {
-		label, ok := labels[kind]
+		key, ok := labelKeys[kind]
 		if !ok {
-			t.Errorf("体检类型 %s 缺少前端中文标签（health-report-format.mjs）", kind)
+			t.Errorf("体检类型 %s 缺少前端中文标签 key（health-report-format.mjs）", kind)
+			continue
+		}
+		label, ok := catalog.Settings.Health.Kind[strings.TrimPrefix(key, "settings.health.kind.")]
+		if !ok || label == "" {
+			t.Errorf("体检类型 %s 的标签 key %s 在 zh-CN.json 里不存在", kind, key)
 			continue
 		}
 		if !strings.Contains(doc, label) {
@@ -88,7 +109,7 @@ func TestHealthIssueKindsHaveLabelAndDocRow(t *testing.T) {
 		}
 	}
 	// 反向：前端不该留已经删掉的类型标签
-	for kind := range labels {
+	for kind := range labelKeys {
 		if !strings.Contains(kind, "_") {
 			continue
 		}
