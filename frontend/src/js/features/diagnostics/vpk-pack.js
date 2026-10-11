@@ -1,11 +1,12 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 
 let packRunning = false;
 
 export async function openVPKPackTool({ refreshFilesKeepFilter } = {}) {
   if (packRunning) {
-    showNotification("已有 VPK 正在打包", "info");
+    showNotification(t("toolbox.vpkPack.busy"), "info");
     return;
   }
 
@@ -17,7 +18,7 @@ export async function openVPKPackTool({ refreshFilesKeepFilter } = {}) {
     const choice = await choosePackOutput(sourceDir);
     if (!choice.outputDir) return;
 
-    showNotification("正在打包 VPK...", "info");
+    showNotification(t("toolbox.vpkPack.packing"), "info");
     const result = await callApp(
       "PackVPKDirectory",
       sourceDir,
@@ -25,12 +26,12 @@ export async function openVPKPackTool({ refreshFilesKeepFilter } = {}) {
       !!choice.isAddons,
     );
     showVPKPackResult(result);
-    showNotification("VPK 打包完成", "success");
+    showNotification(t("toolbox.vpkPack.done"), "success");
     if (result.outputIsAddons && typeof refreshFilesKeepFilter === "function") {
       await refreshFilesKeepFilter();
     }
   } catch (error) {
-    showError("打包流程失败: " + formatError(error));
+    showError(t("toolbox.vpkPack.failed", { error: formatError(error) }));
   } finally {
     packRunning = false;
   }
@@ -56,11 +57,11 @@ function choosePackOutput(sourceDir) {
     const otherBtn = document.createElement("button");
     otherBtn.type = "button";
     otherBtn.className = "btn btn-secondary";
-    otherBtn.textContent = "选择其他位置";
+    otherBtn.textContent = t("toolbox.vpkPack.chooseOther");
 
-    session.titleEl.textContent = "选择打包输出位置";
+    session.titleEl.textContent = t("toolbox.vpkPack.chooseTitle");
     session.contentEl.replaceChildren(createOutputChoiceContent(sourceDir));
-    session.confirmBtn.textContent = "放入当前 addons";
+    session.confirmBtn.textContent = t("toolbox.vpkPack.useAddons");
     session.addActionButton(otherBtn);
 
     session.closeBtn.onclick = () => session.close("close");
@@ -70,12 +71,12 @@ function choosePackOutput(sourceDir) {
       try {
         const addons = await callApp("GetRootDirectory");
         if (!addons) {
-          showError("未设置 addons 目录，请先在主界面选择 L4D2 addons 目录");
+          showError(t("toolbox.vpkPack.addonsUnset"));
           return;
         }
         done({ outputDir: addons, isAddons: true });
       } catch (error) {
-        showError("获取 addons 目录失败: " + formatError(error));
+        showError(t("toolbox.vpkPack.addonsFailed", { error: formatError(error) }));
       } finally {
         session.setPending(false);
       }
@@ -88,7 +89,7 @@ function choosePackOutput(sourceDir) {
         if (!dir) return;
         done({ outputDir: dir, isAddons: false });
       } catch (error) {
-        showError("选择目录失败: " + formatError(error));
+        showError(t("toolbox.vpkPack.selectDirFailed", { error: formatError(error) }));
       } finally {
         session.setPending(false);
       }
@@ -103,12 +104,12 @@ function createOutputChoiceContent(sourceDir) {
   wrapper.className = "vpk-unpack-result";
 
   const note = document.createElement("p");
-  note.textContent = "请选择打包后的 VPK 输出位置。";
+  note.textContent = t("toolbox.vpkPack.chooseNote");
 
   const pathBlock = document.createElement("div");
   pathBlock.className = "vpk-unpack-result-path";
   const label = document.createElement("span");
-  label.textContent = "打包目录";
+  label.textContent = t("toolbox.vpkPack.labelSource");
   const value = document.createElement("strong");
   value.textContent = sourceDir || "";
   value.title = sourceDir || "";
@@ -125,11 +126,11 @@ function showVPKPackResult(result = {}) {
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
   cancelBtn.className = "btn btn-secondary";
-  cancelBtn.textContent = "关闭";
+  cancelBtn.textContent = t("toolbox.common.close");
 
-  session.titleEl.textContent = "打包完成";
+  session.titleEl.textContent = t("toolbox.vpkPack.resultTitle");
   session.contentEl.replaceChildren(createPackResultContent(result));
-  session.confirmBtn.textContent = "打开目标位置";
+  session.confirmBtn.textContent = t("toolbox.common.openLocation");
   session.addActionButton(cancelBtn);
 
   cancelBtn.onclick = () => session.close("close");
@@ -140,7 +141,7 @@ function showVPKPackResult(result = {}) {
     try {
       await callApp("OpenFileLocation", result.outputPath);
     } catch (error) {
-      showError("打开目标位置失败: " + formatError(error));
+      showError(t("toolbox.common.openLocationFailed", { error: formatError(error) }));
     }
   };
 
@@ -154,12 +155,12 @@ function createPackResultContent(result = {}) {
   const summary = document.createElement("p");
   const total = Number(result.totalFiles || 0);
   const packed = Number(result.packedFiles || 0);
-  summary.textContent = `已打包 ${packed} / ${total} 个文件。`;
+  summary.textContent = t("toolbox.vpkPack.resultSummary", { packed, total });
 
   const pathBlock = document.createElement("div");
   pathBlock.className = "vpk-unpack-result-path";
   const label = document.createElement("span");
-  label.textContent = "输出文件";
+  label.textContent = t("toolbox.vpkPack.labelOutput");
   const value = document.createElement("strong");
   value.textContent = result.outputPath || "";
   value.title = result.outputPath || "";
@@ -172,12 +173,12 @@ function createPackResultContent(result = {}) {
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
   if (typeof method !== "function") {
-    return Promise.reject(new Error(`当前后端不支持 ${methodName}`));
+    return Promise.reject(new Error(t("toolbox.common.backendUnsupported", { method: methodName })));
   }
   return method(...args);
 }
 
 function formatError(error) {
   if (error?.message) return error.message;
-  return String(error || "未知错误");
+  return String(error || t("toolbox.common.unknownError"));
 }

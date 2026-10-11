@@ -4,6 +4,7 @@
 // 这里给出条目列表 + 就地预览，路径事实与标签识别用的是同一套 VPK 读取代码。
 
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { appState } from "../state.js";
 
 let deps = {};
@@ -31,7 +32,7 @@ export async function openVPKPreviewTool(explicitPath) {
     if (selected.length === 1) {
       target = selected[0];
     } else if (selected.length > 1) {
-      showNotification("内容预览一次只看一个 VPK，请只勾选一个（或用「选择 VPK」）", "info");
+      showNotification(t("toolbox.vpkPreview.singleOnly"), "info");
       return;
     }
   }
@@ -39,7 +40,7 @@ export async function openVPKPreviewTool(explicitPath) {
     try {
       target = await deps.SelectVPKFile();
     } catch (error) {
-      showError("选择 VPK 失败: " + error);
+      showError(t("toolbox.common.selectVpkFailed", { error }));
       return;
     }
   }
@@ -48,9 +49,9 @@ export async function openVPKPreviewTool(explicitPath) {
   currentFile = target;
   modal.classList.remove("hidden");
   const title = document.getElementById("vpk-preview-title");
-  if (title) title.textContent = `VPK 内容预览 — ${target.split(/[\\/]/).pop()}`;
+  if (title) title.textContent = t("toolbox.vpkPreview.title", { name: target.split(/[\\/]/).pop() });
   const preview = document.getElementById("vpk-preview-body");
-  if (preview) preview.innerHTML = `<div class="setting-row-desc">正在读取条目…</div>`;
+  if (preview) preview.innerHTML = `<div class="setting-row-desc">${t("toolbox.vpkPreview.loadingEntries")}</div>`;
   const list = document.getElementById("vpk-preview-entries");
   if (list) list.innerHTML = "";
 
@@ -58,12 +59,15 @@ export async function openVPKPreviewTool(explicitPath) {
   try {
     payload = await deps.ListVPKEntries(target);
   } catch (error) {
-    showError("读取 VPK 失败: " + error);
+    showError(t("toolbox.vpkPreview.readFailed", { error }));
     return;
   }
   const summary = document.getElementById("vpk-preview-summary");
   if (summary) {
-    summary.textContent = `${payload.totalCount} 个条目${payload.truncated ? `（只显示前 ${payload.entries.length} 个）` : ""}`;
+    const truncatedPart = payload.truncated
+      ? t("toolbox.vpkPreview.summaryTruncated", { count: payload.entries.length })
+      : "";
+    summary.textContent = t("toolbox.vpkPreview.summary", { count: payload.totalCount, truncatedPart });
   }
   if (!list) return;
   payload.entries.forEach((entry) => {
@@ -86,14 +90,14 @@ export async function openVPKPreviewTool(explicitPath) {
     list.appendChild(button);
   });
   if (payload.entries.length === 0) {
-    if (preview) preview.innerHTML = `<div class="setting-row-desc">这个 VPK 是空的。</div>`;
+    if (preview) preview.innerHTML = `<div class="setting-row-desc">${t("toolbox.vpkPreview.empty")}</div>`;
   }
 }
 
 async function loadEntry(entryPath) {
   const body = document.getElementById("vpk-preview-body");
   if (!body) return;
-  body.innerHTML = `<div class="setting-row-desc">正在读取 ${entryPath}…</div>`;
+  body.innerHTML = `<div class="setting-row-desc">${t("toolbox.vpkPreview.loadingEntry", { path: entryPath })}</div>`;
   let result = null;
   try {
     result = await deps.PreviewVPKEntry(currentFile, entryPath);
@@ -101,7 +105,7 @@ async function loadEntry(entryPath) {
     body.innerHTML = "";
     const message = document.createElement("div");
     message.className = "addonlist-status-error";
-    message.textContent = "预览失败: " + error;
+    message.textContent = t("toolbox.vpkPreview.previewFailed", { error });
     body.appendChild(message);
     return;
   }
@@ -130,6 +134,6 @@ async function loadEntry(entryPath) {
   }
   const note = document.createElement("div");
   note.className = "setting-row-desc";
-  note.textContent = result.note || "该类型暂不支持预览。";
+  note.textContent = result.note || t("toolbox.vpkPreview.unsupported");
   body.appendChild(note);
 }

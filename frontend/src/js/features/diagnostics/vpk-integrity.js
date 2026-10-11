@@ -1,11 +1,12 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 
 let integrityRunning = false;
 
 export async function openVPKIntegrityTool() {
   if (integrityRunning) {
-    showNotification("已有 VPK 正在检测", "info");
+    showNotification(t("toolbox.vpkIntegrity.busy"), "info");
     return;
   }
 
@@ -15,7 +16,7 @@ export async function openVPKIntegrityTool() {
     if (!vpkPath) return;
     await inspectVPKIntegrityPaths([vpkPath]);
   } catch (error) {
-    showError("选择 VPK 失败: " + formatError(error));
+    showError(t("toolbox.common.selectVpkFailed", { error: formatError(error) }));
   } finally {
     integrityRunning = false;
   }
@@ -26,13 +27,13 @@ export async function openVPKIntegrityTool() {
 // per-file summary and one confirmation before all repairable files are copied.
 export async function openVPKIntegrityForPaths(filePaths = []) {
   if (integrityRunning) {
-    showNotification("已有 VPK 正在检测或修复", "info");
+    showNotification(t("toolbox.vpkIntegrity.busyRepair"), "info");
     return;
   }
 
   const paths = normalizePaths(filePaths);
   if (paths.length === 0) {
-    showNotification("请先选择 VPK 文件", "info");
+    showNotification(t("toolbox.vpkIntegrity.selectFirst"), "info");
     return;
   }
 
@@ -47,8 +48,8 @@ export async function openVPKIntegrityForPaths(filePaths = []) {
 async function inspectVPKIntegrityPaths(paths) {
   showNotification(
     paths.length === 1
-      ? "正在检查 VPK 文件和 addoninfo.txt..."
-      : `正在检查 ${paths.length} 个 VPK 文件...`,
+      ? t("toolbox.vpkIntegrity.checkingSingle")
+      : t("toolbox.vpkIntegrity.checkingCount", { count: paths.length }),
     "info",
   );
   try {
@@ -56,17 +57,17 @@ async function inspectVPKIntegrityPaths(paths) {
       const report = await callApp("InspectVPKIntegrity", paths[0]);
       showIntegrityReport(report);
       showNotification(
-        report?.valid ? "VPK 检测通过" : "VPK 检测发现问题",
+        report?.valid ? t("toolbox.vpkIntegrity.pass") : t("toolbox.vpkIntegrity.issuesFound"),
         report?.valid ? "success" : "info",
       );
     } else {
       const results = await callApp("InspectVPKIntegrityBatch", paths);
       showIntegrityBatchReport(results);
       const validCount = results.filter((item) => item?.report?.valid).length;
-      showNotification(`批量检测完成：${validCount} / ${results.length} 个通过`, "info");
+      showNotification(t("toolbox.vpkIntegrity.batchDone", { valid: validCount, total: results.length }), "info");
     }
   } catch (error) {
-    showError("VPK 检测失败: " + formatError(error));
+    showError(t("toolbox.vpkIntegrity.checkFailed", { error: formatError(error) }));
   }
 }
 
@@ -77,16 +78,16 @@ function showIntegrityReport(report = {}) {
   const repairBtn = document.createElement("button");
   repairBtn.type = "button";
   repairBtn.className = "btn btn-primary";
-  repairBtn.textContent = "修复并另存为";
+  repairBtn.textContent = t("toolbox.vpkIntegrity.repairSaveAs");
   repairBtn.hidden = !report.repairable;
   session.addClass(
     session.modal.querySelector(".modal-content"),
     "vpk-integrity-modal-content",
   );
 
-  session.titleEl.textContent = report.valid ? "VPK 检测通过" : "VPK 检测结果";
+  session.titleEl.textContent = report.valid ? t("toolbox.vpkIntegrity.pass") : t("toolbox.vpkIntegrity.reportTitle");
   session.contentEl.replaceChildren(createIntegrityContent(report));
-  session.confirmBtn.textContent = "关闭";
+  session.confirmBtn.textContent = t("toolbox.common.close");
   session.confirmBtn.onclick = () => session.close("close");
   session.closeBtn.onclick = () => session.close("close");
   if (report.repairable) {
@@ -94,20 +95,20 @@ function showIntegrityReport(report = {}) {
     repairBtn.onclick = async () => {
       integrityRunning = true;
       session.setPending(true);
-      repairBtn.textContent = "修复中...";
+      repairBtn.textContent = t("toolbox.vpkIntegrity.repairing");
       try {
         const result = await callApp("RepairVPKIntegrity", report.path);
         if (session.isCurrent()) {
           session.close("repair");
           showRepairResult(result);
         }
-        showNotification("VPK 已修复并生成新文件，原文件未改动", "success");
+        showNotification(t("toolbox.vpkIntegrity.repaired"), "success");
       } catch (error) {
         if (session.isCurrent()) {
           session.setPending(false);
-          repairBtn.textContent = "修复并另存为";
+          repairBtn.textContent = t("toolbox.vpkIntegrity.repairSaveAs");
         }
-        showError("VPK 修复失败: " + formatError(error));
+        showError(t("toolbox.vpkIntegrity.repairFailed", { error: formatError(error) }));
       } finally {
         integrityRunning = false;
       }
@@ -127,16 +128,16 @@ function showIntegrityBatchReport(results = []) {
   const repairBtn = document.createElement("button");
   repairBtn.type = "button";
   repairBtn.className = "btn btn-primary";
-  repairBtn.textContent = `修复可修复项 (${repairPaths.length})`;
+  repairBtn.textContent = t("toolbox.vpkIntegrity.repairRepairable", { count: repairPaths.length });
   repairBtn.hidden = repairPaths.length === 0;
   session.addClass(
     session.modal.querySelector(".modal-content"),
     "vpk-integrity-modal-content",
   );
 
-  session.titleEl.textContent = `VPK 批量检测结果 (${safeResults.length})`;
+  session.titleEl.textContent = t("toolbox.vpkIntegrity.batchReportTitle", { count: safeResults.length });
   session.contentEl.replaceChildren(createBatchIntegrityContent(safeResults));
-  session.confirmBtn.textContent = "关闭";
+  session.confirmBtn.textContent = t("toolbox.common.close");
   session.confirmBtn.onclick = () => session.close("close");
   session.closeBtn.onclick = () => session.close("close");
   if (repairPaths.length > 0) {
@@ -144,7 +145,7 @@ function showIntegrityBatchReport(results = []) {
     repairBtn.onclick = async () => {
       integrityRunning = true;
       session.setPending(true);
-      repairBtn.textContent = "批量修复中...";
+      repairBtn.textContent = t("toolbox.vpkIntegrity.batchRepairing");
       try {
         const repaired = await callApp("RepairVPKIntegrityBatch", repairPaths);
         if (session.isCurrent()) {
@@ -152,13 +153,13 @@ function showIntegrityBatchReport(results = []) {
           showRepairBatchResult(repaired);
         }
         const successCount = repaired.filter((item) => item?.outputPath && !item?.error).length;
-        showNotification(`批量修复完成：成功生成 ${successCount} 个 VPK`, "success");
+        showNotification(t("toolbox.vpkIntegrity.batchRepaired", { count: successCount }), "success");
       } catch (error) {
         if (session.isCurrent()) {
           session.setPending(false);
-          repairBtn.textContent = `修复可修复项 (${repairPaths.length})`;
+          repairBtn.textContent = t("toolbox.vpkIntegrity.repairRepairable", { count: repairPaths.length });
         }
-        showError("批量 VPK 修复失败: " + formatError(error));
+        showError(t("toolbox.vpkIntegrity.batchRepairFailed", { error: formatError(error) }));
       } finally {
         integrityRunning = false;
       }
@@ -177,9 +178,9 @@ function showRepairBatchResult(results = [], single = false) {
 
   const safeResults = Array.isArray(results) ? results : [];
   const outputPaths = safeResults.filter((item) => item?.outputPath).map((item) => item.outputPath);
-  session.titleEl.textContent = single ? "VPK 修复完成" : "VPK 批量修复结果";
+  session.titleEl.textContent = single ? t("toolbox.vpkIntegrity.repairDone") : t("toolbox.vpkIntegrity.batchRepairReportTitle");
   session.contentEl.replaceChildren(createRepairBatchContent(safeResults));
-  session.confirmBtn.textContent = outputPaths.length > 0 ? "打开输出位置" : "关闭";
+  session.confirmBtn.textContent = outputPaths.length > 0 ? t("toolbox.vpkIntegrity.openOutput") : t("toolbox.common.close");
   session.addClass(
     session.modal.querySelector(".modal-content"),
     "vpk-integrity-modal-content",
@@ -194,7 +195,7 @@ function showRepairBatchResult(results = [], single = false) {
     try {
       await callApp("OpenFileLocation", outputPaths[0]);
     } catch (error) {
-      showError("打开修复文件位置失败: " + formatError(error));
+      showError(t("toolbox.vpkIntegrity.openRepairFailed", { error: formatError(error) }));
     }
   };
   session.show();
@@ -207,14 +208,14 @@ function createIntegrityContent(report = {}) {
   const status = document.createElement("div");
   status.className = report.valid ? "vpk-integrity-status is-valid" : "vpk-integrity-status is-invalid";
   status.textContent = report.valid
-    ? "未发现问题"
+    ? t("toolbox.vpkIntegrity.statusClean")
     : report.repairable
-      ? "发现可自动修复的问题"
-      : "发现需要重新下载或手动处理的问题";
+      ? t("toolbox.vpkIntegrity.statusRepairable")
+      : t("toolbox.vpkIntegrity.statusManual");
 
   wrapper.append(
     status,
-    createPathBlock("文件", report.path || ""),
+    createPathBlock(t("toolbox.vpkIntegrity.labelFile"), report.path || ""),
     createIntegrityStats(report),
   );
   appendIssueList(wrapper, report.issues);
@@ -228,7 +229,11 @@ function createBatchIntegrityContent(results = []) {
   const repairableCount = results.filter((item) => item?.report?.repairable && !item?.error).length;
   const summary = document.createElement("div");
   summary.className = "vpk-integrity-batch-summary";
-  summary.textContent = `共检测 ${results.length} 个 VPK：${validCount} 个通过，${repairableCount} 个可修复。`;
+  summary.textContent = t("toolbox.vpkIntegrity.batchSummary", {
+    total: results.length,
+    valid: validCount,
+    repairable: repairableCount,
+  });
   wrapper.appendChild(summary);
 
   const list = document.createElement("div");
@@ -240,19 +245,19 @@ function createBatchIntegrityContent(results = []) {
     const header = document.createElement("div");
     header.className = "vpk-integrity-batch-item-header";
     const name = document.createElement("strong");
-    name.textContent = basename(item?.path || report.path || "未知 VPK");
+    name.textContent = basename(item?.path || report.path || t("modals.vpkRisk.unknownVpk"));
     name.title = item?.path || report.path || "";
     const badge = document.createElement("span");
     badge.className = report.valid ? "is-valid" : report.repairable ? "is-repairable" : "is-invalid";
     badge.textContent = item?.error
-      ? "检测失败"
+      ? t("toolbox.vpkIntegrity.badgeFailed")
       : report.valid
-        ? "通过"
+        ? t("toolbox.vpkIntegrity.badgePass")
         : report.repairable
-          ? "可修复"
-          : "需手动处理";
+          ? t("modals.vpkRisk.repairable")
+          : t("toolbox.vpkIntegrity.badgeManual");
     header.append(name, badge);
-    card.append(header, createPathBlock("路径", item?.path || report.path || ""));
+    card.append(header, createPathBlock(t("toolbox.common.labelPath"), item?.path || report.path || ""));
     if (item?.error) {
       const error = document.createElement("p");
       error.className = "vpk-integrity-batch-error";
@@ -275,7 +280,8 @@ function createRepairBatchContent(results = []) {
   const failed = results.length - success;
   const summary = document.createElement("div");
   summary.className = "vpk-integrity-batch-summary";
-  summary.textContent = `成功生成 ${success} 个修复文件${failed > 0 ? `，${failed} 个未能修复` : ""}。原文件均未覆盖。`;
+  const failedPart = failed > 0 ? t("toolbox.vpkIntegrity.repairSummaryFailed", { count: failed }) : "";
+  summary.textContent = t("toolbox.vpkIntegrity.repairSummary", { success, failedPart });
   wrapper.appendChild(summary);
 
   const list = document.createElement("div");
@@ -284,7 +290,7 @@ function createRepairBatchContent(results = []) {
     const card = document.createElement("section");
     card.className = "vpk-integrity-batch-item";
     const source = document.createElement("strong");
-    source.textContent = basename(item?.sourcePath || "未知 VPK");
+    source.textContent = basename(item?.sourcePath || t("modals.vpkRisk.unknownVpk"));
     source.title = item?.sourcePath || "";
     card.appendChild(source);
     if (item?.error) {
@@ -293,7 +299,7 @@ function createRepairBatchContent(results = []) {
       error.textContent = item.error;
       card.appendChild(error);
     } else {
-      card.appendChild(createPathBlock("修复文件", item.outputPath || ""));
+      card.appendChild(createPathBlock(t("toolbox.vpkIntegrity.labelRepairFile"), item.outputPath || ""));
       const metadata = createRepairMetadataSummary(item.addonInfoRepair);
       if (metadata) card.appendChild(metadata);
     }
@@ -313,11 +319,11 @@ function createRepairMetadataSummary(summary = {}) {
   note.className = "vpk-integrity-repair-meta";
   const parts = [];
   if (preserved.length > 0) {
-    parts.push(`保留 ${preserved.length} 项原有元信息`);
-    note.title = `已保留：${preserved.join("、")}`;
+    parts.push(t("toolbox.vpkIntegrity.metaPreserved", { count: preserved.length }));
+    note.title = t("toolbox.vpkIntegrity.metaPreservedList", { list: preserved.join("、") });
   }
-  if (derived.length > 0) parts.push(`补全：${derived.join("、")}`);
-  if (recovered) parts.push("已恢复截断文本");
+  if (derived.length > 0) parts.push(t("toolbox.vpkIntegrity.metaDerivedList", { list: derived.join("、") }));
+  if (recovered) parts.push(t("toolbox.vpkIntegrity.metaRecovered"));
   note.textContent = parts.join("；") + "。";
   return note;
 }
@@ -327,8 +333,16 @@ function createIntegrityStats(report = {}) {
   stats.className = "vpk-integrity-stats";
   // 默认是索引级校验（读目录表 + 每个条目末尾一字节 + addoninfo.txt），不做整包 CRC；
   // 说清是哪种，免得用户以为"已校验 M 个"连数据都读过了。
-  const scanLabel = report.scanMode === "full" ? "整包" : "索引级";
-  stats.textContent = `目录文件 ${Number(report.totalFiles || 0)} 个，已校验 ${Number(report.verifiedFiles || 0)} 个（${scanLabel}校验）；addoninfo.txt ${report.addonInfoFound ? (report.addonInfoValid ? "有效" : "无效") : "缺失"}。`;
+  const scanLabel = report.scanMode === "full" ? t("toolbox.vpkIntegrity.scanLevelFull") : t("toolbox.vpkIntegrity.scanLevelIndex");
+  const addonInfoLabel = report.addonInfoFound
+    ? t(report.addonInfoValid ? "toolbox.vpkIntegrity.addonInfoValid" : "toolbox.vpkIntegrity.addonInfoInvalid")
+    : t("toolbox.vpkIntegrity.addonInfoMissing");
+  stats.textContent = t("toolbox.vpkIntegrity.statsLine", {
+    total: Number(report.totalFiles || 0),
+    verified: Number(report.verifiedFiles || 0),
+    scanLabel,
+    addonInfo: addonInfoLabel,
+  });
   return stats;
 }
 
@@ -336,7 +350,7 @@ function appendIssueList(wrapper, issues, compact = false) {
   const safeIssues = Array.isArray(issues) ? issues : [];
   if (safeIssues.length === 0) return;
   const heading = document.createElement("h4");
-  heading.textContent = compact ? `问题 (${safeIssues.length})` : "检测到的问题";
+  heading.textContent = compact ? t("toolbox.vpkIntegrity.issuesCount", { count: safeIssues.length }) : t("toolbox.vpkIntegrity.issuesHeading");
   const list = document.createElement("ul");
   list.className = "vpk-integrity-issues";
   safeIssues.forEach((issue) => {
@@ -347,7 +361,7 @@ function appendIssueList(wrapper, issues, compact = false) {
     item.appendChild(message);
     if (issue.repairable) {
       const badge = document.createElement("small");
-      badge.textContent = "可修复";
+      badge.textContent = t("modals.vpkRisk.repairable");
       item.appendChild(badge);
     }
     list.appendChild(item);
@@ -386,12 +400,12 @@ function basename(filePath) {
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
   if (typeof method !== "function") {
-    return Promise.reject(new Error(`当前应用不支持 ${methodName}，请重新构建并启动 LytVPK`));
+    return Promise.reject(new Error(t("modals.vpkRisk.unsupportedMethod", { method: methodName })));
   }
   return method(...args);
 }
 
 function formatError(error) {
   if (error?.message) return error.message;
-  return String(error || "未知错误");
+  return String(error || t("toolbox.common.unknownError"));
 }

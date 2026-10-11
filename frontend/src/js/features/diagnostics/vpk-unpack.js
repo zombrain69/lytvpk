@@ -1,11 +1,12 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 
 let unpackRunning = false;
 
 export async function openVPKUnpackTool() {
   if (unpackRunning) {
-    showNotification("已有 VPK 正在解包", "info");
+    showNotification(t("toolbox.vpkUnpack.busy"), "info");
     return;
   }
 
@@ -15,7 +16,7 @@ export async function openVPKUnpackTool() {
     if (!vpkPath) return;
     await unpackSelectedVPK(vpkPath);
   } catch (error) {
-    showError("选择 VPK 失败: " + formatError(error));
+    showError(t("toolbox.common.selectVpkFailed", { error: formatError(error) }));
   } finally {
     unpackRunning = false;
   }
@@ -23,12 +24,12 @@ export async function openVPKUnpackTool() {
 
 export async function unpackVPKFromPath(vpkPath) {
   if (unpackRunning) {
-    showNotification("已有 VPK 正在解包", "info");
+    showNotification(t("toolbox.vpkUnpack.busy"), "info");
     return;
   }
 
   if (!vpkPath) {
-    showError("VPK 文件路径不能为空");
+    showError(t("toolbox.vpkUnpack.pathRequired"));
     return;
   }
 
@@ -45,18 +46,18 @@ async function unpackSelectedVPK(vpkPath) {
   try {
     targetRoot = await callApp("SelectVPKUnpackOutputDirectory");
   } catch (error) {
-    showError("选择解包位置失败: " + formatError(error));
+    showError(t("toolbox.vpkUnpack.selectDirFailed", { error: formatError(error) }));
     return;
   }
   if (!targetRoot) return;
 
-  showNotification("正在解包 VPK...", "info");
+  showNotification(t("toolbox.vpkUnpack.unpacking"), "info");
   try {
     const result = await callApp("UnpackVPKFile", vpkPath, targetRoot);
     showVPKUnpackResult(result);
-    showNotification("VPK 解包完成", "success");
+    showNotification(t("toolbox.vpkUnpack.done"), "success");
   } catch (error) {
-    showError("解包失败: " + formatError(error));
+    showError(t("toolbox.vpkUnpack.failed", { error: formatError(error) }));
   }
 }
 
@@ -67,11 +68,11 @@ function showVPKUnpackResult(result = {}) {
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
   cancelBtn.className = "btn btn-secondary";
-  cancelBtn.textContent = "关闭";
+  cancelBtn.textContent = t("toolbox.common.close");
 
-  session.titleEl.textContent = "解包完成";
+  session.titleEl.textContent = t("toolbox.vpkUnpack.resultTitle");
   session.contentEl.replaceChildren(createResultContent(result));
-  session.confirmBtn.textContent = "打开目标位置";
+  session.confirmBtn.textContent = t("toolbox.common.openLocation");
   session.addActionButton(cancelBtn);
 
   cancelBtn.onclick = () => session.close("close");
@@ -82,7 +83,7 @@ function showVPKUnpackResult(result = {}) {
     try {
       await callApp("OpenFileLocation", result.outputDir);
     } catch (error) {
-      showError("打开目标位置失败: " + formatError(error));
+      showError(t("toolbox.common.openLocationFailed", { error: formatError(error) }));
     }
   };
 
@@ -96,12 +97,12 @@ function createResultContent(result = {}) {
   const summary = document.createElement("p");
   const total = Number(result.totalFiles || 0);
   const extracted = Number(result.extractedFiles || 0);
-  summary.textContent = `已解包 ${extracted} / ${total} 个文件。`;
+  summary.textContent = t("toolbox.vpkUnpack.resultSummary", { extracted, total });
 
   const pathBlock = document.createElement("div");
   pathBlock.className = "vpk-unpack-result-path";
   const label = document.createElement("span");
-  label.textContent = "输出目录";
+  label.textContent = t("toolbox.vpkUnpack.labelOutput");
   const value = document.createElement("strong");
   value.textContent = result.outputDir || "";
   value.title = result.outputDir || "";
@@ -114,12 +115,12 @@ function createResultContent(result = {}) {
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
   if (typeof method !== "function") {
-    return Promise.reject(new Error(`当前后端不支持 ${methodName}`));
+    return Promise.reject(new Error(t("toolbox.common.backendUnsupported", { method: methodName })));
   }
   return method(...args);
 }
 
 function formatError(error) {
   if (error?.message) return error.message;
-  return String(error || "未知错误");
+  return String(error || t("toolbox.common.unknownError"));
 }

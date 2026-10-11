@@ -99,6 +99,7 @@
       "problemScan": {
         "title": "问题 Mod 查找",
         "description": "按二分法保留当前测试半区，逐轮缩小单个问题 Mod 的范围。",
+        "roundStatus": "第 {round} 轮，剩余 {count} 个候选",
         "statusActive": "查找中",
         "statusIdle": "待开始",
         "actionActive": "继续查找",
@@ -115,7 +116,168 @@
         "description": "读取启用和创意工坊 Mod 内模型的 LOD0 顶点数与三角形数量，快速定位高面数资源。",
         "status": "可检测",
         "action": "打开检测工具"
+      },
+      "autoexec": {
+        "title": "autoexec.cfg 编辑器",
+        "description": "识别已使用的控制台命令，显示含义、风险和来源，并保留原文件编码、BOM 与换行格式。",
+        "status": "支持编码保留",
+        "action": "打开编辑器"
+      },
+      "vpkUnpack": {
+        "title": "VPK 解包",
+        "description": "选择一个系统中的 VPK 文件，再选择目标位置，按 VPK 内部目录结构解包到同名文件夹。",
+        "action": "选择并解包"
+      },
+      "vpkPack": {
+        "title": "VPK 打包",
+        "description": "选择一个目录（VPK 根目录，即 materials/scripts 等的父目录），打包为 .vpk 文件，可放入 addons 或自选位置。",
+        "action": "选择并打包"
+      },
+      "vpkIntegrity": {
+        "title": "VPK 完整性检测",
+        "description": "校验 VPK 目录、文件校验和与 addoninfo.txt；可安全修复元数据问题并另存为新 VPK。Mod 列表右键还支持多选检测与修复。",
+        "status": "支持修复",
+        "action": "选择并检测"
+      },
+      "archiveManager": {
+        "title": "压缩包管理",
+        "description": "递归查看 ZIP、RAR、7Z、TAR 压缩包文件树，识别其中的 VPK 并与当前 addons Mod 对比。",
+        "status": "支持 VPK 对比",
+        "action": "选择文件夹"
+      },
+      "snapshot": {
+        "description": "保存某一时刻的启用状态与加载顺序（文件名快照），或把 VPK 与同名图片/.meta 一起备份（完整备份）。 恢复前会给出逐项计划，执行前自动备份 addonlist.txt。",
+        "status": "可整体回滚",
+        "action": "打开快照工具"
+      },
+      "vpkMerge": {
+        "description": "把当前勾选的多个 Mod 合并成一个 VPK：后一个包的同名文件覆盖前一个。 合并只是导出，原 Mod、addonlist.txt 与优先级都不受影响。",
+        "status": "导出，不替代 addonlist",
+        "action": "合并选中的 Mod"
+      },
+      "vpkPreview": {
+        "title": "VPK 内容预览",
+        "description": "列出 VPK 里的全部条目，就地预览文本 / KeyValues / 图片 / VTF 贴图—— 想确认\"这个包里装了什么\"时不用先解包。",
+        "status": "不解包直接看",
+        "action": "选择 VPK 预览"
+      },
+      "mdmp": {
+        "title": "崩溃转储查看器",
+        "description": "选择 .mdmp 或 .dmp 文件，查看异常、线程、模块、内存范围和原始 stream 信息。",
+        "status": "可解析",
+        "action": "选择并查看"
+      },
+      "spray": {
+        "title": "喷漆制作",
+        "description": "导入图片或 GIF，预览并保存 VTF/VMT 喷漆文件。",
+        "status": "可制作",
+        "action": "打开制作工具"
       }
+    },
+    "common": {
+      "statusAvailable": "可使用",
+      "close": "关闭",
+      "openLocation": "打开目标位置",
+      "openLocationFailed": "打开目标位置失败: {error}",
+      "selectVpkFailed": "选择 VPK 失败: {error}",
+      "backendUnsupported": "当前后端不支持 {method}",
+      "unknownError": "未知错误",
+      "labelPath": "路径"
+    },
+    "vpkIntegrity": {
+      "busy": "已有 VPK 正在检测",
+      "busyRepair": "已有 VPK 正在检测或修复",
+      "selectFirst": "请先选择 VPK 文件",
+      "checkingSingle": "正在检查 VPK 文件和 addoninfo.txt...",
+      "checkingCount": "正在检查 {count} 个 VPK 文件...",
+      "pass": "VPK 检测通过",
+      "issuesFound": "VPK 检测发现问题",
+      "batchDone": "批量检测完成：{valid} / {total} 个通过",
+      "checkFailed": "VPK 检测失败: {error}",
+      "repairSaveAs": "修复并另存为",
+      "reportTitle": "VPK 检测结果",
+      "repairing": "修复中...",
+      "repaired": "VPK 已修复并生成新文件，原文件未改动",
+      "repairFailed": "VPK 修复失败: {error}",
+      "repairRepairable": "修复可修复项 ({count})",
+      "batchReportTitle": "VPK 批量检测结果 ({count})",
+      "batchRepairing": "批量修复中...",
+      "batchRepaired": "批量修复完成：成功生成 {count} 个 VPK",
+      "batchRepairFailed": "批量 VPK 修复失败: {error}",
+      "repairDone": "VPK 修复完成",
+      "batchRepairReportTitle": "VPK 批量修复结果",
+      "openOutput": "打开输出位置",
+      "openRepairFailed": "打开修复文件位置失败: {error}",
+      "statusClean": "未发现问题",
+      "statusRepairable": "发现可自动修复的问题",
+      "statusManual": "发现需要重新下载或手动处理的问题",
+      "labelFile": "文件",
+      "labelRepairFile": "修复文件",
+      "badgeFailed": "检测失败",
+      "badgePass": "通过",
+      "badgeManual": "需手动处理",
+      "batchSummary": "共检测 {total} 个 VPK：{valid} 个通过，{repairable} 个可修复。",
+      "repairSummary": "成功生成 {success} 个修复文件{failedPart}。原文件均未覆盖。",
+      "repairSummaryFailed": "，{count} 个未能修复",
+      "metaPreserved": "保留 {count} 项原有元信息",
+      "metaPreservedList": "已保留：{list}",
+      "metaDerivedList": "补全：{list}",
+      "metaRecovered": "已恢复截断文本",
+      "scanLevelFull": "整包",
+      "scanLevelIndex": "索引级",
+      "statsLine": "目录文件 {total} 个，已校验 {verified} 个（{scanLabel}校验）；addoninfo.txt {addonInfo}。",
+      "addonInfoValid": "有效",
+      "addonInfoInvalid": "无效",
+      "addonInfoMissing": "缺失",
+      "issuesCount": "问题 ({count})",
+      "issuesHeading": "检测到的问题"
+    },
+    "vpkPack": {
+      "busy": "已有 VPK 正在打包",
+      "packing": "正在打包 VPK...",
+      "done": "VPK 打包完成",
+      "failed": "打包流程失败: {error}",
+      "chooseOther": "选择其他位置",
+      "chooseTitle": "选择打包输出位置",
+      "useAddons": "放入当前 addons",
+      "addonsUnset": "未设置 addons 目录，请先在主界面选择 L4D2 addons 目录",
+      "addonsFailed": "获取 addons 目录失败: {error}",
+      "selectDirFailed": "选择目录失败: {error}",
+      "chooseNote": "请选择打包后的 VPK 输出位置。",
+      "labelSource": "打包目录",
+      "resultTitle": "打包完成",
+      "resultSummary": "已打包 {packed} / {total} 个文件。",
+      "labelOutput": "输出文件"
+    },
+    "vpkUnpack": {
+      "busy": "已有 VPK 正在解包",
+      "pathRequired": "VPK 文件路径不能为空",
+      "selectDirFailed": "选择解包位置失败: {error}",
+      "unpacking": "正在解包 VPK...",
+      "done": "VPK 解包完成",
+      "failed": "解包失败: {error}",
+      "resultTitle": "解包完成",
+      "resultSummary": "已解包 {extracted} / {total} 个文件。",
+      "labelOutput": "输出目录"
+    },
+    "vpkMerge": {
+      "title": "合并为整合包",
+      "selectFirst": "请先在 Mod 列表里勾选至少两个 VPK，再点「合并为整合包」",
+      "confirmBody": "把选中的 {count} 个 VPK 合并成一个整合包？\n\n· 后一个包的同名文件会覆盖前一个（顺序 = 你看到的列表顺序）；\n· 合并只是导出，**不会**改动原 Mod、addonlist.txt 或优先级；\n· 想用整合包时请自己在游戏里启用它。",
+      "done": "已导出整合包：{total} 个条目（覆盖 {overwritten}）→ {path}",
+      "failed": "合并 VPK 失败: {error}"
+    },
+    "vpkPreview": {
+      "singleOnly": "内容预览一次只看一个 VPK，请只勾选一个（或用「选择 VPK」）",
+      "title": "VPK 内容预览 — {name}",
+      "loadingEntries": "正在读取条目…",
+      "readFailed": "读取 VPK 失败: {error}",
+      "summary": "{count} 个条目{truncatedPart}",
+      "summaryTruncated": "（只显示前 {count} 个）",
+      "empty": "这个 VPK 是空的。",
+      "loadingEntry": "正在读取 {path}…",
+      "previewFailed": "预览失败: {error}",
+      "unsupported": "该类型暂不支持预览。"
     },
     "snapshot": {
       "title": "Mod 快照",

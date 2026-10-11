@@ -70,7 +70,7 @@ export async function renderDiagnosticsPage({
               <p>${t("toolbox.card.problemScan.description")}</p>
               ${
                 problemScanActive
-                  ? `<div class="diagnostics-inline-status">第 ${problemScanSession.round || 1} 轮，剩余 ${problemScanSession.currentCandidates?.length || 0} 个候选</div>`
+                  ? `<div class="diagnostics-inline-status">${t("toolbox.card.problemScan.roundStatus", { round: problemScanSession.round || 1, count: problemScanSession.currentCandidates?.length || 0 })}</div>`
                   : ""
               }
             </div>
@@ -119,13 +119,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-config">${configIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>autoexec.cfg 编辑器</h3>
-                <span class="diagnostics-status">支持编码保留</span>
+                <h3>${t("toolbox.card.autoexec.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.autoexec.status")}</span>
               </div>
-              <p>识别已使用的控制台命令，显示含义、风险和来源，并保留原文件编码、BOM 与换行格式。</p>
+              <p>${t("toolbox.card.autoexec.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-autoexec-btn">
-              打开编辑器
+              ${t("toolbox.card.autoexec.action")}
             </button>
           </section>
         </div>
@@ -141,13 +141,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-general">${unpackIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>VPK 解包</h3>
-                <span class="diagnostics-status">可使用</span>
+                <h3>${t("toolbox.card.vpkUnpack.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.common.statusAvailable")}</span>
               </div>
-              <p>选择一个系统中的 VPK 文件，再选择目标位置，按 VPK 内部目录结构解包到同名文件夹。</p>
+              <p>${t("toolbox.card.vpkUnpack.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-unpack-btn">
-              选择并解包
+              ${t("toolbox.card.vpkUnpack.action")}
             </button>
           </section>
 
@@ -155,13 +155,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-general">${packIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>VPK 打包</h3>
-                <span class="diagnostics-status">可使用</span>
+                <h3>${t("toolbox.card.vpkPack.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.common.statusAvailable")}</span>
               </div>
-              <p>选择一个目录（VPK 根目录，即 materials/scripts 等的父目录），打包为 .vpk 文件，可放入 addons 或自选位置。</p>
+              <p>${t("toolbox.card.vpkPack.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-pack-btn">
-              选择并打包
+              ${t("toolbox.card.vpkPack.action")}
             </button>
           </section>
 
@@ -169,13 +169,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-integrity">${integrityIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>VPK 完整性检测</h3>
-                <span class="diagnostics-status">支持修复</span>
+                <h3>${t("toolbox.card.vpkIntegrity.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.vpkIntegrity.status")}</span>
               </div>
-              <p>校验 VPK 目录、文件校验和与 addoninfo.txt；可安全修复元数据问题并另存为新 VPK。Mod 列表右键还支持多选检测与修复。</p>
+              <p>${t("toolbox.card.vpkIntegrity.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-integrity-btn">
-              选择并检测
+              ${t("toolbox.card.vpkIntegrity.action")}
             </button>
           </section>
 
@@ -183,13 +183,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-archive">${archiveIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>压缩包管理</h3>
-                <span class="diagnostics-status">支持 VPK 对比</span>
+                <h3>${t("toolbox.card.archiveManager.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.archiveManager.status")}</span>
               </div>
-              <p>递归查看 ZIP、RAR、7Z、TAR 压缩包文件树，识别其中的 VPK 并与当前 addons Mod 对比。</p>
+              <p>${t("toolbox.card.archiveManager.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-archive-manager-btn">
-              选择文件夹
+              ${t("toolbox.card.archiveManager.action")}
             </button>
           </section>
 
@@ -197,14 +197,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-integrity">${integrityIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>Mod 快照</h3>
-                <span class="diagnostics-status">可整体回滚</span>
+                <h3>${t("toolbox.snapshot.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.snapshot.status")}</span>
               </div>
-              <p>保存某一时刻的启用状态与加载顺序（文件名快照），或把 VPK 与同名图片/.meta 一起备份（完整备份）。
-                 恢复前会给出逐项计划，执行前自动备份 addonlist.txt。</p>
+              <p>${t("toolbox.card.snapshot.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-mod-snapshot-btn">
-              打开快照工具
+              ${t("toolbox.card.snapshot.action")}
             </button>
           </section>
 
@@ -212,14 +211,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-pack">${packIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>合并为整合包</h3>
-                <span class="diagnostics-status">导出，不替代 addonlist</span>
+                <h3>${t("toolbox.vpkMerge.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.vpkMerge.status")}</span>
               </div>
-              <p>把当前勾选的多个 Mod 合并成一个 VPK：后一个包的同名文件覆盖前一个。
-                 合并只是导出，原 Mod、addonlist.txt 与优先级都不受影响。</p>
+              <p>${t("toolbox.card.vpkMerge.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-merge-btn">
-              合并选中的 Mod
+              ${t("toolbox.card.vpkMerge.action")}
             </button>
           </section>
 
@@ -227,14 +225,13 @@ export async function renderDiagnosticsPage({
             <div class="diagnostics-tool-icon is-unpack">${unpackIcon()}</div>
             <div class="diagnostics-tool-main">
               <div class="diagnostics-tool-title-row">
-                <h3>VPK 内容预览</h3>
-                <span class="diagnostics-status">不解包直接看</span>
+                <h3>${t("toolbox.card.vpkPreview.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.vpkPreview.status")}</span>
               </div>
-              <p>列出 VPK 里的全部条目，就地预览文本 / KeyValues / 图片 / VTF 贴图——
-                 想确认"这个包里装了什么"时不用先解包。</p>
+              <p>${t("toolbox.card.vpkPreview.description")}</p>
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="toolbox-vpk-preview-btn">
-              选择 VPK 预览
+              ${t("toolbox.card.vpkPreview.action")}
             </button>
           </section>
         </div>
@@ -345,20 +342,19 @@ function appendMDMPReportTool(container, openMDMPReportTool) {
   const row = document.createElement("div");
   row.className = "diagnostics-tool-title-row";
   const title = document.createElement("h3");
-  title.textContent = "崩溃转储查看器";
+  title.textContent = t("toolbox.card.mdmp.title");
   const status = document.createElement("span");
   status.className = "diagnostics-status";
-  status.textContent = "可解析";
+  status.textContent = t("toolbox.card.mdmp.status");
   row.append(title, status);
   const desc = document.createElement("p");
-  desc.textContent =
-    "选择 .mdmp 或 .dmp 文件，查看异常、线程、模块、内存范围和原始 stream 信息。";
+  desc.textContent = t("toolbox.card.mdmp.description");
   main.append(row, desc);
 
   const button = document.createElement("button");
   button.type = "button";
   button.className = "btn btn-primary diagnostics-tool-action";
-  button.textContent = "选择并查看";
+  button.textContent = t("toolbox.card.mdmp.action");
   button.addEventListener("click", () => openMDMPReportTool?.());
 
   card.append(icon, main, button);
@@ -382,19 +378,19 @@ function appendSprayTool(container, openSprayTool, refreshFilesKeepFilter) {
   const row = document.createElement("div");
   row.className = "diagnostics-tool-title-row";
   const title = document.createElement("h3");
-  title.textContent = "喷漆制作";
+  title.textContent = t("toolbox.card.spray.title");
   const status = document.createElement("span");
   status.className = "diagnostics-status";
-  status.textContent = "可制作";
+  status.textContent = t("toolbox.card.spray.status");
   row.append(title, status);
   const desc = document.createElement("p");
-  desc.textContent = "导入图片或 GIF，预览并保存 VTF/VMT 喷漆文件。";
+  desc.textContent = t("toolbox.card.spray.description");
   main.append(row, desc);
 
   const button = document.createElement("button");
   button.type = "button";
   button.className = "btn btn-primary diagnostics-tool-action";
-  button.textContent = "打开制作工具";
+  button.textContent = t("toolbox.card.spray.action");
   button.addEventListener("click", () =>
     openSprayTool?.({ refreshFilesKeepFilter })
   );

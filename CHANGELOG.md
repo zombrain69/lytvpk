@@ -1,5 +1,31 @@
 # Changelog
 
+## 未发布 — i18n：工具箱 VPK 工具家族 + 工具箱剩余卡片（第 13 项第十四批）（2026-10-12）
+
+- `diagnostics-page.js`（工具箱页剩余卡片）：8 张工具卡片（autoexec 编辑器 / VPK 解包 / VPK 打包 /
+  VPK 完整性检测 / 压缩包管理 / Mod 快照 / 合并为整合包 / VPK 内容预览）的标题 / 状态 / 说明 / 按钮，
+  崩溃转储与喷漆两块动态卡片，问题 Mod 查找「第 N 轮，剩余 N 个候选」内联状态；「可使用」两条统一
+  `toolbox.common.statusAvailable`，「Mod 快照」标题复用 `toolbox.snapshot.title`。
+- `vpk-integrity.js`：检测与修复全链路 —— 忙碌两条、请先选择 VPK、单 / 批量检查提示、单 / 批量检测
+  通知、检测报告（标题两态 / 状态三条 / 文件 / 路径 / 问题清单 / 徽标四态 / 批量汇总），
+  「修复并另存为」两态、修复结果与批量修复结果（打开输出位置 / 摘要 / 元信息保留·补全·已恢复截断文本）、
+  统计行（索引级 / 整包 + addoninfo 有效 / 无效 / 缺失）。
+- `vpk-pack.js` / `vpk-unpack.js`：打包与解包工具全链路（忙碌、进行中、输出位置选择弹窗、
+  addons 未设置 / 获取失败、结果标题与摘要；「打开目标位置」两文件统一 `toolbox.common.openLocation`）。
+- `vpk-merge.js`：合并为整合包 —— 未选足够 VPK 提示、确认弹窗全文（正文与标题）、导出结果、失败提示。
+- `vpk-preview.js`：预览窗口 —— 多选提示、标题模板、读取中占位两条、读取 / 预览失败、条目计数两条
+  （截断显示）、空包与不支持类型兜底。
+- **复用**：`toolbox.snapshot.title`、`modals.vpkRisk.unknownVpk|repairable|unsupportedMethod`
+  （同一 VPK 域的三条同文条目随本批接线）；跨文件同文（关闭 / 打开目标位置 / 选择 VPK 失败 / 未知错误 /
+  当前后端不支持 {method} / 路径）统一进 `toolbox.common.*`。
+- 目录新增 130 key（`toolbox.card` +37 / `toolbox.common` 8 / `toolbox.vpkIntegrity` 46 /
+  `toolbox.vpkPack` 15 / `toolbox.vpkUnpack` 9 / `toolbox.vpkMerge` 5 / `toolbox.vpkPreview` 10）；
+  既有条目零改动。**裸文本复查**：36 处多行模板盲区（全部卡片 HTML）批前发现并迁完，批后复查归零。
+- 测试：`vpk-integrity-scan-mode.test.mjs` 三条源级断言改「源码接线 + 目录内容」双查
+  （索引级 / 整包 / 统计行模板）。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；`go test ./...` /
+  `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：file-list 筛选条与卡片/行渲染（filters.js / render.js）（第 13 项第十三批）（2026-10-12）
 
 - `filters.js`（筛选条全量动态文案）：游戏状态名（筛选芯片 / 下拉选项 / 经典布局按钮）、

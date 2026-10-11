@@ -13,10 +13,17 @@ const source = readFileSync(new URL("./vpk-integrity.js", import.meta.url), "utf
 const parserSource = readFileSync(new URL("../../../../../internal/parser/vpk_integrity.go", import.meta.url), "utf8");
 
 test("完整性检测的统计行写清校验级别", () => {
+  // 文案已 i18n 化（第 13 项第十四批）：源码接线 + 目录内容双查。
+  const catalog = JSON.parse(
+    readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+  );
   assert.match(source, /report\.scanMode/, "统计行要读 scanMode");
-  assert.match(source, /索引级/, "默认级别要显示成「索引级」");
-  assert.match(source, /整包/, "深度校验要显示成「整包」");
-  assert.match(source, /已校验 \$\{[^}]*\} 个（\$\{scanLabel\}校验）/, "「已校验 N 个」后面要跟校验级别");
+  assert.match(source, /t\("toolbox\.vpkIntegrity\.scanLevelIndex"\)/, "默认级别要接线到「索引级」文案");
+  assert.equal(catalog.toolbox.vpkIntegrity.scanLevelIndex, "索引级", "默认级别要显示成「索引级」");
+  assert.match(source, /t\("toolbox\.vpkIntegrity\.scanLevelFull"\)/, "深度校验要接线到「整包」文案");
+  assert.equal(catalog.toolbox.vpkIntegrity.scanLevelFull, "整包", "深度校验要显示成「整包」");
+  assert.match(source, /t\("toolbox\.vpkIntegrity\.statsLine"/, "统计行要走目录文案");
+  assert.match(catalog.toolbox.vpkIntegrity.statsLine, /已校验 \{verified\} 个（\{scanLabel\}校验）/, "「已校验 N 个」后面要跟校验级别");
 });
 
 test("后端默认走索引级，整包校验不挂在界面路径上", () => {
