@@ -72,3 +72,19 @@ test("messages/zh-CN.json 覆盖所有页面 t() 引用的 key", () => {
   assert.ok(referenced > 0, "没有扫描到任何 t() 调用，检查正则是否失效");
   assert.deepEqual(missing, [], `以下 t() key 没有对应的中文文案：\n${missing.join("\n")}`);
 });
+
+// 反向检查：index.html 静态节点上 data-i18n* 引用的 key 也必须在目录里。
+// 静态节点走 `applyTranslations()` 回填，写错 key 同样会静默失效（渲染为 key 本身），
+// 与页面代码里的 t() 调用是同一类问题，这里一起兜住。
+test("index.html 静态节点 data-i18n* 引用的 key 都在目录里", () => {
+  const htmlPath = join(srcRoot, "..", "..", "index.html");
+  const html = readFileSync(htmlPath, "utf8");
+  const catalogKeys = loadCatalogKeys();
+  const referenced = [];
+  for (const match of html.matchAll(/data-i18n(?:-title|-placeholder)?="([\w.]+)"/g)) {
+    referenced.push(match[1]);
+  }
+  assert.ok(referenced.length > 0, "没有扫描到任何 data-i18n 属性，检查正则或文件位置");
+  const missing = referenced.filter((key) => !catalogKeys.has(key));
+  assert.deepEqual(missing, [], `index.html 里以下 data-i18n key 没有对应的中文文案：\n${missing.join("\n")}`);
+});

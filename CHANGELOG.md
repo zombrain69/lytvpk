@@ -1,5 +1,22 @@
 # Changelog
 
+## 未发布 — i18n：迁移 mods 页（mod-rotation.js）+ 静态节点反查（2026-10-11）
+
+- `features/mods/mod-rotation.js` 全部用户可见文案改走 `t()`：轮换按钮文案（启用 / 关闭 /
+  人物 / 武器 / 分类启用态）、手动轮换的加载提示与完成通知、设置弹窗全文案（标题 / 选项 /
+  占位符 / 说明段落）；文案目录新增 `mods.rotation.*` 键组（29 个 key）。
+- `index.html` 轮换按钮 tooltip 挂 `data-i18n-title`（`mods.rotation.btn.tooltip`）；
+  按钮初始文案由 JS 启动时覆盖，保持不动。
+- 一致性测试加固：`i18n-catalog.test.mjs` 新增反向检查 —— `index.html` 静态节点
+  `data-i18n` / `data-i18n-title` / `data-i18n-placeholder` 引用的 key 必须存在于目录，
+  防"静态节点写错 key"静默失效（当前 13 处全部命中；含更新弹窗与轮换按钮）。
+- 发现（记入路线图观察项，本次未动代码）：同目录 `mod-panel.js` 为死代码 —— 全仓库无导入、
+  `#mod-info-panel` 容器不存在、tree-shake 后未进构建产物，上游同样如此；本页迁移不含它。
+- 文档：`docs/development/i18n.md`（已迁移清单 + 一致性检查）、
+  `docs/development/manual-verification.md` §13。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）565 项 0 失败；
+  `npm run build` 通过。
+
 ## 未发布 — i18n：更新弹窗 / 更新面板迁移（2026-10-11）
 
 - `features/update/updates.js` 全部用户可见文案改走 `t()`：更新日志分类与空态、手动检查状态、

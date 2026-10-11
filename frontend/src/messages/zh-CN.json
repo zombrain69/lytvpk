@@ -149,5 +149,48 @@
       "successMessage": "程序将自动重启以应用更新。",
       "failureTitle": "更新失败"
     }
+  },
+  "mods": {
+    "rotation": {
+      "type": {
+        "weapon": "武器",
+        "character": "人物",
+        "all": "所有"
+      },
+      "loadingMessage": "正在执行{type}轮换...",
+      "completedMessage": "{type}轮换已完成",
+      "btn": {
+        "tooltip": "Mod随机轮换",
+        "enabled": "轮换已启用",
+        "characterEnabled": "人物轮换已启用",
+        "weaponEnabled": "武器轮换已启用",
+        "categoryEnabled": "分类轮换已启用（{count} 类）",
+        "disabled": "轮换已关闭"
+      },
+      "error": {
+        "backendUnavailable": "功能暂不可用：后端未实现轮换接口",
+        "operationFailed": "操作失败: {error}"
+      },
+      "modal": {
+        "title": "设置Mod随机轮换",
+        "prompt": "请选择要启用的轮换类型：",
+        "characters": "人物轮换",
+        "weapons": "武器轮换",
+        "byCategory": "按分类随机（可选）",
+        "tagsPlaceholder": "用逗号分隔，例如：贴图,HUD,载具",
+        "tagsHint": "每个分类下随机保留一个 Mod；分类只要求\"当前至少有一个启用中的 Mod\"。",
+        "rotateCharacters": "手动轮换人物",
+        "rotateWeapons": "手动轮换武器",
+        "manualHint": "即便未开启自动轮换，也可以手动执行",
+        "desc1": "开启后，每次启动游戏将自动从已安装的Mod中随机选择并替换。",
+        "desc2": "系统会按具体子分类（如 AK47、M16、Nick 等）进行随机，确保每个子分类只有一个 Mod 生效。",
+        "desc3": "注意：仅当某个子分类至少有一个Mod处于启用状态时，该分类才会参与轮换。",
+        "desc4": "若都不选择，则相当于关闭轮换功能。"
+      },
+      "notification": {
+        "updated": "Mod随机轮换设置已更新",
+        "disabled": "Mod随机轮换已关闭"
+      }
+    }
   }
 }

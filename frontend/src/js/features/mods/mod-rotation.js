@@ -5,6 +5,7 @@ import { refreshFilesKeepFilter } from "../file-list/filters.js";
 import { showConfirmModal } from "../modals/confirm.js";
 import { GetModRotation, ManualRotateMods, SetModRotation } from "../../../../wailsjs/go/app/App";
 import { escapeHtml } from "../../core/utils.js";
+import { t } from "../../core/i18n-runtime.js";
 
 const ROTATION_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg">
   <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
@@ -26,22 +27,22 @@ export async function manualRotate(type) {
     let typeName = "";
     if (type === "weapon") {
       config.enableWeapons = true;
-      typeName = "武器";
+      typeName = t("mods.rotation.type.weapon");
     } else if (type === "character") {
       config.enableCharacters = true;
-      typeName = "人物";
+      typeName = t("mods.rotation.type.character");
     } else {
       config.enableCharacters = true;
       config.enableWeapons = true;
-      typeName = "所有";
+      typeName = t("mods.rotation.type.all");
     }
 
-    updateLoadingMessage(`正在执行${typeName}轮换...`);
+    updateLoadingMessage(t("mods.rotation.loadingMessage", { type: typeName }));
     await ManualRotateMods(config);
     await refreshFilesKeepFilter();
 
     showMainScreen();
-    showNotification(`${typeName}轮换已完成`, "success");
+    showNotification(t("mods.rotation.completedMessage", { type: typeName }), "success");
   } catch (e) {
     showMainScreen();
     console.error("手动轮换失败:", e);
@@ -88,28 +89,28 @@ export function updateModRotationUI(config) {
     btn.classList.add("btn-rotation-enabled");
     btn.classList.remove("btn-outline");
 
-    let text = "轮换已启用";
+    let text = t("mods.rotation.btn.enabled");
     if (charEnabled && weaponEnabled) {
-      text = "轮换已启用";
+      text = t("mods.rotation.btn.enabled");
     } else if (charEnabled) {
-      text = "人物轮换已启用";
+      text = t("mods.rotation.btn.characterEnabled");
     } else if (weaponEnabled) {
-      text = "武器轮换已启用";
+      text = t("mods.rotation.btn.weaponEnabled");
     } else if (customCount > 0) {
-      text = `分类轮换已启用（${customCount} 类）`;
+      text = t("mods.rotation.btn.categoryEnabled", { count: customCount });
     }
 
     btn.innerHTML = `<span class="icon">${ROTATION_ICON_SVG}</span> ${text}`;
   } else {
     btn.classList.remove("btn-rotation-enabled");
     btn.classList.add("btn-outline");
-    btn.innerHTML = `<span class="icon">${ROTATION_ICON_SVG}</span> 轮换已关闭`;
+    btn.innerHTML = `<span class="icon">${ROTATION_ICON_SVG}</span> ${t("mods.rotation.btn.disabled")}`;
   }
 }
 
 export async function toggleModRotation() {
   if (typeof SetModRotation !== "function") {
-    showError("功能暂不可用：后端未实现轮换接口");
+    showError(t("mods.rotation.error.backendUnavailable"));
     return;
   }
 
@@ -125,56 +126,56 @@ export async function toggleModRotation() {
 
   const htmlContent = `
     <div class="rotation-settings">
-      <p class="rotation-title">请选择要启用的轮换类型：</p>
+      <p class="rotation-title">${t("mods.rotation.modal.prompt")}</p>
       <div class="rotation-options">
         <label class="rotation-option-item">
-          <span class="option-label">人物轮换</span>
+          <span class="option-label">${t("mods.rotation.modal.characters")}</span>
           <div class="rotation-switch">
             <input type="checkbox" id="rotation-char-check" ${currentConfig.enableCharacters ? "checked" : ""}>
             <span class="rotation-slider round"></span>
           </div>
         </label>
         <label class="rotation-option-item">
-          <span class="option-label">武器轮换</span>
+          <span class="option-label">${t("mods.rotation.modal.weapons")}</span>
           <div class="rotation-switch">
             <input type="checkbox" id="rotation-weapon-check" ${currentConfig.enableWeapons ? "checked" : ""}>
             <span class="rotation-slider round"></span>
           </div>
         </label>
         <label class="rotation-option-item" style="display:block">
-          <span class="option-label">按分类随机（可选）</span>
+          <span class="option-label">${t("mods.rotation.modal.byCategory")}</span>
           <input type="text" id="rotation-tags-input" class="form-input" style="margin-top:6px"
-                 placeholder="用逗号分隔，例如：贴图,HUD,载具"
+                 placeholder="${t("mods.rotation.modal.tagsPlaceholder")}"
                  value="${escapeHtml((currentConfig.tags || []).join(","))}">
           <div style="font-size:0.8em;color:var(--text-tertiary);margin-top:4px">
-            每个分类下随机保留一个 Mod；分类只要求"当前至少有一个启用中的 Mod"。
+            ${t("mods.rotation.modal.tagsHint")}
           </div>
         </label>
         <div style="margin-top: 8px; border-top: 1px solid var(--border-light); padding-top: 12px; display: flex; gap: 10px;">
            <button onclick="window.manualRotate('character')" class="btn btn-outline btn-small" style="flex: 1; justify-content: center;">
              <span class="icon">
                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-             </span> 手动轮换人物
+             </span> ${t("mods.rotation.modal.rotateCharacters")}
            </button>
            <button onclick="window.manualRotate('weapon')" class="btn btn-outline btn-small" style="flex: 1; justify-content: center;">
              <span class="icon">
                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
-             </span> 手动轮换武器
+             </span> ${t("mods.rotation.modal.rotateWeapons")}
            </button>
         </div>
-        <div style="font-size: 0.85em; color: var(--text-tertiary); margin-top: 6px; text-align: center;">即便未开启自动轮换，也可以手动执行</div>
+        <div style="font-size: 0.85em; color: var(--text-tertiary); margin-top: 6px; text-align: center;">${t("mods.rotation.modal.manualHint")}</div>
       </div>
       <div class="rotation-desc-container">
-        <p>开启后，每次启动游戏将自动从已安装的Mod中随机选择并替换。</p>
-        <p>系统会按具体子分类（如 AK47、M16、Nick 等）进行随机，确保每个子分类只有一个 Mod 生效。</p>
-        <p><strong>注意：仅当某个子分类至少有一个Mod处于启用状态时，该分类才会参与轮换。</strong></p>
-        <p>若都不选择，则相当于关闭轮换功能。</p>
+        <p>${t("mods.rotation.modal.desc1")}</p>
+        <p>${t("mods.rotation.modal.desc2")}</p>
+        <p><strong>${t("mods.rotation.modal.desc3")}</strong></p>
+        <p>${t("mods.rotation.modal.desc4")}</p>
       </div>
     </div>
   `;
 
   showConfirmModal(
-    "设置Mod随机轮换",
+    t("mods.rotation.modal.title"),
     htmlContent,
     async () => {
       const charCheck = document.getElementById("rotation-char-check");
@@ -200,12 +201,12 @@ export async function toggleModRotation() {
         updateModRotationUI(newConfig);
 
         if (newConfig.enableCharacters || newConfig.enableWeapons || tags.length > 0) {
-          showNotification("Mod随机轮换设置已更新", "success");
+          showNotification(t("mods.rotation.notification.updated"), "success");
         } else {
-          showNotification("Mod随机轮换已关闭", "info");
+          showNotification(t("mods.rotation.notification.disabled"), "info");
         }
       } catch (e) {
-        showError("操作失败: " + e);
+        showError(t("mods.rotation.error.operationFailed", { error: e }));
       }
     },
     true
