@@ -23,7 +23,14 @@ import (
 //   - **只加不删**：只给缺该标签的成员补，绝不修改或删除已有标签；
 //   - **只看特征标签**：只有 ≥60% 成员都带的标签才算这个命名空间的特征，
 //     避免同一命名空间里两个不同武器的包互相污染；
-//   - **有上限**：单个成员最多补 suiteInheritanceTagCap 个继承标签，防止堆标签。
+//   - **有上限**：单个成员最多补 suiteInheritanceTagCap 个继承标签（按每次扫描
+//     实际新增的继承标签数计），防止单个命名空间向一个成员堆标签。
+//     上限只约束"继承新增"，不约束成员自身已有的标签数 —— 否则成员自身标签
+//     因识别规则升级而增长后，会挤出此前靠继承拿到的标签（真机案例
+//     2026-10-12：Dead Before Dawn Part 2 / 3583381403 升级为地图分片包后
+//     自身标签到 20+，旧的"总标签数 ≥20 就不给继承"口径让它们丢掉
+//     VScript/模式 等继承标签，违反只增不减）。按"继承新增"计数后，
+//     同一命名空间的特征标签对成员是单调的：自身标签再涨也只会换掉重复项。
 const (
 	suiteInheritanceMinMembers = 3
 	suiteInheritanceMinRatio   = 0.6
@@ -247,15 +254,19 @@ func (a *App) applySuiteTagInheritance() int {
 	}
 
 	inherited := 0
+	addedPerMember := make(map[*parser.VPKFile]int)
 	for _, item := range assignments {
 		file := item.member
 		if file == nil || containsTagFold(file.SecondaryTags, strings.ToLower(item.tag)) {
 			continue
 		}
-		if len(file.SecondaryTags) >= suiteInheritanceTagCap {
+		// 上限按"本次为该成员新增的继承标签数"计（见上方安全边界说明）：
+		// 不按成员总标签数计，避免自身标签增长时挤出此前继承的标签。
+		if addedPerMember[file] >= suiteInheritanceTagCap {
 			continue
 		}
 		file.SecondaryTags = append(file.SecondaryTags, item.tag)
+		addedPerMember[file]++
 		sort.SliceStable(file.SecondaryTags, func(i, j int) bool {
 			return strings.ToLower(file.SecondaryTags[i]) < strings.ToLower(file.SecondaryTags[j])
 		})

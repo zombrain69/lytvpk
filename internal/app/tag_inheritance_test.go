@@ -112,3 +112,52 @@ func TestSuiteTagInheritanceIsDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// TestSuiteTagInheritanceCapCountsInheritedAddsNotTotalTags 是 2026-10-12 的回归：
+// 旧实现按"成员总标签数 ≥ 上限就跳过"，成员自身标签因识别升级而增长后
+// （真机案例：Dead Before Dawn Part 2 / 3583381403 升级为地图分片包，自身到 20+），
+// 此前靠继承拿到的标签会被挤掉，违反"只增不减"。现在上限只计"本次为该成员
+// 新增的继承标签数"：自身标签再多，缺的特征标签照样补。
+func TestSuiteTagInheritanceCapCountsInheritedAddsNotTotalTags(t *testing.T) {
+	app := &App{rootDir: t.TempDir()}
+	own := make([]string, 0, suiteInheritanceTagCap+4)
+	for i := 0; i < suiteInheritanceTagCap+4; i++ {
+		own = append(own, "自身"+string(rune('A'+i)))
+	}
+	storeInheritanceMod(app, "rich.vpk", own, []string{"ns/rich"})
+	storeInheritanceMod(app, "rich2.vpk", append(append([]string{}, own...), "AK47"), []string{"ns/rich"})
+	storeInheritanceMod(app, "rich3.vpk", append(append([]string{}, own...), "AK47"), []string{"ns/rich"})
+
+	inherited := app.applySuiteTagInheritance()
+	if inherited != 1 {
+		t.Fatalf("超出旧口径上限的成员也应补 1 个继承标签，实际 %d", inherited)
+	}
+	rich := app.mustCachedVPKFile(t, "rich.vpk")
+	if !containsInheritedTag(rich.SecondaryTags, "AK47") {
+		t.Fatalf("自身标签多不应挡住继承补齐：%v", rich.SecondaryTags)
+	}
+}
+
+// TestSuiteTagInheritancePerMemberRunCapStillApplies 守住上限本身：
+// 单个成员单次扫描的新增继承标签不会超过 suiteInheritanceTagCap（防止堆标签）。
+func TestSuiteTagInheritancePerMemberRunCapStillApplies(t *testing.T) {
+	app := &App{rootDir: t.TempDir()}
+	features := make([]string, 0, suiteInheritanceTagCap+8)
+	for i := 0; i < suiteInheritanceTagCap+8; i++ {
+		features = append(features, "特征"+string(rune('A'+i)))
+	}
+	// 3 个成员共享 28 个特征标签；第 4 个成员自身没有标签、缺全部特征。
+	storeInheritanceMod(app, "m1.vpk", append([]string{}, features...), []string{"ns/cap"})
+	storeInheritanceMod(app, "m2.vpk", append([]string{}, features...), []string{"ns/cap"})
+	storeInheritanceMod(app, "m3.vpk", append([]string{}, features...), []string{"ns/cap"})
+	storeInheritanceMod(app, "empty.vpk", []string{}, []string{"ns/cap"})
+
+	inherited := app.applySuiteTagInheritance()
+	if inherited != suiteInheritanceTagCap {
+		t.Fatalf("单成员单次新增继承标签应截断为 %d，实际 %d", suiteInheritanceTagCap, inherited)
+	}
+	empty := app.mustCachedVPKFile(t, "empty.vpk")
+	if len(empty.SecondaryTags) != suiteInheritanceTagCap {
+		t.Fatalf("截断后应恰好 %d 个标签，实际 %d", suiteInheritanceTagCap, len(empty.SecondaryTags))
+	}
+}

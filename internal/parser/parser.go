@@ -114,6 +114,14 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 第一步: 一次性建立目录索引；它只读取 VPK 的条目名称，不解压资源。
 	index := buildArchivePathIndex(archive)
 	vpkType := determineVPKType(index)
+	// 多分片地图配套包（路线图第 8 项①）：无 BSP 但带自定义战役任务文件的包
+	// （主包与配套包分拆发布的自定义战役，如 Dead Before Dawn Part 2–4、
+	// 连接 Connection part 2、宜昌2 贴图包）升级为主分类「地图」。
+	// 判定与真机样本见 map_multipart.go。
+	mapCompanion := vpkType != "地图" && isMultipartMapCompanion(index)
+	if mapCompanion {
+		vpkType = "地图"
+	}
 	vpkFile.VoiceCharacters = sortedTagSet(index.voiceCharacters)
 	applyStructureSummary(vpkFile, index)
 
@@ -146,9 +154,15 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 			// missions-only 包（D9）：本体里只有 missions/*.txt、没有 .bsp。
 			// 解析出战役名 / 模式，并给一个兜底标签，避免整包零标签。
 			collectMissionEvidence(opener, index, vpkFile, secondaryTags, chapters)
-			secondaryTags["地图配置"] = true
+			secondaryTags[mapConfigTag] = true
 		}
 		// 注意：不在这里 return，让它继续执行提取预览图的逻辑
+	}
+
+	if mapCompanion {
+		// 分片包身份标记 + missions 兜底（只增不减；判定与样本见 map_multipart.go）。
+		secondaryTags[mapCompanionTag] = true
+		secondaryTags[mapConfigTag] = true
 	}
 
 	// 主分类保持地图 > 人物 > 武器的既有优先级；但混合包仍可带有另一类
@@ -171,9 +185,11 @@ func parseVPKFile(filePath string, includePreview bool) (*VPKFile, error) {
 	// 本地化 token（`#L4D360UI_CampaignName_C1`）一律不是标签；地图任务文件的
 	// DisplayTitle 会把它们带进来，筛选条里会多出上百个"子标签"。
 	dropLocalizationTokenTags(secondaryTags)
-	if vpkType == "地图" {
+	if vpkType == "地图" && !mapCompanion {
 		// 地图包口径：资源名巧合（token / 槽位通道）不参与武器·物品归属，
 		// 只保留本体精确锚点、标题与内容标签（见 map_resource_tags.go）。
+		// 分片包（无 BSP）不适用这条：它们不是完整地图，且要守住"标签只增不减"
+		// ——理由与样本见 map_multipart.go。
 		dropCoincidenceOnlyTags(secondaryTags, index.evidence)
 	}
 	delete(secondaryTags, vpkFile.PrimaryTag)

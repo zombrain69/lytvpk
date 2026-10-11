@@ -1,6 +1,6 @@
 # Mod 标签识别 v2（维护者开发文档）
 
-> 状态：**已完成**（W0–W8 全部收口于 2026-10-07；后续标签改动必须通过 `--check-tag-regression` 护栏，删标签须登记 `tools/tag-regression-allowlist.json`）
+> 状态：**已完成**（W0–W8 收口于 2026-10-07；W9「多分片地图识别 + 套件继承上限修复」2026-10-12 追加；后续标签改动必须通过 `--check-tag-regression` 护栏，删标签须登记 `tools/tag-regression-allowlist.json`）
 > 基线版本：`2.7.1-community.42`（`d224707`）；收口版本：`2.7.1-community.67`（`cc79e92`）
 > 本文是维护者文档，不进入公开文档站侧边栏。
 
@@ -17,6 +17,7 @@
 | W6 呈现与对外清单 | ✅ 已完成（2026-09-30） | `internal/parser/tag_evidence.go`（每个标签记录 rule / level / ≤3 条来源；强度升级时连来源一起换，避免「rule=本体锚点、source=关键词路径」的自相矛盾）、`VPKFile.TagEvidence`；Mod 详情新增「标签依据」区块（`frontend/src/js/features/modals/tag-evidence-view.mjs` 纯逻辑 + 4 个 node 测试，`detail.js` 只用 createElement/textContent，CSS 用 rem 遵守字号档位规则），Wails 绑定用 `wails generate module` 重新生成；`--export-grouping-catalog` 增加 `tagEvidence`（对外每条只带 1 条代表路径：9.36MB→7.83MB）并把 schemaRev 提到 `2026-09-30.1`、capabilities 加 `tagEvidence`；分组 suite 信号追加「共同标签：X」（只加展示信号，不改 Keys/Score/Strategy）。真机：**2855/2861 个 Mod 带证据**（规则前缀分布：entity 1695 / category 7463 / content 1366 / token 359 / custom 212 / weapon 127 / character 99 / title 88）。`go vet` + `go test ./...` + `node --test`（458）+ `frontend npm run build` 全绿 |
 | W7 实体槽位（显式 slot 表） | ✅ 已完成（2026-10-07） | §4.2 规划的"槽位"此前只落地了 model 锚点，非模型资源（武器音效 / 贴图目录 / HUD 图标）只能靠手写关键词——2026-10-07 的「匕首」误标（裸关键词 `knife` 命中作者命名空间 `materials/weapons/oe/knife_reborn-a6/**`）就是后果。本轮把归属改由**本体数据**推导并落成**显式槽位表**：`--generate-entity-table` 用本体索引枚举目录 / 文件 stem，凡只被一个实体"归属词"命中的就写成该实体的 `slots[{kind,prefix,hits}]`（`kind ∈ model/sound/material/ui/script`，`hits` = 该前缀在本体索引里的命中数），**任何 0 命中槽位直接让生成失败**（"构建期 0 命中 = 大声失败"）；解析器新增通道「本体独占资源前缀」（`internal/parser/stock_owner_prefix.go`，证据 `stock:<entityID>`）。真机：**110 条槽位 / 38 个实体**（ui 61 / sound 25 / material 24），`--check-tag-regression` 对照规则修正前基线 = 新增 / −0（allowlist 放行 56 条已登记误标）。三次收紧的教训写进代码注释：① 文件 stem 只信 `materials/vgui/**`（一条 `…rifle_fire_1_incendiary.wav` 曾把 217 个包标成「燃烧弹盒」）；② 实体词只取每段 token 的**末词**（`weapon_pain_pills` 只取 `pills`，`pain` 曾把 `sound/npc/witch/voice/pain/**` 归成「止痛药」）；③ 槽位前缀必须落在武器资源根或 UI 根，并沿用 token 通道的泛词黑名单（`shotgun`/`rifle`/`smg`…），否则 `sound/weapons/shotgun/**`（泵动/Chrome/连喷共用）会把铁喷包标成「木喷」——正是 D1 的翻版 |
 | W8 地图道具口径细化 + 标签呈现（2026-10-07） | ✅ 已完成（2026-10-07） | 用户口径：① 地图包自带的 `models/props_*` 道具不再算"替换了某个物品"；② 筛选条里不要出现 `#L4D360UI_*` 这种本地化 token；③ 子标签那一行"只显示一些些"没意义，要放有用的东西。实现：`map_resource_tags.go` 新增 `mapOnlyPathMarkers` + `allSourcesMapOnly`，**只对 `entity:` 精确锚点生效**——内容/类别证据（`content:` / `category:`）不看路径，否则会把「模型 / 贴图」这类正当内容标签一起删掉（本轮第一版就是这么写的，被 `TestMapPackDropsResourceCoincidenceTags` 当场抓到并改成 rule 前缀判定）；`dropLocalizationTokenTags` 对**所有主类型**清掉 `#` 开头 / `L4D360UI_` / `L4D_` 前缀；`map_parser.go` 里 token 战役名改为"不进标签集合 + 用任务文件名兜底展示"，章节名是 token 时退回章节代码；新增 `GetSecondaryTagCounts` 绑定与前端「常用子标签」排序（命中 Mod 数降序、同分字典序 + 角标，纯逻辑放在 `secondary-tag-usage.mjs` 并有 node 测试）。真机：冷启动全量重解析 **2962 个 Mod**，`--check-tag-regression` = **+54 / −0**（本轮新增 18 条 allowlist 登记：14 个 `#L4D360UI_CampaignName_C*` + 4 条地图自带道具标签，逐条带 reason/evidence）；`--export-grouping-catalog` 里 `L4D360UI` 出现次数 **14 → 0**；沙箱子标签条实测 120 项按常用度排序（战役模式 54 / 贴图 49 / UI 48 / 脚本 46 / VScript 44 / 载入画面 36）+「展开全部 120 项」 | 
+| W9 多分片地图识别（路线图第 8 项①，2026-10-12） | ✅ 已完成（2026-10-12） | 对照 fdklgbh 已知问题"多分片地图（某个 part 没有 maps/ 或 missions/）被分错类"：**无 BSP 且携带自定义战役任务文件**（`missions/*.txt`，文件名不是原版 `campaign<数字>` 风格）的配套包升级为主分类「地图」+「地图分片」标记，战役/模式证据照常解析（`internal/parser/map_multipart.go`；分片包不执行地图口径的场景道具豁免，守住只增不减）。真机样本（只读全库核对）：Dead Before Dawn (Extended) Part 2–4（2083814432 / 2083817728 / 2852920241）、连接 Connection part 2（2951512228）、宜昌2 贴图包（3577759004）、3583381403，6 个包全部分类到位、战役名可检索。**同轮修复套件继承上限的挤出缺陷**：成员上限从"总标签数 ≥20 就跳过"改为"单次为该成员新增的继承标签 ≤20"（`internal/app/tag_inheritance.go`）——旧口径在成员自身标签增长时会挤出此前靠继承拿到的标签（VScript/模式等），违反只增不减。真机回归 **+42 / −0**（12 个 Mod 全部为新增标签，连续两次跑一致）。`go vet` + `go test ./...` + `frontend npm run build` 全绿 |
 
 > W1 实现说明（与 §4.1 原文的差异）：新鲜度用 `generatedAt` + 各挂载点条目数表达，**没有**接入 Steam build 号；
 > 缓存默认永不过期，游戏更新后由 `--build-stock-index` 显式重建。缓存位置 `%APPDATA%\LytVPK\stock_index.json`。
@@ -33,6 +34,12 @@
 > （`internal/app/tag_inheritance.go`），因为它是跨 Mod 推断；实现用**快照 + 命名空间排序**，
 > 避免 map 迭代顺序影响"成员上限"截断 —— 真机连续 3 次 `--check-tag-regression` 与两次清单导出
 > 的标签/证据签名完全一致（确定性已验证）。
+>
+> W9 实现说明（2026-10-12）：分片判定只看"标志性证据"——无 `.bsp` + 任务文件名非
+> `campaign<数字>`；**残余边界**：分片包没有任务文件、或任务文件名恰好是原版风格时
+> 不升级（没有可靠证据，宁可不动；现有样本均带任务文件）。「地图分片」是身份标记，
+> 不做跨 Mod 归组（"要不要提示一起启用"留待后续与分组推导一起观察）。
+> 套件继承上限修复的动机与语义见 `tag_inheritance.go` 内注释与两个新增单测。
 >
 > §6 第 3 条「召回夹具」的落点：没有单独放 `testdata/tag_recall_fixtures.json`，
 > 而是按类别写成 Go 回归用例 —— `upstream_parity_test.go`（界面误判/关键词优先级）、

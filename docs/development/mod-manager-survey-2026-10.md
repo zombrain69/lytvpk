@@ -27,7 +27,7 @@
 | P1 | 按分类随机（每次启动从每个分类随机选一个） | `pukmajster/funky` | **已实现（2.7.1-community.66）**：轮换新增自定义分类输入 |
 | P1 | VPK 内容内联预览（不解包直接看文本/KeyValues/贴图/模型） | `craftablescience/VPKEdit` | **已实现文本/KeyValues/图片/VTF（.66）+ 模型（MDL）与地图（BSP）信息卡（.67）**；3D 渲染仍未做（需要 VVD/VTX 与渲染管线） |
 | P2 | addoninfo `addonContent_*` 兜底分类 | `fdklgbh/L4D2Mod-Manager` 已知问题 | **真机验证收益低，建议不做**（见 §5.4） |
-| P2 | 多分片地图识别（part 包没有 maps/ 或 missions/） | `fdklgbh/L4D2Mod-Manager` 已知问题 | 待观察（真机样本少） |
+| P2 | 多分片地图识别（part 包没有 maps/ 或 missions/） | `fdklgbh/L4D2Mod-Manager` 已知问题 | **已实现（2026-10-12，路线图第 8 项①）**：无 BSP + 自定义战役任务文件（`missions/*.txt`，文件名非原版风格）的配套包升级「地图」主分类 +「地图分片」标签；真机样本 6 个（DBD Ext Part 2–4 / 连接 Connection part 2 / 宜昌2 贴图包 / 3583381403），全量回归 **+42/−0**，见 `mod-tag-recognition-v2.md` W9 |
 | P2 | 把多个 VPK 合并成一个 pak01_dir.vpk | `kublay-tayro/Mods4Versus` | 建议只做"导出整合包"，不替代 addonlist |
 | P2 | 直接对接 Steam 客户端（订阅/取消订阅、下载进度） | `xavier-cai/L4D2ModManager` | 与现有 web/worker 路线冲突，待决策 |
 
@@ -164,6 +164,9 @@ git clone --depth 1 https://github.com/pukmajster/funky.git
 → 这条对我们是个**对照检查项**：我们用路径证据 + 任务文件 + 标题证据，判定口径比"只看 maps/missions + addoninfo 字段"更稳；
 但"资产型 part 包"确实会落到「其他」（真机 1031 个「其他」）。想用 addoninfo 字段补救的收益，
 已经用真机量化过（§5.4）：只覆盖 1.2% 的包，**不值得做**。
+（2026-10-12 更新：另一条更稳的路子已落地 —— "无 BSP + 自定义战役任务文件"的配套包直接升级
+「地图」并标「地图分片」，真机 6 个样本（含无任何 part 字样、只有贴图与任务文件的 `宜昌2` 贴图包）
+全部识别到位；见 `mod-tag-recognition-v2.md` W9，全量回归 +42/−0。）
 
 ### 3.5 auto-created-name/L4d2_Mod_Manager_Tool（18★，C#/.NET）
 
