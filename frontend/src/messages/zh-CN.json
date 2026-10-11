@@ -636,7 +636,12 @@
         "noProcessableFiles": "没有可处理的文件",
         "noWorkshopFiles": "没有可转移的创意工坊文件",
         "thisMod": "此 Mod",
-        "unknownError": "未知错误"
+        "unknownError": "未知错误",
+        "actionEnable": "启用",
+        "actionDisable": "禁用",
+        "actionDelete": "删除",
+        "actionRename": "重命名",
+        "copyToAddons": "复制到 addons"
       },
       "gameState": {
         "batchFailed": "批量设置游戏内开关失败: {error}",
@@ -754,6 +759,24 @@
         "missingAll": "有 {count} 个 Mod 没有工坊 ID，未复制",
         "missingSkipped": "有 {count} 个 Mod 没有工坊 ID，已跳过"
       }
+    },
+    "contextMenu": {
+      "addToGroup": "加入策略组…",
+      "removeFromGroup": "从策略组移出…",
+      "moveToGroup": "移动到其它策略组…",
+      "detail": "详情",
+      "integrityCheck": "VPK 完整性检测",
+      "integrityCheckBatch": "检测/修复选中 VPK",
+      "jumpToWorkshop": "跳转工坊",
+      "adjustLoadOrder": "调整加载顺序",
+      "unpack": "解包",
+      "openLocation": "打开位置",
+      "enableSelected": "启用选中",
+      "disableSelected": "禁用选中",
+      "noPanelServers": "没有配置面板的服务器",
+      "unnamedServer": "未命名服务器",
+      "uploadAdded": "已添加 {count} 个文件到上传任务",
+      "uploadFailed": "上传失败: {error}"
     },
     "tags": {
       "none": "无",

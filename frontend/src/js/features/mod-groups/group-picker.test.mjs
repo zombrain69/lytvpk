@@ -21,6 +21,9 @@ const appRuntimeSource = readFileSync(
   path.resolve(frontendRoot, "src/js/features/app-runtime.js"),
   "utf8",
 );
+const catalog = JSON.parse(
+  readFileSync(path.resolve(frontendRoot, "src/messages/zh-CN.json"), "utf8"),
+);
 
 test("选择器弹窗结构存在，且输入/按钮 id 与脚本一致", () => {
   [
@@ -77,9 +80,12 @@ test("选择器的便捷性：搜索 / 只看相关 / 排序 / 键盘高亮 / �
 test("单文件菜单与多选菜单都挂了三个策略组入口", () => {
   assert.match(contextMenuSource, /appendGroupMenuItems\(menu, \[file\.path\]\)/, "单文件菜单缺少入口");
   assert.match(contextMenuSource, /appendGroupMenuItems\(menu, selectedPaths\)/, "多选菜单缺少入口");
-  assert.match(contextMenuSource, /"加入策略组…"/);
-  assert.match(contextMenuSource, /"从策略组移出…"/);
-  assert.match(contextMenuSource, /"移动到其它策略组…"/);
+  assert.match(contextMenuSource, /t\("mods\.contextMenu\.addToGroup"\)/);
+  assert.match(contextMenuSource, /t\("mods\.contextMenu\.removeFromGroup"\)/);
+  assert.match(contextMenuSource, /t\("mods\.contextMenu\.moveToGroup"\)/);
+  // 菜单项与选择器标题是两条独立文案（菜单项带 … 后缀），目录里各自存在。
+  assert.equal(catalog.mods.contextMenu.addToGroup, "加入策略组…");
+  assert.equal(catalog.strategyGroups.picker.title.add, "加入策略组");
   // 单文件 / 多选菜单都要把"组归属变化"反映到列表上。
   assert.match(contextMenuSource, /function refreshAfterGroupChange/);
   assert.match(contextMenuSource, /onDone: refreshAfterGroupChange/);

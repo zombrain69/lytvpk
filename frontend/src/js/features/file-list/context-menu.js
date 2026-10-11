@@ -31,6 +31,7 @@ import { openVPKIntegrityForPaths } from "../diagnostics/vpk-integrity.js";
 import { getServers } from "../servers/servers.js";
 import { StartPanelMapUpload } from "../../../../wailsjs/go/app/App";
 import { showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   groupIdsForPaths,
   keysForPaths,
@@ -66,7 +67,7 @@ function appendGroupMenuItems(menu, paths) {
   const groupIds = groupIdsForPaths(paths);
   menu.appendChild(createDivider());
   menu.appendChild(
-    createMenuItem("加入策略组…", groupIconSvg, () => {
+    createMenuItem(t("mods.contextMenu.addToGroup"), groupIconSvg, () => {
       void openGroupPicker({
         mode: GROUP_PICKER_MODES.add,
         keys,
@@ -76,7 +77,7 @@ function appendGroupMenuItems(menu, paths) {
   );
   if (groupIds.length > 0) {
     menu.appendChild(
-      createMenuItem("从策略组移出…", groupIconSvg, () => {
+      createMenuItem(t("mods.contextMenu.removeFromGroup"), groupIconSvg, () => {
         void openGroupPicker({
           mode: GROUP_PICKER_MODES.remove,
           keys,
@@ -85,7 +86,7 @@ function appendGroupMenuItems(menu, paths) {
       }),
     );
     menu.appendChild(
-      createMenuItem("移动到其它策略组…", groupIconSvg, () => {
+      createMenuItem(t("mods.contextMenu.moveToGroup"), groupIconSvg, () => {
         // 只属于一个组时直接带上源组（一步选目标）；分布在多个组时
         // 选择器会先让用户挑"从哪个组移动"。
         void openGroupPicker({
@@ -128,10 +129,10 @@ function getPanelServers() {
 async function handleUploadToServer(serverId, filePaths) {
   try {
     await StartPanelMapUpload(serverId, filePaths);
-    showNotification(`已添加 ${filePaths.length} 个文件到上传任务`, "success");
+    showNotification(t("mods.contextMenu.uploadAdded", { count: filePaths.length }), "success");
   } catch (err) {
     console.error("上传服务器失败:", err);
-    showNotification("上传失败: " + err, "error");
+    showNotification(t("mods.contextMenu.uploadFailed", { error: String(err) }), "error");
   }
 }
 
@@ -145,13 +146,13 @@ export function showServerSubmenu(triggerElement, filePaths) {
   if (servers.length === 0) {
     const empty = document.createElement("div");
     empty.className = "server-submenu-empty";
-    empty.textContent = "没有配置面板的服务器";
+    empty.textContent = t("mods.contextMenu.noPanelServers");
     submenu.appendChild(empty);
   } else {
     servers.forEach((server) => {
       const item = document.createElement("button");
       item.className = "server-submenu-item";
-      item.innerHTML = `<span class="server-submenu-name">${server.name || "未命名服务器"}</span>`;
+      item.innerHTML = `<span class="server-submenu-name">${server.name || t("mods.contextMenu.unnamedServer")}</span>`;
       item.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -223,16 +224,16 @@ export function hideServerSubmenu() {
 }
 
 function buildSingleMenu(menu, file) {
-  menu.appendChild(createMenuItem("详情", iconSvg("info"), () => showFileDetail(file.path)));
-  menu.appendChild(createMenuItem("VPK 完整性检测", integrityIconSvg, () => openVPKIntegrityForPaths([file.path])));
+  menu.appendChild(createMenuItem(t("mods.contextMenu.detail"), iconSvg("info"), () => showFileDetail(file.path)));
+  menu.appendChild(createMenuItem(t("mods.contextMenu.integrityCheck"), integrityIconSvg, () => openVPKIntegrityForPaths([file.path])));
 
   if (file.location === "workshop") {
-    menu.appendChild(createMenuItem("复制到 addons", iconSvg("package"), () => moveFileToAddons(file.path)));
+    menu.appendChild(createMenuItem(t("mods.ops.common.copyToAddons"), iconSvg("package"), () => moveFileToAddons(file.path)));
   } else {
     const isEnabled = file.enabled;
     menu.appendChild(
       createMenuItem(
-        isEnabled ? "禁用" : "启用",
+        isEnabled ? t("mods.ops.common.actionDisable") : t("mods.ops.common.actionEnable"),
         isEnabled ? iconSvg("x") : iconSvg("check"),
         () => toggleFile(file.path)
       )
@@ -241,21 +242,21 @@ function buildSingleMenu(menu, file) {
 
   if (file.workshopId) {
     menu.appendChild(
-      createMenuItem("跳转工坊", iconSvg("external"), () => handleProtocolWorkshop(file.workshopId))
+      createMenuItem(t("mods.contextMenu.jumpToWorkshop"), iconSvg("external"), () => handleProtocolWorkshop(file.workshopId))
     );
   }
 
   if (file.workshopId) {
-    menu.appendChild(createMenuItem("分享物品", iconSvg("share"), () => shareWorkshopItem(file)));
+    menu.appendChild(createMenuItem(t("mods.batch.share"), iconSvg("share"), () => shareWorkshopItem(file)));
   }
-  menu.appendChild(createMenuItem("设置标签", iconSvg("tag"), () => openSetTagsModal(file.path)));
+  menu.appendChild(createMenuItem(t("mods.batch.setTags"), iconSvg("tag"), () => openSetTagsModal(file.path)));
   appendGroupMenuItems(menu, [file.path]);
 
   const panelServers = getPanelServers();
   if (panelServers.length > 0) {
     const uploadItem = document.createElement("button");
     uploadItem.className = "context-menu-item";
-    uploadItem.innerHTML = `<span class="btn-icon">${iconSvg("upload")}</span> <span class="menu-item-text">上传服务器</span> <span class="menu-item-arrow">${iconSvg("chevronRight")}</span>`;
+    uploadItem.innerHTML = `<span class="btn-icon">${iconSvg("upload")}</span> <span class="menu-item-text">${t("mods.batch.uploadServer")}</span> <span class="menu-item-arrow">${iconSvg("chevronRight")}</span>`;
     uploadItem.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -264,28 +265,28 @@ function buildSingleMenu(menu, file) {
     menu.appendChild(uploadItem);
   }
 
-  menu.appendChild(createMenuItem("重命名", iconSvg("edit"), () => renameFile(file.path)));
-  menu.appendChild(createMenuItem("调整加载顺序", loadOrderIconSvg, () => openLoadOrderModal({ mode: "single", filePath: file.path })));
-  menu.appendChild(createMenuItem("解包", iconSvg("package"), () => unpackFile(file.path)));
+  menu.appendChild(createMenuItem(t("mods.ops.common.actionRename"), iconSvg("edit"), () => renameFile(file.path)));
+  menu.appendChild(createMenuItem(t("mods.contextMenu.adjustLoadOrder"), loadOrderIconSvg, () => openLoadOrderModal({ mode: "single", filePath: file.path })));
+  menu.appendChild(createMenuItem(t("mods.contextMenu.unpack"), iconSvg("package"), () => unpackFile(file.path)));
 
-  menu.appendChild(createMenuItem("打开位置", iconSvg("folderOpen"), () => openFileLocation(file.path)));
+  menu.appendChild(createMenuItem(t("mods.contextMenu.openLocation"), iconSvg("folderOpen"), () => openFileLocation(file.path)));
 
   const isHidden = file.name.startsWith("_");
   menu.appendChild(
     createMenuItem(
-      isHidden ? "取消隐藏" : "隐藏",
+      isHidden ? t("mods.ops.common.actionUnhide") : t("mods.ops.common.actionHide"),
       isHidden ? iconSvg("eye") : iconSvg("eyeOff"),
       () => toggleFileVisibility(file.path)
     )
   );
 
   menu.appendChild(createDivider());
-  menu.appendChild(createMenuItem("删除", iconSvg("trash"), () => deleteFile(file.path), { danger: true }));
+  menu.appendChild(createMenuItem(t("mods.ops.common.actionDelete"), iconSvg("trash"), () => deleteFile(file.path), { danger: true }));
 }
 
 function buildBatchMenu(menu) {
-  menu.appendChild(createMenuItem("启用选中", iconSvg("check"), () => enableSelected()));
-  menu.appendChild(createMenuItem("禁用选中", iconSvg("x"), () => disableSelected()));
+  menu.appendChild(createMenuItem(t("mods.contextMenu.enableSelected"), iconSvg("check"), () => enableSelected()));
+  menu.appendChild(createMenuItem(t("mods.contextMenu.disableSelected"), iconSvg("x"), () => disableSelected()));
 
   menu.appendChild(createDivider());
 
@@ -300,7 +301,7 @@ function buildBatchMenu(menu) {
 
   if (selectedFiles.some((file) => file.location === "workshop")) {
     menu.appendChild(
-      createMenuItem("转移至根目录", iconSvg("package"), () =>
+      createMenuItem(t("mods.batch.transferToRoot"), iconSvg("package"), () =>
         transferSelectedWorkshopFiles(),
       ),
     );
@@ -312,23 +313,23 @@ function buildBatchMenu(menu) {
   const hasHidden = selectedFiles.some((f) => f.name.startsWith("_"));
 
   if (hasVisible) {
-    menu.appendChild(createMenuItem("批量隐藏", iconSvg("eyeOff"), () => batchToggleVisibility(false)));
+    menu.appendChild(createMenuItem(t("mods.batch.hide"), iconSvg("eyeOff"), () => batchToggleVisibility(false)));
   }
   if (hasHidden) {
-    menu.appendChild(createMenuItem("批量取消隐藏", iconSvg("eye"), () => batchToggleVisibility(true)));
+    menu.appendChild(createMenuItem(t("mods.batch.unhide"), iconSvg("eye"), () => batchToggleVisibility(true)));
   }
 
   menu.appendChild(createDivider());
-  menu.appendChild(createMenuItem("分享物品", iconSvg("share"), () => shareSelectedWorkshopItems()));
-  menu.appendChild(createMenuItem("设置标签", iconSvg("tag"), () => openBatchSetTagsModal()));
+  menu.appendChild(createMenuItem(t("mods.batch.share"), iconSvg("share"), () => shareSelectedWorkshopItems()));
+  menu.appendChild(createMenuItem(t("mods.batch.setTags"), iconSvg("tag"), () => openBatchSetTagsModal()));
   appendGroupMenuItems(menu, selectedPaths);
   menu.appendChild(
-    createMenuItem("调整加载顺序", loadOrderIconSvg, () =>
+    createMenuItem(t("mods.contextMenu.adjustLoadOrder"), loadOrderIconSvg, () =>
       openLoadOrderModal({ mode: "selection", selectedPaths: Array.from(appState.selectedFiles) })
     )
   );
   menu.appendChild(
-    createMenuItem("检测/修复选中 VPK", integrityIconSvg, () =>
+    createMenuItem(t("mods.contextMenu.integrityCheckBatch"), integrityIconSvg, () =>
       openVPKIntegrityForPaths(selectedPaths)
     )
   );
@@ -337,7 +338,7 @@ function buildBatchMenu(menu) {
   if (panelServers.length > 0) {
     const uploadItem = document.createElement("button");
     uploadItem.className = "context-menu-item";
-    uploadItem.innerHTML = `<span class="btn-icon">${iconSvg("upload")}</span> <span class="menu-item-text">上传服务器</span> <span class="menu-item-arrow">${iconSvg("chevronRight")}</span>`;
+    uploadItem.innerHTML = `<span class="btn-icon">${iconSvg("upload")}</span> <span class="menu-item-text">${t("mods.batch.uploadServer")}</span> <span class="menu-item-arrow">${iconSvg("chevronRight")}</span>`;
     uploadItem.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -347,9 +348,9 @@ function buildBatchMenu(menu) {
     menu.appendChild(uploadItem);
   }
 
-  menu.appendChild(createMenuItem("导出ZIP", iconSvg("package"), () => exportZipSelected()));
-  menu.appendChild(createMenuItem("移动文件", iconSvg("folderOpen"), () => moveSelected()));
-  menu.appendChild(createMenuItem("批量删除", iconSvg("trash"), () => deleteSelected(), { danger: true }));
+  menu.appendChild(createMenuItem(t("mods.batch.exportZip"), iconSvg("package"), () => exportZipSelected()));
+  menu.appendChild(createMenuItem(t("mods.batch.move"), iconSvg("folderOpen"), () => moveSelected()));
+  menu.appendChild(createMenuItem(t("mods.batch.delete"), iconSvg("trash"), () => deleteSelected(), { danger: true }));
 }
 
 export function showContextMenu(event, filePath) {

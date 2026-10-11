@@ -1,5 +1,22 @@
 # Changelog
 
+## 未发布 — i18n：file-list 右键菜单（context-menu.js）（第 13 项第十一批）（2026-10-12）
+
+- `context-menu.js`（单文件 / 多选右键菜单，31 处）：策略组入口三条（「加入策略组…」——
+  与选择器标题「加入策略组」保持两条独立文案；「从策略组移出…」/「移动到其它策略组…」）、
+  详情 / VPK 完整性检测 / 检测·修复批量、复制到 addons、启用 · 禁用两态、跳转工坊、
+  重命名 / 调整加载顺序 / 解包 / 打开位置 / 隐藏 · 取消隐藏两态 / 删除、启用选中 / 禁用选中、
+  转移至根目录、批量隐藏 / 取消隐藏、上传服务器（含空态与「未命名服务器」兜底、上传通知两条）。
+- **复用**：动作工具栏既有键直接接线 —— `mods.batch.share|setTags|uploadServer|transferToRoot|
+  hide|unhide|exportZip|move|delete`；`mods.ops.common.actionHide|actionUnhide`（第十批新建）；
+  新增通用动词 `mods.ops.common.actionEnable|actionDisable|actionRename|actionDelete|copyToAddons`
+  （后续 render 批次复用）。
+- 目录新增 21 key（mods.contextMenu 16 / mods.ops.common +5）；既有条目值零改动。
+- 测试：`group-picker.test.mjs` 三条菜单文案断言改「源码接线 + 目录内容」双查（含
+  「菜单项带 … 后缀 vs 选择器标题」两条独立文案的目录侧对齐）。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：file-list 文件操作家族（actions / operations / batch-tags / tags / share / file-move-conflicts / vpk-risk-warning）（第 13 项第十批）（2026-10-12）
 
 - `actions.js`（批量操作与通知，55 处）：批量启用 / 禁用（成功 / 失败+原因 / 批量失败）、
