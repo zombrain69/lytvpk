@@ -7,6 +7,9 @@ import {
   formatBatchGameStateSummary,
   canApplyBatchGameStateLocally,
 } from "./batch-game-state-format.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("batchGameStateActionLabel 区分游戏内启用/关闭", () => {
   assert.equal(batchGameStateActionLabel(true), "游戏内启用");

@@ -3,10 +3,12 @@
 // 约定：addonlist.txt 的顺序号仍是游戏侧唯一权威；"分层"只是用户可以编辑的
 // 意图表达。有效分层 effective 由后端算好，这里只负责把结果解释成中文。
 
-const SOURCE_LABELS = {
-  tier: "显式分层",
-  group: "策略组权重",
-  order: "addonlist 顺序号",
+import { t } from "../../core/i18n-runtime.js";
+
+const SOURCE_LABEL_KEYS = {
+  tier: "mods.priority.sourceTier",
+  group: "mods.priority.sourceGroup",
+  order: "mods.priority.sourceOrder",
 };
 
 function toFiniteInteger(value) {
@@ -28,7 +30,8 @@ export function normalizePriorityTier(value) {
 }
 
 export function describePrioritySource(source) {
-  return SOURCE_LABELS[source] || "未设置分层";
+  const key = SOURCE_LABEL_KEYS[source];
+  return key ? t(key) : t("mods.priority.sourceUnknown");
 }
 
 function normalizeKey(key) {
@@ -61,9 +64,9 @@ export function formatPriorityLabel(entry) {
   const tier = toFiniteInteger(entry.tier);
   const known = entry.known !== false && order !== null && order > 0;
   if (!known) {
-    return tier === null ? "未写入 addonlist" : `未写入 addonlist（分层 ${tier}）`;
+    return tier === null ? t("mods.priority.labelUnknown") : t("mods.priority.labelUnknownTier", { tier });
   }
-  return tier === null ? `优先级 #${order}` : `优先级 #${order}（分层 ${tier}）`;
+  return tier === null ? t("mods.priority.labelKnown", { order }) : t("mods.priority.labelKnownTier", { order, tier });
 }
 
 /**
@@ -78,7 +81,7 @@ export function formatEffectiveLayer(entry) {
   if (order === null || effective === null || order <= 0) return "";
   if (source === "order" || effective === order) return "";
   if (source === "group") {
-    return `有效分层 ${effective}（来自策略组权重，顺序号 #${order}）`;
+    return t("mods.priority.effectiveFromGroup", { effective, order });
   }
-  return `有效分层 ${effective}（来自显式分层）`;
+  return t("mods.priority.effectiveFromTier", { effective });
 }

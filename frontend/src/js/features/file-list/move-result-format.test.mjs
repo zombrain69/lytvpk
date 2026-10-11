@@ -3,6 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { formatMoveFailures, formatMoveSummary } from "./move-result-format.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("formatMoveFailures：逐条列出失败原因，超出上限时说明还有多少条", () => {
   assert.equal(formatMoveFailures({ failCount: 0, errors: [] }), "");

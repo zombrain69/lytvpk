@@ -1,5 +1,23 @@
 # Changelog
 
+## 未发布 — i18n：Mod 列表纯文案小模块迁移（priority-label / unrecorded-game-state / batch-game-state-format / move-result-format）（第 13 项第三批）（2026-10-11）
+
+- `priority-label.mjs`：分层来源名（显式分层 / 策略组权重 / addonlist 顺序号 / 未设置分层）、
+  紧凑标签（`优先级 #N` / `未写入 addonlist（分层 N）`）与有效分层解释（来自策略组权重 /
+  来自显式分层）改走目录（`mods.priority.*`，10 key）；`SOURCE_LABELS` 改为 `SOURCE_LABEL_KEYS`。
+- `unrecorded-game-state.mjs`：三个动作的 label / description 与「workshop 不能直接禁用」
+  说明改走目录（`mods.gameState.*`；动作名复用 `mods.batch.gameEnable|gameDisable`）；
+  静态表改「key 表 + 取值时 t()」（模块求值期不调 t()），调用方拿到的对象形状不变。
+- `batch-game-state-format.mjs`：确认弹窗正文（含「是否继续？」）与结果汇总
+  （更新 / 保持 / 跳过 / 策略组联动）改走目录（`mods.batch.gameState*`，10 key）。
+- `move-result-format.mjs`：失败头 / 尾（`N 个文件操作失败` / `另有 N 条，详见控制台日志`）
+  与成功汇总（成功 / 跳过 / 取消）改走目录（`mods.move.*`，5 key）。
+- 测试：四个纯模块测试注入 `installTestCatalog()`。
+- 目录新增 30 key（`mods.priority` 10 + `mods.gameState` 5 + `mods.batch` 10 + `mods.move` 5）；
+  既有条目值零改动。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变。
+
 ## 未发布 — i18n：Mod 列表检索支持迁移（field-search / search-help / search-match / result-cursor）（第 13 项第二批）（2026-10-11）
 
 - `core/field-search.mjs`（各面板共用计数模板）：`正则表达式无效：…` / `没有匹配「…」的 N（共 M 个）` /

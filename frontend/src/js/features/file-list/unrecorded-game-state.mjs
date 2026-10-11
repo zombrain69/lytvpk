@@ -1,20 +1,24 @@
+import { t } from "../../core/i18n-runtime.js";
+
+// 三个动作的文案走目录（mods.gameState.*；动作名复用 mods.batch.gameEnable|gameDisable）：
+// 静态表只存 key，取值时经 t() 取当前语言（模块求值期不调 t()）。
 const UNRECORDED_GAME_STATE_ACTIONS = Object.freeze([
   Object.freeze({
     id: "game-disabled",
-    label: "游戏内关闭",
-    description: "写入 addonlist.txt 为 0，文件仍保留在 addons 中。",
+    labelKey: "mods.batch.gameDisable",
+    descriptionKey: "mods.gameState.descGameOff",
     disabled: false,
   }),
   Object.freeze({
     id: "game-enabled",
-    label: "游戏内启用",
-    description: "写入 addonlist.txt 为 1，文件仍保留在 addons 中。",
+    labelKey: "mods.batch.gameEnable",
+    descriptionKey: "mods.gameState.descGameOn",
     disabled: false,
   }),
   Object.freeze({
     id: "disabled",
-    label: "禁用",
-    description: "移动到 disabled 目录，并从 addonlist.txt 中移除。",
+    labelKey: "mods.gameState.labelDisabled",
+    descriptionKey: "mods.gameState.descDisabled",
     disabled: false,
   }),
 ]);
@@ -22,13 +26,15 @@ const UNRECORDED_GAME_STATE_ACTIONS = Object.freeze([
 export function getUnrecordedGameStateOptions(file = {}) {
   const location = String(file?.location || "").trim().toLowerCase();
   return UNRECORDED_GAME_STATE_ACTIONS.map((option) => {
+    const { labelKey, descriptionKey, ...rest } = option;
+    const resolved = { ...rest, label: t(labelKey), description: t(descriptionKey) };
     if (option.id !== "disabled" || location !== "workshop") {
-      return { ...option };
+      return resolved;
     }
     return {
-      ...option,
+      ...resolved,
       disabled: true,
-      disabledReason: "workshop 文件不能直接禁用，请先复制到 addons。",
+      disabledReason: t("mods.gameState.workshopDisabled"),
     };
   });
 }

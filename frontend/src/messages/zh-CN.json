@@ -373,7 +373,17 @@
       "transferToRoot": "转移至根目录",
       "move": "移动文件",
       "delete": "批量删除",
-      "selectFilesFirst": "请先选择文件"
+      "selectFilesFirst": "请先选择文件",
+      "gameStateConfirm": "把选中的 {total} 个 Mod 设为{action}？",
+      "gameStateConfirmNote": "· 只改 addonlist.txt 的 0/1，不移动、不删除任何文件",
+      "gameStateConfirmUnrecorded": "· 其中 {count} 个还没记录在 addonlist.txt，会按「未记录 Mod 插入位置」设置写入",
+      "gameStateConfirmSkipped": "· {count} 个在 disabled 目录里，会被跳过（要改游戏开关请先用「批量启用」放回 addons）",
+      "gameStateConfirmProceed": "是否继续？",
+      "gameStateEmpty": "没有需要处理的 Mod",
+      "gameStateSummary": "已把 {count} 个 Mod 设为{action}",
+      "gameStateSummaryUnchanged": "{count} 个本来就是这个状态",
+      "gameStateSummarySkipped": "{count} 个跳过（disabled 目录或不在列表里）",
+      "gameStateSummaryEnforced": "并按策略组自动联动另外 {count} 个"
     },
     "singletonConflict": {
       "title": "同类的 Mod 已经在生效",
@@ -422,6 +432,32 @@
         "loadOrder": "优先级排序（分层优先，其次加载顺序）",
         "xdrSlot": "动作槽排序（XDR）"
       }
+    },
+    "priority": {
+      "sourceTier": "显式分层",
+      "sourceGroup": "策略组权重",
+      "sourceOrder": "addonlist 顺序号",
+      "sourceUnknown": "未设置分层",
+      "labelKnown": "优先级 #{order}",
+      "labelKnownTier": "优先级 #{order}（分层 {tier}）",
+      "labelUnknown": "未写入 addonlist",
+      "labelUnknownTier": "未写入 addonlist（分层 {tier}）",
+      "effectiveFromGroup": "有效分层 {effective}（来自策略组权重，顺序号 #{order}）",
+      "effectiveFromTier": "有效分层 {effective}（来自显式分层）"
+    },
+    "gameState": {
+      "labelDisabled": "禁用",
+      "descGameOff": "写入 addonlist.txt 为 0，文件仍保留在 addons 中。",
+      "descGameOn": "写入 addonlist.txt 为 1，文件仍保留在 addons 中。",
+      "descDisabled": "移动到 disabled 目录，并从 addonlist.txt 中移除。",
+      "workshopDisabled": "workshop 文件不能直接禁用，请先复制到 addons。"
+    },
+    "move": {
+      "failureHead": "{count} 个文件操作失败",
+      "failureMore": "；另有 {count} 条，详见控制台日志",
+      "successCount": "成功 {count} 个",
+      "skippedCount": "跳过 {count} 个冲突文件",
+      "cancelled": "后续已取消"
     }
   },
   "workshop": {

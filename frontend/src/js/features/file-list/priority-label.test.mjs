@@ -8,6 +8,9 @@ import {
   formatPriorityLabel,
   normalizePriorityTier,
 } from "./priority-label.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("formatPriorityLabel renders order with an explicit layer", () => {
   assert.equal(

@@ -6,6 +6,7 @@
 // 认不出就保留原文（对齐 FireAxe ObjectExplanationManager 的"按类型回退 + 永远有话说"）。
 
 import { explainOperationError, formatExplanation } from "../../core/action-explanation.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 const DEFAULT_FAILURE_LIMIT = 3;
 
@@ -28,11 +29,11 @@ export function formatMoveFailures(result, limit = DEFAULT_FAILURE_LIMIT) {
     // 保留"哪个文件"：解释层替换的是原因描述，不该把对象名一起吞掉。
     return explained.subject && !line.startsWith(explained.subject) ? `${explained.subject}：${line}` : line;
   });
-  const head = `${total} 个文件操作失败`;
+  const head = t("mods.move.failureHead", { count: total });
   if (shown.length === 0) return head;
 
   const rest = total - shown.length;
-  const tail = rest > 0 ? `；另有 ${rest} 条，详见控制台日志` : "";
+  const tail = rest > 0 ? t("mods.move.failureMore", { count: rest }) : "";
   return `${head}：${shown.join("；")}${tail}`;
 }
 
@@ -41,8 +42,8 @@ export function formatMoveSummary(result) {
   const parts = [];
   const success = Number(result?.successCount) || 0;
   const skipped = Number(result?.skippedCount) || 0;
-  if (success > 0) parts.push(`成功 ${success} 个`);
-  if (skipped > 0) parts.push(`跳过 ${skipped} 个冲突文件`);
-  if (result?.cancelled) parts.push("后续已取消");
+  if (success > 0) parts.push(t("mods.move.successCount", { count: success }));
+  if (skipped > 0) parts.push(t("mods.move.skippedCount", { count: skipped }));
+  if (result?.cancelled) parts.push(t("mods.move.cancelled"));
   return parts.join(" · ");
 }

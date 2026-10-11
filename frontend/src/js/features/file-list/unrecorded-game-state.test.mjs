@@ -5,6 +5,9 @@ import {
   getUnrecordedGameStateOptions,
   getGameStateDisplayModel,
 } from "./unrecorded-game-state.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("未记录 Mod 的条目展示模型直接包含三个状态操作", () => {
   const model = getGameStateDisplayModel({ gameStateKnown: false, location: "root" });

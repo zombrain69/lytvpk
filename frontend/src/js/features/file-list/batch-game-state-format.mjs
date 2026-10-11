@@ -2,9 +2,12 @@
 //
 // 语义提醒：这一组操作只写 addonlist.txt 的 0/1；
 // 工具栏上的「批量启用 / 批量禁用」才是在 addons 与 disabled 目录之间搬文件。
+// 文案走目录（mods.batch.gameState*；动作名复用 mods.batch.gameEnable|gameDisable）。
+
+import { t } from "../../core/i18n-runtime.js";
 
 export function batchGameStateActionLabel(enabled) {
-  return enabled ? "游戏内启用" : "游戏内关闭";
+  return enabled ? t("mods.batch.gameEnable") : t("mods.batch.gameDisable");
 }
 
 /**
@@ -30,17 +33,18 @@ export function formatBatchGameStateConfirm(result, enabled) {
   const total = Number(result?.total || 0);
   const skipped = Number(result?.skipped || 0);
   const unrecorded = Number(result?.unrecorded || 0);
+  const action = batchGameStateActionLabel(enabled);
   const lines = [
-    `把选中的 ${total} 个 Mod 设为${batchGameStateActionLabel(enabled)}？`,
-    "· 只改 addonlist.txt 的 0/1，不移动、不删除任何文件",
+    t("mods.batch.gameStateConfirm", { total, action }),
+    t("mods.batch.gameStateConfirmNote"),
   ];
   if (unrecorded > 0) {
-    lines.push(`· 其中 ${unrecorded} 个还没记录在 addonlist.txt，会按「未记录 Mod 插入位置」设置写入`);
+    lines.push(t("mods.batch.gameStateConfirmUnrecorded", { count: unrecorded }));
   }
   if (skipped > 0) {
-    lines.push(`· ${skipped} 个在 disabled 目录里，会被跳过（要改游戏开关请先用「批量启用」放回 addons）`);
+    lines.push(t("mods.batch.gameStateConfirmSkipped", { count: skipped }));
   }
-  lines.push("是否继续？");
+  lines.push(t("mods.batch.gameStateConfirmProceed"));
   return lines.join("\n");
 }
 
@@ -51,11 +55,11 @@ export function formatBatchGameStateSummary(result, enabled) {
   const skipped = (result?.skipped || []).length;
   const enforced = Number(result?.enforced || 0);
   if (updated === 0 && unchanged === 0 && skipped === 0) {
-    return "没有需要处理的 Mod";
+    return t("mods.batch.gameStateEmpty");
   }
-  const parts = [`已把 ${updated} 个 Mod 设为${batchGameStateActionLabel(enabled)}`];
-  if (unchanged > 0) parts.push(`${unchanged} 个本来就是这个状态`);
-  if (skipped > 0) parts.push(`${skipped} 个跳过（disabled 目录或不在列表里）`);
-  if (enforced > 0) parts.push(`并按策略组自动联动另外 ${enforced} 个`);
+  const parts = [t("mods.batch.gameStateSummary", { count: updated, action: batchGameStateActionLabel(enabled) })];
+  if (unchanged > 0) parts.push(t("mods.batch.gameStateSummaryUnchanged", { count: unchanged }));
+  if (skipped > 0) parts.push(t("mods.batch.gameStateSummarySkipped", { count: skipped }));
+  if (enforced > 0) parts.push(t("mods.batch.gameStateSummaryEnforced", { count: enforced }));
   return parts.join("；");
 }
