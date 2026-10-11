@@ -1,4 +1,5 @@
 import { getConfig, saveConfig } from "../core/config.js";
+import { t } from "../core/i18n-runtime.js";
 import { refreshActiveIndicator } from "../core/ui-shell.js";
 import { showError, showNotification } from "../core/toast.js";
 import {
@@ -73,7 +74,7 @@ export async function checkInitialDirectory() {
 
     if (!dir) {
       try {
-        updateLoadingMessage("正在自动搜索 L4D2 安装目录...");
+        updateLoadingMessage(t("app.startup.autoSearching"));
         showLoadingScreen();
 
         const [autoDir] = await Promise.all([
@@ -88,11 +89,11 @@ export async function checkInitialDirectory() {
           addDirectory(autoDir);
           dir = autoDir;
         } else {
-          showError("未自动找到 L4D2 目录，请手动选择", 4000);
+          showError(t("app.startup.autoNotFound"), 4000);
         }
       } catch (err) {
         console.warn("自动搜索失败:", err);
-        showError("自动搜索出错: " + err, 4000);
+        showError(t("app.startup.autoSearchFailed", { error: err }), 4000);
       }
     }
 
@@ -116,7 +117,7 @@ export async function checkInitialDirectory() {
 export function showDirectorySelection() {
   document.getElementById("loading-screen").classList.add("hidden");
   document.getElementById("main-screen").classList.remove("hidden");
-  updateLoadingMessage("请选择L4D2的addons目录");
+  updateLoadingMessage(t("app.startup.chooseAddonsDir"));
   enableActionButtons();
   refreshActiveIndicator();
 }
@@ -136,7 +137,7 @@ export async function selectDirectory() {
     }
   } catch (error) {
     console.error("选择目录失败:", error);
-    showError("设置目录失败: " + error);
+    showError(t("app.startup.setDirectoryFailed", { error }));
   }
 }
 
@@ -154,10 +155,10 @@ export async function handleUpload() {
 export async function launchL4D2() {
   try {
     await LaunchL4D2();
-    showNotification("正在启动 Left 4 Dead 2...", "success");
+    showNotification(t("app.startup.launching"), "success");
   } catch (error) {
     console.error("启动L4D2失败:", error);
-    showNotification("启动游戏失败: " + error, "error");
+    showNotification(t("app.startup.launchFailed", { error }), "error");
   }
 }
 
@@ -172,7 +173,7 @@ export async function loadFiles() {
   }
 
   appState.isLoading = true;
-  showFileListLoading("正在扫描VPK文件...");
+  showFileListLoading(t("app.startup.scanning"));
 
   try {
     // 冷启动时 ScanVPKFiles 要把 2904 个 VPK 全解析一遍（实测 1–2s，属于磁盘 I/O）。
@@ -196,7 +197,7 @@ export async function loadFiles() {
     console.log("扫描完成，找到", files.length, "个文件");
   } catch (error) {
     console.error("扫描文件失败:", error);
-    showError("扫描文件失败: " + error);
+    showError(t("app.startup.scanFailed", { error }));
   } finally {
     appState.isLoading = false;
     hideFileListLoading();
@@ -205,7 +206,7 @@ export async function loadFiles() {
 
 export async function refreshFiles() {
   if (!appState.currentDirectory) {
-    showNotification("请先选择目录", "info");
+    showNotification(t("app.startup.chooseDirectoryFirst"), "info");
     return;
   }
   await loadFiles();

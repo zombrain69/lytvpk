@@ -7,9 +7,14 @@ import assert from "node:assert/strict";
 import { register } from "node:module";
 import test from "node:test";
 
+import { installTestCatalog } from "../core/i18n-test-catalog.mjs";
+
 // state.js 会（间接）import Wails 生成的绑定；这些模块用 Vite 风格的省略扩展名导入，
 // Node 的 ESM 解析器默认拒绝。注册一个"补试扩展名"的解析 hook 后再动态 import。
 register("../test-utils/extension-resolve-hook.mjs", import.meta.url);
+
+// 迁移后状态栏文案走 i18n 目录：装入真实中文目录，断言仍为原文案。
+installTestCatalog();
 
 function installDocumentStub() {
   const elements = new Map();

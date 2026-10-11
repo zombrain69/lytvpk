@@ -64,6 +64,18 @@
       "descTail": "确定要退出吗？",
       "cancel": "取消",
       "confirm": "退出"
+    },
+    "startup": {
+      "autoSearching": "正在自动搜索 L4D2 安装目录...",
+      "autoNotFound": "未自动找到 L4D2 目录，请手动选择",
+      "autoSearchFailed": "自动搜索出错: {error}",
+      "chooseAddonsDir": "请选择L4D2的addons目录",
+      "setDirectoryFailed": "设置目录失败: {error}",
+      "launching": "正在启动 Left 4 Dead 2...",
+      "launchFailed": "启动游戏失败: {error}",
+      "scanning": "正在扫描VPK文件...",
+      "scanFailed": "扫描文件失败: {error}",
+      "chooseDirectoryFirst": "请先选择目录"
     }
   },
   "toolbox": {
@@ -334,7 +346,14 @@
       "selectionHintTooltip": "按住 Shift 选择连续范围，按住 Ctrl 选择多个不连续 Mod",
       "pendingMoveTooltip": "Ctrl+X 标记待移动，Ctrl+V 选择目标目录后移动，Esc 取消",
       "selectAll": "全选",
-      "deselectAll": "取消全选"
+      "deselectAll": "取消全选",
+      "total": "总文件数: {count}",
+      "enabled": "已启用: {count}",
+      "disabled": "已禁用: {count}",
+      "gameOn": "游戏内开启: {count}",
+      "gameOff": "游戏内关闭: {count}",
+      "selected": "已选择: {count}",
+      "pendingMove": "待移动: {count}"
     },
     "category": {
       "navLabel": "分类导航",
@@ -588,6 +607,55 @@
       "successCount": "成功 {count} 个",
       "skippedCount": "跳过 {count} 个冲突文件",
       "cancelled": "后续已取消"
+    },
+    "directory": {
+      "deletePath": "删除此路径",
+      "cannotDeleteCurrent": "无法删除当前使用的目录",
+      "removed": "已删除目录",
+      "switching": "正在切换目录...",
+      "switched": "已切换目录",
+      "switchFailed": "切换目录失败: {error}"
+    },
+    "dropImport": {
+      "busy": "已有导入任务正在进行",
+      "unsupported": "当前后端不支持拖入导入",
+      "titleSelect": "正在导入选中的文件",
+      "titleDrop": "正在处理拖入的文件",
+      "titleImporting": "正在导入文件",
+      "titleDone": "导入完成",
+      "titleDoneFailed": "导入完成，有失败",
+      "titleFailed": "导入失败",
+      "preparing": "准备处理...",
+      "processing": "正在处理...",
+      "waitingFile": "等待文件",
+      "progressZero": "总进度 0%",
+      "progress": "总进度 {percent}%",
+      "extractingParallel": "正在并行解压 VPK",
+      "phasePreparing": "准备",
+      "phaseCopying": "复制",
+      "phaseExtracting": "解压",
+      "phasePacking": "打包",
+      "phaseComplete": "完成",
+      "phaseFallback": "处理",
+      "failed": "失败",
+      "processFailed": "处理文件失败: {error}",
+      "processFilesFailed": "处理文件失败",
+      "processFailedShort": "处理失败",
+      "errorRetry": "请查看错误信息后重试",
+      "summaryLine": "成功 {succeeded} / {total}，失败 {failed}",
+      "summaryFailAll": "导入失败：{failed} 个项目未处理成功",
+      "summaryPartial": "导入完成：成功 {succeeded} 个，失败 {failed} 个",
+      "summaryOk": "导入完成：成功 {succeeded} 个",
+      "viewResults": "查看处理结果",
+      "allDone": "全部处理完成",
+      "partialFail": "部分项目未处理成功",
+      "fileLabelIndexed": "[{current}/{total}] {name}",
+      "fileLabelWaiting": "等待处理 {total} 个文件",
+      "currentFile": "当前文件",
+      "unknownError": "未知错误",
+      "dumpOpenFailed": "打开崩溃转储失败: {error}",
+      "dumpOpenedExtra": "已打开第一个崩溃转储，另外 {count} 个未同时打开",
+      "close": "完成"
     }
   },
   "workshop": {

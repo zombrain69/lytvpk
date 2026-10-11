@@ -1,4 +1,5 @@
 import { getConfig, saveConfig } from "../core/config.js";
+import { t } from "../core/i18n-runtime.js";
 import { refreshActiveIndicator } from "../core/ui-shell.js";
 
 export function getDefaultDirectory() {
@@ -71,7 +72,10 @@ export const appState = {
     // 覆盖判定是持久化设置：弹窗里修改后会写回 config.json。
     priorityAware: getConfig().conflictPriorityAware === true,
   },
-  conflictAnalysisScopeLabel: "游戏内开启",
+  // 初始为空字符串：展示处统一兜底 —— conflicts.js 用
+  // t("conflicts.scope.ruleEnabled")，render.js 用同文字面量；实际值由
+  // conflicts.js 读取配置后写入。
+  conflictAnalysisScopeLabel: "",
 };
 
 export function applyConfigToAppState(config = getConfig()) {
@@ -117,7 +121,7 @@ function notifyFileSelectionChanged() {
 
 export function updateSelectedFilesStatus() {
   const selectedEl = document.getElementById("selected-files");
-  if (selectedEl) selectedEl.textContent = `已选择: ${appState.selectedFiles.size}`;
+  if (selectedEl) selectedEl.textContent = t("mods.status.selected", { count: appState.selectedFiles.size });
   syncPendingMoveIndicator();
   notifyFileSelectionChanged();
 }
@@ -132,7 +136,7 @@ function syncPendingMoveIndicator() {
   const pendingMoveEl = document.getElementById("pending-move-files");
   if (!pendingMoveEl) return;
   const pendingMoveCount = appState.moveClipboard ? appState.moveClipboard.size : 0;
-  pendingMoveEl.textContent = `待移动: ${pendingMoveCount}`;
+  pendingMoveEl.textContent = t("mods.status.pendingMove", { count: pendingMoveCount });
   pendingMoveEl.hidden = pendingMoveCount === 0;
 }
 
@@ -200,17 +204,17 @@ export function updateStatusBar() {
   const gameDisabledEl = document.getElementById("game-disabled-files");
   const selectedEl = document.getElementById("selected-files");
 
-  if (totalEl) totalEl.textContent = `总文件数: ${totalFiles}`;
-  if (enabledEl) enabledEl.textContent = `已启用: ${enabledFiles}`;
-  if (disabledEl) disabledEl.textContent = `已禁用: ${disabledFiles}`;
-  if (gameEnabledEl) gameEnabledEl.textContent = `游戏内开启: ${gameEnabledFiles}`;
-  if (gameDisabledEl) gameDisabledEl.textContent = `游戏内关闭: ${gameDisabledFiles}`;
-  if (selectedEl) selectedEl.textContent = `已选择: ${selectedCount}`;
+  if (totalEl) totalEl.textContent = t("mods.status.total", { count: totalFiles });
+  if (enabledEl) enabledEl.textContent = t("mods.status.enabled", { count: enabledFiles });
+  if (disabledEl) disabledEl.textContent = t("mods.status.disabled", { count: disabledFiles });
+  if (gameEnabledEl) gameEnabledEl.textContent = t("mods.status.gameOn", { count: gameEnabledFiles });
+  if (gameDisabledEl) gameDisabledEl.textContent = t("mods.status.gameOff", { count: gameDisabledFiles });
+  if (selectedEl) selectedEl.textContent = t("mods.status.selected", { count: selectedCount });
   syncPendingMoveIndicator();
   notifyFileSelectionChanged();
 }
 
-export function showFileListLoading(message = "正在加载...") {
+export function showFileListLoading(message = t("mods.loading")) {
   const loading = document.getElementById("file-list-loading");
   const loadingMessage = document.getElementById("file-list-loading-message");
   if (!loading) return;

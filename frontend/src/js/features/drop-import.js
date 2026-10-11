@@ -1,3 +1,4 @@
+import { t } from "../core/i18n-runtime.js";
 import { showError, showNotification } from "../core/toast.js";
 import { openMDMPReportFromPath } from "./diagnostics/mdmp-report.js";
 
@@ -36,24 +37,24 @@ export async function handleDropImportPaths(paths = [], { source = "drop" } = {}
   }
 
   if (importRunning) {
-    showNotification("已有导入任务正在进行", "info");
+    showNotification(t("mods.dropImport.busy"), "info");
     return null;
   }
 
   if (typeof HandleFileDrop !== "function") {
-    showError("当前后端不支持拖入导入");
+    showError(t("mods.dropImport.unsupported"));
     return null;
   }
 
   importRunning = true;
-  showDropImportPanel(source === "select" ? "正在导入选中的文件" : "正在处理拖入的文件");
+  showDropImportPanel(source === "select" ? t("mods.dropImport.titleSelect") : t("mods.dropImport.titleDrop"));
   renderDropImportProgress({
     current: 0,
     total: importPaths.length,
     percent: 0,
     phase: "preparing",
     name: "",
-    message: "准备处理...",
+    message: t("mods.dropImport.preparing"),
   });
 
   try {
@@ -62,8 +63,8 @@ export async function handleDropImportPaths(paths = [], { source = "drop" } = {}
     showImportSummary(result || {});
     return result;
   } catch (error) {
-    renderDropImportError("处理文件失败: " + formatError(error));
-    showError("处理文件失败: " + formatError(error));
+    renderDropImportError(t("mods.dropImport.processFailed", { error: formatError(error) }));
+    showError(t("mods.dropImport.processFailed", { error: formatError(error) }));
     return null;
   } finally {
     importRunning = false;
@@ -72,20 +73,20 @@ export async function handleDropImportPaths(paths = [], { source = "drop" } = {}
 
 function openFirstDump(dumpPaths) {
   openMDMPReportFromPath(dumpPaths[0]).catch((error) => {
-    showError("打开崩溃转储失败: " + formatError(error));
+    showError(t("mods.dropImport.dumpOpenFailed", { error: formatError(error) }));
   });
   if (dumpPaths.length > 1) {
-    showNotification(`已打开第一个崩溃转储，另外 ${dumpPaths.length - 1} 个未同时打开`, "info");
+    showNotification(t("mods.dropImport.dumpOpenedExtra", { count: dumpPaths.length - 1 }), "info");
   }
 }
 
 function showDropImportPanel(title) {
   const panel = ensureDropImportPanel();
   panel.querySelector(".drop-import-title").textContent = title;
-  panel.querySelector(".drop-import-phase").textContent = "准备";
-  panel.querySelector(".drop-import-summary").textContent = "总进度 0%";
-  panel.querySelector(".drop-import-file").textContent = "等待文件";
-  setDropImportCurrent(panel, "准备处理...");
+  panel.querySelector(".drop-import-phase").textContent = t("mods.dropImport.phasePreparing");
+  panel.querySelector(".drop-import-summary").textContent = t("mods.dropImport.progressZero");
+  panel.querySelector(".drop-import-file").textContent = t("mods.dropImport.waitingFile");
+  setDropImportCurrent(panel, t("mods.dropImport.preparing"));
   panel.querySelector(".drop-import-active-list").replaceChildren();
   panel.querySelector(".drop-import-progress-fill").style.width = "0%";
   panel.querySelector(".drop-import-progress-meta").textContent = "0%";
@@ -105,17 +106,17 @@ function renderDropImportProgress(progress = {}) {
   const total = Number(progress.total || 0);
   const percent = getOverallPercent(itemPercent, current, total);
   const name = progress.name || basename(progress.path || "");
-  const message = progress.message || "正在处理...";
+  const message = progress.message || t("mods.dropImport.processing");
   const activeNames = Array.isArray(progress.activeNames) ? progress.activeNames : [];
   const fileLabel = formatImportFileLabel(name, current, total);
 
-  panel.querySelector(".drop-import-title").textContent = "正在导入文件";
+  panel.querySelector(".drop-import-title").textContent = t("mods.dropImport.titleImporting");
   panel.querySelector(".drop-import-phase").textContent = formatPhase(progress.phase);
-  panel.querySelector(".drop-import-summary").textContent = `总进度 ${percent}%`;
+  panel.querySelector(".drop-import-summary").textContent = t("mods.dropImport.progress", { percent });
   panel.querySelector(".drop-import-file").textContent = fileLabel;
   panel.querySelector(".drop-import-file").title = progress.path || name || "";
   if (activeNames.length > 0) {
-    setDropImportCurrent(panel, "正在并行解压 VPK");
+    setDropImportCurrent(panel, t("mods.dropImport.extractingParallel"));
   } else {
     setDropImportCurrent(panel, message);
   }
@@ -133,11 +134,11 @@ function renderDropImportResult(result = {}) {
   panel.classList.toggle("is-error", failed > 0 && succeeded === 0);
   panel.classList.remove("is-running");
   panel.classList.add("is-complete");
-  panel.querySelector(".drop-import-title").textContent = failed > 0 ? "导入完成，有失败" : "导入完成";
-  panel.querySelector(".drop-import-phase").textContent = failed > 0 ? "完成" : "完成";
-  panel.querySelector(".drop-import-summary").textContent = `成功 ${succeeded} / ${total}，失败 ${failed}`;
-  panel.querySelector(".drop-import-file").textContent = failed > 0 ? "查看处理结果" : "全部处理完成";
-  setDropImportCurrent(panel, failed > 0 ? "部分项目未处理成功" : "全部处理完成");
+  panel.querySelector(".drop-import-title").textContent = failed > 0 ? t("mods.dropImport.titleDoneFailed") : t("mods.dropImport.titleDone");
+  panel.querySelector(".drop-import-phase").textContent = failed > 0 ? t("mods.dropImport.phaseComplete") : t("mods.dropImport.phaseComplete");
+  panel.querySelector(".drop-import-summary").textContent = t("mods.dropImport.summaryLine", { succeeded, total, failed });
+  panel.querySelector(".drop-import-file").textContent = failed > 0 ? t("mods.dropImport.viewResults") : t("mods.dropImport.allDone");
+  setDropImportCurrent(panel, failed > 0 ? t("mods.dropImport.partialFail") : t("mods.dropImport.allDone"));
   panel.querySelector(".drop-import-active-list").replaceChildren();
   panel.querySelector(".drop-import-progress-fill").style.width = "100%";
   panel.querySelector(".drop-import-progress-meta").textContent = "100%";
@@ -153,14 +154,14 @@ function renderDropImportError(message) {
   panel.classList.remove("hidden");
   panel.classList.remove("is-running");
   panel.classList.add("is-error", "is-complete");
-  panel.querySelector(".drop-import-title").textContent = "导入失败";
-  panel.querySelector(".drop-import-phase").textContent = "失败";
-  panel.querySelector(".drop-import-summary").textContent = message || "处理文件失败";
-  panel.querySelector(".drop-import-file").textContent = "处理失败";
-  setDropImportCurrent(panel, "请查看错误信息后重试");
+  panel.querySelector(".drop-import-title").textContent = t("mods.dropImport.titleFailed");
+  panel.querySelector(".drop-import-phase").textContent = t("mods.dropImport.failed");
+  panel.querySelector(".drop-import-summary").textContent = message || t("mods.dropImport.processFilesFailed");
+  panel.querySelector(".drop-import-file").textContent = t("mods.dropImport.processFailedShort");
+  setDropImportCurrent(panel, t("mods.dropImport.errorRetry"));
   panel.querySelector(".drop-import-active-list").replaceChildren();
   panel.querySelector(".drop-import-progress-fill").style.width = "100%";
-  panel.querySelector(".drop-import-progress-meta").textContent = "失败";
+  panel.querySelector(".drop-import-progress-meta").textContent = t("mods.dropImport.failed");
   panel.querySelector(".drop-import-results").replaceChildren();
   panel.querySelector(".drop-import-action").classList.remove("hidden");
 }
@@ -184,7 +185,7 @@ function createResultRow(item = {}) {
   if (!item.success) {
     const status = document.createElement("span");
     status.className = "drop-import-result-status";
-    status.textContent = "失败";
+    status.textContent = t("mods.dropImport.failed");
     row.appendChild(status);
   }
   return row;
@@ -201,11 +202,11 @@ function showImportSummary(result = {}) {
   const failed = Number(result.failed || 0);
   const succeeded = Number(result.succeeded || 0);
   if (failed > 0 && succeeded === 0) {
-    showError(`导入失败：${failed} 个项目未处理成功`);
+    showError(t("mods.dropImport.summaryFailAll", { failed }));
   } else if (failed > 0) {
-    showNotification(`导入完成：成功 ${succeeded} 个，失败 ${failed} 个`, "info");
+    showNotification(t("mods.dropImport.summaryPartial", { succeeded, failed }), "info");
   } else {
-    showNotification(`导入完成：成功 ${succeeded} 个`, "success");
+    showNotification(t("mods.dropImport.summaryOk", { succeeded }), "success");
   }
 }
 
@@ -227,13 +228,13 @@ function ensureDropImportPanel() {
   titleWrap.className = "drop-import-title-wrap";
   const title = document.createElement("h3");
   title.className = "drop-import-title";
-  title.textContent = "正在导入文件";
+  title.textContent = t("mods.dropImport.titleImporting");
   const summary = document.createElement("p");
   summary.className = "drop-import-summary";
-  summary.textContent = "准备处理...";
+  summary.textContent = t("mods.dropImport.preparing");
   const phase = document.createElement("span");
   phase.className = "drop-import-phase";
-  phase.textContent = "准备";
+  phase.textContent = t("mods.dropImport.phasePreparing");
   titleWrap.append(title, summary);
   header.append(stateIcon, titleWrap, phase);
 
@@ -241,7 +242,7 @@ function ensureDropImportPanel() {
   progressSection.className = "drop-import-progress-section";
   const file = document.createElement("strong");
   file.className = "drop-import-file";
-  file.textContent = "等待文件";
+  file.textContent = t("mods.dropImport.waitingFile");
   const current = document.createElement("p");
   current.className = "drop-import-current";
   const activeList = document.createElement("div");
@@ -267,7 +268,7 @@ function ensureDropImportPanel() {
   const actionBtn = document.createElement("button");
   actionBtn.type = "button";
   actionBtn.className = "btn btn-primary drop-import-action hidden";
-  actionBtn.textContent = "完成";
+  actionBtn.textContent = t("mods.dropImport.close");
   actionBtn.addEventListener("click", () => panel.classList.add("hidden"));
   footer.appendChild(actionBtn);
 
@@ -320,11 +321,11 @@ function formatImportFileLabel(name, current, total) {
   if (total > 1) {
     if (current >= 1) {
       const safeCurrent = Math.min(current, total);
-      return `[${safeCurrent}/${total}] ${name || "当前文件"}`;
+      return t("mods.dropImport.fileLabelIndexed", { current: safeCurrent, total, name: name || t("mods.dropImport.currentFile") });
     }
-    return `等待处理 ${total} 个文件`;
+    return t("mods.dropImport.fileLabelWaiting", { total });
   }
-  return name || "当前文件";
+  return name || t("mods.dropImport.currentFile");
 }
 
 function basename(path = "") {
@@ -333,17 +334,17 @@ function basename(path = "") {
 
 function formatPhase(phase = "") {
   const labels = {
-    preparing: "准备",
-    copying: "复制",
-    extracting: "解压",
-    packing: "打包",
-    complete: "完成",
-    failed: "失败",
+    preparing: t("mods.dropImport.phasePreparing"),
+    copying: t("mods.dropImport.phaseCopying"),
+    extracting: t("mods.dropImport.phaseExtracting"),
+    packing: t("mods.dropImport.phasePacking"),
+    complete: t("mods.dropImport.phaseComplete"),
+    failed: t("mods.dropImport.failed"),
   };
-  return labels[phase] || "处理";
+  return labels[phase] || t("mods.dropImport.phaseFallback");
 }
 
 function formatError(error) {
   if (error?.message) return error.message;
-  return String(error || "未知错误");
+  return String(error || t("mods.dropImport.unknownError"));
 }

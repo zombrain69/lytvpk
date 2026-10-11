@@ -1,5 +1,27 @@
 # Changelog
 
+## 未发布 — i18n：features 根级 4 文件（拖入导入 / 目录下拉 / 启动流程 / 全局状态）（第 13 项第九批）（2026-10-12）
+
+- `drop-import.js`（拖入 / 选择文件导入面板，52 处）：面板标题两态、阶段 / 进度 / 文件行、
+  结果区（标题 / 摘要 / 明细行状态）、失败态、底部按钮、通知与错误文案、`formatPhase` 阶段表、
+  `formatImportFileLabel` 文件标签全部改走目录（`mods.dropImport.*`，39 key）；
+  `basename` / 百分比计算不动。
+- `app-init.js`（启动流程，10 处）：自动搜索 / 目录选择 / 启动游戏 / 扫描 VPK 的加载与错误提示
+  改走目录（`app.startup.*`，10 key）。
+- `directory-dropdown.js`（历史目录下拉，6 处）：删除按钮 title、删除 / 切换目录通知与失败提示
+  改走目录（`mods.directory.*`，6 key）。
+- `state.js`（全局状态，10 处）：状态栏七条计数（总文件数 / 已启用 / 已禁用 / 游戏内开启 /
+  游戏内关闭 / 已选择 ×2 / 待移动）改走 `mods.status.*`（+7 key）；`showFileListLoading` 默认
+  文案复用既有 `mods.loading`。**`conflictAnalysisScopeLabel` 初始值由「游戏内开启」改为空串**：
+  展示处统一兜底（conflicts.js 用 `t("conflicts.scope.ruleEnabled")`、render.js 用同文字面量），
+  实际值仍由 conflicts.js 读取配置后写入 —— zh-CN 下渲染逐字不变。
+- 测试：`status-bar-pending-move.test.mjs` 注入 `installTestCatalog()`（真实中文目录），
+  「待移动: 2」断言保持原文案。
+- 目录新增 62 key（app.startup 10 / mods.status +7 / mods.directory 6 / mods.dropImport 39）；
+  既有条目值零改动。本批开始前做了「裸文本」复查：4 个文件无 scanner 盲区残留。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：分组层 + 策略组管理窗口（group-ui / strategy-group-manager 迁移）（第 13 项第八批）（2026-10-12）
 
 - `group-ui.js`（Mod 管理页分组层，162 处）：分组筛选菜单全部动态文案（空态 / 「按分组筛选」

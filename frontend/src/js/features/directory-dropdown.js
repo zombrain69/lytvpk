@@ -1,4 +1,5 @@
 import { getConfig, saveConfig, MAX_DIRECTORIES } from "../core/config.js";
+import { t } from "../core/i18n-runtime.js";
 import { appState, showFileListLoading, hideFileListLoading } from "./state.js";
 import { showError, showNotification } from "../core/toast.js";
 import {
@@ -125,7 +126,7 @@ export function renderDirectoryList() {
     } else {
       item.innerHTML = `
         <span class="directory-path" title="${dir.path}">${dir.path}</span>
-        <button class="directory-delete-btn" title="删除此路径" data-index="${index}">
+        <button class="directory-delete-btn" title="${t("mods.directory.deletePath")}" data-index="${index}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -208,7 +209,7 @@ function removeDirectory(index) {
 
   // 不允许删除当前正在使用的路径
   if (removedPath === currentPath) {
-    showNotification("无法删除当前使用的目录", "warning");
+    showNotification(t("mods.directory.cannotDeleteCurrent"), "warning");
     return;
   }
 
@@ -220,7 +221,7 @@ function removeDirectory(index) {
   });
 
   renderDirectoryList();
-  showNotification("已删除目录", "success");
+  showNotification(t("mods.directory.removed"), "success");
 }
 
 // 切换到指定目录
@@ -247,7 +248,7 @@ export async function switchToDirectory(path) {
 
       appState.isLoading = true;
       ownsFileListLoading = true;
-      showFileListLoading("正在切换目录...");
+      showFileListLoading(t("mods.directory.switching"));
       closeDropdown();
 
       // 验证目录
@@ -301,11 +302,11 @@ export async function switchToDirectory(path) {
       updateTriggerDisplay();
       renderDirectoryList();
 
-      showNotification(`已切换目录`, "success");
+      showNotification(t("mods.directory.switched"), "success");
     } catch (error) {
       if (!isCurrentRequest()) return;
       console.error("切换目录失败:", error);
-      showError("切换目录失败: " + error);
+      showError(t("mods.directory.switchFailed", { error }));
 
       // 尝试恢复原目录显示
       updateTriggerDisplay();
