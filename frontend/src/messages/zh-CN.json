@@ -422,5 +422,209 @@
       "confirmTitle": "检测到创意工坊链接",
       "confirmMessage": "剪贴板里是一条创意工坊链接：\n{link}\n\n要打开下载页并解析这个作品吗？"
     }
+  },
+  "servers": {
+    "address": {
+      "error": {
+        "inputRequired": "请输入服务器 IP 或域名",
+        "empty": "请输入服务器地址",
+        "invalid": "服务器地址格式无效",
+        "invalidIPv6": "IPv6 服务器地址格式无效",
+        "invalidPort": "服务器端口必须是 1–65535 之间的数字"
+      }
+    },
+    "mapLabel": "地图: {map}",
+    "badge": {
+      "modeTip": "游戏模式",
+      "mapTip": "地图: {map} (点击解析)",
+      "playersTip": "在线人数",
+      "resolving": "解析中...",
+      "fetchFailed": "获取失败"
+    },
+    "empty": {
+      "title": "还没有收藏服务器",
+      "hint": "添加一个常用服务器后，它会显示在这里。"
+    },
+    "list": {
+      "panelBadge": "面板",
+      "panelBadgeTip": "已配置面板高级控制",
+      "loading": "加载中...",
+      "connect": "连接",
+      "refresh": "刷新",
+      "refreshLabel": "刷新服务器",
+      "more": "更多操作",
+      "noRecent": "暂无最近"
+    },
+    "delete": {
+      "title": "删除服务器",
+      "confirm": "确定要删除服务器 \"{name}\" 吗？"
+    },
+    "error": {
+      "unknown": "未知错误",
+      "saveRecentFailed": "保存最近服务器失败: {error}",
+      "notFoundToDelete": "无法找到要删除的服务器",
+      "invalidIndex": "删除失败：索引无效",
+      "deleteFailed": "删除服务器失败: {error}",
+      "connectFailed": "连接服务器失败: {error}",
+      "copyFailed": "复制失败: {error}",
+      "exportFailed": "导出失败: {error}",
+      "clipboardEmpty": "剪贴板为空",
+      "clipboardReadFailed": "无法读取剪贴板: {error}",
+      "invalidFormat": "数据格式错误: 必须是服务器数组",
+      "importFailed": "导入失败: {error}",
+      "readFileFailed": "读取文件失败"
+    },
+    "notification": {
+      "deleted": "服务器已删除",
+      "connecting": "正在连接 {name}...",
+      "exportedClipboard": "服务器配置已复制到剪贴板",
+      "exportedFile": "服务器配置已导出",
+      "imported": "成功导入 {count} 个新服务器",
+      "noNewServers": "没有发现新的服务器配置"
+    },
+    "form": {
+      "addTitle": "添加服务器",
+      "editTitle": "编辑服务器",
+      "panelPasswordPlaceholder": "面板访问密码",
+      "passwordKeepPlaceholder": "留空则保留已保存密码",
+      "passwordSaved": "已保存密码",
+      "passwordNotSaved": "未保存密码",
+      "error": {
+        "nameAndAddressRequired": "请输入服务器名称和地址",
+        "listChanged": "服务器列表已变化，请重新打开编辑窗口",
+        "saveFailed": "保存服务器失败: {error}"
+      },
+      "notification": {
+        "added": "服务器添加成功",
+        "updated": "服务器修改成功"
+      },
+      "duplicate": {
+        "title": "这个地址已经收藏过了",
+        "message": "「{address}」已经在收藏里：{label}。\n再存一条会得到两个同样的条目（列表里重复显示、各自查询一次）。\n要仍然保存吗？"
+      }
+    },
+    "details": {
+      "loading": "正在获取服务器信息...",
+      "noPlayers": "暂无玩家信息",
+      "error": "获取失败: {error}"
+    },
+    "panel": {
+      "unknown": "未知",
+      "refresh": "刷新",
+      "details": {
+        "loading": "正在获取玩家信息..."
+      },
+      "status": {
+        "hostname": "服务器",
+        "map": "地图",
+        "players": "玩家",
+        "mode": "模式",
+        "difficulty": "难度"
+      },
+      "noPlayers": "暂无在线玩家",
+      "error": {
+        "statusFailed": "获取面板状态失败: {error}",
+        "restartFailed": "重启失败: {error}",
+        "difficultyFailed": "修改难度失败: {error}",
+        "mapListFailed": "获取地图列表失败: {error}",
+        "hotReloadFailed": "热重载失败: {error}",
+        "hotReloadStatusFailed": "获取热重载状态失败: {error}",
+        "mapFilesReadFailed": "读取 VPK 地图列表失败: {error}",
+        "noPanelServer": "请先打开已配置面板的服务器详情",
+        "deleteMapFailed": "删除 VPK 地图失败: {error}",
+        "addUploadFailed": "添加上传任务失败: {error}",
+        "refreshTasksFailed": "刷新上传任务失败: {error}",
+        "cancelUploadFailed": "取消上传失败: {error}",
+        "resumeUploadFailed": "继续上传失败: {error}",
+        "clearUploadsFailed": "清理上传任务失败: {error}",
+        "clearMapsFailed": "清空地图失败: {error}",
+        "switchMapFailed": "切换地图失败: {error}"
+      },
+      "restart": {
+        "title": "重启服务器",
+        "confirm": "确定要重启 \"{name}\" 吗？当前玩家会断开连接。",
+        "sent": "重启指令已发送"
+      },
+      "difficulty": {
+        "title": "修改难度 - {name}",
+        "switched": "难度已切换为 {difficulty}"
+      },
+      "map": {
+        "title": "切换地图 - {name}",
+        "switch": "切换",
+        "switchSent": "地图切换指令已发送",
+        "switchSentLong": "地图切换指令已发送，请稍后手动刷新状态",
+        "toggleShow": "显示官方",
+        "toggleHide": "隐藏官方",
+        "modesLabel": "支持模式",
+        "empty": "未找到匹配地图",
+        "typeCustom": "三方",
+        "typeOfficial": "官方"
+      },
+      "hotReload": {
+        "message": "热重载会重新加载地图资源。如果地图过多，会占用 CPU 并影响正在游玩的游戏。",
+        "defaultHint": "\n\n当前使用默认指令，仅会更新游戏服务器的地图，投票插件的地图缓存不会被刷新。如需同时刷新投票插件缓存，请自定义地图插件的更新指令。",
+        "confirmTitle": "确认热重载地图？",
+        "sent": "地图热重载指令已发送"
+      },
+      "upload": {
+        "title": "地图 - {name}",
+        "reading": "正在读取...",
+        "added": "已添加 {count} 个上传任务",
+        "readFailed": "读取失败",
+        "fileCount": "{count} 个文件",
+        "emptyVpk": "暂无 VPK 地图文件",
+        "sizeUnknown": "大小未知",
+        "deleting": "删除中...",
+        "delete": "删除",
+        "emptyTasks": "暂无上传任务",
+        "emptyTasksHint": "选择 .vpk 或压缩包后，任务会显示在这里。",
+        "cancelTip": "取消上传",
+        "retryTip": "继续上传",
+        "fallbackServerName": "面板服务器",
+        "chunks": "{done}/{total} 分片",
+        "waiting": "等待初始化",
+        "cancelTitle": "取消上传",
+        "cancelConfirm": "确定要取消这个上传任务吗？",
+        "cancelled": "上传任务已取消",
+        "resumed": "上传任务已继续",
+        "cleared": "已清理完成、失败或取消的上传任务",
+        "uploaded": "{name} 上传成功",
+        "fallbackMapName": "地图",
+        "status": {
+          "pending": "等待中",
+          "compressing": "压缩中",
+          "uploading": "上传中",
+          "merging": "处理中",
+          "completed": "已完成",
+          "failed": "失败",
+          "cancelled": "已取消",
+          "interrupted": "已中断（可重试）"
+        }
+      },
+      "deleteMap": {
+        "title": "删除 VPK 地图",
+        "confirm": "确定要删除 {name} 吗？删除后无法恢复。",
+        "done": "{name} 已删除"
+      },
+      "clearMaps": {
+        "title": "清空地图",
+        "confirm": "此操作会清空所有地图，确定继续吗？",
+        "done": "地图已清空"
+      },
+      "risk": {
+        "dictionaryMissing": "字典缺失 {count}",
+        "dictionaryUnreadable": "字典检测异常",
+        "globalScripts": "存在全局脚本 {count}",
+        "scriptOverrides": "脚本覆盖 {count}"
+      },
+      "rcon": {
+        "waiting": "等待发送指令...",
+        "inputRequired": "请输入 RCON 指令",
+        "sending": "正在发送...",
+        "sentNoContent": "指令已发送，面板未返回内容。",
+        "sendFailed": "发送失败: {error}"
+      }
+    }
   }
 }

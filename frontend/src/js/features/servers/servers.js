@@ -19,6 +19,7 @@ import {
   configureDirectConnect,
   setupDirectConnectListeners,
 } from "./direct-connect.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let showError;
 let showNotification;
@@ -370,7 +371,7 @@ function saveRawRecentServers(servers) {
       serverStorage = previousStorage;
     }
     console.error("保存最近服务器失败:", error);
-    showError?.("保存最近服务器失败: " + String(error?.message || error || "未知错误"));
+    showError?.(t("servers.error.saveRecentFailed", { error: String(error?.message || error || t("servers.error.unknown")) }));
   });
 }
 
@@ -505,9 +506,9 @@ export async function fetchServerInfo(address, index) {
     detailsContainer.innerHTML = `
       <div class="server-stats-grid">
         <span class="stat-badge name-badge" title="${escapeAttr(info.name)}">${SERVER_ICONS.server}<span>${escapeHtml(info.name)}</span></span>
-        <span class="stat-badge mode-badge" title="游戏模式">${SERVER_ICONS.mode}<span>${escapeHtml(info.mode)}</span></span>
-        <span class="stat-badge map-badge" title="地图: ${escapeAttr(info.map)} (点击解析)" data-map-code="${escapeAttr(info.map)}">${SERVER_ICONS.map}<span>${escapeHtml(info.map)}</span></span>
-        <span class="stat-badge players-badge" title="在线人数">${SERVER_ICONS.users}<span>${info.players}/${info.max_players}</span></span>
+        <span class="stat-badge mode-badge" title="${t("servers.badge.modeTip")}">${SERVER_ICONS.mode}<span>${escapeHtml(info.mode)}</span></span>
+        <span class="stat-badge map-badge" title="${t("servers.badge.mapTip", { map: escapeAttr(info.map) })}" data-map-code="${escapeAttr(info.map)}">${SERVER_ICONS.map}<span>${escapeHtml(info.map)}</span></span>
+        <span class="stat-badge players-badge" title="${t("servers.badge.playersTip")}">${SERVER_ICONS.users}<span>${info.players}/${info.max_players}</span></span>
       </div>
     `;
 
@@ -518,7 +519,7 @@ export async function fetchServerInfo(address, index) {
         if (mapBadge.dataset.resolved === "true") return;
 
         const originalHtml = mapBadge.innerHTML;
-        mapBadge.innerHTML = `${SERVER_ICONS.map}<span>解析中...</span>`;
+        mapBadge.innerHTML = `${SERVER_ICONS.map}<span>${t("servers.badge.resolving")}</span>`;
         mapBadge.style.cursor = "wait";
 
         try {
@@ -526,7 +527,7 @@ export async function fetchServerInfo(address, index) {
           if (realName && realName !== info.map) {
             mapBadge.innerHTML = `${SERVER_ICONS.map}<span>${escapeHtml(realName)}</span>`;
             mapBadge.dataset.resolved = "true";
-            mapBadge.title = `地图: ${info.map}`;
+            mapBadge.title = t("servers.mapLabel", { map: info.map });
             mapBadge.style.cursor = "default";
             mapBadge.style.textDecoration = "none";
             mapBadge.style.color = "inherit";
@@ -543,7 +544,7 @@ export async function fetchServerInfo(address, index) {
   } catch (err) {
     console.error("获取服务器信息失败:", err);
     if (document.body.contains(detailsContainer)) {
-      detailsContainer.innerHTML = `<span class="error-text">获取失败</span>`;
+      detailsContainer.innerHTML = `<span class="error-text">${t("servers.badge.fetchFailed")}</span>`;
     }
   }
 }
@@ -595,8 +596,8 @@ export function renderServers() {
     list.innerHTML = `
       <li class="server-empty-state">
         <div class="server-empty-icon">${SERVER_ICONS.server}</div>
-        <div class="server-empty-title">还没有收藏服务器</div>
-        <div class="server-empty-text">添加一个常用服务器后，它会显示在这里。</div>
+        <div class="server-empty-title">${t("servers.empty.title")}</div>
+        <div class="server-empty-text">${t("servers.empty.hint")}</div>
       </li>
     `;
     return;
@@ -616,11 +617,11 @@ function createServerListItem(server, index) {
 
   const panelBadge =
     server.panelUrl && server.panelPasswordSet
-      ? `<span class="server-panel-badge" title="已配置面板高级控制">${SERVER_ICONS.panel}<span>面板</span></span>`
+      ? `<span class="server-panel-badge" title="${t("servers.list.panelBadgeTip")}">${SERVER_ICONS.panel}<span>${t("servers.list.panelBadge")}</span></span>`
       : "";
   let detailsHtml = `
         <div class="server-details" id="server-details-${index}">
-          <span class="server-loading-text">加载中...</span>
+          <span class="server-loading-text">${t("servers.list.loading")}</span>
         </div>
       `;
   li.innerHTML = `
@@ -637,12 +638,12 @@ function createServerListItem(server, index) {
       <div class="server-actions">
         <button class="btn btn-small btn-primary connect-server-btn" data-address="${escapeAttr(server.address)}">
           ${SERVER_ICONS.play}
-          <span>连接</span>
+          <span>${t("servers.list.connect")}</span>
         </button>
-        <button class="btn btn-small btn-secondary server-action-icon refresh-server-btn" title="刷新" data-address="${escapeAttr(server.address)}" data-index="${index}" aria-label="刷新服务器">
+        <button class="btn btn-small btn-secondary server-action-icon refresh-server-btn" title="${t("servers.list.refresh")}" data-address="${escapeAttr(server.address)}" data-index="${index}" aria-label="${t("servers.list.refreshLabel")}">
             ${SERVER_ICONS.refresh}
         </button>
-        <button class="btn btn-small btn-secondary server-action-icon server-more-btn" title="更多操作" data-index="${index}" aria-label="更多操作">
+        <button class="btn btn-small btn-secondary server-action-icon server-more-btn" title="${t("servers.list.more")}" data-index="${index}" aria-label="${t("servers.list.more")}">
             ${SERVER_ICONS.more}
         </button>
       </div>
@@ -745,13 +746,13 @@ function deleteServer(index) {
   const server = servers[index];
 
   if (!server) {
-    showError("无法找到要删除的服务器");
+    showError(t("servers.error.notFoundToDelete"));
     return;
   }
 
   showConfirmModal(
-    "删除服务器",
-    `确定要删除服务器 "${server.name}" 吗？`,
+    t("servers.delete.title"),
+    t("servers.delete.confirm", { name: server.name }),
     async () => {
       const currentServers = getServers();
       const idx = server.id
@@ -763,7 +764,7 @@ function deleteServer(index) {
           );
 
       if (idx < 0) {
-        showError("删除失败：索引无效");
+        showError(t("servers.error.invalidIndex"));
         return false;
       }
 
@@ -772,13 +773,13 @@ function deleteServer(index) {
         await saveServers(currentServers);
       } catch (error) {
         console.error("删除服务器失败:", error);
-        showError("删除服务器失败: " + String(error?.message || error || "未知错误"));
+        showError(t("servers.error.deleteFailed", { error: String(error?.message || error || t("servers.error.unknown")) }));
         return false;
       }
 
       renderServers();
       renderLaunchServerMenu();
-      showNotification("服务器已删除", "success");
+      showNotification(t("servers.notification.deleted"), "success");
       return true;
     }
   );
@@ -793,12 +794,12 @@ function connectServer(address, options = {}) {
     .then(() => {
       recordRecentServer(address);
       if (options.notify && typeof showNotification === "function") {
-        showNotification(`正在连接 ${server?.name || address}...`, "success");
+        showNotification(t("servers.notification.connecting", { name: server?.name || address }), "success");
       }
     })
     .catch((err) => {
       console.error("连接服务器失败:", err);
-      showError("连接服务器失败: " + err);
+      showError(t("servers.error.connectFailed", { error: err }));
     });
 }
 
@@ -808,11 +809,11 @@ function exportServersToClipboard() {
   navigator.clipboard
     .writeText(json)
     .then(() => {
-      showNotification("服务器配置已复制到剪贴板", "success");
+      showNotification(t("servers.notification.exportedClipboard"), "success");
     })
     .catch((err) => {
       console.error("复制失败:", err);
-      showError("复制失败: " + err);
+      showError(t("servers.error.copyFailed", { error: err }));
     });
 }
 
@@ -823,12 +824,12 @@ function exportServersToFile() {
   ExportServersToFile(json)
     .then((path) => {
       if (path) {
-        showNotification("服务器配置已导出", "success");
+        showNotification(t("servers.notification.exportedFile"), "success");
       }
     })
     .catch((err) => {
       console.error("导出失败:", err);
-      showError("导出失败: " + err);
+      showError(t("servers.error.exportFailed", { error: err }));
     });
 }
 
@@ -836,13 +837,13 @@ async function importServersFromClipboard() {
   try {
     const text = await navigator.clipboard.readText();
     if (!text) {
-      showError("剪贴板为空");
+      showError(t("servers.error.clipboardEmpty"));
       return;
     }
     importServers(text);
   } catch (err) {
     console.error("读取剪贴板失败:", err);
-    showError("无法读取剪贴板: " + err);
+    showError(t("servers.error.clipboardReadFailed", { error: err }));
   }
 }
 
@@ -850,7 +851,7 @@ async function importServers(jsonStr) {
   try {
     const newServers = JSON.parse(jsonStr);
     if (!Array.isArray(newServers)) {
-      throw new Error("数据格式错误: 必须是服务器数组");
+      throw new Error(t("servers.error.invalidFormat"));
     }
 
     const currentServers = getServers();
@@ -879,13 +880,13 @@ async function importServers(jsonStr) {
       await saveServers(currentServers);
       renderServers();
       renderLaunchServerMenu();
-      showNotification(`成功导入 ${addedCount} 个新服务器`, "success");
+      showNotification(t("servers.notification.imported", { count: addedCount }), "success");
     } else {
-      showNotification("没有发现新的服务器配置", "info");
+      showNotification(t("servers.notification.noNewServers"), "info");
     }
   } catch (e) {
     console.error("导入失败:", e);
-    showError("导入失败: " + e.message);
+    showError(t("servers.error.importFailed", { error: e.message }));
   }
 }
 
@@ -941,7 +942,7 @@ function renderLaunchServerMenu() {
           .join("")
       : `
           <div class="launch-server-empty" role="status">
-            <span>暂无最近</span>
+            <span>${t("servers.list.noRecent")}</span>
           </div>
         `;
 
@@ -982,7 +983,7 @@ export function setupServerModalListeners() {
       importServers(event.target.result);
       fileInput.value = "";
     };
-    reader.onerror = () => showError("读取文件失败");
+    reader.onerror = () => showError(t("servers.error.readFileFailed"));
     reader.readAsText(file);
   });
 

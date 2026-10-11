@@ -1,5 +1,20 @@
 # Changelog
 
+## 未发布 — i18n：迁移收藏服务器页（servers，6 个源文件）（2026-10-11）
+
+- `features/servers/` 全部源文件的用户可见文案改走 `t()`：地址解析错误提示（消息直接给用户看）、
+  服务器列表（徽章 tooltip、空态、按钮、启动菜单）、添加 / 编辑表单（密码状态、查重确认、
+  保存提示）、基础详情弹窗、面板高级控制全部子窗口（状态 / 重启 / 难度 / 地图 / 热重载 /
+  上传 / 清空地图 / RCON）与 VPK 风险标签；目录新增 `servers.*` 键组
+  （含 `servers.panel.*` 子树，147 个叶子 key）。
+- 游戏数据名称表（`PANEL_MODE_LABELS` 模式名、`OFFICIAL_CAMPAIGNS` 官方战役 / 章节、
+  `PANEL_DIFFICULTIES` 难度值及别名 —— 中文值即后端指令参数）按数据层排除，不进目录；
+  如需英文界面需另做「值与显示分离」的数据表方案（记录于 i18n.md 与路线图）。
+- `address.test.mjs` 接入 `installTestCatalog()`（错误消息断言值不变）。
+- 文档：`docs/development/i18n.md`、`docs/development/manual-verification.md` §13。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）565 项 0 失败；
+  `npm run build` 通过。
+
 ## 未发布 — i18n：迁移下载页（downloads，6 个源文件）（2026-10-11）
 
 - `features/downloads/` 全部源文件的用户可见文案改走 `t()`：任务队列（状态名、按钮 tooltip、

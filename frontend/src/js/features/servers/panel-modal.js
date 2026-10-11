@@ -1,4 +1,5 @@
 import { normalizePanelUrl } from "./panel-url.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let showError;
 let showNotification;
@@ -124,7 +125,7 @@ export function openPanelServerDetailsModal(index) {
   const error = document.getElementById("panel-details-error");
 
   title.textContent = server.name;
-  loading.textContent = "正在获取玩家信息...";
+  loading.textContent = t("servers.panel.details.loading");
   loading.classList.remove("hidden");
   content.classList.add("hidden");
   error.classList.add("hidden");
@@ -194,7 +195,7 @@ async function loadPanelStatus(server = currentPanelServer) {
 
     console.error("获取面板状态失败:", err);
     loading.classList.add("hidden");
-    error.textContent = "获取面板状态失败: " + err;
+    error.textContent = t("servers.panel.error.statusFailed", { error: err });
     error.classList.remove("hidden");
     renderPanelStatusError(err);
   } finally {
@@ -210,9 +211,9 @@ function renderPanelStatusError(err) {
 
   error.innerHTML = `
     <div class="panel-error-content">
-      <span>获取面板状态失败: ${escapeHtml(err)}</span>
+      <span>${t("servers.panel.error.statusFailed", { error: escapeHtml(err) })}</span>
       <button id="panel-details-retry-btn" class="btn btn-secondary btn-small panel-action-btn" type="button">
-        刷新
+        ${t("servers.panel.refresh")}
       </button>
     </div>
   `;
@@ -241,17 +242,17 @@ async function renderPanelStatus(server, status, requestToken) {
   currentPanelDifficulty = status.difficulty || "";
 
   summary.innerHTML = `
-    ${renderPanelStatusItem("服务器", status.hostname || server.name)}
-    ${renderPanelStatusItem("地图", displayMap, rawMap)}
-    ${renderPanelStatusItem("玩家", status.players || "0/0")}
-    ${renderPanelStatusItem("模式", status.gameMode || "未知")}
-    ${renderPanelStatusItem("难度", status.difficulty || "未知")}
+    ${renderPanelStatusItem(t("servers.panel.status.hostname"), status.hostname || server.name)}
+    ${renderPanelStatusItem(t("servers.panel.status.map"), displayMap, rawMap)}
+    ${renderPanelStatusItem(t("servers.panel.status.players"), status.players || "0/0")}
+    ${renderPanelStatusItem(t("servers.panel.status.mode"), status.gameMode || t("servers.panel.unknown"))}
+    ${renderPanelStatusItem(t("servers.panel.status.difficulty"), status.difficulty || t("servers.panel.unknown"))}
   `;
 
   const users = Array.isArray(status.users) ? status.users : [];
   if (users.length === 0) {
     playerList.innerHTML =
-      '<tr><td colspan="6" class="empty-state">暂无在线玩家</td></tr>';
+      `<tr><td colspan="6" class="empty-state">${t("servers.panel.noPlayers")}</td></tr>`;
     return true;
   }
 
@@ -291,8 +292,8 @@ export function restartCurrentPanelServer() {
   const serverName = currentPanelServer.name;
   const sessionToken = panelServerDetailsSessionToken;
   showConfirmModal(
-    "重启服务器",
-    `确定要重启 "${serverName}" 吗？当前玩家会断开连接。`,
+    t("servers.panel.restart.title"),
+    t("servers.panel.restart.confirm", { name: serverName }),
     async () => {
       if (!isCurrentPanelServerDetailsSession(serverID, sessionToken)) return;
       const btn = document.getElementById("panel-restart-btn");
@@ -300,11 +301,11 @@ export function restartCurrentPanelServer() {
       try {
         const text = await RestartPanelServer(serverID);
         if (!isCurrentPanelServerDetailsSession(serverID, sessionToken)) return;
-        showNotification(text || "重启指令已发送", "success");
+        showNotification(text || t("servers.panel.restart.sent"), "success");
       } catch (err) {
         if (!isCurrentPanelServerDetailsSession(serverID, sessionToken)) return;
         console.error("重启失败:", err);
-        showError("重启失败: " + err);
+        showError(t("servers.panel.error.restartFailed", { error: err }));
       } finally {
         if (isCurrentPanelServerDetailsSession(serverID, sessionToken) && btn?.isConnected) {
           btn.removeAttribute("disabled");
@@ -329,7 +330,7 @@ export function openPanelDifficultyModal() {
   const modal = document.getElementById("panel-difficulty-modal");
   const title = document.getElementById("panel-difficulty-title");
   if (title) {
-    title.textContent = `修改难度 - ${currentPanelServer.name}`;
+    title.textContent = t("servers.panel.difficulty.title", { name: currentPanelServer.name });
   }
   renderPanelDifficultyOptions();
   modal?.classList.remove("hidden");
@@ -406,12 +407,12 @@ async function handlePanelDifficultyClick(event) {
     const text = await ChangePanelDifficulty(serverID, difficulty);
     if (!isCurrentPanelDifficultySession(serverID, sessionToken)) return;
     currentPanelDifficulty = difficulty;
-    showNotification(text || `难度已切换为 ${difficulty}`, "success");
+    showNotification(text || t("servers.panel.difficulty.switched", { difficulty }), "success");
     closePanelDifficultyModal();
   } catch (err) {
     if (!isCurrentPanelDifficultySession(serverID, sessionToken)) return;
     console.error("修改难度失败:", err);
-    showError("修改难度失败: " + err);
+    showError(t("servers.panel.error.difficultyFailed", { error: err }));
   } finally {
     if (isCurrentPanelDifficultySession(serverID, sessionToken) && button.isConnected) {
       button.disabled = false;
@@ -426,7 +427,7 @@ export function openPanelMapModal() {
   const modal = document.getElementById("panel-map-modal");
   const title = document.getElementById("panel-map-title");
   const search = document.getElementById("panel-map-search");
-  title.textContent = `切换地图 - ${currentPanelServer.name}`;
+  title.textContent = t("servers.panel.map.title", { name: currentPanelServer.name });
   search.value = "";
   currentPanelMaps = [];
   updatePanelOfficialToggle();
@@ -487,7 +488,7 @@ async function loadPanelMaps() {
   } catch (err) {
     if (!isCurrentPanelMapRequest(serverID, requestToken)) return;
     console.error("获取地图列表失败:", err);
-    list.innerHTML = `<div class="panel-error-box">获取地图列表失败: ${escapeHtml(err)}</div>`;
+    list.innerHTML = `<div class="panel-error-box">${t("servers.panel.error.mapListFailed", { error: escapeHtml(err) })}</div>`;
   } finally {
     if (!isCurrentPanelMapRequest(serverID, requestToken)) return;
     loading.classList.add("hidden");
@@ -540,7 +541,7 @@ async function executePanelMapHotReload(
     ) {
       return;
     }
-    showNotification(result?.message || "地图热重载指令已发送", "success");
+    showNotification(result?.message || t("servers.panel.hotReload.sent"), "success");
   } catch (err) {
     if (
       !isCurrentPanelMapHotReloadSession(
@@ -552,7 +553,7 @@ async function executePanelMapHotReload(
       return;
     }
     console.error("热重载地图失败:", err);
-    showError("热重载失败: " + err);
+    showError(t("servers.panel.error.hotReloadFailed", { error: err }));
   } finally {
     if (
       isCurrentPanelMapHotReloadSession(
@@ -596,7 +597,7 @@ async function confirmPanelMapHotReload() {
       return;
     }
     console.error("获取地图热重载状态失败:", err);
-    showError("获取热重载状态失败: " + err);
+    showError(t("servers.panel.error.hotReloadStatusFailed", { error: err }));
     return;
   } finally {
     if (
@@ -610,15 +611,13 @@ async function confirmPanelMapHotReload() {
     }
   }
 
-  let message =
-    "热重载会重新加载地图资源。如果地图过多，会占用 CPU 并影响正在游玩的游戏。";
+  let message = t("servers.panel.hotReload.message");
   if (status?.using_default) {
-    message +=
-      "\n\n当前使用默认指令，仅会更新游戏服务器的地图，投票插件的地图缓存不会被刷新。如需同时刷新投票插件缓存，请自定义地图插件的更新指令。";
+    message += t("servers.panel.hotReload.defaultHint");
   }
 
   showConfirmModal(
-    "确认热重载地图？",
+    t("servers.panel.hotReload.confirmTitle"),
     message,
     () =>
       executePanelMapHotReload(
@@ -638,7 +637,7 @@ export function openPanelUploadModal() {
   const modal = document.getElementById("panel-upload-modal");
   const title = document.getElementById("panel-upload-title");
   if (title) {
-    title.textContent = `地图 - ${currentPanelServer.name}`;
+    title.textContent = t("servers.panel.upload.title", { name: currentPanelServer.name });
   }
   modal?.classList.remove("hidden");
   refreshPanelUploadTasks();
@@ -727,7 +726,7 @@ async function loadPanelMapFiles() {
   currentPanelMapFiles = [];
   currentPanelMapIssues.clear();
   list.replaceChildren();
-  if (count) count.textContent = "正在读取...";
+  if (count) count.textContent = t("servers.panel.upload.reading");
   loading?.classList.remove("hidden");
   refreshBtn?.setAttribute("disabled", "true");
   refreshBtn?.querySelector(".icon-svg")?.classList.add("spinning");
@@ -768,9 +767,9 @@ async function loadPanelMapFiles() {
     }
     const error = document.createElement("div");
     error.className = "panel-error-box";
-    error.textContent = `读取 VPK 地图列表失败: ${err}`;
+    error.textContent = t("servers.panel.error.mapFilesReadFailed", { error: err });
     list.replaceChildren(error);
-    if (count) count.textContent = "读取失败";
+    if (count) count.textContent = t("servers.panel.upload.readFailed");
   } finally {
     if (
       !isCurrentPanelMapFileRequest(
@@ -845,12 +844,12 @@ function renderPanelMapFiles() {
   const list = document.getElementById("panel-vpk-list");
   const count = document.getElementById("panel-vpk-count");
   if (!list) return;
-  if (count) count.textContent = `${currentPanelMapFiles.length} 个文件`;
+  if (count) count.textContent = t("servers.panel.upload.fileCount", { count: currentPanelMapFiles.length });
 
   if (currentPanelMapFiles.length === 0) {
     const empty = document.createElement("div");
     empty.className = "panel-vpk-empty";
-    empty.textContent = "暂无 VPK 地图文件";
+    empty.textContent = t("servers.panel.upload.emptyVpk");
     list.replaceChildren(empty);
     return;
   }
@@ -873,7 +872,7 @@ function createPanelMapFileElement(file) {
   title.textContent = file.name;
   const size = document.createElement("span");
   size.className = "panel-vpk-size";
-  size.textContent = file.size === "unknown" ? "大小未知" : file.size;
+  size.textContent = file.size === "unknown" ? t("servers.panel.upload.sizeUnknown") : file.size;
   titleRow.append(title, size);
   main.appendChild(titleRow);
 
@@ -890,7 +889,7 @@ function createPanelMapFileElement(file) {
       deletingPanelMapFiles.has(getPanelMapFileDeletionKey(currentPanelServer.id, file.name))
   );
   deleteButton.disabled = deleting;
-  deleteButton.textContent = deleting ? "删除中..." : "删除";
+  deleteButton.textContent = deleting ? t("servers.panel.upload.deleting") : t("servers.panel.upload.delete");
 
   item.append(main, deleteButton);
   return item;
@@ -900,16 +899,16 @@ function createPanelMapRiskTags(issue) {
   if (!issue) return null;
   const tags = [];
   if (issue.dictionaryMissing > 0) {
-    tags.push(createPanelMapRiskTag(`字典缺失 ${issue.dictionaryMissing}`, "danger"));
+    tags.push(createPanelMapRiskTag(t("servers.panel.risk.dictionaryMissing", { count: issue.dictionaryMissing }), "danger"));
   }
   if (issue.dictionaryUnreadable) {
-    tags.push(createPanelMapRiskTag("字典检测异常", "warning"));
+    tags.push(createPanelMapRiskTag(t("servers.panel.risk.dictionaryUnreadable"), "warning"));
   }
   if (issue.globalScripts > 0) {
-    tags.push(createPanelMapRiskTag(`存在全局脚本 ${issue.globalScripts}`, "warning"));
+    tags.push(createPanelMapRiskTag(t("servers.panel.risk.globalScripts", { count: issue.globalScripts }), "warning"));
   }
   if (issue.scriptOverrides > 0) {
-    tags.push(createPanelMapRiskTag(`脚本覆盖 ${issue.scriptOverrides}`, "danger"));
+    tags.push(createPanelMapRiskTag(t("servers.panel.risk.scriptOverrides", { count: issue.scriptOverrides }), "danger"));
   }
   if (tags.length === 0) return null;
 
@@ -928,8 +927,8 @@ function handlePanelMapFileClick(event) {
   const uploadSessionToken = panelUploadSessionToken;
 
   showConfirmModal(
-    "删除 VPK 地图",
-    `确定要删除 ${mapName} 吗？删除后无法恢复。`,
+    t("servers.panel.deleteMap.title"),
+    t("servers.panel.deleteMap.confirm", { name: mapName }),
     async () => {
       if (
         !isCurrentPanelUploadSession(
@@ -956,7 +955,7 @@ function handlePanelMapFileClick(event) {
         ) {
           return;
         }
-        showNotification(text || `${mapName} 已删除`, "success");
+        showNotification(text || t("servers.panel.deleteMap.done", { name: mapName }), "success");
         await loadPanelMapFiles();
         if (
           isCurrentPanelUploadSession(
@@ -979,7 +978,7 @@ function handlePanelMapFileClick(event) {
           return;
         }
         console.error("删除 VPK 地图失败:", err);
-        showError("删除 VPK 地图失败: " + err);
+        showError(t("servers.panel.error.deleteMapFailed", { error: err }));
       } finally {
         deletingPanelMapFiles.delete(key);
         if (
@@ -1008,7 +1007,7 @@ function schedulePanelMapFilesRefresh() {
 
 async function selectPanelUploadFiles() {
   if (!currentPanelServer) {
-    showError("请先打开已配置面板的服务器详情");
+    showError(t("servers.panel.error.noPanelServer"));
     return;
   }
 
@@ -1050,7 +1049,7 @@ async function selectPanelUploadFiles() {
     ) {
       return;
     }
-    showNotification(`已添加 ${paths.length} 个上传任务`, "success");
+    showNotification(t("servers.panel.upload.added", { count: paths.length }), "success");
     await refreshPanelUploadTasks();
   } catch (err) {
     if (
@@ -1063,7 +1062,7 @@ async function selectPanelUploadFiles() {
       return;
     }
     console.error("添加上传任务失败:", err);
-    showError("添加上传任务失败: " + err);
+    showError(t("servers.panel.error.addUploadFailed", { error: err }));
   } finally {
     if (
       isCurrentPanelUploadSession(
@@ -1117,7 +1116,7 @@ export async function refreshPanelUploadTasks() {
     console.error("刷新上传任务失败:", err);
     list.classList.remove("has-tasks");
     list.classList.remove("has-multiple-tasks");
-    list.innerHTML = `<div class="panel-error-box">刷新上传任务失败: ${escapeHtml(err)}</div>`;
+    list.innerHTML = `<div class="panel-error-box">${t("servers.panel.error.refreshTasksFailed", { error: escapeHtml(err) })}</div>`;
   }
 }
 
@@ -1135,8 +1134,8 @@ function renderPanelUploadTasks(tasks) {
     list.innerHTML = `
       <div class="panel-upload-empty">
         <div class="panel-upload-empty-icon">${PANEL_UPLOAD_ICON}</div>
-        <div class="panel-upload-empty-title">暂无上传任务</div>
-        <div class="panel-upload-empty-text">选择 .vpk 或压缩包后，任务会显示在这里。</div>
+        <div class="panel-upload-empty-title">${t("servers.panel.upload.emptyTasks")}</div>
+        <div class="panel-upload-empty-text">${t("servers.panel.upload.emptyTasksHint")}</div>
       </div>
     `;
     return;
@@ -1162,13 +1161,13 @@ function createPanelUploadTaskElement(task) {
   const canRetry = status === "failed" || status === "cancelled" || status === "interrupted";
   const actionHtml = isActive
     ? `
-      <button class="panel-upload-icon-btn panel-upload-cancel-btn" data-id="${escapeAttr(task.id)}" title="取消上传" type="button">
+      <button class="panel-upload-icon-btn panel-upload-cancel-btn" data-id="${escapeAttr(task.id)}" title="${t("servers.panel.upload.cancelTip")}" type="button">
         ${PANEL_CANCEL_ICON}
       </button>
     `
     : canRetry
       ? `
-        <button class="panel-upload-icon-btn panel-upload-retry-btn" data-id="${escapeAttr(task.id)}" title="继续上传" type="button">
+        <button class="panel-upload-icon-btn panel-upload-retry-btn" data-id="${escapeAttr(task.id)}" title="${t("servers.panel.upload.retryTip")}" type="button">
           ${PANEL_RETRY_ICON}
         </button>
       `
@@ -1187,7 +1186,7 @@ function createPanelUploadTaskElement(task) {
         </div>
       </div>
       <div class="panel-upload-task-meta">
-        <span title="${escapeAttr(task.server_name || "")}">${escapeHtml(task.server_name || "面板服务器")}</span>
+        <span title="${escapeAttr(task.server_name || "")}">${escapeHtml(task.server_name || t("servers.panel.upload.fallbackServerName"))}</span>
         <span>${formatPanelUploadBytes(task.uploaded_size || 0)} / ${formatPanelUploadBytes(task.total_size || 0)}</span>
         ${task.speed ? `<span>${escapeHtml(task.speed)}</span>` : ""}
       </div>
@@ -1195,7 +1194,7 @@ function createPanelUploadTaskElement(task) {
         <div class="panel-upload-progress-fill" style="width: ${progress}%"></div>
       </div>
       <div class="panel-upload-task-foot">
-        <span>${task.total_chunks ? `${(task.uploaded_chunks || []).length}/${task.total_chunks} 分片` : "等待初始化"}</span>
+        <span>${task.total_chunks ? t("servers.panel.upload.chunks", { done: (task.uploaded_chunks || []).length, total: task.total_chunks }) : t("servers.panel.upload.waiting")}</span>
         <span class="panel-upload-percent">${progress}%</span>
       </div>
       ${task.error ? `<div class="panel-upload-error">${escapeHtml(task.error)}</div>` : ""}
@@ -1204,13 +1203,13 @@ function createPanelUploadTaskElement(task) {
 
   div.querySelector(".panel-upload-cancel-btn")?.addEventListener("click", (event) => {
     event.stopPropagation();
-    showConfirmModal("取消上传", "确定要取消这个上传任务吗？", async () => {
+    showConfirmModal(t("servers.panel.upload.cancelTitle"), t("servers.panel.upload.cancelConfirm"), async () => {
       try {
         await CancelPanelMapUpload(task.id);
-        showNotification("上传任务已取消", "info");
+        showNotification(t("servers.panel.upload.cancelled"), "info");
       } catch (err) {
         console.error("取消上传失败:", err);
-        showError("取消上传失败: " + err);
+        showError(t("servers.panel.error.cancelUploadFailed", { error: err }));
       }
     });
   });
@@ -1219,10 +1218,10 @@ function createPanelUploadTaskElement(task) {
     event.stopPropagation();
     try {
       await RetryPanelMapUpload(task.id);
-      showNotification("上传任务已继续", "success");
+      showNotification(t("servers.panel.upload.resumed"), "success");
     } catch (err) {
       console.error("继续上传失败:", err);
-      showError("继续上传失败: " + err);
+      showError(t("servers.panel.error.resumeUploadFailed", { error: err }));
     }
   });
 
@@ -1265,15 +1264,15 @@ export function updatePanelUploadProgress(task) {
   if (status) status.textContent = getPanelUploadStatusText(task.status || "uploading");
   if (meta) {
     meta.innerHTML = `
-      <span title="${escapeAttr(task.server_name || "")}">${escapeHtml(task.server_name || "面板服务器")}</span>
+      <span title="${escapeAttr(task.server_name || "")}">${escapeHtml(task.server_name || t("servers.panel.upload.fallbackServerName"))}</span>
       <span>${formatPanelUploadBytes(task.uploaded_size || 0)} / ${formatPanelUploadBytes(task.total_size || 0)}</span>
       ${task.speed ? `<span>${escapeHtml(task.speed)}</span>` : ""}
     `;
   }
   if (foot) {
     foot.textContent = task.total_chunks
-      ? `${(task.uploaded_chunks || []).length}/${task.total_chunks} 分片`
-      : "等待初始化";
+      ? t("servers.panel.upload.chunks", { done: (task.uploaded_chunks || []).length, total: task.total_chunks })
+      : t("servers.panel.upload.waiting");
   }
 }
 
@@ -1284,16 +1283,16 @@ export function handlePanelUploadTasksCleared() {
 async function clearCompletedPanelUploads() {
   try {
     await ClearCompletedPanelMapUploads();
-    showNotification("已清理完成、失败或取消的上传任务", "success");
+    showNotification(t("servers.panel.upload.cleared"), "success");
   } catch (err) {
     console.error("清理上传任务失败:", err);
-    showError("清理上传任务失败: " + err);
+    showError(t("servers.panel.error.clearUploadsFailed", { error: err }));
   }
 }
 
 async function clearPanelMaps() {
   if (!currentPanelServer) {
-    showError("请先打开已配置面板的服务器详情");
+    showError(t("servers.panel.error.noPanelServer"));
     return;
   }
   const serverID = currentPanelServer.id;
@@ -1301,8 +1300,8 @@ async function clearPanelMaps() {
   const uploadSessionToken = panelUploadSessionToken;
 
   showConfirmModal(
-    "清空地图",
-    "此操作会清空所有地图，确定继续吗？",
+    t("servers.panel.clearMaps.title"),
+    t("servers.panel.clearMaps.confirm"),
     async () => {
       if (
         !isCurrentPanelUploadSession(
@@ -1326,7 +1325,7 @@ async function clearPanelMaps() {
         ) {
           return;
         }
-        showNotification(text || "地图已清空", "success");
+        showNotification(text || t("servers.panel.clearMaps.done"), "success");
         await loadPanelMapFiles();
         if (
           isCurrentPanelUploadSession(
@@ -1349,7 +1348,7 @@ async function clearPanelMaps() {
           return;
         }
         console.error("清空地图失败:", err);
-        showError("清空地图失败: " + err);
+        showError(t("servers.panel.error.clearMapsFailed", { error: err }));
       } finally {
         if (
           isCurrentPanelUploadSession(
@@ -1371,7 +1370,7 @@ function handlePanelUploadCompletion(task) {
     return;
   }
   completedPanelUploadNotifications.add(task.id);
-  showNotification(`${task.filename || "地图"} 上传成功`, "success");
+  showNotification(t("servers.panel.upload.uploaded", { name: task.filename || t("servers.panel.upload.fallbackMapName") }), "success");
   if (String(task.server_id || "") !== String(currentPanelServer?.id || "")) {
     return;
   }
@@ -1393,17 +1392,17 @@ function isPanelMapModalOpen() {
 
 function getPanelUploadStatusText(status) {
   const labels = {
-    pending: "等待中",
-    compressing: "压缩中",
-    uploading: "上传中",
-    merging: "处理中",
-    completed: "已完成",
-    failed: "失败",
-    cancelled: "已取消",
+    pending: t("servers.panel.upload.status.pending"),
+    compressing: t("servers.panel.upload.status.compressing"),
+    uploading: t("servers.panel.upload.status.uploading"),
+    merging: t("servers.panel.upload.status.merging"),
+    completed: t("servers.panel.upload.status.completed"),
+    failed: t("servers.panel.upload.status.failed"),
+    cancelled: t("servers.panel.upload.status.cancelled"),
     // 应用退出时还没跑完：任务记录会留在 upload_tasks.json，点重试即可续传。
-    interrupted: "已中断（可重试）",
+    interrupted: t("servers.panel.upload.status.interrupted"),
   };
-  return labels[status] || status || "未知";
+  return labels[status] || status || t("servers.panel.unknown");
 }
 
 function formatPanelUploadBytes(bytes, decimals = 2) {
@@ -1437,7 +1436,7 @@ function updatePanelOfficialToggle() {
   const toggleBtn = document.getElementById("panel-map-official-toggle-btn");
   if (!toggleBtn) return;
 
-  toggleBtn.textContent = panelOfficialMapsHidden ? "显示官方" : "隐藏官方";
+  toggleBtn.textContent = panelOfficialMapsHidden ? t("servers.panel.map.toggleShow") : t("servers.panel.map.toggleHide");
   toggleBtn.classList.toggle("active", panelOfficialMapsHidden);
 }
 
@@ -1489,7 +1488,7 @@ function renderPanelMapModes(modes) {
   if (normalizedModes.length === 0) return "";
 
   return `
-    <span class="panel-map-mode-list" aria-label="支持模式">
+    <span class="panel-map-mode-list" aria-label="${t("servers.panel.map.modesLabel")}">
       ${normalizedModes
         .map(
           (mode) =>
@@ -1506,7 +1505,7 @@ function renderPanelMapList() {
   const filtered = getFilteredPanelMaps();
 
   if (filtered.length === 0) {
-    list.innerHTML = `<div class="panel-empty-state">未找到匹配地图</div>`;
+    list.innerHTML = `<div class="panel-empty-state">${t("servers.panel.map.empty")}</div>`;
     return;
   }
 
@@ -1524,7 +1523,7 @@ function renderPanelMapList() {
               }
             </div>
             <span class="panel-map-type ${campaign.isCustom ? "custom" : ""}">
-              ${campaign.isCustom ? "三方" : "官方"}
+              ${campaign.isCustom ? t("servers.panel.map.typeCustom") : t("servers.panel.map.typeOfficial")}
             </span>
           </div>
           <div class="panel-map-chapters">
@@ -1541,7 +1540,7 @@ function renderPanelMapList() {
                       <small>${escapeHtml(chapter.code)}</small>
                       ${renderPanelMapModes(chapter.modes)}
                     </span>
-                    <em>切换</em>
+                    <em>${t("servers.panel.map.switch")}</em>
                   </button>
                 `
               )
@@ -1572,13 +1571,13 @@ async function handlePanelMapClick(event) {
   try {
     await ChangePanelMap(serverID, mapCode);
     if (!isCurrentPanelMapActionSession(serverID, sessionToken)) return;
-    const text = "地图切换指令已发送，请稍后手动刷新状态";
-    showNotification(text || "地图切换指令已发送", "success");
+    const text = t("servers.panel.map.switchSentLong");
+    showNotification(text || t("servers.panel.map.switchSent"), "success");
     closePanelMapModal();
   } catch (err) {
     if (!isCurrentPanelMapActionSession(serverID, sessionToken)) return;
     console.error("切换地图失败:", err);
-    showError("切换地图失败: " + err);
+    showError(t("servers.panel.error.switchMapFailed", { error: err }));
   } finally {
     if (isCurrentPanelMapActionSession(serverID, sessionToken) && button.isConnected) {
       button.disabled = false;
@@ -1592,7 +1591,7 @@ export function openPanelRconModal() {
   const output = document.getElementById("panel-rcon-output");
   document.getElementById("panel-rcon-title").textContent = `RCON - ${currentPanelServer.name}`;
   document.getElementById("panel-rcon-command").value = "";
-  document.getElementById("panel-rcon-output").textContent = "等待发送指令...";
+  document.getElementById("panel-rcon-output").textContent = t("servers.panel.rcon.waiting");
   document.getElementById("panel-rcon-send-btn")?.removeAttribute("disabled");
   output.classList.add("panel-rcon-output-muted");
   document.getElementById("panel-rcon-modal").classList.remove("hidden");
@@ -1620,7 +1619,7 @@ async function sendPanelRconCommand() {
   const sendBtn = document.getElementById("panel-rcon-send-btn");
   const command = input.value.trim();
   if (!command) {
-    showError("请输入 RCON 指令");
+    showError(t("servers.panel.rcon.inputRequired"));
     return;
   }
   const serverID = currentPanelServer.id;
@@ -1628,16 +1627,16 @@ async function sendPanelRconCommand() {
 
   sendBtn.disabled = true;
   output.classList.add("panel-rcon-output-muted");
-  output.textContent = "正在发送...";
+  output.textContent = t("servers.panel.rcon.sending");
   try {
     const result = await SendPanelRconCommand(serverID, command);
     if (!isCurrentPanelRconSession(serverID, sessionToken)) return;
     output.classList.remove("panel-rcon-output-muted");
-    output.textContent = result || "指令已发送，面板未返回内容。";
+    output.textContent = result || t("servers.panel.rcon.sentNoContent");
   } catch (err) {
     if (!isCurrentPanelRconSession(serverID, sessionToken)) return;
     console.error("RCON 指令失败:", err);
-    output.textContent = "发送失败: " + err;
+    output.textContent = t("servers.panel.rcon.sendFailed", { error: err });
   } finally {
     if (!isCurrentPanelRconSession(serverID, sessionToken)) return;
     output.classList.remove("panel-rcon-output-muted");

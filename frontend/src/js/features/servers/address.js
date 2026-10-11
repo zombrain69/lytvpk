@@ -5,6 +5,8 @@
 // 这样"手动在表单里填的地址"和"外部协议推进来的地址"最终是同一个键，
 // 收藏去重不会因为写法不同而失效。
 
+import { t } from "../../core/i18n-runtime.js";
+
 export const DEFAULT_SERVER_PORT = 27015;
 
 // 直连输入除纯地址外，还允许直接粘贴控制台命令或 Steam 链接
@@ -18,7 +20,7 @@ const CONNECT_PREFIXES = [/^steam:\/\/connect\//iu, /^connect[\s:]+/iu];
 export function parseServerInput(rawInput) {
   let address = String(rawInput || "").trim();
   if (!address) {
-    throw new Error("请输入服务器 IP 或域名");
+    throw new Error(t("servers.address.error.inputRequired"));
   }
 
   for (const prefix of CONNECT_PREFIXES) {
@@ -30,7 +32,7 @@ export function parseServerInput(rawInput) {
 
   address = stripWrappingQuotes(address);
   if (isMissingHost(address)) {
-    throw new Error("请输入服务器 IP 或域名");
+    throw new Error(t("servers.address.error.inputRequired"));
   }
   return normalizeServerAddress(address);
 }
@@ -48,17 +50,17 @@ function stripWrappingQuotes(value) {
 export function normalizeServerAddress(rawAddress) {
   const address = String(rawAddress || "").trim();
   if (!address) {
-    throw new Error("请输入服务器地址");
+    throw new Error(t("servers.address.error.empty"));
   }
   if (/[\s/?#\\]/u.test(address)) {
-    throw new Error("服务器地址格式无效");
+    throw new Error(t("servers.address.error.invalid"));
   }
 
   if (address.startsWith("[")) {
     return normalizeBracketedIPv6(address);
   }
   if (address.includes("[") || address.includes("]")) {
-    throw new Error("IPv6 服务器地址格式无效");
+    throw new Error(t("servers.address.error.invalidIPv6"));
   }
 
   const colonCount = (address.match(/:/g) || []).length;
@@ -75,7 +77,7 @@ export function normalizeServerAddress(rawAddress) {
   }
 
   if (!isValidIPv6Host(address)) {
-    throw new Error("IPv6 服务器地址格式无效");
+    throw new Error(t("servers.address.error.invalidIPv6"));
   }
   return `[${address}]:${DEFAULT_SERVER_PORT}`;
 }
@@ -83,12 +85,12 @@ export function normalizeServerAddress(rawAddress) {
 function normalizeBracketedIPv6(address) {
   const closingBracket = address.indexOf("]");
   if (closingBracket < 0) {
-    throw new Error("IPv6 服务器地址格式无效");
+    throw new Error(t("servers.address.error.invalidIPv6"));
   }
 
   const host = address.slice(1, closingBracket);
   if (!isValidIPv6Host(host)) {
-    throw new Error("IPv6 服务器地址格式无效");
+    throw new Error(t("servers.address.error.invalidIPv6"));
   }
 
   const remainder = address.slice(closingBracket + 1);
@@ -96,7 +98,7 @@ function normalizeBracketedIPv6(address) {
     return `[${host}]:${DEFAULT_SERVER_PORT}`;
   }
   if (!remainder.startsWith(":") || remainder.slice(1).includes(":")) {
-    throw new Error("IPv6 服务器地址格式无效");
+    throw new Error(t("servers.address.error.invalidIPv6"));
   }
   return `[${host}]:${normalizePort(remainder.slice(1))}`;
 }
@@ -104,19 +106,19 @@ function normalizeBracketedIPv6(address) {
 function normalizePort(portText) {
   if (!portText) return DEFAULT_SERVER_PORT;
   if (!/^\d+$/u.test(portText)) {
-    throw new Error("服务器端口必须是 1–65535 之间的数字");
+    throw new Error(t("servers.address.error.invalidPort"));
   }
 
   const port = Number(portText);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error("服务器端口必须是 1–65535 之间的数字");
+    throw new Error(t("servers.address.error.invalidPort"));
   }
   return port;
 }
 
 function validateHost(host) {
   if (!host || /[:%]/u.test(host)) {
-    throw new Error("服务器地址格式无效");
+    throw new Error(t("servers.address.error.invalid"));
   }
 }
 

@@ -1,6 +1,7 @@
 import { normalizePanelUrl } from "./panel-url.js";
 import { findDuplicateServer, normalizeServerAddress } from "./address.js";
 import { showConfirmModal } from "../modals/confirm.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let showError;
 let showNotification;
@@ -71,11 +72,11 @@ export function openServerFormModal(index = -1) {
   if (panelUrlInput) panelUrlInput.value = "";
   if (panelPasswordInput) {
     panelPasswordInput.value = "";
-    panelPasswordInput.placeholder = "面板访问密码";
+    panelPasswordInput.placeholder = t("servers.form.panelPasswordPlaceholder");
   }
   if (clearPasswordInput) clearPasswordInput.checked = false;
   if (passwordStatus) {
-    passwordStatus.textContent = "未保存密码";
+    passwordStatus.textContent = t("servers.form.passwordNotSaved");
     passwordStatus.classList.remove("active");
   }
   advancedContent?.classList.add("hidden");
@@ -85,7 +86,7 @@ export function openServerFormModal(index = -1) {
     isEditMode = true;
     currentEditIndex = index;
     currentEditID = "";
-    title.textContent = "编辑服务器";
+    title.textContent = t("servers.form.editTitle");
 
     const servers = getServers();
     const server = servers[index];
@@ -96,12 +97,12 @@ export function openServerFormModal(index = -1) {
       weightInput.value = server.weight || 0;
       if (panelUrlInput) panelUrlInput.value = server.panelUrl || "";
       if (panelPasswordInput && server.panelPasswordSet) {
-        panelPasswordInput.placeholder = "留空则保留已保存密码";
+        panelPasswordInput.placeholder = t("servers.form.passwordKeepPlaceholder");
       }
       if (passwordStatus) {
         passwordStatus.textContent = server.panelPasswordSet
-          ? "已保存密码"
-          : "未保存密码";
+          ? t("servers.form.passwordSaved")
+          : t("servers.form.passwordNotSaved");
         passwordStatus.classList.toggle("active", Boolean(server.panelPasswordSet));
       }
     }
@@ -109,7 +110,7 @@ export function openServerFormModal(index = -1) {
     isEditMode = false;
     currentEditIndex = -1;
     currentEditID = "";
-    title.textContent = "添加服务器";
+    title.textContent = t("servers.form.addTitle");
   }
 
   setFormSaving(sessionId, false);
@@ -143,7 +144,7 @@ export async function saveServerForm() {
   );
 
   if (!name || !rawAddress) {
-    showError("请输入服务器名称和地址");
+    showError(t("servers.form.error.nameAndAddressRequired"));
     return;
   }
 
@@ -188,7 +189,7 @@ export async function saveServerForm() {
         ? servers.findIndex((server) => server.id === editID)
         : editIndex;
       if (targetIndex < 0 || targetIndex >= servers.length) {
-        showError("服务器列表已变化，请重新打开编辑窗口");
+        showError(t("servers.form.error.listChanged"));
         return;
       }
       servers[targetIndex] = buildServerPayload(servers[targetIndex]);
@@ -210,7 +211,7 @@ export async function saveServerForm() {
     } catch (err) {
       console.error("保存服务器失败:", err);
       if (isCurrentFormSession(sessionId)) {
-        showError("保存服务器失败: " + String(err?.message || err || "未知错误"));
+        showError(t("servers.form.error.saveFailed", { error: String(err?.message || err || t("servers.error.unknown")) }));
       }
       return;
     } finally {
@@ -229,7 +230,7 @@ export async function saveServerForm() {
       fetchServerInfo(address, newIndex);
     }
     if (isCurrentFormSession(sessionId)) {
-      showNotification(editMode ? "服务器修改成功" : "服务器添加成功", "success");
+      showNotification(editMode ? t("servers.form.notification.updated") : t("servers.form.notification.added"), "success");
       closeServerFormModal();
     }
   };
@@ -244,8 +245,8 @@ export async function saveServerForm() {
   if (duplicate) {
     const existingLabel = String(duplicate.name || "").trim() || String(duplicate.address || "");
     showConfirmModal(
-      "这个地址已经收藏过了",
-      `「${address}」已经在收藏里：${existingLabel}。\n再存一条会得到两个同样的条目（列表里重复显示、各自查询一次）。\n要仍然保存吗？`,
+      t("servers.form.duplicate.title"),
+      t("servers.form.duplicate.message", { address, label: existingLabel }),
       () => void commit(),
     );
     return;

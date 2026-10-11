@@ -1,4 +1,5 @@
 import { openPanelServerDetailsModal } from "./panel-modal.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let showError;
 let FetchServerInfo;
@@ -63,7 +64,7 @@ async function openBasicServerDetailsModal(index) {
 
   modal.dataset.serverAddress = String(server.address || "");
   title.textContent = server.name;
-  loading.textContent = "正在获取服务器信息...";
+  loading.textContent = t("servers.details.loading");
   loading.classList.remove("hidden");
   content.classList.add("hidden");
   modal.classList.remove("hidden");
@@ -73,7 +74,7 @@ async function openBasicServerDetailsModal(index) {
     if (!isBasicDetailsSessionActive(sessionId, server)) return;
 
     mapEl.textContent = info.map;
-    mapEl.title = `地图: ${info.map}`;
+    mapEl.title = t("servers.mapLabel", { map: info.map });
     playersEl.textContent = `${info.players}/${info.max_players}`;
 
     void resolveMapName(info.map)
@@ -84,7 +85,7 @@ async function openBasicServerDetailsModal(index) {
           document.body.contains(mapEl)
         ) {
           mapEl.textContent = realName;
-          mapEl.title = `地图: ${info.map}`;
+          mapEl.title = t("servers.mapLabel", { map: info.map });
         }
       })
       .catch(() => {});
@@ -107,7 +108,7 @@ async function openBasicServerDetailsModal(index) {
       });
     } else {
       listEl.innerHTML =
-        '<tr><td colspan="3" class="empty-state">暂无玩家信息</td></tr>';
+        `<tr><td colspan="3" class="empty-state">${t("servers.details.noPlayers")}</td></tr>`;
     }
 
     loading.classList.add("hidden");
@@ -115,7 +116,7 @@ async function openBasicServerDetailsModal(index) {
   } catch (err) {
     if (!isBasicDetailsSessionActive(sessionId, server)) return;
     console.error(err);
-    loading.textContent = "获取失败: " + err;
+    loading.textContent = t("servers.details.error", { error: err });
   }
 }
 
