@@ -7,6 +7,7 @@
 // "折叠时隐藏成员明细与操作区"的规则都按它匹配，重命名只会带来无谓的样式回归。
 
 import { showError } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { showFileDetail } from "../modals/detail.js";
 import { moveFileToAddons, toggleFile, toggleGameEnabled } from "../file-list/operations.js";
 import { describeSuggestionMember } from "./group-view.mjs";
@@ -88,7 +89,7 @@ export function buildModMemberRow({
     const priorityBadge = document.createElement("span");
     priorityBadge.className = `conflict-vpk-priority mod-member-priority ${priorityLabel ? "known" : "unknown"}`;
     priorityBadge.textContent = described.priority;
-    priorityBadge.title = "编号来自 addonlist.txt 顺序；数字越大越靠后加载";
+    priorityBadge.title = t("strategyGroups.memberRow.priorityTitle");
     info.appendChild(priorityBadge);
   }
   item.appendChild(info);
@@ -101,15 +102,17 @@ export function buildModMemberRow({
       await action();
       if (typeof onActionDone === "function") await onActionDone();
     } catch (error) {
-      reportError("操作失败: " + String(error?.message || error));
+      reportError(t("strategyGroups.memberRow.error.actionFailed", { error: String(error?.message || error) }));
     }
   };
 
   const detailButton = document.createElement("button");
   detailButton.type = "button";
   detailButton.className = "btn btn-small btn-conflict-action mod-member-action";
-  detailButton.textContent = "详情";
-  detailButton.title = described.found ? "查看这个 Mod 的详情" : "该 Mod 不在当前列表中，无法查看详情";
+  detailButton.textContent = t("strategyGroups.memberRow.detail");
+  detailButton.title = described.found
+    ? t("strategyGroups.memberRow.detailTitle")
+    : t("strategyGroups.memberRow.detailMissingTitle");
   detailButton.disabled = !described.found;
   detailButton.addEventListener("click", () => {
     if (file?.path) showFileDetail(file.path);
@@ -120,11 +123,11 @@ export function buildModMemberRow({
     const gameButton = document.createElement("button");
     gameButton.type = "button";
     gameButton.className = "btn btn-small btn-conflict-action mod-member-action";
-    gameButton.textContent = described.gameState.replace("游戏开关：", "游戏开关 ");
+    gameButton.textContent = described.gameStateButton || described.gameState;
     gameButton.disabled = !described.canEditGameState;
     gameButton.title = described.canEditGameState
-      ? "编辑这个 Mod 在 addonlist.txt 里的游戏开关"
-      : "该 Mod 位于 disabled 目录，无法直接编辑游戏开关";
+      ? t("strategyGroups.memberRow.gameEditTitle")
+      : t("strategyGroups.memberRow.gameDisabledTitle");
     gameButton.addEventListener("click", () => void runAction(() => toggleGameEnabled(file.path)));
     actions.appendChild(gameButton);
   }
@@ -143,10 +146,10 @@ export function buildModMemberRow({
     fileButton.textContent = described.fileAction;
     fileButton.title =
       described.fileActionKind === "transfer"
-        ? "复制到 addons 目录并关闭工坊原件"
+        ? t("strategyGroups.memberRow.transferTitle")
         : described.fileActionKind === "enable"
-          ? "启用这个 Mod"
-          : "禁用这个 Mod";
+          ? t("strategyGroups.memberRow.enableTitle")
+          : t("strategyGroups.memberRow.disableTitle");
     fileButton.addEventListener("click", () => {
       const action =
         described.fileActionKind === "transfer"

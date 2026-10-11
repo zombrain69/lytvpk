@@ -28,6 +28,9 @@ import {
   sortGroupFilterOptions,
   suggestionMemberRows,
 } from "./group-view.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const memberships = [
   { key: "a.vpk", groupId: "g1", groupName: "打包组", strategy: "single", memberCount: 3, tier: -2, enforce: true },

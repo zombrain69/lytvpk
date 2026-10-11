@@ -1,5 +1,27 @@
 # Changelog
 
+## 未发布 — i18n：组视图/成员行（group-view / member-row 迁移）（第 13 项第七批）（2026-10-12）
+
+- `group-view.mjs`：策略名表（全部开启 / 全部关闭 / 互斥单选 / 随机单选）改 key 表
+  （复用 `strategyGroups.strategy.*`，与 settings 的 strategy-group-format 同 key）；
+  组徽标与悬浮说明（组名 / 成员数 / 策略 / 组权重 / 自动联动 / 两条操作提示）、定位条
+  （汇总 / 组按钮 / 两态标题）、筛选选项（名称（N）/ 权重（复用 `common.tierTag`）/ 缺失数）、
+  缺失提示（文件缺失 N 个 / 等 N 个 / 子组汇总）、删除影响、筛选标签（全部分组 / 1 个分组 /
+  N 个分组）、置信度四条、建议摘要（N 个 Mod）、位置四条（根目录 / 创意工坊 / 已禁用 / 未知位置）、
+  游戏开关三条、文件动作三条（禁用 / 启用 / 复制到 addons）、创建汇总三条改走目录
+  （`strategyGroups.view.*`）。
+- `describeSuggestionMember` 新增 `gameStateButton`（游戏开关 开 / 关 / 未记录）——
+  `member-row.js` 原先把 `described.gameState` 里的「游戏开关：」替换成「游戏开关 」来拼按钮文案，
+  迁移后由 group-view 直接给出按钮变体，去掉这处中文串拼接（未知位置分支同样带该字段）。
+- `member-row.js`：优先级徽标 tooltip、操作失败提示（`{error}` 全句）、详情按钮（文案 / 两态 title）、
+  游戏开关按钮（文案 / 两态 title）、文件动作按钮三条 title 改走目录（`strategyGroups.memberRow.*`）。
+- 目录新增 56 key：`strategyGroups.view.*` 46 + `strategyGroups.memberRow.*` 10；
+  既有条目值零改动。
+- 测试：`group-view.test.mjs` 注入 `installTestCatalog()`；`member-row.test.mjs` 为源码级断言、
+  无需改动（其断言「复制到 addons 只存在于 member-row.js」仍成立）。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变。
+
 ## 未发布 — i18n：建议/提示词阅览层 + 管理窗口配套小模块迁移（第 13 项第六批）（2026-10-11）
 
 - `suggestion-filter.mjs`：四张选项表（置信度 / 来源 / 排序 / 标签覆盖）的 `label` 改

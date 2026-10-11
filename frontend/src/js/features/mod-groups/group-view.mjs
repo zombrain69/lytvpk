@@ -3,6 +3,7 @@
 // 后端 GetModGroupMembership 返回的是"成员级"记录（一个 Mod 可以属于多个组），
 // 这里把它转成列表徽标与筛选需要的索引，并集中实现筛选判定与文案。
 
+import { t } from "../../core/i18n-runtime.js";
 import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 
 export function normalizeGroupKey(key) {
@@ -39,37 +40,40 @@ export function groupsForFile(file, index, currentDirectory = "") {
   return result;
 }
 
-const STRATEGY_LABELS = {
-  all: "全部开启",
-  off: "全部关闭",
-  single: "互斥单选",
-  single_random: "随机单选",
+// 策略名文案走目录（模块求值期不调 t()）：key 表 + 取值时解析。
+const STRATEGY_LABEL_KEYS = {
+  all: "strategyGroups.strategy.all",
+  off: "strategyGroups.strategy.off",
+  single: "strategyGroups.strategy.single",
+  single_random: "strategyGroups.strategy.singleRandom",
 };
 
 export function formatGroupStrategy(strategy) {
-  return STRATEGY_LABELS[String(strategy || "")] || String(strategy || "未设置");
+  const key = STRATEGY_LABEL_KEYS[String(strategy || "")];
+  if (key) return t(key);
+  return String(strategy || t("strategyGroups.strategy.unset"));
 }
 
 /** formatGroupChip：列表徽标上的短标签。 */
 export function formatGroupChip(membership) {
   const name = String(membership?.groupName || membership?.groupId || "").trim();
-  return name ? `组：${name}` : "";
+  return name ? t("strategyGroups.view.chip", { name }) : "";
 }
 
 export function formatGroupChipTitle(membership) {
   const name = String(membership?.groupName || membership?.groupId || "").trim();
   if (!name) return "";
   const parts = [
-    `策略组「${name}」`,
-    `共 ${Number(membership?.memberCount || 0)} 个成员`,
-    `策略：${formatGroupStrategy(membership?.strategy)}`,
+    t("strategyGroups.view.chipTitle.group", { name }),
+    t("strategyGroups.view.chipTitle.members", { count: Number(membership?.memberCount || 0) }),
+    t("strategyGroups.view.chipTitle.strategy", { strategy: formatGroupStrategy(membership?.strategy) }),
   ];
   if (membership?.tier !== null && membership?.tier !== undefined) {
-    parts.push(`组权重 ${membership.tier}`);
+    parts.push(t("strategyGroups.view.chipTitle.tier", { tier: membership.tier }));
   }
-  if (membership?.enforce) parts.push("已开启自动联动");
-  parts.push("单击：打开「策略组管理」窗口并定位到这一组（这个 Mod 所属的组会全部列在窗口顶部）");
-  parts.push("整组开关、整组优先级前移/后移也还在工具栏「分组」菜单里");
+  if (membership?.enforce) parts.push(t("strategyGroups.view.chipTitle.enforce"));
+  parts.push(t("strategyGroups.view.chipTitle.openHint"));
+  parts.push(t("strategyGroups.view.chipTitle.menuHint"));
   return parts.join(" · ");
 }
 
@@ -109,15 +113,15 @@ export function formatModGroupFocusSummary(memberships) {
   const count = (Array.isArray(memberships) ? memberships : []).filter((item) =>
     membershipLabel(item),
   ).length;
-  if (count === 0) return "这个 Mod 现在不属于任何策略组";
-  return `这个 Mod 属于 ${count} 个策略组 —— 点组名展开并跳到那一组（组级动作在那一行右侧）`;
+  if (count === 0) return t("strategyGroups.view.focusNone");
+  return t("strategyGroups.view.focusSummary", { count });
 }
 
 /** formatModGroupFocusChip 聚焦条上的一个组按钮文案（带成员数）。 */
 export function formatModGroupFocusChip(membership) {
   const name = membershipLabel(membership);
   if (!name) return "";
-  return `组：${name} · ${Number(membership?.memberCount || 0)} 个成员`;
+  return t("strategyGroups.view.focusChip", { name, count: Number(membership?.memberCount || 0) });
 }
 
 /** formatModGroupFocusChipTitle 聚焦条上组按钮的悬浮说明。 */
@@ -126,11 +130,14 @@ export function formatModGroupFocusChipTitle(membership, activeGroupId = "") {
   if (!name) return "";
   const isActive = String(membership?.groupId || "") === String(activeGroupId || "");
   return (
-    `策略组「${name}」· 策略：${formatGroupStrategy(membership?.strategy)}` +
-    ` · ${Number(membership?.memberCount || 0)} 个成员` +
+    t("strategyGroups.view.focusChipTitle.base", {
+      name,
+      strategy: formatGroupStrategy(membership?.strategy),
+    }) +
+    t("strategyGroups.view.focusChipTitle.members", { count: Number(membership?.memberCount || 0) }) +
     (isActive
-      ? " · 正在定位这一组（要收起成员用这一行右侧的「收起成员」）"
-      : " · 单击：展开这个组并跳到它那一行")
+      ? t("strategyGroups.view.focusChipTitle.active")
+      : t("strategyGroups.view.focusChipTitle.idle"))
   );
 }
 
@@ -307,9 +314,9 @@ export function formatGroupOptionLabel(option) {
   const memberCount = Number(option.memberCount || 0);
   const missingCount = Number(option.missingCount || 0);
   const tier = groupOptionTierSortValue(option);
-  const parts = [`${option.name || option.id}（${memberCount}）`];
-  if (Number.isFinite(tier)) parts.push(`权重 ${tier}`);
-  if (missingCount > 0) parts.push(`含 ${missingCount} 个缺失`);
+  const parts = [t("strategyGroups.view.optionName", { name: option.name || option.id, count: memberCount })];
+  if (Number.isFinite(tier)) parts.push(t("strategyGroups.common.tierTag", { tier }));
+  if (missingCount > 0) parts.push(t("strategyGroups.view.optionMissing", { count: missingCount }));
   return parts.join(" · ");
 }
 
@@ -323,8 +330,8 @@ export function formatGroupMissingNotice(missingNames, limit = 4) {
     .filter(Boolean);
   if (names.length === 0) return "";
   const shown = names.slice(0, limit).join("、");
-  const extra = names.length > limit ? ` 等 ${names.length} 个` : "";
-  return `文件缺失 ${names.length} 个：${shown}${extra}（放回同名文件会自动回到组里）`;
+  const extra = names.length > limit ? t("strategyGroups.view.missingMore", { count: names.length }) : "";
+  return t("strategyGroups.view.missingNotice", { count: names.length, shown, extra });
 }
 
 /**
@@ -337,8 +344,8 @@ export function formatGroupSubtreeMissingNotice(subtreeMissingCount, affectedChi
   const missing = Number(subtreeMissingCount) || 0;
   if (missing <= 0) return "";
   const children = Number(affectedChildCount) || 0;
-  const scope = children > 0 ? `（涉及 ${children} 个子组）` : "";
-  return `子组里有 ${missing} 个缺失文件${scope}：展开子组即可看到`;
+  const scope = children > 0 ? t("strategyGroups.view.subtreeScope", { count: children }) : "";
+  return t("strategyGroups.view.subtreeMissing", { count: missing, scope });
 }
 
 /**
@@ -350,8 +357,7 @@ export function formatFileGroupImpact(groupNames) {
     .map((name) => String(name || "").trim())
     .filter(Boolean);
   if (names.length === 0) return "";
-  return `该 Mod 还在 ${names.length} 个策略组里：${names.join("、")}。\n` +
-    "删除后组成员会保留（显示为缺失成员），把同名文件放回来就会自动重新回到组里。";
+  return t("strategyGroups.view.deleteImpact", { count: names.length, names: names.join("、") });
 }
 
 /** fileMatchesGroupFilter：没有勾选任何组时视为不过滤。 */
@@ -367,19 +373,23 @@ export function fileMatchesGroupFilter(file, options, activeGroupIds, currentDir
 
 export function formatGroupFilterLabel(activeGroupIds, options) {
   const count = activeGroupIds?.size || 0;
-  if (count === 0) return "全部分组";
+  if (count === 0) return t("strategyGroups.view.filterAll");
   if (count === 1) {
     const id = [...activeGroupIds][0];
     const option = (options || []).find((item) => item.id === id);
-    return option ? option.name : "1 个分组";
+    return option ? option.name : t("strategyGroups.view.filterOne");
   }
-  return `${count} 个分组`;
+  return t("strategyGroups.view.filterCount", { count });
 }
 
-const CONFIDENCE_LABELS = { high: "高置信度", medium: "中置信度", low: "低置信度" };
+const CONFIDENCE_LABEL_KEYS = {
+  high: "strategyGroups.view.confidence.high",
+  medium: "strategyGroups.view.confidence.medium",
+  low: "strategyGroups.view.confidence.low",
+};
 
 export function formatSuggestionConfidence(confidence) {
-  return CONFIDENCE_LABELS[String(confidence || "")] || "待确认";
+  return t(CONFIDENCE_LABEL_KEYS[String(confidence || "")] || "strategyGroups.view.confidence.fallback");
 }
 
 /** formatSuggestionSummary：建议卡片副标题。 */
@@ -387,7 +397,7 @@ export function formatSuggestionSummary(suggestion) {
   if (!suggestion) return "";
   const memberCount = Array.isArray(suggestion.memberKeys) ? suggestion.memberKeys.length : 0;
   const parts = [
-    `${memberCount} 个 Mod`,
+    t("strategyGroups.view.modCount", { count: memberCount }),
     formatSuggestionConfidence(suggestion.confidence),
     String(suggestion.reason || "").trim(),
   ].filter(Boolean);
@@ -398,10 +408,10 @@ export function formatSuggestionSignals(suggestion) {
   return Array.isArray(suggestion?.signals) ? suggestion.signals.filter(Boolean) : [];
 }
 
-const SUGGESTION_MEMBER_LOCATION_LABELS = {
-  root: "根目录",
-  workshop: "创意工坊",
-  disabled: "已禁用",
+const SUGGESTION_MEMBER_LOCATION_KEYS = {
+  root: "strategyGroups.view.location.root",
+  workshop: "strategyGroups.view.location.workshop",
+  disabled: "strategyGroups.view.location.disabled",
 };
 
 /**
@@ -432,9 +442,10 @@ export function describeSuggestionMember(file, options = {}) {
   if (!file) {
     return {
       found: false,
-      location: "未知位置",
-      gameState: "游戏开关：未记录",
-      priority: priorityLabel || "未写入 addonlist",
+      location: t("strategyGroups.view.location.unknown"),
+      gameState: t("strategyGroups.view.gameState.unrecorded"),
+      gameStateButton: t("strategyGroups.view.gameStateButton.unrecorded"),
+      priority: priorityLabel || t("mods.priority.labelUnknown"),
       fileAction: "",
       fileActionKind: "unknown",
       canToggleFile: false,
@@ -443,21 +454,28 @@ export function describeSuggestionMember(file, options = {}) {
   }
 
   const locationKey = String(file.location || "root");
-  const location = SUGGESTION_MEMBER_LOCATION_LABELS[locationKey] || locationKey;
+  const location = SUGGESTION_MEMBER_LOCATION_KEYS[locationKey]
+    ? t(SUGGESTION_MEMBER_LOCATION_KEYS[locationKey])
+    : locationKey;
   const gameStateKnown = Boolean(file.gameStateKnown);
-  const gameState = gameStateKnown
-    ? file.gameEnabled
-      ? "游戏开关：开"
-      : "游戏开关：关"
-    : "游戏开关：未记录";
+  let gameState = t("strategyGroups.view.gameState.unrecorded");
+  let gameStateButton = t("strategyGroups.view.gameStateButton.unrecorded");
+  if (gameStateKnown) {
+    gameState = file.gameEnabled
+      ? t("strategyGroups.view.gameState.on")
+      : t("strategyGroups.view.gameState.off");
+    gameStateButton = file.gameEnabled
+      ? t("strategyGroups.view.gameStateButton.on")
+      : t("strategyGroups.view.gameStateButton.off");
+  }
 
-  let fileAction = "禁用";
+  let fileAction = t("strategyGroups.view.fileAction.disable");
   let fileActionKind = "disable";
   if (locationKey === "workshop") {
-    fileAction = "复制到 addons";
+    fileAction = t("strategyGroups.view.fileAction.transfer");
     fileActionKind = "transfer";
   } else if (locationKey === "disabled") {
-    fileAction = "启用";
+    fileAction = t("strategyGroups.view.fileAction.enable");
     fileActionKind = "enable";
   }
 
@@ -465,7 +483,8 @@ export function describeSuggestionMember(file, options = {}) {
     found: true,
     location,
     gameState,
-    priority: priorityLabel || "未写入 addonlist",
+    gameStateButton,
+    priority: priorityLabel || t("mods.priority.labelUnknown"),
     fileAction,
     fileActionKind,
     canToggleFile: locationKey !== "workshop",
@@ -491,7 +510,7 @@ export function defaultSuggestionSelection(suggestion) {
 export function formatSuggestionCreateSummary(suggestion, selectedKeys) {
   const total = Array.isArray(suggestion?.memberKeys) ? suggestion.memberKeys.length : 0;
   const selected = selectedKeys?.size || 0;
-  if (selected === 0) return "请至少勾选一个 Mod";
-  if (selected === total) return `将创建包含全部 ${total} 个 Mod 的策略组`;
-  return `将创建包含 ${selected} / ${total} 个 Mod 的策略组`;
+  if (selected === 0) return t("strategyGroups.view.createNone");
+  if (selected === total) return t("strategyGroups.view.createAll", { count: total });
+  return t("strategyGroups.view.createPartial", { selected, total });
 }
