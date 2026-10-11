@@ -59,7 +59,8 @@ test("messages/zh-CN.json 覆盖所有页面 t() 引用的 key", () => {
   for (const file of listSourceFiles(srcRoot)) {
     const source = readFileSync(file, "utf8");
     // 只有真正引入过运行时的文件才可能用 t()，其余文件（含同名小助手函数）跳过。
-    if (!source.includes("core/i18n-runtime.js")) continue;
+    // 两种导入写法都要认：features 下是 "../core/i18n-runtime.js"，core 内部是 "./i18n-runtime.js"。
+    if (!source.includes("i18n-runtime.js")) continue;
     for (const match of source.matchAll(TRANSLATION_CALL)) {
       referenced += 1;
       const key = match[1];

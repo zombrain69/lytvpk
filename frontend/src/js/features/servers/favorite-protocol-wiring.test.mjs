@@ -7,6 +7,9 @@ import test from "node:test";
 
 const runtime = readFileSync(new URL("../app-runtime.js", import.meta.url), "utf8");
 const formModal = readFileSync(new URL("./form-modal.js", import.meta.url), "utf8");
+const catalog = JSON.parse(
+  readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+);
 const backend = readFileSync(
   new URL("../../../../../internal/app/server_favorite.go", import.meta.url),
   "utf8",
@@ -29,8 +32,11 @@ test("前端收到 protocol:favoriteServer 会刷新并提示", () => {
   assert.match(runtime, /initServerStorage\(\)/, "要先加载服务器存储");
   assert.match(runtime, /renderServers\(\)/, "要重画服务器列表");
   assert.match(runtime, /switchAppPage\("servers"/, "要切到收藏服务器页");
-  assert.match(runtime, /已收藏服务器/, "新增时要提示");
-  assert.match(runtime, /已在收藏里/, "重复时也要说清楚");
+  // 文案本体已迁入目录：源码断言 key 接线，文字断言目录内容（双重校验）。
+  assert.match(runtime, /servers\.notification\.favoriteAdded/, "新增时要提示（走目录 key）");
+  assert.match(runtime, /servers\.notification\.favoriteDuplicate/, "重复时也要说清楚（走目录 key）");
+  assert.match(catalog.servers.notification.favoriteAdded, /^已收藏服务器：/, "目录里要有新增提示文案");
+  assert.match(catalog.servers.notification.favoriteDuplicate, /^服务器已在收藏里：/, "目录里要有重复提示文案");
 });
 
 test("手动填写的服务器地址与协议走同一套规范化", () => {

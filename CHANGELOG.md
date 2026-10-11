@@ -1,5 +1,32 @@
 # Changelog
 
+## 未发布 — i18n：app-runtime 协议/事件提示 + shell 导航迁移（第 11 项）（2026-10-11）
+
+- `app-runtime.js` 全部用户可见提示改走 `t()`（23 处）：初始化失败 / 前端崩溃报告两条兜底文案
+  （`app.error.initFailed` / `app.crash.*`）、命令面板未实现提示与窗口几何重置通知
+  （`app.shell.commandPalette.notImplemented` / `app.windowGeometry.*`）、F2·Delete 目标提示
+  （`app.shortcuts.*`）、协议处理失败（`app.protocol.failed`）、addonlist 守卫恢复通知
+  （`settings.addonlist.guard.restored`）、工坊/下载链接粘贴成功与失败（`downloads.modal.*`）、
+  「打开文件方式」状态行与保存/恢复通知（`settings.interface.openWith.*` 6 键）、
+  收藏协议两条提示与刷新失败（`servers.notification.favoriteAdded|favoriteDuplicate` /
+  `servers.error.favoriteRefreshFailed`）、批量上传未选文件提示（`mods.batch.selectFilesFirst`）、
+  旧后端难度修改兜底（`servers.panel.error.difficultyUnsupported`）。console 诊断与
+  「人物 / 武器」标签值（数据，非界面文案）保持原样。
+- shell 导航迁移：`ui-shell.js` 的 8 个菜单项改 `labelKey`（`app.shell.nav.*`）、
+  启动/主题按钮与侧栏 `aria` 改 `t()`；运行时重建出的节点全部带 `data-i18n*`
+  （span / 标题 / aria），语言切换后由全量重放更新；`theme.js` 的「开灯 / 关灯模式」标签
+  改为「当前状态 → key」映射（ui-shell 建初始值、切换时由 theme.js 同步）。
+  `index.html` 的静态回退（7 title + 4 span）只作 pre-JS 兜底、运行时被整体替换；
+  launch / theme 的静态 `title` 按原行为在运行时移除（未挂 `data-i18n-title`，
+  避免回填复活 tooltip）。
+- 测试：`favorite-protocol-wiring.test.mjs` 两条文字断言改「源码接线 + 目录内容」双重校验；
+  `i18n-catalog.test.mjs` 的扫描范围放宽到 `./i18n-runtime.js` 导入写法
+  （core 内部模块此前不在检查面内）；新增 `frontend/src/js/features/app-runtime-i18n.test.mjs`
+  （shell 导航 key + data-i18n* 接线 + 23 条运行时消息「渲染成原句」表）。
+  目录新增 37 key、无删除、既有条目值零改动。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：静态节点收尾完成（剩余 281 项全部甄别，223 处迁移 / 58 项确认 JS 接管）（2026-10-11）
 
 - `index.html` 剩余静态节点逐项甄别（审计口径：属性 59 + 文本 222 = 281 项）：

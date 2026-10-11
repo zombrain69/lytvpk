@@ -11,7 +11,7 @@ import {
 } from "../core/config.js";
 import { applyUIScale, setupUIScaleShortcuts } from "../core/ui-scale.js";
 import { applyReadingComfort } from "../core/reading-comfort.mjs";
-import { applyTranslations } from "../core/i18n-runtime.js";
+import { applyTranslations, t } from "../core/i18n-runtime.js";
 import { setupModalResizers } from "../core/modal-resizer.js";
 import { setupFloatingModal } from "../core/floating-modal.js";
 import { initTheme, setupThemeToggle } from "../core/theme.js";
@@ -377,7 +377,7 @@ let externalRefreshScheduler = null;
 const ChangePanelDifficulty = (serverID, difficulty) => {
   const method = window?.go?.app?.App?.ChangePanelDifficulty;
   if (typeof method !== "function") {
-    return Promise.reject(new Error("当前后端不支持修改难度"));
+    return Promise.reject(new Error(t("servers.panel.error.difficultyUnsupported")));
   }
   return method(serverID, difficulty);
 };
@@ -590,7 +590,7 @@ configureWorkshopBrowser({
 document.addEventListener("DOMContentLoaded", function () {
   initializeApp().catch((error) => {
     console.error("应用初始化失败:", error);
-    showError("应用初始化失败: " + error);
+    showError(t("app.error.initFailed", { error: String(error) }));
   });
 });
 
@@ -605,7 +605,7 @@ function installFrontendCrashReporting() {
   frontendCrashReportingInstalled = true;
 
   const report = (reason, stack) => {
-    const message = String(reason?.message || reason || "未知前端错误");
+    const message = String(reason?.message || reason || t("app.crash.unknownError"));
     const detail = String(reason?.stack || stack || "");
     // 同一处错误连续触发（例如渲染循环）时只上报一次，避免刷爆 crashes 目录。
     const signature = `${message}\u0000${detail.slice(0, 200)}`;
@@ -625,7 +625,7 @@ function installFrontendCrashReporting() {
     report(event.error || event.message, event.error?.stack || "");
   });
   window.addEventListener("unhandledrejection", (event) => {
-    report(event.reason || "未处理的 Promise 拒绝", event.reason?.stack || "");
+    report(event.reason || t("app.crash.unhandledRejection"), event.reason?.stack || "");
   });
 }
 
@@ -1013,7 +1013,7 @@ async function initializeApp() {
 
   if (!window._addonListGuardEventsRegistered) {
     EventsOn("addonlist_guard_restored", async () => {
-      showNotification("检测到游戏覆盖 addonlist.txt，已恢复受保护版本", "info");
+      showNotification(t("settings.addonlist.guard.restored"), "info");
       try {
         // 提示已经说明了发生了什么，刷新本身走静默：不必再闪一次加载遮罩。
         await refreshFilesKeepFilter({ silent: true });
@@ -1120,8 +1120,8 @@ function setupCommandPaletteWithDeps() {
       const cleared = resetAllWindowGeometry();
       showNotification(
         cleared > 0
-          ? `已重置 ${cleared} 个窗口的位置与大小；重新打开窗口会回到默认位置`
-          : "窗口位置本来就是默认值",
+          ? t("app.windowGeometry.resetDone", { count: cleared })
+          : t("app.windowGeometry.resetNoop"),
         "success",
       );
     },
@@ -1131,7 +1131,7 @@ function setupCommandPaletteWithDeps() {
     runCommand: async (id) => {
       const action = actions[id];
       if (!action) {
-        showNotification("这条命令暂时没有实现", "info");
+        showNotification(t("app.shell.commandPalette.notImplemented"), "info");
         return;
       }
       await action();
@@ -1367,8 +1367,8 @@ function setupEventListeners() {
       if (!target) {
         showNotification(
           event.key === "F2"
-            ? "先用 ↑↓ 把光标移到要重命名的 Mod 上（或只选中一个）"
-            : "先用 ↑↓ 把光标移到要删除的 Mod 上（或勾选要删除的那些）",
+            ? t("app.shortcuts.renameHint")
+            : t("app.shortcuts.deleteHint"),
           "info",
         );
         return;
@@ -1648,7 +1648,7 @@ function setupBatchActionEvents() {
     batchUploadServerBtn.addEventListener("click", () => {
       const filePaths = Array.from(appState.selectedFiles);
       if (filePaths.length === 0) {
-        showNotification("请先选择文件", "info");
+        showNotification(t("mods.batch.selectFilesFirst"), "info");
         return;
       }
       showServerSubmenu(batchUploadServerBtn, filePaths);
@@ -1818,10 +1818,10 @@ function setupBatchActionEvents() {
       try {
         const text = await navigator.clipboard.readText();
         document.getElementById("workshop-url").value = text;
-        showNotification("已粘贴", "success");
+        showNotification(t("downloads.modal.notification.pasted"), "success");
       } catch (err) {
         console.error("粘贴失败:", err);
-        showError("粘贴失败，请使用 Ctrl+V");
+        showError(t("downloads.modal.error.pasteFailed"));
       }
     });
 
@@ -1833,10 +1833,10 @@ function setupBatchActionEvents() {
         const input = document.getElementById("download-url");
         input.value = text;
         input.dispatchEvent(new Event("input"));
-        showNotification("已粘贴", "success");
+        showNotification(t("downloads.modal.notification.pasted"), "success");
       } catch (err) {
         console.error("粘贴失败:", err);
-        showError("粘贴失败，请使用 Ctrl+V");
+        showError(t("downloads.modal.error.pasteFailed"));
       }
     });
 
@@ -1867,16 +1867,16 @@ function setupBatchActionEvents() {
       if (argsInput) argsInput.value = config.openWithArguments;
       if (status) {
         status.textContent = config.openWithProgram
-          ? `已保存：以后"打开所在位置"会用 ${config.openWithProgram}`
-          : "当前使用系统默认（资源管理器定位文件）";
+          ? t("settings.interface.openWith.statusSaved", { program: config.openWithProgram })
+          : t("settings.interface.openWith.statusDefault");
       }
       showNotification(
-        config.openWithProgram ? "已保存：用自定义程序打开/定位" : "已恢复系统默认打开方式",
+        config.openWithProgram ? t("settings.interface.openWith.notifySaved") : t("settings.interface.openWith.notifyReset"),
         "success",
       );
     } catch (error) {
-      if (status) status.textContent = `保存失败：${String(error?.message || error)}`;
-      showError("保存打开方式失败: " + error);
+      if (status) status.textContent = t("settings.interface.openWith.statusSaveFailed", { error: String(error?.message || error) });
+      showError(t("settings.interface.openWith.saveFailed", { error: String(error) }));
     } finally {
       button.disabled = false;
     }
@@ -2060,7 +2060,7 @@ function setupWailsEvents() {
   EventsOn("protocol:error", (data) => {
     console.error("协议处理错误:", data);
     if (data && data.message) {
-      showError(`协议处理失败: ${data.message}`);
+      showError(t("app.protocol.failed", { message: data.message }));
     }
   });
 
@@ -2072,13 +2072,13 @@ function setupWailsEvents() {
       await renderServers();
       switchAppPage("servers", { silent: true });
       if (data?.added) {
-        showNotification(`已收藏服务器：${data.name || data.address}`, "success");
+        showNotification(t("servers.notification.favoriteAdded", { name: data.name || data.address }), "success");
       } else {
-        showNotification(`服务器已在收藏里：${data?.name || data?.address || ""}`, "info");
+        showNotification(t("servers.notification.favoriteDuplicate", { name: data?.name || data?.address || "" }), "info");
       }
     } catch (error) {
       console.error("刷新服务器列表失败:", error);
-      showError("已添加服务器，但刷新列表失败: " + error);
+      showError(t("servers.error.favoriteRefreshFailed", { error: String(error) }));
     }
   });
 

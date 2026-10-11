@@ -10,15 +10,54 @@
       "commandPalette": {
         "tooltip": "命令面板（Ctrl+K）：输入关键词跳转页面或执行常用动作",
         "ariaLabel": "命令面板",
-        "inputPlaceholder": "输入命令或页面名（例如：冲突 / 体检 / 工坊 / 字号）"
+        "inputPlaceholder": "输入命令或页面名（例如：冲突 / 体检 / 工坊 / 字号）",
+        "notImplemented": "这条命令暂时没有实现"
       },
       "shortcuts": {
         "dialogLabel": "键盘快捷键总览",
         "tooltip": "快捷键总览"
       },
+      "navAriaLabel": "主菜单",
+      "nav": {
+        "mods": "MOD 管理",
+        "workshop": "创意工坊",
+        "downloads": "下载与解析",
+        "servers": "收藏服务器",
+        "diagnostics": "工具箱",
+        "settings": "设置",
+        "docs": "使用说明",
+        "about": "关于"
+      },
+      "launch": {
+        "label": "启动L4D2",
+        "recentServers": "最近服务器"
+      },
+      "theme": {
+        "ariaLabel": "切换主题",
+        "toLight": "开灯模式",
+        "toDark": "关灯模式"
+      },
       "title": "LytVPK - L4D2 MOD管理工具"
     },
     "loadingMessage": "正在加载...",
+    "error": {
+      "initFailed": "应用初始化失败: {error}"
+    },
+    "crash": {
+      "unknownError": "未知前端错误",
+      "unhandledRejection": "未处理的 Promise 拒绝"
+    },
+    "windowGeometry": {
+      "resetDone": "已重置 {count} 个窗口的位置与大小；重新打开窗口会回到默认位置",
+      "resetNoop": "窗口位置本来就是默认值"
+    },
+    "shortcuts": {
+      "renameHint": "先用 ↑↓ 把光标移到要重命名的 Mod 上（或只选中一个）",
+      "deleteHint": "先用 ↑↓ 把光标移到要删除的 Mod 上（或勾选要删除的那些）"
+    },
+    "protocol": {
+      "failed": "协议处理失败: {message}"
+    },
     "exit": {
       "title": "确认退出",
       "descHead": "当前有正在进行的下载或上传任务，退出将导致任务中断。",
@@ -315,7 +354,8 @@
       "exportZip": "导出ZIP",
       "transferToRoot": "转移至根目录",
       "move": "移动文件",
-      "delete": "批量删除"
+      "delete": "批量删除",
+      "selectFilesFirst": "请先选择文件"
     },
     "singletonConflict": {
       "title": "同类的 Mod 已经在生效",
@@ -603,7 +643,8 @@
         "batchAdded": "已添加 {count} 个任务到下载队列",
         "optimizing": "正在优选最佳线路，完成后自动开始下载",
         "alreadyQueued": "这些文件已在添加到下载队列，请勿重复点击",
-        "backgroundAdded": "已添加到后台下载队列"
+        "backgroundAdded": "已添加到后台下载队列",
+        "pasted": "已粘贴"
       },
       "error": {
         "noLinks": "没有可复制的下载链接",
@@ -616,7 +657,8 @@
         "ipStatusUnavailable": "无法获取优选线路状态: {error}",
         "ipCheckFailed": "优选线路状态检查失败: {error}",
         "downloadUrlRequired": "请输入或解析下载链接",
-        "notFound": "未找到相关文件"
+        "notFound": "未找到相关文件",
+        "pasteFailed": "粘贴失败，请使用 Ctrl+V"
       },
       "urlLabel": "创意工坊链接",
       "urlPlaceholder": "粘贴 Steam 创意工坊链接...",
@@ -685,6 +727,7 @@
     "error": {
       "unknown": "未知错误",
       "saveRecentFailed": "保存最近服务器失败: {error}",
+      "favoriteRefreshFailed": "已添加服务器，但刷新列表失败: {error}",
       "notFoundToDelete": "无法找到要删除的服务器",
       "invalidIndex": "删除失败：索引无效",
       "deleteFailed": "删除服务器失败: {error}",
@@ -703,7 +746,9 @@
       "exportedClipboard": "服务器配置已复制到剪贴板",
       "exportedFile": "服务器配置已导出",
       "imported": "成功导入 {count} 个新服务器",
-      "noNewServers": "没有发现新的服务器配置"
+      "noNewServers": "没有发现新的服务器配置",
+      "favoriteAdded": "已收藏服务器：{name}",
+      "favoriteDuplicate": "服务器已在收藏里：{name}"
     },
     "form": {
       "addTitle": "添加服务器",
@@ -763,6 +808,7 @@
         "statusFailed": "获取面板状态失败: {error}",
         "restartFailed": "重启失败: {error}",
         "difficultyFailed": "修改难度失败: {error}",
+        "difficultyUnsupported": "当前后端不支持修改难度",
         "mapListFailed": "获取地图列表失败: {error}",
         "hotReloadFailed": "热重载失败: {error}",
         "hotReloadStatusFailed": "获取热重载状态失败: {error}",
@@ -1184,6 +1230,12 @@
         "argsPlaceholder": "例如 /O /T /L=\"{dir}\"",
         "save": "保存",
         "reset": "恢复默认",
+        "statusSaved": "已保存：以后\"打开所在位置\"会用 {program}",
+        "statusDefault": "当前使用系统默认（资源管理器定位文件）",
+        "notifySaved": "已保存：用自定义程序打开/定位",
+        "notifyReset": "已恢复系统默认打开方式",
+        "statusSaveFailed": "保存失败：{error}",
+        "saveFailed": "保存打开方式失败: {error}",
         "help": {
           "leaveEmptyLabel": "留空 = 系统默认",
           "afterLeaveEmpty": "（Windows 用资源管理器定位并选中文件，行为与以前完全一致）。",
@@ -1402,7 +1454,8 @@
         "status": "监控状态：{status}",
         "on": "已开启 addonlist.txt 自动恢复监控",
         "off": "已关闭 addonlist.txt 自动恢复监控",
-        "failed": "更新监控状态失败: {error}"
+        "failed": "更新监控状态失败: {error}",
+        "restored": "检测到游戏覆盖 addonlist.txt，已恢复受保护版本"
       },
       "delete": {
         "button": "删除 addonlist.txt",

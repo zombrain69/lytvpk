@@ -1,3 +1,5 @@
+import { t } from "./i18n-runtime.js";
+
 const NAV_ICONS = {
   mods: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
   workshop: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><path d="M9 21h6"/></svg>`,
@@ -14,14 +16,14 @@ const NAV_ICONS = {
 const DOCS_URL = "https://zombrain69.github.io/lytvpk/";
 
 const MENU_ITEMS = [
-  { page: "mods", id: "app-nav-mods", label: "MOD 管理", icon: NAV_ICONS.mods },
-  { page: "workshop", sourceId: "browser-btn", label: "创意工坊", icon: NAV_ICONS.workshop },
-  { page: "downloads", sourceId: "workshop-btn", label: "下载与解析", icon: NAV_ICONS.downloads },
-  { page: "servers", sourceId: "server-favorites-btn", label: "收藏服务器", icon: NAV_ICONS.servers },
-  { page: "diagnostics", id: "app-nav-diagnostics", label: "工具箱", icon: NAV_ICONS.diagnostics },
-  { page: "settings", sourceId: "global-settings-btn", label: "设置", icon: NAV_ICONS.settings },
-  { id: "app-nav-docs", label: "使用说明", icon: NAV_ICONS.docs, externalUrl: DOCS_URL },
-  { page: "about", sourceId: "info-btn", label: "关于", icon: NAV_ICONS.about },
+  { page: "mods", id: "app-nav-mods", labelKey: "app.shell.nav.mods", icon: NAV_ICONS.mods },
+  { page: "workshop", sourceId: "browser-btn", labelKey: "app.shell.nav.workshop", icon: NAV_ICONS.workshop },
+  { page: "downloads", sourceId: "workshop-btn", labelKey: "app.shell.nav.downloads", icon: NAV_ICONS.downloads },
+  { page: "servers", sourceId: "server-favorites-btn", labelKey: "app.shell.nav.servers", icon: NAV_ICONS.servers },
+  { page: "diagnostics", id: "app-nav-diagnostics", labelKey: "app.shell.nav.diagnostics", icon: NAV_ICONS.diagnostics },
+  { page: "settings", sourceId: "global-settings-btn", labelKey: "app.shell.nav.settings", icon: NAV_ICONS.settings },
+  { id: "app-nav-docs", labelKey: "app.shell.nav.docs", icon: NAV_ICONS.docs, externalUrl: DOCS_URL },
+  { page: "about", sourceId: "info-btn", labelKey: "app.shell.nav.about", icon: NAV_ICONS.about },
 ];
 
 let activePage = "mods";
@@ -43,7 +45,7 @@ export function initAppShell() {
   const sidebar = document.createElement("aside");
   sidebar.className = "app-sidebar";
   sidebar.innerHTML = `
-    <nav class="sidebar-nav" aria-label="主菜单">
+    <nav class="sidebar-nav" aria-label="主菜单" data-i18n-aria-label="app.shell.navAriaLabel">
       <div class="sidebar-active-indicator" aria-hidden="true"></div>
     </nav>
     <div class="sidebar-footer"></div>
@@ -115,16 +117,23 @@ function buildSidebar(sidebar) {
     if (!item.sourceId) {
       button.id = item.id;
       button.type = "button";
-      button.innerHTML = `${item.icon}<span>${item.label}</span>`;
-    } else {
-      button.innerHTML = `${item.icon}<span>${item.label}</span>`;
     }
+
+    // 文案来自目录（index.html 里的静态文本只是 pre-JS 兜底，运行时会在这里重建）；
+    // span / title 都带 data-i18n*，语言切换后的全量回填会更新它们。
+    const label = t(item.labelKey);
+    button.innerHTML = item.icon;
+    const labelSpan = document.createElement("span");
+    labelSpan.setAttribute("data-i18n", item.labelKey);
+    labelSpan.textContent = label;
+    button.appendChild(labelSpan);
 
     button.className = "sidebar-nav-item";
     if (item.page) {
       button.dataset.page = item.page;
     }
-    button.title = item.label;
+    button.title = label;
+    button.setAttribute("data-i18n-title", item.labelKey);
     button.setAttribute("type", "button");
     button.addEventListener("click", () => {
       if (item.externalUrl) {
@@ -146,17 +155,22 @@ function buildSidebar(sidebar) {
 
     launchBtn.className = "sidebar-quick-action launch-action";
     launchBtn.removeAttribute("title");
-    launchBtn.setAttribute("aria-label", "启动L4D2");
+    launchBtn.setAttribute("aria-label", t("app.shell.launch.label"));
+    launchBtn.setAttribute("data-i18n-aria-label", "app.shell.launch.label");
     launchBtn.setAttribute("aria-haspopup", "menu");
     launchBtn.setAttribute("aria-controls", "launch-server-popover");
     const span = launchBtn.querySelector("span");
-    if (span) span.textContent = "启动L4D2";
+    if (span) {
+      span.setAttribute("data-i18n", "app.shell.launch.label");
+      span.textContent = t("app.shell.launch.label");
+    }
 
     const launchPopover = document.createElement("div");
     launchPopover.id = "launch-server-popover";
     launchPopover.className = "launch-server-popover";
     launchPopover.setAttribute("role", "menu");
-    launchPopover.setAttribute("aria-label", "最近服务器");
+    launchPopover.setAttribute("aria-label", t("app.shell.launch.recentServers"));
+    launchPopover.setAttribute("data-i18n-aria-label", "app.shell.launch.recentServers");
 
     launchWrapper.append(launchBtn, launchPopover);
     footer.appendChild(launchWrapper);
@@ -165,12 +179,20 @@ function buildSidebar(sidebar) {
   if (themeBtn) {
     themeBtn.className = "sidebar-quick-action theme-action";
     themeBtn.removeAttribute("title");
-    themeBtn.setAttribute("aria-label", "切换主题");
+    themeBtn.setAttribute("aria-label", t("app.shell.theme.ariaLabel"));
+    themeBtn.setAttribute("data-i18n-aria-label", "app.shell.theme.ariaLabel");
     if (!themeBtn.querySelector(".quick-label")) {
       const label = document.createElement("span");
       label.className = "quick-label";
       const isDark = document.documentElement.classList.contains("dark-mode");
-      label.textContent = isDark ? "开灯模式" : "关灯模式";
+      // 深色时提示「开灯模式」，浅色时提示「关灯模式」；theme.js 切换时同步这两个 key。
+      if (isDark) {
+        label.setAttribute("data-i18n", "app.shell.theme.toLight");
+        label.textContent = t("app.shell.theme.toLight");
+      } else {
+        label.setAttribute("data-i18n", "app.shell.theme.toDark");
+        label.textContent = t("app.shell.theme.toDark");
+      }
       themeBtn.appendChild(label);
     }
     footer.appendChild(themeBtn);

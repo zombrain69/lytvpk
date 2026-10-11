@@ -1,4 +1,5 @@
 import { getConfig, saveConfig } from "./config.js";
+import { t } from "./i18n-runtime.js";
 
 export function initTheme() {
   const savedTheme = getConfig().theme;
@@ -28,7 +29,15 @@ export function updateThemeIcon() {
 
   const themeLabel = document.querySelector("#theme-toggle-btn .quick-label");
   if (themeLabel) {
-    themeLabel.textContent = isDark ? "开灯模式" : "关灯模式";
+    // 深色时提示「开灯模式」，浅色时提示「关灯模式」；data-i18n 跟着当前状态走，
+    // 语言切换的全量重放才能拿到正确的 key。
+    if (isDark) {
+      themeLabel.setAttribute("data-i18n", "app.shell.theme.toLight");
+      themeLabel.textContent = t("app.shell.theme.toLight");
+    } else {
+      themeLabel.setAttribute("data-i18n", "app.shell.theme.toDark");
+      themeLabel.textContent = t("app.shell.theme.toDark");
+    }
   }
 }
 
