@@ -1,5 +1,24 @@
 # Changelog
 
+## 未发布 — i18n：组成员操作家族（group-picker / group-tag 迁移）（第 13 项第五批）（2026-10-11）
+
+- `group-picker-view.mjs`：行禁用原因五条、三种模式动词（静态表 `MODE_VERBS` → key 表
+  `MODE_VERB_KEYS` + `modeVerb()`，模块求值期不调 `t()`）、摘要 / 结果 / 按钮与标题两态 /
+  行标签（权重 / 自动联动 / 上级）/ 行详情（成员数 / 选中里已有）/ 可视摘要改走目录。
+- `group-picker.js`：入口两条错误、源组阶段标题、摘要整句（选择源组态）、空态三态、
+  「下一步」按钮、已全在结果通知、三条失败前缀（改 `{error}` 全句 key）、新建组默认描述
+  （「从 Mod 管理页勾选并加入」，随界面语言生成、按创建时语言持久化）与创建通知改走目录。
+- `group-tag.js`：预览行（成员数 + 已带标签部分）、「…还有 N 个」、标题、错误与失败前缀改走目录。
+- `group-tag-view.mjs`：结果汇总（应用于 / 跳过 / 缺失 / 失败）、来源三条、建议行（含来源 /
+  不含来源两种）与空建议说明改走目录。
+- 目录新增 68 key：`strategyGroups.common.*` 5（跨文件同文复用：「没有可用的策略组」/
+  「已创建策略组…」/「N 个成员」/「权重 N」/「自动联动」）+ `strategyGroups.picker.*` 44 +
+  `strategyGroups.tag.*` 19；既有条目值零改动。
+- 测试：`group-picker-view.test.mjs` / `group-tag-view.test.mjs` 注入 `installTestCatalog()`，
+  断言逐字对照目录（`group-picker.test.mjs` 不含中文断言，无需改动）。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变。
+
 ## 未发布 — i18n：分类树（category-tree 家族）迁移（第 13 项第四批）（2026-10-11）
 
 - `category-tree.mjs`：`PRESET_GROUPS` / `STATUS_BRANCH` / 「全部 Mod」/「其它标签」改

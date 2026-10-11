@@ -7,6 +7,9 @@ import {
   formatTagOrigin,
   formatTagSuggestionLine,
 } from "./group-tag-view.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("formatTagApplySummary 汇总打标签结果", () => {
   assert.equal(

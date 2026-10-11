@@ -10,6 +10,7 @@
 
 import { appState } from "../state.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 import {
   AddModStrategyGroupMembers,
@@ -98,12 +99,12 @@ export async function openGroupPicker({ mode = GROUP_PICKER_MODES.add, keys, sou
   if (!modal) return;
   const normalizedKeys = [...new Set((keys || []).map((key) => String(key || "").trim()).filter(Boolean))];
   if (normalizedKeys.length === 0) {
-    showError("请先勾选要处理的 Mod（当前没有可用的 addonlist 键）");
+    showError(t("strategyGroups.picker.error.noKeys"));
     return;
   }
   const groups = await loadGroups();
   if (groups.length === 0) {
-    showError("还没有策略组：先用「分组建议」或「用选中的 Mod 建组」建一个组");
+    showError(t("strategyGroups.picker.error.noGroups"));
     return;
   }
   pickerState = {
@@ -174,7 +175,7 @@ function renderGroupPicker() {
   const sourceName = sourceGroup?.name || "";
 
   if (title) {
-    title.textContent = choosingSource ? "选择要移出的策略组" : groupPickerTitle(mode);
+    title.textContent = choosingSource ? t("strategyGroups.picker.title.selectSource") : groupPickerTitle(mode);
   }
 
   const { rows, scopedRows, visibleRows, relevantOnly } = computeVisibleRows();
@@ -185,9 +186,10 @@ function renderGroupPicker() {
 
   if (summary) {
     if (choosingSource) {
-      summary.textContent =
-        `已选中 ${pickerState.keys.length} 个 Mod；它们分布在 ${visibleRows.length} 个策略组里，` +
-        "请选择要从哪个组移动（下一步再选目标组）";
+      summary.textContent = t("strategyGroups.picker.summary.source", {
+        count: pickerState.keys.length,
+        groups: visibleRows.length,
+      });
     } else {
       summary.textContent = formatGroupPickerSummary({
         rows,
@@ -212,10 +214,10 @@ function renderGroupPicker() {
     const empty = document.createElement("div");
     empty.className = "group-picker-empty";
     empty.textContent = pickerView.query
-      ? `没有匹配「${pickerView.query}」的策略组`
+      ? t("strategyGroups.picker.empty.noMatch", { query: pickerView.query })
       : relevantOnly
-        ? "没有包含这些 Mod 的策略组（取消「只看相关」可以看到全部）"
-        : "没有可用的策略组";
+        ? t("strategyGroups.picker.empty.noRelevant")
+        : t("strategyGroups.common.noneGroups");
     list.appendChild(empty);
   }
   visibleRows.forEach((row) => {
@@ -275,7 +277,7 @@ function renderGroupPicker() {
 
   if (confirm) {
     confirm.disabled = !pickerView.activeId;
-    confirm.textContent = choosingSource ? "下一步" : groupPickerConfirmLabel(mode);
+    confirm.textContent = choosingSource ? t("strategyGroups.picker.nextStep") : groupPickerConfirmLabel(mode);
   }
   if (newRow) {
     // "新建并加入"只在加入模式且已经选定目标时才有意义。
@@ -353,7 +355,7 @@ async function confirmGroupPicker() {
       const updated = await AddModStrategyGroupMembers(id, keys);
       const added = Math.max(0, (updated?.members || []).length - before);
       if (added === 0) {
-        showNotification(`选中的 Mod 已经都在「${updated?.name || group?.name}」里了`, "info");
+        showNotification(t("strategyGroups.picker.allPresent", { name: updated?.name || group?.name }), "info");
       } else {
         showNotification(formatGroupPickerResult(updated, { mode, keyCount: added }), "success");
       }
@@ -369,10 +371,13 @@ async function confirmGroupPicker() {
     if (typeof onDone === "function") onDone();
     closeGroupPicker();
   } catch (error) {
-    showError(
-      (mode === GROUP_PICKER_MODES.add ? "加入策略组失败: " : mode === GROUP_PICKER_MODES.remove ? "移出策略组失败: " : "移动策略组失败: ") +
-        String(error?.message || error),
-    );
+    const failKey =
+      mode === GROUP_PICKER_MODES.add
+        ? "strategyGroups.picker.error.addFailed"
+        : mode === GROUP_PICKER_MODES.remove
+          ? "strategyGroups.picker.error.removeFailed"
+          : "strategyGroups.picker.error.moveFailed";
+    showError(t(failKey, { error: String(error?.message || error) }));
     if (confirmButton) confirmButton.disabled = false;
   }
 }
@@ -382,19 +387,19 @@ async function createGroupFromPicker() {
   const input = element("group-picker-new-name");
   const name = String(input?.value || "").trim();
   if (!name) {
-    showError("请先填写新策略组的名称");
+    showError(t("strategyGroups.picker.error.nameRequired"));
     input?.focus();
     return;
   }
   const { keys, onDone } = pickerState;
   try {
-    const group = await CreateModStrategyGroupFromKeys(name, "从 Mod 管理页勾选并加入", "single", keys);
-    showNotification(`已创建策略组「${group.name}」（${keys.length} 个成员）`, "success");
+    const group = await CreateModStrategyGroupFromKeys(name, t("strategyGroups.picker.defaultDescription"), "single", keys);
+    showNotification(t("strategyGroups.common.groupCreated", { name: group.name, count: keys.length }), "success");
     await refreshModGroupMembershipState();
     if (typeof onDone === "function") onDone();
     closeGroupPicker();
   } catch (error) {
-    showError("新建策略组失败: " + String(error?.message || error));
+    showError(t("strategyGroups.picker.error.createFailed", { error: String(error?.message || error) }));
   }
 }
 

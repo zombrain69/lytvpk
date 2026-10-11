@@ -7,6 +7,7 @@
 //
 // 与 DOM 无关，node --test 覆盖。
 
+import { t } from "../../core/i18n-runtime.js";
 import { formatGroupStrategy, normalizeGroupKey } from "./group-view.mjs";
 
 export const GROUP_PICKER_MODES = {
@@ -15,11 +16,16 @@ export const GROUP_PICKER_MODES = {
   move: "move",
 };
 
-const MODE_VERBS = {
-  add: "加入",
-  remove: "移出",
-  move: "移动",
+// 文案走目录（模块求值期不调 t()）：这里只存 key，取文案时再经 modeVerb()。
+const MODE_VERB_KEYS = {
+  add: "strategyGroups.picker.verb.add",
+  remove: "strategyGroups.picker.verb.remove",
+  move: "strategyGroups.picker.verb.move",
 };
+
+function modeVerb(mode) {
+  return t(MODE_VERB_KEYS[mode] || "strategyGroups.picker.verb.process");
+}
 
 function normalizeKeys(keys) {
   const result = [];
@@ -41,23 +47,23 @@ function memberKeys(group) {
 
 /** pickerRowDisabledReason 返回该行为什么不能点；可点时返回空字符串。 */
 export function pickerRowDisabledReason(row, mode) {
-  if (!row) return "没有可用的策略组";
+  if (!row) return t("strategyGroups.common.noneGroups");
   const { selectedInGroup, memberCount, wouldEmptyGroup, isSource, id } = row;
   switch (mode) {
     case GROUP_PICKER_MODES.add:
       if (selectedInGroup === 0) return "";
-      if (selectedInGroup >= row.keyCount) return "选中的 Mod 都已经在这个组里";
+      if (selectedInGroup >= row.keyCount) return t("strategyGroups.picker.reason.allInGroup");
       return "";
     case GROUP_PICKER_MODES.remove:
-      if (selectedInGroup === 0) return "选中的 Mod 都不在这个组里";
-      if (wouldEmptyGroup) return "会把该组成员全部移出（组至少要保留 1 个成员）";
+      if (selectedInGroup === 0) return t("strategyGroups.picker.reason.noneInGroup");
+      if (wouldEmptyGroup) return t("strategyGroups.picker.reason.wouldEmptyTarget");
       return "";
     case GROUP_PICKER_MODES.move:
-      if (isSource) return `「${row.name}」就是当前所在的组`;
-      if (selectedInGroup > 0 && wouldEmptyGroup) return "会把源组成员全部移出（组至少要保留 1 个成员）";
+      if (isSource) return t("strategyGroups.picker.reason.isSource", { name: row.name });
+      if (selectedInGroup > 0 && wouldEmptyGroup) return t("strategyGroups.picker.reason.wouldEmptySource");
       return "";
     default:
-      return id ? "" : "没有可用的策略组";
+      return id ? "" : t("strategyGroups.common.noneGroups");
   }
 }
 
@@ -111,55 +117,67 @@ export function formatGroupPickerSummary({ rows, keyCount, mode, sourceName = ""
   const all = Array.isArray(rows) ? rows : [];
   const usable = all.filter((row) => !row.disabled).length;
   const count = Number(keyCount || 0);
-  const prefix = `已选中 ${count} 个 Mod；`;
   if (mode === GROUP_PICKER_MODES.move) {
-    return `${prefix}从「${sourceName || "当前组"}」移动到下面 ${usable} 个策略组之一`;
+    return t("strategyGroups.picker.summary.move", {
+      count,
+      source: sourceName || t("strategyGroups.picker.currentGroup"),
+      usable,
+    });
   }
-  const verb = MODE_VERBS[mode] || "处理";
-  return `${prefix}下面 ${all.length} 个策略组里 ${usable} 个可以${verb}`;
+  return t("strategyGroups.picker.summary.action", {
+    count,
+    total: all.length,
+    usable,
+    verb: modeVerb(mode),
+  });
 }
 
 export function formatGroupPickerResult(result, { mode, keyCount = 0 } = {}) {
   if (mode === GROUP_PICKER_MODES.move) {
     const moved = (result?.moved || []).length;
     const already = (result?.alreadyInTarget || []).length;
-    const target = result?.targetName || "目标组";
+    const target = result?.targetName || t("strategyGroups.picker.targetGroup");
     if (moved === 0) {
-      return `这些 Mod 本来就在「${target}」里，没有需要移动的成员`;
+      return t("strategyGroups.picker.result.alreadyThere", { target });
     }
     const total = Number(result?.targetTotal || 0);
-    return (
-      `已把 ${moved} 个 Mod 从「${result?.sourceName || "源组"}」移到「${target}」` +
-      `（目标组现在共 ${total} 个成员` +
-      (already > 0 ? `，另有 ${already} 个本来就在目标组里` : "") +
-      "）"
-    );
+    return t("strategyGroups.picker.result.moved", {
+      moved,
+      source: result?.sourceName || t("strategyGroups.picker.sourceGroup"),
+      target,
+      total,
+      extra: already > 0 ? t("strategyGroups.picker.result.movedExtra", { count: already }) : "",
+    });
   }
-  const name = result?.name || "该策略组";
+  const name = result?.name || t("strategyGroups.picker.thisGroup");
   const total = (result?.members || []).length;
-  const verb = MODE_VERBS[mode] || "处理";
-  return `已把 ${Number(keyCount || 0)} 个 Mod ${verb}「${name}」（现在共 ${total} 个成员）`;
+  return t("strategyGroups.picker.result.applied", {
+    count: Number(keyCount || 0),
+    verb: modeVerb(mode),
+    name,
+    total,
+  });
 }
 
 export function groupPickerConfirmLabel(mode) {
   switch (mode) {
     case GROUP_PICKER_MODES.remove:
-      return "移出这个组";
+      return t("strategyGroups.picker.confirm.remove");
     case GROUP_PICKER_MODES.move:
-      return "移动到这个组";
+      return t("strategyGroups.picker.confirm.move");
     default:
-      return "加入这个组";
+      return t("strategyGroups.picker.confirm.add");
   }
 }
 
 export function groupPickerTitle(mode) {
   switch (mode) {
     case GROUP_PICKER_MODES.remove:
-      return "从策略组移出";
+      return t("strategyGroups.picker.title.remove");
     case GROUP_PICKER_MODES.move:
-      return "移动到其它策略组";
+      return t("strategyGroups.picker.title.move");
     default:
-      return "加入策略组";
+      return t("strategyGroups.picker.title.add");
   }
 }
 
@@ -180,21 +198,21 @@ export function groupPickerRowTags(row) {
   if (!row) return [];
   const tags = [formatGroupStrategy(row.strategy)];
   if (row.tier !== null && row.tier !== undefined && row.tier !== "") {
-    tags.push(`权重 ${row.tier}`);
+    tags.push(t("strategyGroups.common.tierTag", { tier: row.tier }));
   }
-  if (row.enforce) tags.push("自动联动");
-  if (row.parentName) tags.push(`上级：${row.parentName}`);
+  if (row.enforce) tags.push(t("strategyGroups.common.enforce"));
+  if (row.parentName) tags.push(t("strategyGroups.picker.parentTag", { name: row.parentName }));
   return tags.filter(Boolean);
 }
 
 /** groupPickerRowDetail 生成次要说明：成员数 + 选中里已有多少 + 禁用原因。 */
 export function groupPickerRowDetail(row) {
   if (!row) return "";
-  const parts = [`${row.memberCount} 个成员`];
+  const parts = [t("strategyGroups.common.memberCount", { count: row.memberCount })];
   // 只补"部分命中"的信息：全部命中 / 一个都不在的情况由 disabledReason 说明，
   // 否则同一件事会在同一行里出现两遍（真实界面里出现过）。
   if (row.selectedInGroup > 0 && row.selectedInGroup < row.keyCount) {
-    parts.push(`选中里已有 ${row.selectedInGroup} 个`);
+    parts.push(t("strategyGroups.picker.partialInGroup", { count: row.selectedInGroup }));
   }
   if (row.disabled) parts.push(row.disabledReason);
   return parts.join(" · ");
@@ -236,8 +254,11 @@ export function filterGroupPickerRows(rows = [], { query = "", relevantOnly = fa
 
 /** formatGroupPickerVisibleSummary 说明"当前显示了几个 / 一共几个 / 几个能点"。 */
 export function formatGroupPickerVisibleSummary({ total = 0, shown = 0, usable = 0, hiddenByFilter = 0 } = {}) {
-  const parts = [`显示 ${shown} / ${total} 个组`, `${usable} 个可操作`];
-  if (hiddenByFilter > 0) parts.push(`已按筛选隐藏 ${hiddenByFilter} 个`);
+  const parts = [
+    t("strategyGroups.picker.visible.shown", { shown, total }),
+    t("strategyGroups.picker.visible.usable", { count: usable }),
+  ];
+  if (hiddenByFilter > 0) parts.push(t("strategyGroups.picker.visible.hidden", { count: hiddenByFilter }));
   return parts.join(" · ");
 }
 

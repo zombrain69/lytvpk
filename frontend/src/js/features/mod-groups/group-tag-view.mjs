@@ -1,5 +1,7 @@
 // 「给这组打标签」的纯文案层（与 DOM 无关，node --test 覆盖）。
 
+import { t } from "../../core/i18n-runtime.js";
+
 /** formatTagApplySummary 汇总一次打标签的结果。 */
 export function formatTagApplySummary(result) {
   const applied = (result?.applied || []).length;
@@ -8,12 +10,12 @@ export function formatTagApplySummary(result) {
   const failed = (result?.failed || []).length;
   const tag = String(result?.tag || "");
   if (applied === 0 && skipped === 0 && missing === 0 && failed === 0) {
-    return `没有需要打标签的 Mod（${tag ? `标签「${tag}」` : "标签为空"}）`;
+    return tag ? t("strategyGroups.tag.summary.noneWithTag", { tag }) : t("strategyGroups.tag.summary.noneEmpty");
   }
-  const parts = [`已给 ${applied} 个 Mod 打上标签「${tag}」`];
-  if (skipped > 0) parts.push(`${skipped} 个已经有这个标签`);
-  if (missing > 0) parts.push(`${missing} 个文件已不在列表里`);
-  if (failed > 0) parts.push(`${failed} 个写入失败`);
+  const parts = [t("strategyGroups.tag.summary.applied", { count: applied, tag })];
+  if (skipped > 0) parts.push(t("strategyGroups.tag.summary.skipped", { count: skipped }));
+  if (missing > 0) parts.push(t("strategyGroups.tag.summary.missing", { count: missing }));
+  if (failed > 0) parts.push(t("strategyGroups.tag.summary.failed", { count: failed }));
   return parts.join("；");
 }
 
@@ -21,11 +23,11 @@ export function formatTagApplySummary(result) {
 export function formatTagOrigin(origin) {
   switch (String(origin || "")) {
     case "common-tag":
-      return "来自这一组已有的共同标签（用来补齐还没打标签的成员）";
+      return t("strategyGroups.tag.origin.commonTag");
     case "subject":
-      return "来自成员共同的主体识别结果";
+      return t("strategyGroups.tag.origin.subject");
     case "label":
-      return "来自组名";
+      return t("strategyGroups.tag.origin.label");
     default:
       return "";
   }
@@ -35,10 +37,12 @@ export function formatTagOrigin(origin) {
 export function formatTagSuggestionLine(suggested, origin) {
   const tag = String(suggested || "").trim();
   if (!tag) {
-    return "没有自动推导出标签（组名太长或成员没有共同主体），可以自己填一个。";
+    return t("strategyGroups.tag.suggest.none");
   }
   const originText = formatTagOrigin(origin);
-  return `建议标签：${tag}` + (originText ? `（${originText}）` : "") + "；可以直接改成别的名字。";
+  return originText
+    ? t("strategyGroups.tag.suggest.lineWithOrigin", { tag, origin: originText })
+    : t("strategyGroups.tag.suggest.line", { tag });
 }
 
 /**

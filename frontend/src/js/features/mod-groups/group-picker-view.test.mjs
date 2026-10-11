@@ -16,6 +16,9 @@ import {
   pickerRowDisabledReason,
   sortGroupPickerRows,
 } from "./group-picker-view.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const groups = [
   {

@@ -6,6 +6,7 @@
 // 只调用 ApplyTagToModKeys（后端复用 SetVPKTags）；文件名变化后的键改绑由后端完成。
 
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   ApplyTagToModKeys,
   GetGroupTagSuggestions,
@@ -27,9 +28,11 @@ function renderPreview() {
   const { names, alreadyTagged, keyCount } = tagDialogState;
   const line = document.createElement("div");
   line.className = "group-tag-preview-line";
-  line.textContent =
-    `这一组共 ${keyCount} 个成员` +
-    (alreadyTagged > 0 ? `，其中 ${alreadyTagged} 个已经带这个标签（会跳过）` : "");
+  line.textContent = t("strategyGroups.tag.preview.line", {
+    count: keyCount,
+    skippedPart:
+      alreadyTagged > 0 ? t("strategyGroups.tag.preview.skippedPart", { count: alreadyTagged }) : "",
+  });
   preview.appendChild(line);
   if (names.length > 0) {
     const list = document.createElement("div");
@@ -44,7 +47,7 @@ function renderPreview() {
     if (names.length > 12) {
       const more = document.createElement("span");
       more.className = "group-tag-preview-name is-more";
-      more.textContent = `…还有 ${names.length - 12} 个`;
+      more.textContent = t("strategyGroups.tag.preview.moreNames", { count: names.length - 12 });
       list.appendChild(more);
     }
     preview.appendChild(list);
@@ -65,7 +68,7 @@ export async function openGroupTagDialog({ groupId, groupName, keys, names = [],
   if (!modal) return;
   const targetKeys = [...new Set((keys || []).map((key) => normalizeGroupKey(key)).filter(Boolean))];
   if (targetKeys.length === 0) {
-    showError("这个组还没有可用的成员键");
+    showError(t("strategyGroups.tag.error.noKeys"));
     return;
   }
 
@@ -96,7 +99,7 @@ export async function openGroupTagDialog({ groupId, groupName, keys, names = [],
   };
 
   const title = element("group-tag-title");
-  if (title) title.textContent = `给「${tagDialogState.groupName || groupId}」打标签`;
+  if (title) title.textContent = t("strategyGroups.tag.dialog.title", { name: tagDialogState.groupName || groupId });
   const summary = element("group-tag-summary");
   if (summary) {
     summary.textContent = formatTagSuggestionLine(suggested, origin);
@@ -119,7 +122,7 @@ async function applyGroupTag() {
   const input = element("group-tag-input");
   const tag = String(input?.value || "").trim();
   if (!tag) {
-    showError("请先填写标签名");
+    showError(t("strategyGroups.tag.error.nameRequired"));
     input?.focus();
     return;
   }
@@ -139,7 +142,7 @@ async function applyGroupTag() {
     if (typeof tagDialogState.onDone === "function") tagDialogState.onDone();
     closeGroupTagDialog();
   } catch (error) {
-    showError("打标签失败: " + String(error?.message || error));
+    showError(t("strategyGroups.tag.error.applyFailed", { error: String(error?.message || error) }));
     if (button) button.disabled = false;
   }
 }

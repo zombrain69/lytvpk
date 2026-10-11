@@ -2123,6 +2123,110 @@
       "collapseAll": "全部折叠",
       "hint": "下面是\"可能属于同一组\"的候选：可以取消勾选个别 Mod、修改组名，确认后再点“创建为组”。 默认只显示每条建议的摘要，点「展开」查看成员与逐个操作；窗口右下角可以拖动缩放。 推导只做只读扫描（工坊合集成员、文件夹结构、同名文件的不同版本、文件名前缀、共同标签、 同一作者、相同主体、语音角色），也可以「导入建议文件…」把大模型 / 人工整理好的结果 按标准格式导入（见文档「分组建议与外部导入」）， 不会改动任何 Mod 文件，也不会改动 addonlist.txt。",
       "close": "关闭"
+    },
+    "common": {
+      "noneGroups": "没有可用的策略组",
+      "groupCreated": "已创建策略组「{name}」（{count} 个成员）",
+      "memberCount": "{count} 个成员",
+      "tierTag": "权重 {tier}",
+      "enforce": "自动联动"
+    },
+    "picker": {
+      "verb": {
+        "add": "加入",
+        "remove": "移出",
+        "move": "移动",
+        "process": "处理"
+      },
+      "reason": {
+        "allInGroup": "选中的 Mod 都已经在这个组里",
+        "noneInGroup": "选中的 Mod 都不在这个组里",
+        "wouldEmptyTarget": "会把该组成员全部移出（组至少要保留 1 个成员）",
+        "wouldEmptySource": "会把源组成员全部移出（组至少要保留 1 个成员）",
+        "isSource": "「{name}」就是当前所在的组"
+      },
+      "currentGroup": "当前组",
+      "targetGroup": "目标组",
+      "sourceGroup": "源组",
+      "thisGroup": "该策略组",
+      "summary": {
+        "move": "已选中 {count} 个 Mod；从「{source}」移动到下面 {usable} 个策略组之一",
+        "action": "已选中 {count} 个 Mod；下面 {total} 个策略组里 {usable} 个可以{verb}",
+        "source": "已选中 {count} 个 Mod；它们分布在 {groups} 个策略组里，请选择要从哪个组移动（下一步再选目标组）"
+      },
+      "empty": {
+        "noMatch": "没有匹配「{query}」的策略组",
+        "noRelevant": "没有包含这些 Mod 的策略组（取消「只看相关」可以看到全部）"
+      },
+      "title": {
+        "add": "加入策略组",
+        "remove": "从策略组移出",
+        "move": "移动到其它策略组",
+        "selectSource": "选择要移出的策略组"
+      },
+      "confirm": {
+        "add": "加入这个组",
+        "remove": "移出这个组",
+        "move": "移动到这个组"
+      },
+      "nextStep": "下一步",
+      "result": {
+        "alreadyThere": "这些 Mod 本来就在「{target}」里，没有需要移动的成员",
+        "moved": "已把 {moved} 个 Mod 从「{source}」移到「{target}」（目标组现在共 {total} 个成员{extra}）",
+        "movedExtra": "，另有 {count} 个本来就在目标组里",
+        "applied": "已把 {count} 个 Mod {verb}「{name}」（现在共 {total} 个成员）"
+      },
+      "allPresent": "选中的 Mod 已经都在「{name}」里了",
+      "parentTag": "上级：{name}",
+      "partialInGroup": "选中里已有 {count} 个",
+      "visible": {
+        "shown": "显示 {shown} / {total} 个组",
+        "usable": "{count} 个可操作",
+        "hidden": "已按筛选隐藏 {count} 个"
+      },
+      "defaultDescription": "从 Mod 管理页勾选并加入",
+      "error": {
+        "noKeys": "请先勾选要处理的 Mod（当前没有可用的 addonlist 键）",
+        "noGroups": "还没有策略组：先用「分组建议」或「用选中的 Mod 建组」建一个组",
+        "nameRequired": "请先填写新策略组的名称",
+        "addFailed": "加入策略组失败: {error}",
+        "removeFailed": "移出策略组失败: {error}",
+        "moveFailed": "移动策略组失败: {error}",
+        "createFailed": "新建策略组失败: {error}"
+      }
+    },
+    "tag": {
+      "preview": {
+        "line": "这一组共 {count} 个成员{skippedPart}",
+        "skippedPart": "，其中 {count} 个已经带这个标签（会跳过）",
+        "moreNames": "…还有 {count} 个"
+      },
+      "dialog": {
+        "title": "给「{name}」打标签"
+      },
+      "summary": {
+        "noneWithTag": "没有需要打标签的 Mod（标签「{tag}」）",
+        "noneEmpty": "没有需要打标签的 Mod（标签为空）",
+        "applied": "已给 {count} 个 Mod 打上标签「{tag}」",
+        "skipped": "{count} 个已经有这个标签",
+        "missing": "{count} 个文件已不在列表里",
+        "failed": "{count} 个写入失败"
+      },
+      "origin": {
+        "commonTag": "来自这一组已有的共同标签（用来补齐还没打标签的成员）",
+        "subject": "来自成员共同的主体识别结果",
+        "label": "来自组名"
+      },
+      "suggest": {
+        "none": "没有自动推导出标签（组名太长或成员没有共同主体），可以自己填一个。",
+        "line": "建议标签：{tag}；可以直接改成别的名字。",
+        "lineWithOrigin": "建议标签：{tag}（{origin}）；可以直接改成别的名字。"
+      },
+      "error": {
+        "noKeys": "这个组还没有可用的成员键",
+        "nameRequired": "请先填写标签名",
+        "applyFailed": "打标签失败: {error}"
+      }
     }
   },
   "modals": {
