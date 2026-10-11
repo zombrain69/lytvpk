@@ -1,5 +1,23 @@
 # Changelog
 
+## 未发布 — i18n：服务器页数据表（servers.js / panel-modal.js）（第 13 项第二十批）（2026-10-12）
+
+- `servers.js` 数据表：`PANEL_MODE_LABELS` → `PANEL_MODE_LABEL_KEYS`（7 个模式代码改 key 表，
+  `getPanelModeLabel` 延迟取文案）；`OFFICIAL_CAMPAIGNS` 的 `title` → `titleKey`（14 个战役 +
+  57 个章节显示名进目录 `servers.panel.campaign.c1..c14` / `servers.panel.chapter.<代码驼峰>`；
+  `normalizeCampaign` 对官方表取 `t(titleKey)`、对服务器三方地图保持字面标题；章节 `code`
+  （地图切换指令参数）保持原值）。
+- `panel-modal.js` 难度表值显分离：值（"简单"/"普通"/"高级"/"专家"，`internal/app/server_panel.go`
+  按此校验的后端指令参数）保留为常量，按钮显示名走 `servers.panel.difficulty.easy|normal|hard|impossible`；
+  难度别名改由值表派生（`aliases`：easy / normal / hard+advanced / impossible+expert，消除重复中文别名）；
+  切换成功通知的 `{difficulty}` 改传显示名。
+- 目录新增 82 key（`servers.panel.mode` 7 / `campaign` 14 / `chapter` 57 / `difficulty` +4）。
+  **豁免**：难度值 4 处（后端契约值，与 autoexec 风险匹配同口径）。
+- 测试：新增 `panel-tables-i18n.test.mjs`（表值对齐 + 源码接线 + 运行时解析）；`search-consistency.test.mjs`
+  的服务器地图占位从字面量口径改「静态节点接线 + 目录内容」双查。
+- 验证：`node --test`（frontend 显式清单）578 项 0 失败；`npm run build`；`go test -count=1 ./...`；
+  `go vet ./...` 全过。
+
 ## 未发布 — i18n：modals 家族（弹窗与加载顺序，8 文件）（第 13 项第十九批）（2026-10-12）
 
 - `load-order-policy.js`（79 处）：加载顺序窗口动态文案全量 —— 五个预设改「key 表 + 延迟取文案」

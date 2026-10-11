@@ -150,10 +150,18 @@ test("局部小过滤器不冒充本地语法（占位文案里不出现 tag: / 
     assert.ok(value, `${filter.name} 的占位文案要存在于目录`);
     assert.ok(!/tag:|re: |排除/.test(value), `${filter.name} 的占位文案不该宣称支持本地语法：${value}`);
   }
-  // 服务器地图的占位仍是源码字面量（未迁移），按原口径检查。
-  const panelModal = read("src/js/features/servers/panel-modal.js");
-  const placeholders = [...panelModal.matchAll(/placeholder\s*[:=]\s*"([^"]*)"/g)].map((match) => match[1]);
-  for (const value of placeholders) {
-    assert.ok(!/tag:|re: |排除/.test(value), `服务器地图 的占位文案不该宣称支持本地语法：${value}`);
-  }
+  // 服务器地图的占位已随第 13 项第二十批走静态节点 + 目录：源码接线 + 目录内容双查。
+  const panelMapPlaceholderKey = "servers.panel.map.searchPlaceholder";
+  assert.ok(
+    indexHtml.includes(`data-i18n-placeholder="${panelMapPlaceholderKey}"`),
+    "服务器地图 的占位要走静态节点接线",
+  );
+  const panelMapPlaceholder = String(
+    panelMapPlaceholderKey.split(".").reduce((node, part) => node?.[part], catalog) || "",
+  );
+  assert.ok(panelMapPlaceholder, "服务器地图 的占位文案要存在于目录");
+  assert.ok(
+    !/tag:|re: |排除/.test(panelMapPlaceholder),
+    `服务器地图 的占位文案不该宣称支持本地语法：${panelMapPlaceholder}`,
+  );
 });

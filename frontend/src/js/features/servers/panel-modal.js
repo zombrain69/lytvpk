@@ -29,7 +29,7 @@ let escapeAttr;
 let getIPHost;
 let getServers;
 let SERVER_ICONS;
-let PANEL_MODE_LABELS;
+let PANEL_MODE_LABEL_KEYS;
 let OFFICIAL_CAMPAIGNS;
 
 export function configurePanelModal(deps) {
@@ -62,7 +62,7 @@ export function configurePanelModal(deps) {
     getIPHost,
     getServers,
     SERVER_ICONS,
-    PANEL_MODE_LABELS,
+    PANEL_MODE_LABEL_KEYS,
     OFFICIAL_CAMPAIGNS,
   } = deps);
 }
@@ -91,11 +91,13 @@ const completedPanelUploadNotifications = new Set();
 
 const PANEL_MAP_ISSUE_BATCH_SIZE = 10;
 
+// 难度值（"简单"…）是后端指令参数（internal/app/server_panel.go 按此校验），不随界面语言；
+// 显示名走目录（值显分离）。
 const PANEL_DIFFICULTIES = [
-  { value: "简单", desc: "Easy" },
-  { value: "普通", desc: "Normal" },
-  { value: "高级", desc: "Hard" },
-  { value: "专家", desc: "Impossible" },
+  { value: "简单", labelKey: "servers.panel.difficulty.easy", desc: "Easy", aliases: ["easy"] },
+  { value: "普通", labelKey: "servers.panel.difficulty.normal", desc: "Normal", aliases: ["normal"] },
+  { value: "高级", labelKey: "servers.panel.difficulty.hard", desc: "Hard", aliases: ["hard", "advanced"] },
+  { value: "专家", labelKey: "servers.panel.difficulty.impossible", desc: "Impossible", aliases: ["impossible", "expert"] },
 ];
 
 const PANEL_UPLOAD_ICON = `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`;
@@ -368,7 +370,7 @@ function renderPanelDifficultyOptions() {
     }
 
     const label = document.createElement("span");
-    label.textContent = difficulty.value;
+    label.textContent = t(difficulty.labelKey);
     const desc = document.createElement("small");
     desc.textContent = difficulty.desc;
     button.append(label, desc);
@@ -378,19 +380,16 @@ function renderPanelDifficultyOptions() {
 
 function normalizePanelDifficultyValue(value) {
   const normalized = String(value || "").trim().toLowerCase();
-  const aliases = {
-    easy: "简单",
-    "简单": "简单",
-    normal: "普通",
-    "普通": "普通",
-    hard: "高级",
-    advanced: "高级",
-    "高级": "高级",
-    impossible: "专家",
-    expert: "专家",
-    "专家": "专家",
-  };
-  return aliases[normalized] || "";
+  const entry = PANEL_DIFFICULTIES.find(
+    (item) => item.value === normalized || item.aliases.includes(normalized)
+  );
+  return entry ? entry.value : "";
+}
+
+// 显示名解析：通知等只拿得到值的场景走这里（按钮渲染直接取 labelKey）。
+function getPanelDifficultyLabel(value) {
+  const entry = PANEL_DIFFICULTIES.find((item) => item.value === value);
+  return entry ? t(entry.labelKey) : String(value || "");
 }
 
 async function handlePanelDifficultyClick(event) {
@@ -407,7 +406,7 @@ async function handlePanelDifficultyClick(event) {
     const text = await ChangePanelDifficulty(serverID, difficulty);
     if (!isCurrentPanelDifficultySession(serverID, sessionToken)) return;
     currentPanelDifficulty = difficulty;
-    showNotification(text || t("servers.panel.difficulty.switched", { difficulty }), "success");
+    showNotification(text || t("servers.panel.difficulty.switched", { difficulty: getPanelDifficultyLabel(difficulty) }), "success");
     closePanelDifficultyModal();
   } catch (err) {
     if (!isCurrentPanelDifficultySession(serverID, sessionToken)) return;
@@ -1416,12 +1415,17 @@ function formatPanelUploadBytes(bytes, decimals = 2) {
 
 function normalizeCampaign(campaign, isCustom) {
   return {
-    title: campaign.title || campaign.Title || "Unknown Campaign",
+    // 官方战役表存 titleKey（显示名随界面语言）；服务器返回的三方地图只有字面 title。
+    title: campaign.titleKey
+      ? t(campaign.titleKey)
+      : campaign.title || campaign.Title || "Unknown Campaign",
     vpkName: campaign.vpkName || campaign.VpkName || "",
     isCustom,
     chapters: (campaign.chapters || campaign.Chapters || []).map((chapter) => ({
       code: chapter.code || chapter.Code || "",
-      title: chapter.title || chapter.Title || chapter.code || chapter.Code || "",
+      title: chapter.titleKey
+        ? t(chapter.titleKey)
+        : chapter.title || chapter.Title || chapter.code || chapter.Code || "",
       modes: chapter.modes || chapter.Modes || [],
     })),
   };
@@ -1449,7 +1453,8 @@ function normalizePanelModes(modes) {
 
 function getPanelModeLabel(mode) {
   const normalized = String(mode).trim().toLowerCase();
-  return PANEL_MODE_LABELS[normalized] || String(mode).trim();
+  const key = PANEL_MODE_LABEL_KEYS[normalized];
+  return key ? t(key) : String(mode).trim();
 }
 
 function getPanelModeSearchText(modes) {
