@@ -1,5 +1,20 @@
 # Changelog
 
+## 未发布 — 观察项清理：mod-panel 死代码 + operations.js 死分支（2026-10-12）
+
+- **`features/mods/mod-panel.js` 删除**（路线图观察项⑤，核实后执行）：右侧信息面板的旧实现 ——
+  全仓无导入、`#mod-info-panel` 容器不存在、未进构建产物（上游同样如此）。同步清理：
+  `chunked-render.test.mjs` 里对它的物化同步断言、`docs/development/i18n.md` 的「本页迁移不含它」说明；
+  实现可从 git 历史取回。（`features/AGENTS.md` 查询表仍有一行指向它 —— AGENTS.md 属受保护文档，
+  留待人工会话更新。）
+- **`operations.js` 游戏开关错误捕获删掉两条死分支**（路线图观察项⑦，核实后执行）：
+  `游戏不会接受此 Mod` 与 `addoninfo.txt 格式无效` 两条匹配文本实测当前后端均不产出
+  （后者对应无调用方的 `internal/parser.ValidateVPKAddonInfo`），错误统一走
+  `mods.ops.gameState.writeFailed` 包装展示；i18n.md 中对应豁免撤销。
+  （Go 的 `ValidateVPKAddonInfo` 本身暂留 —— 是否接线/删除待人工决定。）
+- 验证：`go vet ./...` / `go test -count=1 ./...` 全过；前端显式清单 122 文件 591 项 0 失败；
+  `npm run build`、docs 构建通过。
+
 ## 未发布 — VPK 内容预览：音频播放（2026-10-12）
 
 - 新能力（路线图第 6 项）：VPK 内容预览现在能直接**播放包内音频**（`.wav` / `.mp3`）——

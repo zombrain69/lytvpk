@@ -542,9 +542,4 @@ test("列表渲染接线：按需物化 + 只有真正需要整表的入口才 f
     false,
     "框选不应再触发整表补齐",
   );
-  assert.match(
-    read("../mods/mod-panel.js"),
-    /file-list:materialized[\s\S]{0,80}syncSelectedRow/,
-    "新物化的行出现时要重新同步检查面板高亮",
-  );
 });

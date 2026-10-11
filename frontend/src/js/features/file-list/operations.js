@@ -208,12 +208,7 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
     }
   } catch (error) {
     console.error("切换游戏内开关失败:", error);
-    const message = String(error || "");
-    if (message.includes("游戏不会接受此 Mod") || message.includes("addoninfo.txt 格式无效")) {
-      showError(message);
-    } else {
-      showError(t("mods.ops.gameState.writeFailed", { error: String(error) }));
-    }
+    showError(t("mods.ops.gameState.writeFailed", { error: String(error) }));
   }
 }
 
