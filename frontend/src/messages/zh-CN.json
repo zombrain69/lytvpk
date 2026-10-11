@@ -602,7 +602,10 @@
       "refresh": "刷新",
       "refreshLabel": "刷新服务器",
       "more": "更多操作",
-      "noRecent": "暂无最近"
+      "noRecent": "暂无最近",
+      "details": "详情",
+      "edit": "编辑",
+      "delete": "删除"
     },
     "delete": {
       "title": "删除服务器",
@@ -650,12 +653,26 @@
       "duplicate": {
         "title": "这个地址已经收藏过了",
         "message": "「{address}」已经在收藏里：{label}。\n再存一条会得到两个同样的条目（列表里重复显示、各自查询一次）。\n要仍然保存吗？"
-      }
+      },
+      "nameLabel": "服务器名称",
+      "namePlaceholder": "例如: My L4D2 Server",
+      "addressLabel": "服务器地址 (IP:Port)",
+      "addressPlaceholder": "例如: 127.0.0.1:27015",
+      "weightLabel": "排序权重",
+      "weightHint": "数值越大，排序越靠前",
+      "advanced": "高级配置",
+      "panelUrlLabel": "面板地址",
+      "panelUrlPlaceholder": "例如: http://127.0.0.1:27020",
+      "panelPasswordLabel": "面板密码",
+      "clearPanelPassword": "清除已保存的面板密码",
+      "cancel": "取消",
+      "save": "保存"
     },
     "details": {
       "loading": "正在获取服务器信息...",
       "noPlayers": "暂无玩家信息",
-      "error": "获取失败: {error}"
+      "error": "获取失败: {error}",
+      "playerListTitle": "玩家列表"
     },
     "panel": {
       "unknown": "未知",
@@ -692,11 +709,14 @@
       "restart": {
         "title": "重启服务器",
         "confirm": "确定要重启 \"{name}\" 吗？当前玩家会断开连接。",
-        "sent": "重启指令已发送"
+        "sent": "重启指令已发送",
+        "button": "重启"
       },
       "difficulty": {
         "title": "修改难度 - {name}",
-        "switched": "难度已切换为 {difficulty}"
+        "switched": "难度已切换为 {difficulty}",
+        "button": "难度",
+        "windowTitle": "修改难度"
       },
       "map": {
         "title": "切换地图 - {name}",
@@ -708,7 +728,12 @@
         "modesLabel": "支持模式",
         "empty": "未找到匹配地图",
         "typeCustom": "三方",
-        "typeOfficial": "官方"
+        "typeOfficial": "官方",
+        "button": "换图",
+        "windowTitle": "切换地图",
+        "hotReloadButton": "热重载地图",
+        "loading": "正在读取地图列表...",
+        "searchPlaceholder": "搜索地图名称、代码或 VPK..."
       },
       "hotReload": {
         "message": "热重载会重新加载地图资源。如果地图过多，会占用 CPU 并影响正在游玩的游戏。",
@@ -749,7 +774,14 @@
           "failed": "失败",
           "cancelled": "已取消",
           "interrupted": "已中断（可重试）"
-        }
+        },
+        "button": "地图",
+        "windowTitle": "地图",
+        "selectFiles": "上传地图",
+        "clearCompleted": "清理已完成",
+        "hint": "支持 .vpk、.zip、.rar、.7z，单文件最大 2GB。",
+        "vpkListTitle": "VPK 地图列表",
+        "loading": "正在读取 VPK 地图列表..."
       },
       "deleteMap": {
         "title": "删除 VPK 地图",
@@ -772,8 +804,45 @@
         "inputRequired": "请输入 RCON 指令",
         "sending": "正在发送...",
         "sentNoContent": "指令已发送，面板未返回内容。",
-        "sendFailed": "发送失败: {error}"
-      }
+        "sendFailed": "发送失败: {error}",
+        "send": "发送",
+        "placeholder": "输入 RCON 指令，例如 status"
+      },
+      "title": "面板详情",
+      "openPanel": "打开面板",
+      "playerListTitle": "在线玩家"
+    },
+    "toolbar": {
+      "directConnect": "IP 直连",
+      "refreshTooltip": "刷新所有服务器",
+      "directConnectTooltip": "输入 IP/域名和端口直接连接"
+    },
+    "data": {
+      "title": "数据管理",
+      "exportClipboard": "复制配置",
+      "exportClipboardTooltip": "导出到剪贴板",
+      "exportFile": "导出文件",
+      "exportFileTooltip": "导出到文件",
+      "importClipboard": "粘贴导入",
+      "importClipboardTooltip": "从剪贴板导入",
+      "importFile": "文件导入",
+      "importFileTooltip": "从文件导入",
+      "importFileAriaLabel": "导入服务器配置JSON文件"
+    },
+    "tables": {
+      "name": "名称",
+      "score": "分数",
+      "duration": "时长",
+      "region": "地区/IP",
+      "ping": "延迟",
+      "loss": "丢包"
+    },
+    "directConnect": {
+      "title": "IP 直连",
+      "addressLabel": "服务器地址 (IP/域名，端口可选)",
+      "placeholder": "例如: 127.0.0.1:27015 或 example.com",
+      "portHint": "端口用「:」拼接，未填写时默认 27015。",
+      "cancel": "取消"
     }
   },
   "settings": {
