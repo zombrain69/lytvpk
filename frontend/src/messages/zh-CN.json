@@ -580,7 +580,60 @@
         "size": "VPK 大小排序",
         "modelComplexity": "模型复杂度排序",
         "loadOrder": "优先级排序（分层优先，其次加载顺序）",
-        "xdrSlot": "动作槽排序（XDR）"
+        "xdrSlot": "动作槽排序（XDR）",
+        "chipActiveTitle": "当前按{direction}排序；再点一次切换为{next}",
+        "chipInactiveTitle": "点击按{direction}排序"
+      },
+      "saveFailed": "保存排序设置失败: {error}",
+      "dir": {
+        "name": {
+          "asc": "A-Z",
+          "desc": "Z-A"
+        },
+        "date": {
+          "asc": "最旧",
+          "desc": "最新"
+        },
+        "size": {
+          "asc": "由小到大",
+          "desc": "由大到小"
+        },
+        "modelComplexity": {
+          "asc": "低到高",
+          "desc": "高到低"
+        },
+        "loadOrder": {
+          "asc": "顺序",
+          "desc": "倒序"
+        },
+        "xdrSlot": {
+          "asc": "槽位升序",
+          "desc": "槽位降序"
+        }
+      },
+      "short": {
+        "loadOrder": "优先级排序",
+        "xdrSlot": "动作槽排序"
+      },
+      "locate": {
+        "invalidPriority": "请输入大于 0 的优先级编号",
+        "notFound": "优先级 #{priority} 当前没有扫描到对应的 Mod",
+        "hiddenByFilter": "当前筛选隐藏了优先级 #{priority} 的 Mod，请清除筛选后再定位",
+        "listUpdating": "列表正在更新，请稍后再次定位",
+        "readFailed": "读取 addonlist.txt 优先级失败: {error}"
+      },
+      "notify": {
+        "loadOrder": "已按优先级排序（{direction}）",
+        "loadOrderError": "addonlist.txt 错误: {error}",
+        "xdrSlot": "已按动作槽排序（{direction}）：{count} 个 Mod 带 XDR 槽位",
+        "metricsBackfill": "当前筛选带出 {count} 个还没算过模型指标的 Mod，正在后台补齐…",
+        "metricsBackfilled": "已补齐 {count} 个 Mod 的模型指标，列表已按复杂度重排",
+        "modelComplexity": "已按模型复杂度排序（LOD0 总顶点，{direction}）：新分析 {analyzed} 个 · 命中缓存 {cached} 个 · {seconds}s"
+      },
+      "modelComplexity": {
+        "unavailable": "当前应用未提供模型复杂度统计，请重新构建并启动 LytVPK",
+        "analyzing": "正在分析 {count} 个 Mod 的模型复杂度（其中 {cached} 个可命中缓存）...",
+        "sortFailed": "模型复杂度排序失败: {error}"
       }
     },
     "priority": {

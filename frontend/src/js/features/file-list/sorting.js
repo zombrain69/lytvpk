@@ -7,6 +7,7 @@ import { buildPriorityPlanMap } from "./priority-label.mjs";
 import { applySortOrder, compareByPriority, compareNames, nextSortState } from "./priority-sort.mjs";
 import { compareByXDRSlot, minXDRSlot } from "./xdr-slot-sort.mjs";
 import { modelMetricScanTargets } from "./model-metric-targets.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 let loadOrderHighlightTimer = null;
 
@@ -18,7 +19,7 @@ export function saveSortPreference() {
     sortType: appState.sortType,
     sortOrder: appState.sortOrder,
   }).catch((error) => {
-    showError("保存排序设置失败: " + error);
+    showError(t("mods.sort.saveFailed", { error: String(error) }));
   });
 }
 
@@ -80,7 +81,7 @@ function setupLoadOrderLocator() {
 async function locateFileByLoadOrder(input) {
   const priority = Number(input.value);
   if (!Number.isSafeInteger(priority) || priority < 1) {
-    showError("请输入大于 0 的优先级编号");
+    showError(t("mods.sort.locate.invalidPriority"));
     input.focus();
     return;
   }
@@ -91,13 +92,13 @@ async function locateFileByLoadOrder(input) {
     const allFiles = appState.allVpkFiles?.length ? appState.allVpkFiles : appState.vpkFiles || [];
     const targetFile = allFiles.find((file) => getFileLoadOrderIndex(file) === targetIndex);
     if (!targetFile) {
-      showNotification(`优先级 #${priority} 当前没有扫描到对应的 Mod`, "info");
+      showNotification(t("mods.sort.locate.notFound", { priority }), "info");
       return;
     }
 
     const isVisible = (appState.vpkFiles || []).some((file) => file.path === targetFile.path);
     if (!isVisible) {
-      showNotification(`当前筛选隐藏了优先级 #${priority} 的 Mod，请清除筛选后再定位`, "info");
+      showNotification(t("mods.sort.locate.hiddenByFilter", { priority }), "info");
       return;
     }
 
@@ -109,7 +110,7 @@ async function locateFileByLoadOrder(input) {
       block: "center",
     });
     if (!element) {
-      showNotification("列表正在更新，请稍后再次定位", "info");
+      showNotification(t("mods.sort.locate.listUpdating"), "info");
       return;
     }
 
@@ -122,7 +123,7 @@ async function locateFileByLoadOrder(input) {
     }, 2200);
   } catch (error) {
     console.error("按优先级定位 Mod 失败:", error);
-    showError("读取 addonlist.txt 优先级失败: " + error);
+    showError(t("mods.sort.locate.readFailed", { error: String(error) }));
   }
 }
 
@@ -145,12 +146,14 @@ export async function handleLoadOrderSort() {
     renderFileList();
 
     showNotification(
-      `已按优先级排序（${appState.sortOrder === "asc" ? "顺序" : "倒序"}）`,
+      t("mods.sort.notify.loadOrder", {
+        direction: sortDirectionLabel("loadOrder", appState.sortOrder),
+      }),
       "success",
     );
   } catch (err) {
     console.error("获取加载顺序失败:", err);
-    showError("addonlist.txt 错误: " + err);
+    showError(t("mods.sort.notify.loadOrderError", { error: String(err) }));
   }
 }
 
@@ -169,7 +172,10 @@ export function handleXDRSlotSort() {
 
   const withSlot = (appState.vpkFiles || []).filter((file) => minXDRSlot(file) !== null).length;
   showNotification(
-    `已按动作槽排序（${appState.sortOrder === "desc" ? "槽位降序" : "槽位升序"}）：${withSlot} 个 Mod 带 XDR 槽位`,
+    t("mods.sort.notify.xdrSlot", {
+      direction: sortDirectionLabel("xdrSlot", appState.sortOrder),
+      count: withSlot,
+    }),
     "success",
   );
 }
@@ -242,7 +248,7 @@ export async function ensureVisibleModelMetrics() {
   const quiet = unknownCount <= 50;
   if (!quiet) {
     showNotification(
-      `当前筛选带出 ${unknownCount} 个还没算过模型指标的 Mod，正在后台补齐…`,
+      t("mods.sort.notify.metricsBackfill", { count: unknownCount }),
       "info",
     );
   }
@@ -254,7 +260,7 @@ export async function ensureVisibleModelMetrics() {
     applySort(appState.vpkFiles);
     renderFileList();
     if (!quiet) {
-      showNotification(`已补齐 ${unknownCount} 个 Mod 的模型指标，列表已按复杂度重排`, "success");
+      showNotification(t("mods.sort.notify.metricsBackfilled", { count: unknownCount }), "success");
     }
   } catch (error) {
     console.warn("补齐模型复杂度指标失败（下次排序时会重试）:", error);
@@ -266,7 +272,7 @@ export async function handleModelComplexitySort() {
 
   try {
     if (typeof window?.go?.app?.App?.GetVPKModelMetrics !== "function") {
-      throw new Error("当前应用未提供模型复杂度统计，请重新构建并启动 LytVPK");
+      throw new Error(t("mods.sort.modelComplexity.unavailable"));
     }
 
     // 只分析"当前可见结果"（有筛选时）——排序本来也只作用于这份结果；
@@ -279,7 +285,10 @@ export async function handleModelComplexitySort() {
     );
     const cachedCount = paths.filter((path) => knownByPath.get(path)).length;
     showNotification(
-      `正在分析 ${paths.length} 个 Mod 的模型复杂度（其中 ${cachedCount} 个可命中缓存）...`,
+      t("mods.sort.modelComplexity.analyzing", {
+        count: paths.length,
+        cached: cachedCount,
+      }),
       "info",
     );
     const started = performance.now();
@@ -296,13 +305,17 @@ export async function handleModelComplexitySort() {
     applySort(appState.vpkFiles);
     renderFileList();
     showNotification(
-      `已按模型复杂度排序（LOD0 总顶点，${appState.sortOrder === "desc" ? "高到低" : "低到高"}）：` +
-        `新分析 ${Math.max(0, paths.length - cachedCount)} 个 · 命中缓存 ${cachedCount} 个 · ${elapsedSeconds}s`,
+      t("mods.sort.notify.modelComplexity", {
+        direction: sortDirectionLabel("modelComplexity", appState.sortOrder),
+        analyzed: Math.max(0, paths.length - cachedCount),
+        cached: cachedCount,
+        seconds: elapsedSeconds,
+      }),
       "success",
     );
   } catch (error) {
     console.error("模型复杂度排序失败:", error);
-    showError("模型复杂度排序失败: " + error);
+    showError(t("mods.sort.modelComplexity.sortFailed", { error: String(error) }));
   }
 }
 
@@ -400,20 +413,21 @@ export function getFileEffectiveLayer(file) {
   return undefined;
 }
 
-// 每种排序两个方向的人话标签（工具栏按钮与菜单方向 chip 共用同一份）。
-const SORT_DIRECTION_LABELS = {
-  name: { asc: "A-Z", desc: "Z-A" },
-  date: { asc: "最旧", desc: "最新" },
-  size: { asc: "由小到大", desc: "由大到小" },
-  modelComplexity: { asc: "低到高", desc: "高到低" },
-  loadOrder: { asc: "顺序", desc: "倒序" },
-  xdrSlot: { asc: "槽位升序", desc: "槽位降序" },
+// 每种排序两个方向的人话标签 key（工具栏按钮与菜单方向 chip 共用同一份；t() 延迟取，
+// 模块求值期不触达 i18n，语言切换后无需重建表）。
+const SORT_DIRECTION_LABEL_KEYS = {
+  name: { asc: "mods.sort.dir.name.asc", desc: "mods.sort.dir.name.desc" },
+  date: { asc: "mods.sort.dir.date.asc", desc: "mods.sort.dir.date.desc" },
+  size: { asc: "mods.sort.dir.size.asc", desc: "mods.sort.dir.size.desc" },
+  modelComplexity: { asc: "mods.sort.dir.modelComplexity.asc", desc: "mods.sort.dir.modelComplexity.desc" },
+  loadOrder: { asc: "mods.sort.dir.loadOrder.asc", desc: "mods.sort.dir.loadOrder.desc" },
+  xdrSlot: { asc: "mods.sort.dir.xdrSlot.asc", desc: "mods.sort.dir.xdrSlot.desc" },
 };
 
 function sortDirectionLabel(type, order) {
-  const labels = SORT_DIRECTION_LABELS[type];
-  if (!labels) return "";
-  return labels[order === "desc" ? "desc" : "asc"] || "";
+  const keys = SORT_DIRECTION_LABEL_KEYS[type];
+  if (!keys) return "";
+  return t(keys[order === "desc" ? "desc" : "asc"]) || "";
 }
 
 /**
@@ -441,20 +455,25 @@ function applySortMenuItem(button, type) {
   chip.classList.toggle("is-current", active);
   const otherOrder = shownOrder === "asc" ? "desc" : "asc";
   button.title = active
-    ? `当前按${sortDirectionLabel(type, shownOrder)}排序；再点一次切换为${sortDirectionLabel(type, otherOrder)}`
-    : `点击按${sortDirectionLabel(type, shownOrder)}排序`;
+    ? t("mods.sort.menu.chipActiveTitle", {
+        direction: sortDirectionLabel(type, shownOrder),
+        next: sortDirectionLabel(type, otherOrder),
+      })
+    : t("mods.sort.menu.chipInactiveTitle", {
+        direction: sortDirectionLabel(type, shownOrder),
+      });
 }
 
 export function updateSortButtonUI() {
   const btnText = document.getElementById("sort-btn-text");
 
-  let text = "文件名排序";
-  if (appState.sortType === "name") text = "文件名排序";
-  else if (appState.sortType === "date") text = "更新时间排序";
-  else if (appState.sortType === "loadOrder") text = "优先级排序";
-  else if (appState.sortType === "size") text = "VPK 大小排序";
-  else if (appState.sortType === "modelComplexity") text = "模型复杂度排序";
-  else if (appState.sortType === "xdrSlot") text = "动作槽排序";
+  let text = t("mods.sort.menu.name");
+  if (appState.sortType === "name") text = t("mods.sort.menu.name");
+  else if (appState.sortType === "date") text = t("mods.sort.menu.date");
+  else if (appState.sortType === "loadOrder") text = t("mods.sort.short.loadOrder");
+  else if (appState.sortType === "size") text = t("mods.sort.menu.size");
+  else if (appState.sortType === "modelComplexity") text = t("mods.sort.menu.modelComplexity");
+  else if (appState.sortType === "xdrSlot") text = t("mods.sort.short.xdrSlot");
 
   const arrow = sortDirectionLabel(appState.sortType, appState.sortOrder);
   if (btnText) btnText.textContent = arrow ? `${text} （${arrow}）` : text;

@@ -1,5 +1,19 @@
 # Changelog
 
+## 未发布 — i18n：file-list 排序家族（sorting.js）（第 13 项第十二批）（2026-10-12）
+
+- `sorting.js`（35 处）：优先级定位链（无效编号 / 未扫描到 / 被筛选隐藏 / 列表更新中 / 读取失败）、
+  三类排序通知（优先级 / 动作槽 / 模型复杂度，含「正在分析」与「已补齐」两条）、模型复杂度不可用
+  与失败、「保存排序设置失败」、排序按钮文案与菜单方向 chip 标题。
+- **方向标签表改 key 表 + 延迟取文案**：`SORT_DIRECTION_LABELS`（六种排序 × 两方向的人话标签）
+  → `SORT_DIRECTION_LABEL_KEYS`（全部走 `mods.sort.dir.*`，`t()` 在调用期取，模块求值期不触达 i18n）。
+- **复用**：按钮文案四项直接复用既有 `mods.sort.menu.*`；差异两项（「优先级排序」/「动作槽排序」
+  短文案，不带菜单后缀说明）新增 `mods.sort.short.*`。
+- 目录新增 31 key（dir 12 / notify 6 / locate 5 / modelComplexity 3 / short 2 / menu +2 / saveFailed 1）。
+- 测试：`model-metric-targets.test.mjs` 的「命中缓存」断言改「源码接线 + 目录内容」双查。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；`go test ./...` /
+  `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：file-list 右键菜单（context-menu.js）（第 13 项第十一批）（2026-10-12）
 
 - `context-menu.js`（单文件 / 多选右键菜单，31 处）：策略组入口三条（「加入策略组…」——

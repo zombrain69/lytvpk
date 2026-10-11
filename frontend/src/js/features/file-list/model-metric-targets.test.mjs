@@ -38,7 +38,15 @@ test("接线：排序只分析可见结果，筛选变化后按需补齐指标",
     /export async function ensureVisibleModelMetrics\(/,
     "要提供筛选变化后补齐指标的入口",
   );
-  assert.match(sortingSource, /命中缓存/, "结果提示要说明缓存命中情况");
+  assert.match(
+    sortingSource,
+    /t\("mods\.sort\.modelComplexity\.analyzing"/,
+    "结果提示要说明缓存命中情况（源码接线）",
+  );
+  const catalog = JSON.parse(
+    readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+  );
+  assert.match(catalog.mods.sort.modelComplexity.analyzing, /命中缓存/, "目录文案要说明缓存命中情况");
 
   const filtersSource = readFileSync(new URL("./filters.js", import.meta.url), "utf8");
   assert.match(filtersSource, /ensureVisibleModelMetrics\(\)/, "筛选/搜索改变可见集合后要调用补齐");
