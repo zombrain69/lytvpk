@@ -10,6 +10,7 @@ import {
   pushRecentCommand,
   searchCommands,
 } from "./command-palette.mjs";
+import { t } from "./i18n-runtime.js";
 
 let bound = false;
 let activeId = "";
@@ -93,7 +94,7 @@ function renderCommandPalette(query) {
       const hintSpan = document.createElement("span");
       hintSpan.className = "command-hint";
       // 最近用过的加个标记：一眼能看出"这几条是我常点的"。
-      hintSpan.textContent = recentSet.has(command.id) ? `最近 · ${command.hint || ""}` : command.hint || "";
+      hintSpan.textContent = recentSet.has(command.id) ? t("app.commandPalette.recentBadge", { hint: command.hint || "" }) : command.hint || "";
       item.appendChild(hintSpan);
       return item;
     }),
@@ -102,7 +103,7 @@ function renderCommandPalette(query) {
   if (visibleCommands.length === 0) {
     const empty = document.createElement("div");
     empty.className = "command-palette-empty";
-    empty.textContent = "没有匹配的命令；换个关键词，或清空后浏览全部。";
+    empty.textContent = t("app.commandPalette.empty");
     list.appendChild(empty);
   }
 

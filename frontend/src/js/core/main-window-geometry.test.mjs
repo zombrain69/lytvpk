@@ -13,6 +13,9 @@ import {
   sanitizeMainWindowGeometry,
   shouldApplyMainWindowGeometry,
 } from "./main-window-geometry.mjs";
+import { installTestCatalog } from "./i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("没记录过 / 非法尺寸一律当没记录（保持默认尺寸）", () => {
   assert.equal(sanitizeMainWindowGeometry(null), null);

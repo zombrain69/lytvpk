@@ -9,6 +9,9 @@ import {
   formatFileOperationBlockedMessage,
   shouldKeepBusyStateAfterProbeError,
 } from "./file-operation-busy.mjs";
+import { installTestCatalog } from "./i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("忙碌文案与后端闸门提示一致", () => {
   assert.equal(describeFileOperationBusy(false), "");

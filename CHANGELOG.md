@@ -1,5 +1,43 @@
 # Changelog
 
+## 未发布 — i18n：core 家族（第 13 项第二十一批）（2026-10-12）
+
+- `action-explanation.mjs`（67 处 → 迁 44 / 豁免 23）：13 条错误规则改「key 表 + 延迟取文案」
+  （`summary`/`hint` → `summaryKey`/`hintKey`，命中处 `t()` 取值；`DEFAULT_ERROR_HINT` →
+  `DEFAULT_ERROR_HINT_KEY`）、兜底摘要（`操作失败`）与「摘要 + 建议」拼接模板
+  （`app.explanation.combined`，`{summary}（{hint}）`）进目录、7 组可用性理由/出路
+  （忙碌 / 工坊开关 / disabled 游戏开关 / 缺路径 / 已在 disabled / 非根目录禁用 / 未选中）
+  进 `app.explanation.availability.*`。**豁免**：全部规则匹配片段（`includes("不在当前受管的")` 等
+  23 处 + 两条场景正则 —— 对齐后端 / 系统错误文本的协议常量，与 `operations.js` 口径一致）。
+- `command-palette` 家族（57 + 2 处）：命令表 18 条改「key 表 + 延迟取文案」（`title`/`keywords`/`hint`
+  → `titleKey`/`pageKey`/`keywordsKey`/`hintKey`，新增 `resolveCommand` 解析器；7 条页面命令标题
+  复用 `app.commandPalette.openPage` + `app.shell.nav.*` 组合、去处提示复用 `hint.page`/`hint.window`）；
+  面板状态四条（空查询 / 无匹配 / 匹配中 / 最近前缀）、最近徽标、空态进目录；`searchCommands` 入口
+  统一解析，DOM 层消费方零改动。
+- `shortcuts.mjs`（20 处）：分组标题、15 条说明、键位里的「双击标题栏」全部进目录
+  （`titleKey`/`descriptionKey`/`keysKey` + `resolveShortcutGroupTitle|Description|Keys` 三个解析器，
+  兼容直接给字面量的行）；悬停提示改 `app.shell.shortcuts.tooltipLine`。`search-help.mjs` 的快捷键
+  投影同步改 `syntaxKey` 直传（`resolveSyntaxRow` 已支持）。
+- `reading-comfort.mjs`（16 处）：字号 / 舒适度选项表改 `labelKey`/`descriptionKey`，
+  `textSizeLabel`/`readingComfortLabel` 经 `t()` 取值；`settings-page.js` 两个档位组的可见文字与
+  title 消费方同步改 `t(option.labelKey)` / `t(option.descriptionKey)`。
+- 其余 core 小模块：`toast.js`（9 → 迁 7 / 豁免 2：解析错误标题、文件名·内容·建议片段、批次头、
+  未知文件、其余计数；保留 `VPK解析` 类型值匹配）、`utils.js`（8 → 迁 6 / 豁免 2：位置名改 key 表、
+  动作按钮复用 `mods.ops.common.copyToAddons|actionEnable|actionDisable`、语音替换复用
+  `modals.detail.voiceReplacement`；保留「榴弹」旧别名校准）、`floating-modal.js`（开关 tooltip 与
+  两态文案）、`main-window-geometry.mjs`（三条摘要）、`message-modal.js`（默认按钮 / 标题复用
+  `modals.message.confirm|title`）、`file-operation-busy.mjs`（两条忙碌提示）。
+- 目录新增 142 key（`app.explanation` 44 / `app.commandPalette` 46 / `app.shortcuts` 20 /
+  `app.toast` 7 / `app.floating` 3 / `app.windowGeometry` +3 / `app.fileOperation` 2 /
+  `settings.interface.textSize|readingComfort.option` 14 / `mods.location` 3）；复用 6 个既有 key。
+  **重扫**：core 家族 190 → 28（全为设计内豁免；settings 3 自本批归入豁免口径），core 家族清零。
+- 测试：7 个测试文件注入 `installTestCatalog()`（action-explanation / command-palette /
+  reading-comfort / file-operation-busy / main-window-geometry / shortcuts / shortcuts-wiring）；
+  `command-palette-ui.test.mjs` 的「最近 ·」断言改「源码接线 + 目录内容」双查（并读目录断言空态）；
+  `shortcuts-wiring` 键位集合与 `shortcuts` 分组标题 / 说明断言经解析器取值。
+- 验证：`node --test`（frontend，显式清单 119 文件）578 项 0 失败；`npm run build` 通过；
+  `go test -count=1 ./...` / `go vet ./...` 全过。
+
 ## 未发布 — i18n：服务器页数据表（servers.js / panel-modal.js）（第 13 项第二十批）（2026-10-12）
 
 - `servers.js` 数据表：`PANEL_MODE_LABELS` → `PANEL_MODE_LABEL_KEYS`（7 个模式代码改 key 表，

@@ -8,6 +8,10 @@ import {
   buildShortcutsTitle,
   shortcutRowsByIds,
 } from "./shortcuts.mjs";
+import { installTestCatalog } from "./i18n-test-catalog.mjs";
+import { t } from "./i18n-runtime.js";
+
+installTestCatalog();
 
 test("快捷键表分组覆盖应用里真实绑定的键位", () => {
   assert.ok(SHORTCUT_GROUPS.length >= 3, "至少要有全局 / 搜索 / 窗口三组");
@@ -20,8 +24,8 @@ test("快捷键表分组覆盖应用里真实绑定的键位", () => {
   const ids = allShortcutRows().map((row) => row.id);
   assert.equal(new Set(ids).size, ids.length, "id 不能重复");
   assert.ok(
-    allShortcutRows().every((row) => row.description.trim().length > 0),
-    "每行都要有说明",
+    allShortcutRows().every((row) => t(row.descriptionKey).trim().length > 0),
+    "每行都要有说明（key 指向目录）",
   );
 });
 
@@ -36,7 +40,7 @@ test("shortcutRowsByIds 按给定顺序取行，忽略不存在的 id", () => {
 
 test("浮层 HTML 分组渲染且全部转义", () => {
   const html = buildShortcutsHtml();
-  SHORTCUT_GROUPS.forEach((group) => assert.ok(html.includes(group.title), `缺少分组标题 ${group.title}`));
+  SHORTCUT_GROUPS.forEach((group) => assert.ok(html.includes(t(group.titleKey)), `缺少分组标题 ${group.titleKey}`));
   assert.ok(html.includes("Ctrl + K"), "要列出命令面板");
   assert.ok(html.includes("双击标题栏"), "要列出窗口复位");
   assert.match(html, /class="search-help-row"/, "复用搜索说明书的行样式");

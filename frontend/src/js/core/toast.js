@@ -5,6 +5,7 @@
 // 认不出就原样显示 —— 无论如何都有一句话，不会出现空白提示。
 
 import { explainOperationError, sceneFromErrorType } from "./action-explanation.mjs";
+import { t } from "./i18n-runtime.js";
 
 let errorQueue = [];
 let errorTimer = null;
@@ -46,39 +47,39 @@ export function processErrorQueue() {
 
   if (errors.length === 1) {
     const errorInfo = errors[0];
-    let title = errorInfo.type === "VPK解析" ? "解析错误" : errorInfo.type;
+    let title = errorInfo.type === "VPK解析" ? t("app.toast.parseError") : errorInfo.type;
     // 场景从后端给的错误类型推断（输入类 → "输入不合法"，其余 → "操作失败"）。
     const explained = explainOperationError(errorInfo.message, { scene: sceneFromErrorType(errorInfo.type) });
     let msg = `<strong>${title}</strong><br>`;
 
     if (errorInfo.file) {
       const fileName = errorInfo.file.split(/[\\/]/).pop();
-      msg += `文件名：${fileName}<br>内容：${explained.summary}`;
+      msg += `${t("app.toast.fileName", { name: fileName })}<br>${t("app.toast.content", { text: explained.summary })}`;
     } else {
-      msg += `内容：${explained.summary}`;
+      msg += t("app.toast.content", { text: explained.summary });
     }
-    if (explained.hint) msg += `<br>建议：${explained.hint}`;
+    if (explained.hint) msg += `<br>${t("app.toast.suggestion", { text: explained.hint })}`;
     showError(msg, 5000);
   } else {
     // 多个错误聚合显示
-    const type = errors[0].type === "VPK解析" ? "解析错误" : errors[0].type;
-    let msg = `<strong>${type} (共${errors.length}个文件)</strong><br>`;
+    const type = errors[0].type === "VPK解析" ? t("app.toast.parseError") : errors[0].type;
+    let msg = `<strong>${t("app.toast.batchTitle", { type, count: errors.length })}</strong><br>`;
 
     // 显示前3个详情
     const maxShow = 3;
     for (let i = 0; i < Math.min(errors.length, maxShow); i++) {
       const err = errors[i];
-      const fileName = err.file ? err.file.split(/[\\/]/).pop() : "未知文件";
+      const fileName = err.file ? err.file.split(/[\\/]/).pop() : t("app.toast.unknownFile");
       msg += `<div style="margin-top:4px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:2px;">
-            文件名：${fileName}<br>
-            <span style="opacity:0.8; font-size:0.9em;">内容：${err.message}</span>
+            ${t("app.toast.fileName", { name: fileName })}<br>
+            <span style="opacity:0.8; font-size:0.9em;">${t("app.toast.content", { text: err.message })}</span>
         </div>`;
     }
 
     if (errors.length > maxShow) {
-      msg += `<div style="margin-top:4px; font-style:italic;">...以及其他 ${
+      msg += `<div style="margin-top:4px; font-style:italic;">${t("app.toast.moreFiles", { count: 
         errors.length - maxShow
-      } 个文件</div>`;
+      })}</div>`;
     }
 
     showError(msg, 8000); // 多个错误显示时间长一点

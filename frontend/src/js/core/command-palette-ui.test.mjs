@@ -10,6 +10,7 @@ const runtime = readFileSync(new URL("../features/app-runtime.js", import.meta.u
 const ui = readFileSync(new URL("./command-palette-ui.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../../css/app/reading-comfort.css", import.meta.url), "utf8");
 const help = readFileSync(new URL("../features/file-list/search-help.mjs", import.meta.url), "utf8");
+const catalog = JSON.parse(readFileSync(new URL("../../messages/zh-CN.json", import.meta.url), "utf8"));
 
 test("命令面板结构在 index.html 里", () => {
   ["command-palette-modal", "command-palette-input", "command-palette-list", "command-palette-hint"].forEach((id) => {
@@ -56,7 +57,10 @@ test("命令面板记住最近用过的命令（可注入存储、命名空间�
   assert.match(ui, /"lytvpk\.commandPalette\.recent"/, "存储键要有独立命名空间");
   assert.match(ui, /storage = null/, "存储要可注入（测试不碰真实 localStorage）");
   assert.match(ui, /return window\.localStorage;/, "要取真实 localStorage 作为默认实现");
-  assert.match(ui, /最近 · /, "最近用过的条目要加标记");
+  assert.match(ui, /t\("app\.commandPalette\.recentBadge", \{ hint/, "最近用过的标记要从目录取文案");
+  assert.equal(catalog.app.commandPalette.recentBadge, "最近 · {hint}");
+  assert.match(ui, /t\("app\.commandPalette\.empty"\)/, "空态文案要从目录取");
+  assert.equal(catalog.app.commandPalette.empty, "没有匹配的命令；换个关键词，或清空后浏览全部。");
   assert.match(ui, /recentCount: recentCommandIds\.length/, "状态文案要说明最近用过几条");
   // 记录发生在"执行"这条路径上：定义 1 处 + Enter 与点击各 1 处。
   const recordCalls = [...ui.matchAll(/recordCommandUse\(/g)].length;

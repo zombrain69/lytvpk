@@ -4,17 +4,19 @@
 // 后来者会拿到错误。界面如果什么都不显示，用户只会看到"点了没反应/突然报错"。
 // 这里把"忙碌"变成可见状态：状态栏一行提示 + 相关按钮暂时变灰。
 
+import { t } from "./i18n-runtime.js";
+
 /** 忙碌时加到 <body> 上的 class（CSS 用它禁掉会写磁盘的按钮）。 */
 export const FILE_OPERATION_BUSY_CLASS = "is-file-operation-busy";
 
 /** 忙碌时状态栏显示的文案。 */
 export function describeFileOperationBusy(busy) {
-  return busy ? "正在处理文件（移动 / 删除 / 打包）… 完成后可继续" : "";
+  return busy ? t("app.fileOperation.busy") : "";
 }
 
 /** 忙碌时用户仍点了文件操作按钮，给出与后端一致的说明。 */
 export function formatFileOperationBlockedMessage() {
-  return "另一个文件操作正在进行（移动 / 删除 / 打包），请等它完成后再试";
+  return t("app.fileOperation.blocked");
 }
 
 /**

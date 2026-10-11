@@ -11,6 +11,8 @@
 //   - `explainOperationError`：后端错误 → 一句人话 + 下一步怎么做。
 // 规则按顺序匹配、第一条命中即返回；都不命中时也有通用兜底（保证 summary 非空）。
 
+import { t } from "./i18n-runtime.js";
+
 export const EXPLANATION_SCENES = { operation: "operation", input: "input" };
 
 const trim = (value) => String(value ?? "").trim();
@@ -44,78 +46,78 @@ const ERROR_RULES = [
   {
     // 路径守卫（internal/app/path_guard.go）
     match: (text) => text.includes("不在当前受管的"),
-    summary: "这个文件不在当前管理的 addons / workshop / disabled 里",
-    hint: "刷新一次 Mod 列表；如果刚换过游戏目录，重新选一次目录再操作。",
+    summaryKey: "app.explanation.notManaged.summary",
+    hintKey: "app.explanation.notManaged.hint",
   },
   {
     // 文件操作闸门（internal/app/file_op_gate.go）
     match: (text) => text.includes("另一个文件操作正在进行"),
-    summary: "上一个文件操作还没结束",
-    hint: "等状态栏的提示消失后再试，避免两批操作互相插队。",
+    summaryKey: "app.explanation.busy.summary",
+    hintKey: "app.explanation.busy.hint",
   },
   {
     match: (text) => text.includes("需要先转移") || (text.includes("创意工坊") && text.includes("转移")),
-    summary: "创意工坊 Mod 不能直接开关",
-    hint: "先点那一行的「复制到 addons」，把它转移到插件目录再操作。",
+    summaryKey: "app.explanation.workshopTransfer.summary",
+    hintKey: "app.explanation.workshopTransfer.hint",
   },
   {
     match: (text) => text.includes("未选择L4D2目录") || text.includes("还没有选择 addons 目录") || text.includes("未配置配置目录"),
-    summary: "还没有选择游戏目录",
-    hint: "点左上角「选择 addons 目录」选一次，之后会被记住。",
+    summaryKey: "app.explanation.noGameDir.summary",
+    hintKey: "app.explanation.noGameDir.hint",
   },
   {
     match: (text) => text.includes("正则表达式无效"),
     scene: EXPLANATION_SCENES.input,
-    summary: "搜索里的正则写错了",
-    hint: "检查 `re:` 后面的写法，或去掉 `re:` 改回普通词搜索。",
+    summaryKey: "app.explanation.invalidRegex.summary",
+    hintKey: "app.explanation.invalidRegex.hint",
   },
   {
     match: (text) => text.includes("文件名不合法") || text.includes("文件名不能包含") || text.includes("文件名不能以") || text.includes("是 Windows 保留设备名"),
     scene: EXPLANATION_SCENES.input,
-    summary: "这个名字不能用作文件名",
-    hint: "避开 < > : \" / \\ | ? * 与控制字符，不要以空格或点结尾。",
+    summaryKey: "app.explanation.invalidFilename.summary",
+    hintKey: "app.explanation.invalidFilename.hint",
   },
   {
     match: (text) => text.includes("输入不合法") || text.includes("无效的") || text.includes("缺少"),
     scene: EXPLANATION_SCENES.input,
-    summary: "输入的内容不合法",
-    hint: "按提示改一下输入；不确定就恢复默认值再试。",
+    summaryKey: "app.explanation.invalidInput.summary",
+    hintKey: "app.explanation.invalidInput.hint",
   },
   {
     match: (text) => text.includes("找不到对应文件") || text.includes("文件不存在") || text.includes("does not exist") || text.includes("cannot find the file"),
-    summary: "要操作的文件已经不在了",
-    hint: "刷新列表后重试；它可能已被移动或删除。",
+    summaryKey: "app.explanation.fileGone.summary",
+    hintKey: "app.explanation.fileGone.hint",
   },
   {
     // 注意别和上一条混：`cannot find the path` 说的是**目标路径**不可用
     // （常见于目标目录被删、或目标位置被同名文件占住），不是源文件消失了。
     match: (text) => text.includes("cannot find the path") || text.includes("系统找不到指定的路径"),
-    summary: "目标路径当前不可用",
-    hint: "确认目标目录还在、且没有被同名文件占住，然后重试。",
+    summaryKey: "app.explanation.pathUnavailable.summary",
+    hintKey: "app.explanation.pathUnavailable.hint",
   },
   {
     match: (text) => text.includes("已存在") || text.includes("already exists"),
-    summary: "目标位置已经有同名文件",
-    hint: "选择「替换」或「跳过」，或先给其中一个改个名字。",
+    summaryKey: "app.explanation.alreadyExists.summary",
+    hintKey: "app.explanation.alreadyExists.hint",
   },
   {
     match: (text) => text.includes("拒绝访问") || text.toLowerCase().includes("access is denied") || text.toLowerCase().includes("permission"),
-    summary: "系统拒绝了这次读写",
-    hint: "关掉正在占用该文件的程序（游戏本体、杀软、解压工具）后重试。",
+    summaryKey: "app.explanation.accessDenied.summary",
+    hintKey: "app.explanation.accessDenied.hint",
   },
   {
     match: (text) => text.includes("空间不足") || text.toLowerCase().includes("not enough space") || text.toLowerCase().includes("disk full"),
-    summary: "磁盘空间不够",
-    hint: "清理目标盘空间，或换一个盘再操作。",
+    summaryKey: "app.explanation.outOfSpace.summary",
+    hintKey: "app.explanation.outOfSpace.hint",
   },
   {
     match: (text) => text.includes("网络") || text.toLowerCase().includes("timeout") || text.toLowerCase().includes("connection") || text.toLowerCase().includes("econn") || text.toLowerCase().includes("dial tcp"),
-    summary: "网络没连上",
-    hint: "确认能访问 Steam；必要时开代理 / 加速后重试。",
+    summaryKey: "app.explanation.networkDown.summary",
+    hintKey: "app.explanation.networkDown.hint",
   },
 ];
 
-const DEFAULT_ERROR_HINT = "如果反复出现，把这条消息和对应的 Mod 名一起反馈。";
+const DEFAULT_ERROR_HINT_KEY = "app.explanation.defaultHint";
 
 /**
  * explainOperationError 把后端（或系统）的原始错误转成"人话 + 下一步"。
@@ -127,9 +129,9 @@ export function explainOperationError(rawMessage, { scene = EXPLANATION_SCENES.o
   for (const rule of ERROR_RULES) {
     if (rule.scene && rule.scene !== scene) continue;
     if (!rule.match(raw)) continue;
-    return { summary: rule.summary, hint: rule.hint, raw, subject, matched: true };
+    return { summary: t(rule.summaryKey), hint: t(rule.hintKey), raw, subject, matched: true };
   }
-  return { summary: raw || "操作失败", hint: DEFAULT_ERROR_HINT, raw, subject, matched: false };
+  return { summary: raw || t("app.explanation.fallbackSummary"), hint: t(DEFAULT_ERROR_HINT_KEY), raw, subject, matched: false };
 }
 
 /** 会写磁盘的操作：忙碌时这些操作要等（只读操作不受影响）。 */
@@ -144,31 +146,31 @@ export function explainActionAvailability({ action = "", file = null, context = 
   const name = trim(action);
 
   if (!hasRoot) {
-    return { available: false, reason: "还没有选择游戏目录", hint: "先选一次 addons 目录，之后会被记住。" };
+    return { available: false, reason: t("app.explanation.noGameDir.summary"), hint: t("app.explanation.availability.noRoot.hint") };
   }
   if (busy && WRITE_ACTIONS.has(name)) {
-    return { available: false, reason: "正在处理另一个文件操作（移动 / 删除 / 打包）", hint: "等状态栏的提示消失后再试。" };
+    return { available: false, reason: t("app.explanation.availability.busy.reason"), hint: t("app.explanation.availability.busy.hint") };
   }
   if (name === "toggle" && file?.location === "workshop") {
-    return { available: false, reason: "创意工坊 Mod 不能直接启用 / 禁用", hint: "先把它「复制到 addons」再开关。" };
+    return { available: false, reason: t("app.explanation.availability.workshopToggle.reason"), hint: t("app.explanation.availability.workshopToggle.hint") };
   }
   if (name === "game-state" && file?.location === "disabled") {
-    return { available: false, reason: "这个 Mod 在 disabled 目录里，游戏不会加载它", hint: "先把它移回 addons，再改游戏内开关。" };
+    return { available: false, reason: t("app.explanation.availability.disabledGameState.reason"), hint: t("app.explanation.availability.disabledGameState.hint") };
   }
   if (name === "disable-file") {
     // 模型统计等面板里的"禁用"按钮：只对 addons 根目录里的 Mod 直接可用。
     if (!trim(file?.path)) {
-      return { available: false, reason: "这个条目没有文件路径", hint: "刷新一次列表再试。" };
+      return { available: false, reason: t("app.explanation.availability.noFilePath.reason"), hint: t("app.explanation.availability.noFilePath.hint") };
     }
     if (file?.location === "disabled") {
-      return { available: false, reason: "这个 Mod 已经在 disabled 目录里", hint: "需要时先把它移回 addons。" };
+      return { available: false, reason: t("app.explanation.availability.alreadyDisabled.reason"), hint: t("app.explanation.availability.alreadyDisabled.hint") };
     }
     if (file?.location !== "root") {
-      return { available: false, reason: "只有 addons 根目录里的 Mod 能直接禁用", hint: "创意工坊 Mod 先「复制到 addons」，再从这里禁用。" };
+      return { available: false, reason: t("app.explanation.availability.nonRootDisable.reason"), hint: t("app.explanation.availability.nonRootDisable.hint") };
     }
   }
   if ((name === "batch" || name === "group-apply") && Number(selectionCount) <= 0) {
-    return { available: false, reason: "还没有选中任何 Mod", hint: "勾选若干 Mod，或用搜索 / 筛选缩小范围后再操作。" };
+    return { available: false, reason: t("app.explanation.availability.noSelection.reason"), hint: t("app.explanation.availability.noSelection.hint") };
   }
   return { available: true, reason: "", hint: "" };
 }
@@ -178,5 +180,5 @@ export function formatExplanation(explanation) {
   const summary = trim(explanation?.summary);
   const hint = trim(explanation?.hint);
   if (!summary) return hint;
-  return hint ? `${summary}（${hint}）` : summary;
+  return hint ? t("app.explanation.combined", { summary, hint }) : summary;
 }

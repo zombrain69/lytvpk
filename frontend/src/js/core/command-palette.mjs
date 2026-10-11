@@ -4,30 +4,47 @@
 // 命令面板把"页面跳转 + 常用动作"变成一句话检索（`冲突`、`体检`、`工坊`…），
 // 与 Mod 列表的搜索语法形成互补：一个找 Mod，一个找功能。
 
+import { t } from "./i18n-runtime.js";
+
 /**
  * COMMANDS 是命令清单（不含具体实现）。id 由 app-runtime.js 映射到实际动作，
  * 这里只负责"叫什么、怎么被搜到、提示什么"。
  */
 export const COMMANDS = [
-  { id: "focus-mod-search", title: "搜索 Mod（跳到搜索框）", keywords: "查找 查询 过滤 搜索 mod search", hint: "Ctrl+F" },
-  { id: "page-mods", title: "打开：MOD 管理", keywords: "主页 列表 mods 首页", hint: "页面" },
-  { id: "page-workshop", title: "打开：创意工坊", keywords: "workshop 工坊 浏览 下载mod", hint: "页面" },
-  { id: "page-downloads", title: "打开：下载与解析", keywords: "downloads 链接 解析 下载队列", hint: "页面" },
-  { id: "page-servers", title: "打开：收藏服务器", keywords: "servers 服务器 收藏", hint: "页面" },
-  { id: "page-diagnostics", title: "打开：工具箱", keywords: "diagnostics 工具 打包 解包 mdmp 模型 喷漆", hint: "页面" },
-  { id: "page-settings", title: "打开：设置", keywords: "settings 配置 偏好", hint: "页面" },
-  { id: "page-about", title: "打开：关于", keywords: "about 版本 更新 许可", hint: "页面" },
-  { id: "interface-settings", title: "界面设置（文字大小 / 阅读舒适度）", keywords: "界面 字号 文字大小 对比度 行距 舒适 缩放", hint: "设置 → 界面设置" },
-  { id: "strategy-group-manager", title: "策略组管理（应用 / 权重 / 层级 / 拖放）", keywords: "策略组 分组 权重 层级 group", hint: "窗口" },
-  { id: "group-suggest", title: "分组建议（推导可能同组的 Mod）", keywords: "建议 推导 同组 识别 suggest", hint: "窗口" },
-  { id: "load-order", title: "加载顺序优化", keywords: "加载顺序 优先级 覆盖 load order", hint: "窗口" },
-  { id: "conflict-analysis", title: "冲突分析（开关）", keywords: "冲突 覆盖 conflict 分析", hint: "工具栏" },
-  { id: "health-check", title: "开始体检", keywords: "体检 检查 健康 health 修复", hint: "设置 → 游戏配置" },
-  { id: "workshop-enrich", title: "抓取工坊官方标签与统计", keywords: "工坊 标签 统计 steam tags", hint: "设置 → 工坊设置" },
-  { id: "toggle-theme", title: "切换主题（浅色 / 深色）", keywords: "主题 夜间 深色 浅色 theme", hint: "标题栏" },
-  { id: "show-shortcuts", title: "查看键盘快捷键", keywords: "快捷键 键位 键盘 shortcut help 帮助 问号", hint: "按 ? 也能打开" },
-  { id: "reset-window-geometry", title: "重置所有窗口的位置与大小", keywords: "窗口 浮动 位置 大小 复位 重置 跑到屏幕外", hint: "浮动窗口自救" },
+  { id: "focus-mod-search", titleKey: "app.commandPalette.cmd.focusModSearch.title", keywordsKey: "app.commandPalette.cmd.focusModSearch.keywords", hintKey: "app.commandPalette.hint.ctrlF" },
+  { id: "page-mods", titleKey: "app.commandPalette.openPage", pageKey: "app.shell.nav.mods", keywordsKey: "app.commandPalette.cmd.pageMods.keywords", hintKey: "app.commandPalette.hint.page" },
+  { id: "page-workshop", titleKey: "app.commandPalette.openPage", pageKey: "app.shell.nav.workshop", keywordsKey: "app.commandPalette.cmd.pageWorkshop.keywords", hintKey: "app.commandPalette.hint.page" },
+  { id: "page-downloads", titleKey: "app.commandPalette.openPage", pageKey: "app.shell.nav.downloads", keywordsKey: "app.commandPalette.cmd.pageDownloads.keywords", hintKey: "app.commandPalette.hint.page" },
+  { id: "page-servers", titleKey: "app.commandPalette.openPage", pageKey: "app.shell.nav.servers", keywordsKey: "app.commandPalette.cmd.pageServers.keywords", hintKey: "app.commandPalette.hint.page" },
+  { id: "page-diagnostics", titleKey: "app.commandPalette.openPage", pageKey: "app.shell.nav.diagnostics", keywordsKey: "app.commandPalette.cmd.pageDiagnostics.keywords", hintKey: "app.commandPalette.hint.page" },
+  { id: "page-settings", titleKey: "app.commandPalette.openPage", pageKey: "app.shell.nav.settings", keywordsKey: "app.commandPalette.cmd.pageSettings.keywords", hintKey: "app.commandPalette.hint.page" },
+  { id: "page-about", titleKey: "app.commandPalette.openPage", pageKey: "app.shell.nav.about", keywordsKey: "app.commandPalette.cmd.pageAbout.keywords", hintKey: "app.commandPalette.hint.page" },
+  { id: "interface-settings", titleKey: "app.commandPalette.cmd.interfaceSettings.title", keywordsKey: "app.commandPalette.cmd.interfaceSettings.keywords", hintKey: "app.commandPalette.hint.interfaceSettings" },
+  { id: "strategy-group-manager", titleKey: "app.commandPalette.cmd.strategyGroupManager.title", keywordsKey: "app.commandPalette.cmd.strategyGroupManager.keywords", hintKey: "app.commandPalette.hint.window" },
+  { id: "group-suggest", titleKey: "app.commandPalette.cmd.groupSuggest.title", keywordsKey: "app.commandPalette.cmd.groupSuggest.keywords", hintKey: "app.commandPalette.hint.window" },
+  { id: "load-order", titleKey: "app.commandPalette.cmd.loadOrder.title", keywordsKey: "app.commandPalette.cmd.loadOrder.keywords", hintKey: "app.commandPalette.hint.window" },
+  { id: "conflict-analysis", titleKey: "app.commandPalette.cmd.conflictAnalysis.title", keywordsKey: "app.commandPalette.cmd.conflictAnalysis.keywords", hintKey: "app.commandPalette.hint.toolbar" },
+  { id: "health-check", titleKey: "app.commandPalette.cmd.healthCheck.title", keywordsKey: "app.commandPalette.cmd.healthCheck.keywords", hintKey: "app.commandPalette.hint.healthCheck" },
+  { id: "workshop-enrich", titleKey: "app.commandPalette.cmd.workshopEnrich.title", keywordsKey: "app.commandPalette.cmd.workshopEnrich.keywords", hintKey: "app.commandPalette.hint.workshopSettings" },
+  { id: "toggle-theme", titleKey: "app.commandPalette.cmd.toggleTheme.title", keywordsKey: "app.commandPalette.cmd.toggleTheme.keywords", hintKey: "app.commandPalette.hint.titleBar" },
+  { id: "show-shortcuts", titleKey: "app.commandPalette.cmd.showShortcuts.title", keywordsKey: "app.commandPalette.cmd.showShortcuts.keywords", hintKey: "app.commandPalette.hint.shortcuts" },
+  { id: "reset-window-geometry", titleKey: "app.commandPalette.cmd.resetWindowGeometry.title", keywordsKey: "app.commandPalette.cmd.resetWindowGeometry.keywords", hintKey: "app.commandPalette.hint.windowRescue" },
 ];
+
+/**
+ * resolveCommand 把命令表的 key 解析成当前语言的文案（模块求值期不调 t()，
+ * 与 category-tree / 服务器数据表同一套「key 表 + 延迟取文案」做法）。
+ */
+export function resolveCommand(command) {
+  const source = command || {};
+  const page = source.pageKey ? t(source.pageKey) : "";
+  return {
+    id: source.id,
+    title: t(source.titleKey, page ? { page } : undefined),
+    keywords: t(source.keywordsKey),
+    hint: t(source.hintKey),
+  };
+}
 
 /** subsequenceMatch 与 Mod 搜索同一套语义：字符按顺序出现即命中（大小写不敏感）。 */
 export function subsequenceMatch(text, query) {
@@ -63,7 +80,7 @@ function matchScore(command, query) {
  * （用户按 Ctrl+K 往往是重复上一件事，先把常用的放到手边）。
  */
 export function searchCommands(commands, query, limit = 10, recentIds = []) {
-  const list = Array.isArray(commands) ? commands : [];
+  const list = (Array.isArray(commands) ? commands : []).map(resolveCommand);
   const needle = String(query ?? "").trim();
   const max = Number(limit) > 0 ? Number(limit) : list.length;
   if (!needle) return orderCommandsByRecents(list, recentIds).slice(0, max);
@@ -123,11 +140,11 @@ export function describeCommandPaletteState({ total = 0, shown = 0, query = "", 
   const keyword = String(query ?? "").trim();
   if (!keyword) {
     // 空查询时顺带把全局快捷键列出来：用户按 Ctrl+K 往往就是想找这些。
-    const recent = Number(recentCount) > 0 ? `最近用过 ${Number(recentCount)} 条在最上面 · ` : "";
-    return `${recent}共 ${Number(total) || 0} 条命令 · ↑↓ 选择，Enter 执行，Esc 关闭 · 快捷键：Ctrl+K 命令面板 / Ctrl+F 搜索 / Ctrl+±/0 缩放`;
+    const recent = Number(recentCount) > 0 ? t("app.commandPalette.state.recent", { count: Number(recentCount) }) : "";
+    return t("app.commandPalette.state.idle", { recent, total: Number(total) || 0 });
   }
-  if (!shown) return `没有匹配「${keyword}」的命令`;
-  return `匹配 ${Number(shown) || 0} / ${Number(total) || 0} 条命令 · Enter 执行`;
+  if (!shown) return t("app.commandPalette.state.noMatch", { keyword });
+  return t("app.commandPalette.state.matching", { shown: Number(shown) || 0, total: Number(total) || 0 });
 }
 
 /** nextCommandId 在命令 id 列表里移动光标（环绕；没有光标时从两端进入）。 */

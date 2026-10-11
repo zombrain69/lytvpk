@@ -10,6 +10,7 @@
 //
 // 缩放不需要在这里做：core/modal-resizer.js 已经给每个 .modal-content 装了八个方向的把手。
 import { clampWindowSize } from "./window-geometry.mjs";
+import { t } from "./i18n-runtime.js";
 
 
 const FLOATING_CLASS = "is-floating";
@@ -261,7 +262,7 @@ export function setupFloatingModal(modal, options = {}) {
       button.type = "button";
       button.className = "modal-float-toggle";
       button.title =
-        "浮动窗口：去掉背景虚化，可以直接操作主界面（拖动标题栏移动、拖动边缘缩放）；再点一次恢复居中模态。";
+        t("app.floating.tooltip");
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         setFloating(!isFloatingModal(element));
@@ -275,7 +276,7 @@ export function setupFloatingModal(modal, options = {}) {
   const syncControl = (enabled) => {
     if (control && "checked" in control) control.checked = enabled;
     if (button) {
-      button.textContent = enabled ? "停靠窗口" : "浮动窗口";
+      button.textContent = enabled ? t("app.floating.dock") : t("app.floating.float");
       button.classList.toggle("is-active", enabled);
       button.setAttribute("aria-pressed", String(enabled));
     }

@@ -402,9 +402,9 @@ export async function renderSettingsPage(deps) {
               </div>
               <div class="mode-toggle-group" id="settings-text-size" role="radiogroup" aria-label="${t("settings.interface.textSize.label")}">
                 ${TEXT_SIZE_OPTIONS.map((option) => `
-                  <label class="mode-option ${normalizeTextSize(getConfig().textSize) === option.key ? "active" : ""}" title="${escapeHtml(option.description)}">
+                  <label class="mode-option ${normalizeTextSize(getConfig().textSize) === option.key ? "active" : ""}" title="${escapeHtml(t(option.descriptionKey))}">
                     <input type="radio" name="settings-text-size" value="${option.key}" ${normalizeTextSize(getConfig().textSize) === option.key ? "checked" : ""}>
-                    <span class="mode-text">${escapeHtml(option.label)}</span>
+                    <span class="mode-text">${escapeHtml(t(option.labelKey))}</span>
                   </label>`).join("")}
               </div>
             </div>
@@ -415,9 +415,9 @@ export async function renderSettingsPage(deps) {
               </div>
               <div class="mode-toggle-group" id="settings-reading-comfort" role="radiogroup" aria-label="${t("settings.interface.readingComfort.label")}">
                 ${READING_COMFORT_OPTIONS.map((option) => `
-                  <label class="mode-option ${normalizeReadingComfort(getConfig().readingComfort) === option.key ? "active" : ""}" title="${escapeHtml(option.description)}">
+                  <label class="mode-option ${normalizeReadingComfort(getConfig().readingComfort) === option.key ? "active" : ""}" title="${escapeHtml(t(option.descriptionKey))}">
                     <input type="radio" name="settings-reading-comfort" value="${option.key}" ${normalizeReadingComfort(getConfig().readingComfort) === option.key ? "checked" : ""}>
-                    <span class="mode-text">${escapeHtml(option.label)}</span>
+                    <span class="mode-text">${escapeHtml(t(option.labelKey))}</span>
                   </label>`).join("")}
               </div>
             </div>

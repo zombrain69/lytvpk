@@ -14,6 +14,9 @@ import {
   textScaleFor,
   textSizeLabel,
 } from "./reading-comfort.mjs";
+import { installTestCatalog } from "./i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 // 假根节点：只要 dataset / style 两个属性，够验证"写到哪儿、写成什么"。
 function fakeRoot() {

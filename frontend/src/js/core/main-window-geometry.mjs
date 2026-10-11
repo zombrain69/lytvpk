@@ -7,6 +7,8 @@
 //   - shouldApplyMainWindowGeometry：没记录过（null）时不设置，保持 Wails 默认；
 //   - 尺寸非法（0 / 负数 / 非数字）一律当"没记录过"。
 
+import { t } from "./i18n-runtime.js";
+
 /** 主窗口允许的最小尺寸：比这个还小就会把工具栏挤掉。 */
 export const MAIN_WINDOW_MIN_WIDTH = 900;
 export const MAIN_WINDOW_MIN_HEIGHT = 600;
@@ -56,9 +58,9 @@ export function shouldApplyMainWindowGeometry(geometry) {
  */
 export function describeMainWindowGeometry(geometry) {
   const clean = sanitizeMainWindowGeometry(geometry);
-  if (!clean) return "还没记录过主窗口大小（使用默认尺寸）";
-  if (clean.maximised) return `主窗口记忆：最大化（还原尺寸 ${clean.width}×${clean.height}）`;
-  return `主窗口记忆：${clean.width}×${clean.height}`;
+  if (!clean) return t("app.windowGeometry.notRecorded");
+  if (clean.maximised) return t("app.windowGeometry.summaryMaximised", { width: clean.width, height: clean.height });
+  return t("app.windowGeometry.summaryNormal", { width: clean.width, height: clean.height });
 }
 
 /**

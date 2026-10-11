@@ -7,14 +7,18 @@ import {
   nextCommandId,
   orderCommandsByRecents,
   pushRecentCommand,
+  resolveCommand,
   searchCommands,
   subsequenceMatch,
 } from "./command-palette.mjs";
+import { installTestCatalog } from "./i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("命令清单覆盖各页面与常用动作，且 id/title 不重复", () => {
   const ids = COMMANDS.map((command) => command.id);
   assert.equal(new Set(ids).size, ids.length, "命令 id 不能重复");
-  const titles = COMMANDS.map((command) => command.title);
+  const titles = COMMANDS.map((command) => resolveCommand(command).title);
   assert.equal(new Set(titles).size, titles.length, "命令标题不能重复");
 
   ["page-mods", "page-workshop", "page-downloads", "page-servers", "page-diagnostics", "page-settings", "page-about"].forEach(
@@ -23,7 +27,7 @@ test("命令清单覆盖各页面与常用动作，且 id/title 不重复", () =
   ["focus-mod-search", "strategy-group-manager", "group-suggest", "load-order", "health-check", "toggle-theme"].forEach(
     (id) => assert.ok(ids.includes(id), `缺少动作命令 ${id}`),
   );
-  assert.ok(COMMANDS.every((command) => command.hint), "每条命令都要有去处提示");
+  assert.ok(COMMANDS.every((command) => resolveCommand(command).hint), "每条命令都要有去处提示");
 });
 
 test("空查询保持原顺序并截断", () => {

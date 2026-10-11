@@ -9,6 +9,9 @@ import {
   formatExplanation,
   sceneFromErrorType,
 } from "./action-explanation.mjs";
+import { installTestCatalog } from "./i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("后端错误被翻成「发生了什么 + 接下来怎么做」", () => {
   const cases = [

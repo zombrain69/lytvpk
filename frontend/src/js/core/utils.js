@@ -1,12 +1,15 @@
 import { escapeHtmlText } from "./escape-html.mjs";
+import { t } from "./i18n-runtime.js";
+
+const LOCATION_DISPLAY_KEYS = {
+  root: "mods.location.root",
+  workshop: "mods.location.workshop",
+  disabled: "mods.location.disabled",
+};
 
 export function getLocationDisplayName(tag) {
-  const displayNames = {
-    root: "根目录",
-    workshop: "创意工坊",
-    disabled: "已禁用",
-  };
-  return displayNames[tag] || tag;
+  const key = LOCATION_DISPLAY_KEYS[tag];
+  return key ? t(key) : tag;
 }
 
 export function getActionButton(file) {
@@ -20,7 +23,7 @@ export function getActionButton(file) {
             <path d="M12 22V12"></path>
           </svg>
         </span>
-        <span class="btn-text">复制到 addons</span>
+        <span class="btn-text">${t("mods.ops.common.copyToAddons")}</span>
       </button>
     `;
   } else {
@@ -34,7 +37,7 @@ export function getActionButton(file) {
             <path d="M18.4 6.6a9 9 0 1 1-12.8 0"></path>
           </svg>
         </span>
-        <span class="btn-text">${file.enabled ? "禁用" : "启用"}</span>
+        <span class="btn-text">${file.enabled ? t("mods.ops.common.actionDisable") : t("mods.ops.common.actionEnable")}</span>
       </button>
     `;
   }
@@ -76,7 +79,7 @@ export function formatTags(primaryTag, secondaryTags = [], voiceCharacters = [],
 	}
 
   if (voiceLabels.length > 0) {
-    const voiceText = `语音替换：${voiceLabels.join("、")}`;
+    const voiceText = t("modals.detail.voiceReplacement", { characters: voiceLabels.join("、") });
     tags.push(
       `<span class="tag voice-replacement-tag" title="${escapeHtml(voiceText)}">${escapeHtml(voiceText)}</span>`,
     );

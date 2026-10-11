@@ -5,40 +5,42 @@
 // 现在：这份表驱动 ①标题栏 `?` 浮层 ②搜索框说明书里的快捷键段 ③命令面板里的「查看键盘快捷键」，
 // 三处同源，改一处就够。
 
+import { t } from "./i18n-runtime.js";
+
 export const SHORTCUT_GROUPS = [
   {
     id: "global",
-    title: "全局",
+    titleKey: "app.shortcuts.group.global",
     rows: [
-      { id: "command-palette", keys: "Ctrl + K", description: "打开命令面板（找页面 / 跑常用动作）" },
-      { id: "focus-search", keys: "Ctrl + F", description: "聚焦 Mod 搜索框" },
-      { id: "zoom-in", keys: "Ctrl + =", description: "界面放大（Ctrl + 加号同理）" },
-      { id: "zoom-out", keys: "Ctrl + -", description: "界面缩小" },
-      { id: "zoom-reset", keys: "Ctrl + 0", description: "界面缩放回到 100%" },
-      { id: "shortcuts-help", keys: "?", description: "打开这份快捷键总览（光标在输入框里时不触发）" },
+      { id: "command-palette", keys: "Ctrl + K", descriptionKey: "app.shortcuts.desc.commandPalette" },
+      { id: "focus-search", keys: "Ctrl + F", descriptionKey: "app.shortcuts.desc.focusSearch" },
+      { id: "zoom-in", keys: "Ctrl + =", descriptionKey: "app.shortcuts.desc.zoomIn" },
+      { id: "zoom-out", keys: "Ctrl + -", descriptionKey: "app.shortcuts.desc.zoomOut" },
+      { id: "zoom-reset", keys: "Ctrl + 0", descriptionKey: "app.shortcuts.desc.zoomReset" },
+      { id: "shortcuts-help", keys: "?", descriptionKey: "app.shortcuts.desc.shortcutsHelp" },
     ],
   },
   {
     id: "search",
-    title: "搜索框与列表",
+    titleKey: "app.shortcuts.group.search",
     rows: [
-      { id: "search-cursor", keys: "↑ / ↓", description: "在结果里移动光标（焦点仍在搜索框）" },
-      { id: "search-open", keys: "Enter", description: "打开光标所在 Mod 的详情" },
-      { id: "search-clear", keys: "Esc", description: "清空搜索并回到全部" },
+      { id: "search-cursor", keys: "↑ / ↓", descriptionKey: "app.shortcuts.desc.searchCursor" },
+      { id: "search-open", keys: "Enter", descriptionKey: "app.shortcuts.desc.searchOpen" },
+      { id: "search-clear", keys: "Esc", descriptionKey: "app.shortcuts.desc.searchClear" },
       // 对齐 FireAxe v0.7.0/v0.7.2 的编辑快捷键：F2 重命名、Delete 删除选中项。
-      { id: "rename-mod", keys: "F2", description: "重命名光标所在（或唯一选中的）Mod" },
-      { id: "delete-mod", keys: "Delete", description: "删除光标所在（或已选中的）Mod（先确认，进回收站）" },
+      { id: "rename-mod", keys: "F2", descriptionKey: "app.shortcuts.desc.renameMod" },
+      { id: "delete-mod", keys: "Delete", descriptionKey: "app.shortcuts.desc.deleteMod" },
       // 对齐 FireAxe v0.5.1 的 Ctrl+X / Ctrl+V：标记待移动 → 选目标目录移动。
-      { id: "cut-mods", keys: "Ctrl + X", description: "标记选中的 Mod 为待移动（可继续改选，标记不变）" },
-      { id: "paste-mods", keys: "Ctrl + V", description: "把待移动的 Mod 移到选定目录（Esc 取消标记）" },
+      { id: "cut-mods", keys: "Ctrl + X", descriptionKey: "app.shortcuts.desc.cutMods" },
+      { id: "paste-mods", keys: "Ctrl + V", descriptionKey: "app.shortcuts.desc.pasteMods" },
     ],
   },
   {
     id: "layers",
-    title: "窗口与浮层",
+    titleKey: "app.shortcuts.group.layers",
     rows: [
-      { id: "close-layer", keys: "Esc", description: "关闭浮层 / 浮动窗口（点窗口外同样可以）" },
-      { id: "reset-window", keys: "双击标题栏", description: "把该窗口的位置与大小复位" },
+      { id: "close-layer", keys: "Esc", descriptionKey: "app.shortcuts.desc.closeLayer" },
+      { id: "reset-window", keysKey: "app.shortcuts.keys.resetWindow", descriptionKey: "app.shortcuts.desc.resetWindow" },
     ],
   },
 ];
@@ -92,6 +94,20 @@ export function shortcutRowsByIds(ids) {
   return (Array.isArray(ids) ? ids : []).map((id) => byId.get(String(id ?? ""))).filter(Boolean);
 }
 
+/** resolveShortcutGroupTitle / resolveShortcutDescription / resolveShortcutKeys 取当前语言文案
+ *  （key → t()；兼容直接给字面量的行）。模块求值期不调 t()。 */
+function resolveShortcutGroupTitle(group) {
+  return group?.titleKey ? t(group.titleKey) : String(group?.title ?? "");
+}
+
+function resolveShortcutDescription(row) {
+  return row?.descriptionKey ? t(row.descriptionKey) : String(row?.description ?? "");
+}
+
+function resolveShortcutKeys(row) {
+  return row?.keysKey ? t(row.keysKey) : String(row?.keys ?? "");
+}
+
 /** buildShortcutsHtml 生成浮层内容（全部转义，复用 .search-help-* 样式）。 */
 export function buildShortcutsHtml(groups = SHORTCUT_GROUPS) {
   const list = Array.isArray(groups) ? groups : SHORTCUT_GROUPS;
@@ -100,14 +116,14 @@ export function buildShortcutsHtml(groups = SHORTCUT_GROUPS) {
       const rows = (group.rows || [])
         .map(
           (row) =>
-            `<div class="search-help-row"><code>${escapeHtmlText(row.keys)}</code><span>${escapeHtmlText(
-              row.description,
+            `<div class="search-help-row"><code>${escapeHtmlText(resolveShortcutKeys(row))}</code><span>${escapeHtmlText(
+              resolveShortcutDescription(row),
             )}</span></div>`,
         )
         .join("");
       return `
     <div class="search-help-section">
-      <div class="search-help-title">${escapeHtmlText(group.title)}</div>
+      <div class="search-help-title">${escapeHtmlText(resolveShortcutGroupTitle(group))}</div>
       ${rows}
     </div>`;
     })
@@ -117,7 +133,7 @@ export function buildShortcutsHtml(groups = SHORTCUT_GROUPS) {
 /** buildShortcutsTitle 生成按钮的悬停提示（一行版）。 */
 export function buildShortcutsTitle() {
   const keys = shortcutRowsByIds(["command-palette", "focus-search", "zoom-reset", "shortcuts-help"])
-    .map((row) => row.keys)
+    .map((row) => resolveShortcutKeys(row))
     .join(" / ");
-  return `快捷键总览：${keys}（点开看全部）`;
+  return t("app.shell.shortcuts.tooltipLine", { keys });
 }

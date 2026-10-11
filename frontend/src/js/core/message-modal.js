@@ -1,7 +1,9 @@
+import { t } from "./i18n-runtime.js";
+
 let activeMessageModalSession = null;
 let messageModalSessionCounter = 0;
 
-const DEFAULT_CONFIRM_TEXT = "确定";
+const DEFAULT_CONFIRM_KEY = "modals.message.confirm";
 
 // #message-modal is intentionally shared by diagnostics and update flows. A
 // session owns its buttons and callbacks so an older async flow cannot clear
@@ -39,7 +41,7 @@ export function beginMessageModalSession({ onClose } = {}) {
     });
     ownedClasses.clear();
     contentEl.replaceChildren();
-    confirmBtn.textContent = DEFAULT_CONFIRM_TEXT;
+    confirmBtn.textContent = t(DEFAULT_CONFIRM_KEY);
     confirmBtn.disabled = false;
     closeBtn.disabled = false;
     confirmBtn.onclick = null;
@@ -118,7 +120,7 @@ export function showMessageModal(title, message, onConfirm) {
   const session = beginMessageModalSession();
   if (!session) return null;
 
-  session.titleEl.textContent = title || "提示";
+  session.titleEl.textContent = title || t("modals.message.title");
   session.contentEl.textContent = message || "";
   session.confirmBtn.onclick = async () => {
     if (!session.isCurrent()) return;

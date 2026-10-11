@@ -6,34 +6,36 @@
 //   - 阅读舒适度（readingComfort）改的是行距与文字对比度，用来解决"看久了累"。
 // 三者相乘作用于根字号（uiScale × textSize），所以互不干扰、可以任意组合。
 
+import { t } from "./i18n-runtime.js";
+
 export const TEXT_SIZE_DATASET_KEY = "textSize";
 export const READING_FONT_SCALE_DATASET_KEY = "readingFontScale";
 
 export const TEXT_SIZE_OPTIONS = [
-  { key: "compact", label: "紧凑", scale: 0.94, description: "同屏放更多内容" },
-  { key: "standard", label: "标准", scale: 1, description: "默认大小" },
-  { key: "large", label: "大", scale: 1.12, description: "文字更清楚" },
-  { key: "xlarge", label: "特大", scale: 1.25, description: "最舒服但同屏更少" },
+  { key: "compact", labelKey: "settings.interface.textSize.option.compact", scale: 0.94, descriptionKey: "settings.interface.textSize.option.compactDesc" },
+  { key: "standard", labelKey: "settings.interface.textSize.option.standard", scale: 1, descriptionKey: "settings.interface.textSize.option.standardDesc" },
+  { key: "large", labelKey: "settings.interface.textSize.option.large", scale: 1.12, descriptionKey: "settings.interface.textSize.option.largeDesc" },
+  { key: "xlarge", labelKey: "settings.interface.textSize.option.xlarge", scale: 1.25, descriptionKey: "settings.interface.textSize.option.xlargeDesc" },
 ];
 
 export const READING_COMFORT_OPTIONS = [
   {
     key: "soft",
-    label: "柔和",
+    labelKey: "settings.interface.readingComfort.option.soft",
     lineHeight: 1.8,
-    description: "行距更松、对比更柔，长时间阅读更省眼",
+    descriptionKey: "settings.interface.readingComfort.option.softDesc",
   },
   {
     key: "standard",
-    label: "标准",
+    labelKey: "settings.interface.readingComfort.option.standard",
     lineHeight: 1.65,
-    description: "默认的对比度与行距",
+    descriptionKey: "settings.interface.readingComfort.option.standardDesc",
   },
   {
     key: "contrast",
-    label: "高对比",
+    labelKey: "settings.interface.readingComfort.option.contrast",
     lineHeight: 1.55,
-    description: "文字更黑、行距更紧，弱视或强光下更清楚",
+    descriptionKey: "settings.interface.readingComfort.option.contrastDesc",
   },
 ];
 
@@ -70,12 +72,12 @@ export function lineHeightFor(comfort) {
 /** textSizeLabel / readingComfortLabel 供设置页与提示文案使用。 */
 export function textSizeLabel(textSize) {
 	const key = normalizeTextSize(textSize);
-	return TEXT_SIZE_OPTIONS.find((item) => item.key === key)?.label || "标准";
+	return t(TEXT_SIZE_OPTIONS.find((item) => item.key === key)?.labelKey || "settings.interface.textSize.option.standard");
 }
 
 export function readingComfortLabel(comfort) {
 	const key = normalizeReadingComfort(comfort);
-	return READING_COMFORT_OPTIONS.find((item) => item.key === key)?.label || "标准";
+	return t(READING_COMFORT_OPTIONS.find((item) => item.key === key)?.labelKey || "settings.interface.readingComfort.option.standard");
 }
 
 /**

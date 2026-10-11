@@ -40,7 +40,7 @@ export const SEARCH_SHORTCUT_ROWS = shortcutRowsByIds([
   "search-cursor",
   "search-open",
   "search-clear",
-]).map((row) => ({ syntax: row.keys, description: row.description }));
+]).map((row) => ({ syntaxKey: row.keysKey, syntax: row.keys, descriptionKey: row.descriptionKey }));
 
 /** 参与搜索的字段（顺序 = 展示顺序）；key 指向目录，渲染时取文案。 */
 export const SEARCH_FIELD_LABEL_KEYS = [
@@ -216,7 +216,7 @@ export function buildSearchHelpHtml(variant = MOD_SEARCH_HELP_VARIANT) {
     </div>
     <div class="search-help-section">
       <div class="search-help-title">${escapeHtmlText(t("search.section.shortcuts"))}</div>
-      ${renderRows(SEARCH_SHORTCUT_ROWS)}
+      ${renderRows(SEARCH_SHORTCUT_ROWS.map(resolveSyntaxRow))}
     </div>
   `;
 }

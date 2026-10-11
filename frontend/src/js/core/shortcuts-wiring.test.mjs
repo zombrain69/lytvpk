@@ -6,6 +6,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { SHORTCUT_GROUPS } from "./shortcuts.mjs";
+import { installTestCatalog } from "./i18n-test-catalog.mjs";
+import { t } from "./i18n-runtime.js";
+
+installTestCatalog();
 
 const html = readFileSync(new URL("../../../index.html", import.meta.url), "utf8");
 const runtime = readFileSync(new URL("../features/app-runtime.js", import.meta.url), "utf8");
@@ -23,7 +27,7 @@ test("标题栏有 `?` 按钮与浮层容器，并且内容由共享表生成", 
 });
 
 test("总览里写的每个键位在代码里都有真实绑定", () => {
-  const keys = SHORTCUT_GROUPS.flatMap((group) => group.rows.map((row) => row.keys));
+  const keys = SHORTCUT_GROUPS.flatMap((group) => group.rows.map((row) => (row.keysKey ? t(row.keysKey) : row.keys)));
 
   // Ctrl+K / Ctrl+F：app-runtime 的全局 keydown
   assert.ok(keys.includes("Ctrl + K") && /event\.key\.toLowerCase\(\) === "k"/.test(runtime), "Ctrl+K 要真的绑定");
