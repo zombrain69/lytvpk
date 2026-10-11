@@ -8,6 +8,7 @@ import {
   shouldShortenOriginalVTF,
   shouldUseOriginalMipmaps,
 } from "./vtf-core.js";
+import { t } from "../../core/i18n-runtime.js";
 
 export {
   TEXTURE_FORMATS,
@@ -38,7 +39,7 @@ const IMAGE_DECODER_MAX_FRAMES = 4096;
 export async function decodeFilesAsProject(files, { requestClipOptions } = {}) {
   const list = Array.from(files || []).filter(Boolean);
   if (!list.length) {
-    throw new Error("请选择至少一个素材文件");
+    throw new Error(t("toolbox.spray.error.selectFiles"));
   }
 
   const frames = [];
@@ -47,7 +48,7 @@ export async function decodeFilesAsProject(files, { requestClipOptions } = {}) {
     frames.push(...decoded.frames);
   }
   if (!frames.length) {
-    throw new Error("没有可用的图像帧");
+    throw new Error(t("toolbox.spray.error.noImageFrames"));
   }
 
   return {
@@ -75,7 +76,7 @@ export async function decodeMipmapOverride(files, { requestClipOptions } = {}) {
 
 export async function buildSprayOutputs(project, options) {
   if (!project || !Array.isArray(project.frames) || !project.frames.length) {
-    throw new Error("请先导入喷漆素材");
+    throw new Error(t("toolbox.spray.error.importSprayFirst"));
   }
 
   const finalOptions = { ...DEFAULT_SPRAY_OPTIONS, ...(options || {}) };
@@ -249,12 +250,14 @@ function buildVTFWithWorker(payload) {
       if (event.data?.ok) {
         resolve(new Uint8Array(event.data.bytes));
       } else {
-        reject(new Error(event.data?.error || "Worker 转换失败"));
+        const error = new Error(event.data?.error || t("toolbox.spray.error.workerFailed"));
+        if (event.data?.code) error.code = String(event.data.code);
+        reject(error);
       }
     };
     worker.onerror = (error) => {
       worker.terminate();
-      reject(error instanceof Error ? error : new Error("Worker 转换失败"));
+      reject(error instanceof Error ? error : new Error(t("toolbox.spray.error.workerFailed")));
     };
     worker.postMessage(payload);
   });
@@ -318,7 +321,7 @@ async function getClipOptions(requestClipOptions, file, meta) {
   if (typeof requestClipOptions === "function") {
     const selected = await requestClipOptions(file, meta);
     if (selected?.cancelled) {
-      throw new Error("已取消导入");
+      throw new Error(t("toolbox.spray.error.cancelled"));
     }
     if (selected) return selected;
   }
@@ -357,7 +360,7 @@ function loadImageToCanvas(file) {
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error(`无法读取图片: ${file.name}`));
+      reject(new Error(t("toolbox.spray.error.readImageFailed", { name: file.name })));
     };
     img.src = url;
   });
@@ -381,7 +384,7 @@ function getImageDecodeDelayUnits(image) {
 
 function decodeTGAToCanvas(buffer) {
   const data = new Uint8Array(buffer);
-  if (data.length < 18) throw new Error("TGA 文件过短");
+  if (data.length < 18) throw new Error(t("toolbox.spray.error.tgaTooShort"));
 
   const idLength = data[0];
   const colorMapType = data[1];
@@ -390,9 +393,9 @@ function decodeTGAToCanvas(buffer) {
   const height = data[14] | (data[15] << 8);
   const pixelDepth = data[16];
   const descriptor = data[17];
-  if (colorMapType !== 0) throw new Error("暂不支持带调色板的 TGA");
-  if (![2, 3, 10, 11].includes(imageType)) throw new Error("暂不支持该 TGA 类型");
-  if (![8, 24, 32].includes(pixelDepth)) throw new Error("暂不支持该 TGA 位深");
+  if (colorMapType !== 0) throw new Error(t("toolbox.spray.error.tgaPalette"));
+  if (![2, 3, 10, 11].includes(imageType)) throw new Error(t("toolbox.spray.error.tgaType"));
+  if (![8, 24, 32].includes(pixelDepth)) throw new Error(t("toolbox.spray.error.tgaDepth"));
 
   let offset = 18 + idLength;
   const bytesPerPixel = pixelDepth / 8;

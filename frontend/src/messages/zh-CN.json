@@ -764,6 +764,129 @@
         "count": "共 {count} 条",
         "pageStatus": "第 {page} / {totalPages} 页 · {count} 条"
       }
+    },
+    "spray": {
+      "modal": {
+        "subtitle": "制作 L4D2 可用的 VTF/VMT 喷漆文件。"
+      },
+      "action": {
+        "saveVtf": "保存 VTF",
+        "saveVmt": "保存 VMT"
+      },
+      "import": {
+        "panelTitle": "素材",
+        "panelSubtitle": "导入帧、动画或批量素材",
+        "select": "选择素材",
+        "batch": "批量导入",
+        "failed": "导入素材失败: {error}",
+        "failedDropped": "导入喷漆素材失败: {error}",
+        "failedBatch": "批量导入失败: {error}"
+      },
+      "preview": {
+        "panelTitle": "预览",
+        "panelSubtitle": "按当前分辨率和缩放设置显示",
+        "play": "播放",
+        "pause": "暂停",
+        "waiting": "等待素材"
+      },
+      "settings": {
+        "panelTitle": "设置",
+        "panelSubtitle": "输出参数",
+        "name": "喷漆名称",
+        "namePlaceholder": "留空默认使用素材文件名",
+        "width": "宽度",
+        "height": "高度",
+        "rescale": "缩放以适应",
+        "mipmaps": "生成 Mipmaps",
+        "singleFrame": "单张图片制作动画",
+        "singleFrameCount": "单张动画帧数",
+        "sampling": "采样方法",
+        "samplingDefault": "默认",
+        "samplingPoint": "点采样",
+        "samplingTrilinear": "三线性",
+        "samplingAniso": "各向异性",
+        "dither": "使用抖动",
+        "dxtQuality": "DXT 压缩质量",
+        "dxtFast": "快速",
+        "dxtNormal": "普通",
+        "dxtSlow": "慢速",
+        "dxtVerySlow": "非常慢",
+        "mipLevel": "替换层级",
+        "mipReplace": "替换 Mipmap",
+        "mipReplaceAgain": "重新替换",
+        "mipClear": "清除替换",
+        "mipFailed": "替换 mipmap 失败: {error}",
+        "format": "纹理格式",
+        "formatDxt1": "DXT1（推荐）",
+        "formatDxt5": "DXT5（透明度更细）",
+        "dimensionPlaceholder": "自动或输入像素",
+        "presetAria": "{label}预设"
+      },
+      "dimension": {
+        "auto": "自动"
+      },
+      "project": {
+        "empty": "尚未导入素材",
+        "frameCount": "{count} 帧",
+        "remove": "移除"
+      },
+      "notify": {
+        "imported": "素材已导入",
+        "batchImported": "已导入 {count} 个喷漆项目",
+        "mipReplaced": "Mipmap 已替换",
+        "mipmapRule": "当前尺寸、格式或采样设置不符合原版 Mipmaps 规则",
+        "vtfSaved": "VTF 已保存",
+        "vmtSaved": "VMT 已保存"
+      },
+      "busy": {
+        "readDropped": "正在读取拖入素材...",
+        "reading": "正在读取素材...",
+        "batchImport": "正在批量导入...",
+        "mipOverride": "正在替换 mipmap...",
+        "saveVtf": "正在保存 VTF...",
+        "saveVmt": "正在保存 VMT...",
+        "converting": "正在转换 VTF..."
+      },
+      "save": {
+        "vtfFailed": "保存 VTF 失败: {error}",
+        "vmtFailed": "保存 VMT 失败: {error}"
+      },
+      "note": {
+        "shortened": "原版缩宽",
+        "size": "预计 {kb} KB · {suffix}"
+      },
+      "footer": {
+        "empty": "导入素材后即可预览和输出。",
+        "summary": "当前 {count} 个项目，选中 {name}。"
+      },
+      "clip": {
+        "title": "动画导入",
+        "start": "起始帧",
+        "end": "结束帧",
+        "fps": "导入速度",
+        "allFrames": "导入所有帧",
+        "accept": "导入"
+      },
+      "select": {
+        "placeholder": "请选择"
+      },
+      "error": {
+        "importFirst": "请先导入素材",
+        "convertFailed": "转换失败: {error}",
+        "selectFiles": "请选择至少一个素材文件",
+        "noImageFrames": "没有可用的图像帧",
+        "importSprayFirst": "请先导入喷漆素材",
+        "cancelled": "已取消导入",
+        "readImageFailed": "无法读取图片: {name}",
+        "tgaTooShort": "TGA 文件过短",
+        "tgaPalette": "暂不支持带调色板的 TGA",
+        "tgaType": "暂不支持该 TGA 类型",
+        "tgaDepth": "暂不支持该 TGA 位深",
+        "workerFailed": "Worker 转换失败",
+        "noWriteFrames": "没有可写入的图像帧",
+        "mipFramesMissing": "mipmap 缺少帧数据",
+        "framesIncomplete": "帧数据不完整"
+      }
     }
   },
   "about": {

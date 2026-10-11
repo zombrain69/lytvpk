@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   DEFAULT_SPRAY_OPTIONS,
   FORMAT_LABELS,
@@ -74,14 +75,14 @@ export async function importSprayPaths(paths = [], { refreshFilesKeepFilter } = 
   if (!sprayPaths.length) return false;
 
   openSprayTool({ refreshFilesKeepFilter });
-  setBusy(true, "正在读取拖入素材...");
+  setBusy(true, t("toolbox.spray.busy.readDropped"));
   try {
     const payloads = await callApp("LoadSprayImportFiles", sprayPaths);
     const files = sprayPayloadsToFiles(payloads || []);
     await importPrimaryFiles(files);
     return true;
   } catch (error) {
-    showError("导入喷漆素材失败: " + formatError(error));
+    showError(t("toolbox.spray.import.failedDropped", { error: formatError(error) }));
     return false;
   } finally {
     setBusy(false);
@@ -111,11 +112,11 @@ function createModalContent() {
   const header = el("div", "modal-header spray-tool-header");
   const titleWrap = el("div", "spray-tool-title-wrap");
   titleWrap.append(
-    el("h3", "", "喷漆制作"),
-    el("p", "", "制作 L4D2 可用的 VTF/VMT 喷漆文件。")
+    el("h3", "", t("toolbox.card.spray.title")),
+    el("p", "", t("toolbox.spray.modal.subtitle"))
   );
   const closeBtn = button("spray-tool-close", "close-btn", "×");
-  closeBtn.setAttribute("aria-label", "关闭");
+  closeBtn.setAttribute("aria-label", t("toolbox.common.close"));
   header.append(titleWrap, closeBtn);
 
   const body = el("div", "modal-body spray-tool-body");
@@ -126,8 +127,8 @@ function createModalContent() {
   status.id = "spray-footer-status";
   const actions = el("div", "spray-tool-footer-actions");
   actions.append(
-    button("spray-save-vtf-btn", "btn btn-primary", "保存 VTF"),
-    button("spray-save-vmt-btn", "btn btn-secondary", "保存 VMT")
+    button("spray-save-vtf-btn", "btn btn-primary", t("toolbox.spray.action.saveVtf")),
+    button("spray-save-vmt-btn", "btn btn-secondary", t("toolbox.spray.action.saveVmt"))
   );
   footer.append(status, actions);
 
@@ -137,15 +138,15 @@ function createModalContent() {
 
 function createImportPanel() {
   const panel = el("section", "spray-panel spray-import-panel");
-  panel.append(panelTitle("素材", "导入帧、动画或批量素材"));
+  panel.append(panelTitle(t("toolbox.spray.import.panelTitle"), t("toolbox.spray.import.panelSubtitle")));
 
-  const primaryBtn = button("spray-primary-import-btn", "btn btn-primary", "选择素材");
+  const primaryBtn = button("spray-primary-import-btn", "btn btn-primary", t("toolbox.spray.import.select"));
   const primaryInput = input("file", "spray-primary-input");
   primaryInput.accept = ACCEPTED_FILES;
   primaryInput.multiple = true;
   primaryInput.classList.add("hidden");
 
-  const batchBtn = button("spray-batch-import-btn", "btn btn-secondary", "批量导入");
+  const batchBtn = button("spray-batch-import-btn", "btn btn-secondary", t("toolbox.spray.import.batch"));
   const batchInput = input("file", "spray-batch-input");
   batchInput.accept = ACCEPTED_FILES;
   batchInput.multiple = true;
@@ -163,7 +164,7 @@ function createImportPanel() {
 
 function createPreviewPanel() {
   const panel = el("section", "spray-panel spray-preview-panel");
-  const header = panelTitle("预览", "按当前分辨率和缩放设置显示");
+  const header = panelTitle(t("toolbox.spray.preview.panelTitle"), t("toolbox.spray.preview.panelSubtitle"));
   const meta = el("div", "spray-preview-meta");
   meta.id = "spray-preview-meta";
   header.appendChild(meta);
@@ -178,7 +179,7 @@ function createPreviewPanel() {
   const controls = el("div", "spray-playback-controls");
   controls.append(
     button("spray-prev-frame-btn", "btn btn-icon", "‹"),
-    button("spray-play-btn", "btn btn-secondary", "播放"),
+    button("spray-play-btn", "btn btn-secondary", t("toolbox.spray.preview.play")),
     button("spray-next-frame-btn", "btn btn-icon", "›"),
     el("span", "spray-frame-label", "0 / 0")
   );
@@ -193,34 +194,34 @@ function createPreviewPanel() {
 
 function createSettingsPanel() {
   const panel = el("section", "spray-panel spray-settings-panel");
-  panel.append(panelTitle("设置", "输出参数"));
+  panel.append(panelTitle(t("toolbox.spray.settings.panelTitle"), t("toolbox.spray.settings.panelSubtitle")));
 
   const form = el("div", "spray-settings-form");
   const sizeNote = el("div", "spray-size-note", "");
   sizeNote.id = "spray-size-note";
   sizeNote.hidden = true;
   form.append(
-    textControl("喷漆名称", "spray-project-name", "", "留空默认使用素材文件名"),
-    dimensionControl("宽度", "spray-width-value"),
-    dimensionControl("高度", "spray-height-value"),
-    checkboxControl("缩放以适应", "spray-rescale", true),
-    checkboxControl("生成 Mipmaps", "spray-mipmaps", false),
+    textControl(t("toolbox.spray.settings.name"), "spray-project-name", "", t("toolbox.spray.settings.namePlaceholder")),
+    dimensionControl(t("toolbox.spray.settings.width"), "spray-width-value"),
+    dimensionControl(t("toolbox.spray.settings.height"), "spray-height-value"),
+    checkboxControl(t("toolbox.spray.settings.rescale"), "spray-rescale", true),
+    checkboxControl(t("toolbox.spray.settings.mipmaps"), "spray-mipmaps", false),
     createMipmapControls(),
-    checkboxControl("单张图片制作动画", "spray-single-frame", false),
-    numberControl("单张动画帧数", "spray-single-frame-count", 8, 2, 64),
+    checkboxControl(t("toolbox.spray.settings.singleFrame"), "spray-single-frame", false),
+    numberControl(t("toolbox.spray.settings.singleFrameCount"), "spray-single-frame-count", 8, 2, 64),
     formatControl(),
-    selectControl("采样方法", "spray-sampling", [
-      ["0", "默认"],
-      ["1", "点采样"],
-      ["2", "三线性"],
-      ["16", "各向异性"],
+    selectControl(t("toolbox.spray.settings.sampling"), "spray-sampling", [
+      ["0", t("toolbox.spray.settings.samplingDefault")],
+      ["1", t("toolbox.spray.settings.samplingPoint")],
+      ["2", t("toolbox.spray.settings.samplingTrilinear")],
+      ["16", t("toolbox.spray.settings.samplingAniso")],
     ]),
-    checkboxControl("使用抖动", "spray-dither", true),
-    selectControl("DXT 压缩质量", "spray-dxt-quality", [
-      ["0", "快速"],
-      ["1", "普通"],
-      ["2", "慢速"],
-      ["3", "非常慢"],
+    checkboxControl(t("toolbox.spray.settings.dither"), "spray-dither", true),
+    selectControl(t("toolbox.spray.settings.dxtQuality"), "spray-dxt-quality", [
+      ["0", t("toolbox.spray.settings.dxtFast")],
+      ["1", t("toolbox.spray.settings.dxtNormal")],
+      ["2", t("toolbox.spray.settings.dxtSlow")],
+      ["3", t("toolbox.spray.settings.dxtVerySlow")],
     ]),
     sizeNote
   );
@@ -231,7 +232,7 @@ function createSettingsPanel() {
 function createMipmapControls() {
   const wrap = el("div", "spray-mipmap-controls");
   const row = el("div", "spray-control spray-control-inline");
-  const label = el("label", "", "替换层级");
+  const label = el("label", "", t("toolbox.spray.settings.mipLevel"));
   label.setAttribute("for", "spray-mipmap-level");
   row.append(label, customSelectInput("spray-mipmap-level", []));
 
@@ -241,8 +242,8 @@ function createMipmapControls() {
   inputEl.multiple = true;
   inputEl.classList.add("hidden");
   actions.append(
-    button("spray-mipmap-import-btn", "btn btn-secondary", "替换 Mipmap"),
-    button("spray-mipmap-clear-btn", "btn btn-secondary", "清除替换"),
+    button("spray-mipmap-import-btn", "btn btn-secondary", t("toolbox.spray.settings.mipReplace")),
+    button("spray-mipmap-clear-btn", "btn btn-secondary", t("toolbox.spray.settings.mipClear")),
     inputEl
   );
   wrap.append(row, actions);
@@ -256,10 +257,10 @@ function formatControl() {
     [TEXTURE_FORMATS.RGB565, "RGB565"],
     [TEXTURE_FORMATS.BGRA5551, "BGRA5551"],
     [TEXTURE_FORMATS.BGRA4444, "BGRA4444"],
-    [TEXTURE_FORMATS.DXT1, "DXT1（推荐）"],
-    [TEXTURE_FORMATS.DXT5, "DXT5（透明度更细）"],
+    [TEXTURE_FORMATS.DXT1, t("toolbox.spray.settings.formatDxt1")],
+    [TEXTURE_FORMATS.DXT5, t("toolbox.spray.settings.formatDxt5")],
   ];
-  return selectControl("纹理格式", "spray-format", pairs);
+  return selectControl(t("toolbox.spray.settings.format"), "spray-format", pairs);
 }
 
 function bindStaticEvents() {
@@ -369,7 +370,7 @@ function applyDimensionValue(axis, rawValue, normalize) {
   const modeKey = `${axis}Mode`;
   const customKey = axis === "width" ? "customWidth" : "customHeight";
   const value = String(rawValue || "").trim();
-  if (!value || value === "自动" || value.toLowerCase() === "auto") {
+  if (!value || value === t("toolbox.spray.dimension.auto") || value.toLowerCase() === "auto") {
     state.options[modeKey] = "auto";
     return true;
   }
@@ -391,7 +392,7 @@ function dimensionValueFromOptions(axis) {
   const modeKey = `${axis}Mode`;
   const customKey = axis === "width" ? "customWidth" : "customHeight";
   const mode = state.options[modeKey];
-  if (!mode || mode === "auto") return "自动";
+  if (!mode || mode === "auto") return t("toolbox.spray.dimension.auto");
   if (mode === "custom") return String(state.options[customKey] || 512);
   return String(mode);
 }
@@ -401,13 +402,13 @@ function enforceMipmapSizeLimit(showMessage) {
   state.options.mipmaps = false;
   refs.mipmaps.checked = false;
   if (showMessage) {
-    showNotification("当前尺寸、格式或采样设置不符合原版 Mipmaps 规则", "info");
+    showNotification(t("toolbox.spray.notify.mipmapRule"), "info");
   }
 }
 
 async function importPrimaryFiles(files) {
   if (!files || !files.length) return;
-  setBusy(true, "正在读取素材...");
+  setBusy(true, t("toolbox.spray.busy.reading"));
   try {
     const project = await decodeFilesAsProject(files, {
       requestClipOptions: showClipOptionsModal,
@@ -417,9 +418,9 @@ async function importPrimaryFiles(files) {
     state.frameIndex = 0;
     enforceMipmapSizeLimit(true);
     renderAll();
-    showNotification("素材已导入", "success");
+    showNotification(t("toolbox.spray.notify.imported"), "success");
   } catch (error) {
-    showError("导入素材失败: " + formatError(error));
+    showError(t("toolbox.spray.import.failed", { error: formatError(error) }));
   } finally {
     setBusy(false);
   }
@@ -427,7 +428,7 @@ async function importPrimaryFiles(files) {
 
 async function importBatchFiles(files) {
   if (!files || !files.length) return;
-  setBusy(true, "正在批量导入...");
+  setBusy(true, t("toolbox.spray.busy.batchImport"));
   try {
     const projects = await decodeFilesAsBatch(files, {
       requestClipOptions: showClipOptionsModal,
@@ -437,9 +438,9 @@ async function importBatchFiles(files) {
     state.frameIndex = 0;
     enforceMipmapSizeLimit(true);
     renderAll();
-    showNotification(`已导入 ${projects.length} 个喷漆项目`, "success");
+    showNotification(t("toolbox.spray.notify.batchImported", { count: projects.length }), "success");
   } catch (error) {
-    showError("批量导入失败: " + formatError(error));
+    showError(t("toolbox.spray.import.failedBatch", { error: formatError(error) }));
   } finally {
     setBusy(false);
   }
@@ -450,16 +451,16 @@ async function importMipmapOverride(files) {
   if (!project || !files || !files.length) return;
   const level = Number(refs.mipmapLevel.value || 0);
   if (level <= 0) return;
-  setBusy(true, "正在替换 mipmap...");
+  setBusy(true, t("toolbox.spray.busy.mipOverride"));
   try {
     project.mipOverrides[level] = await decodeMipmapOverride(files, {
       requestClipOptions: showClipOptionsModal,
     });
     renderMipmapControlsState();
     updatePreview();
-    showNotification("Mipmap 已替换", "success");
+    showNotification(t("toolbox.spray.notify.mipReplaced"), "success");
   } catch (error) {
-    showError("替换 mipmap 失败: " + formatError(error));
+    showError(t("toolbox.spray.settings.mipFailed", { error: formatError(error) }));
   } finally {
     setBusy(false);
   }
@@ -478,17 +479,17 @@ function clearMipmapOverride() {
 async function saveSprayVTF() {
   const output = await buildOutputForActiveProject();
   if (!output) return;
-  setBusy(true, "正在保存 VTF...");
+  setBusy(true, t("toolbox.spray.busy.saveVtf"));
   try {
     const path = await callApp("SaveSprayVTF", {
       name: output.name,
       vtfBase64: output.vtfBase64,
     });
     if (path) {
-      showNotification("VTF 已保存", "success");
+      showNotification(t("toolbox.spray.notify.vtfSaved"), "success");
     }
   } catch (error) {
-    showError("保存 VTF 失败: " + formatError(error));
+    showError(t("toolbox.spray.save.vtfFailed", { error: formatError(error) }));
   } finally {
     setBusy(false);
   }
@@ -497,19 +498,19 @@ async function saveSprayVTF() {
 async function saveSprayVMT() {
   const project = activeProject();
   if (!project) {
-    showError("请先导入素材");
+    showError(t("toolbox.spray.error.importFirst"));
     return;
   }
-  setBusy(true, "正在保存 VMT...");
+  setBusy(true, t("toolbox.spray.busy.saveVmt"));
   try {
     const path = await callApp("SaveSprayVMT", {
       name: sanitizeOutputName(getProjectDisplayName(project)),
     });
     if (path) {
-      showNotification("VMT 已保存", "success");
+      showNotification(t("toolbox.spray.notify.vmtSaved"), "success");
     }
   } catch (error) {
-    showError("保存 VMT 失败: " + formatError(error));
+    showError(t("toolbox.spray.save.vmtFailed", { error: formatError(error) }));
   } finally {
     setBusy(false);
   }
@@ -518,14 +519,14 @@ async function saveSprayVMT() {
 async function buildOutputForActiveProject() {
   const project = activeProject();
   if (!project) {
-    showError("请先导入素材");
+    showError(t("toolbox.spray.error.importFirst"));
     return null;
   }
-  setBusy(true, "正在转换 VTF...");
+  setBusy(true, t("toolbox.spray.busy.converting"));
   try {
     return await buildSprayOutputs(project, state.options);
   } catch (error) {
-    showError("转换失败: " + formatError(error));
+    showError(t("toolbox.spray.error.convertFailed", { error: formatError(error) }));
     return null;
   } finally {
     setBusy(false);
@@ -544,7 +545,7 @@ function renderAll() {
 function renderProjectList() {
   refs.projectList.replaceChildren();
   if (!state.projects.length) {
-    refs.projectList.appendChild(el("div", "spray-empty-state", "尚未导入素材"));
+    refs.projectList.appendChild(el("div", "spray-empty-state", t("toolbox.spray.project.empty")));
     return;
   }
 
@@ -554,9 +555,9 @@ function renderProjectList() {
     if (project.id === state.activeProjectId) row.classList.add("is-active");
     const main = el("span", "spray-project-row-main");
     main.append(el("strong", "", getProjectDisplayName(project)));
-    main.append(el("span", "", `${project.frames.length} 帧`));
+    main.append(el("span", "", t("toolbox.spray.project.frameCount", { count: project.frames.length })));
     const remove = button("", "spray-project-remove", "×");
-    remove.setAttribute("aria-label", "移除");
+    remove.setAttribute("aria-label", t("toolbox.spray.project.remove"));
     remove.addEventListener("click", (event) => {
       event.stopPropagation();
       removeProject(project.id);
@@ -615,7 +616,9 @@ function renderMipmapControlsState() {
   const hasOverride = !!project?.mipOverrides?.[level];
   refs.mipmapClearBtn.disabled =
     !project || !state.options.mipmaps || level <= 0 || !hasOverride;
-  refs.mipmapImportBtn.textContent = hasOverride ? "重新替换" : "替换 Mipmap";
+  refs.mipmapImportBtn.textContent = hasOverride
+    ? t("toolbox.spray.settings.mipReplaceAgain")
+    : t("toolbox.spray.settings.mipReplace");
 }
 
 function renderFrameStrip() {
@@ -647,7 +650,7 @@ function updatePreview() {
 
   if (!project) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    refs.previewMeta.textContent = "等待素材";
+    refs.previewMeta.textContent = t("toolbox.spray.preview.waiting");
     refs.frameLabel.textContent = "0 / 0";
     refs.saveVTFBtn.disabled = true;
     refs.saveVMTBtn.disabled = true;
@@ -687,10 +690,10 @@ function updateSizeNote(project, size) {
   const suffix = [
     FORMAT_LABELS.get(format) || "VTF",
     useMipmaps ? "Mipmaps" : "",
-    shortened ? "原版缩宽" : "",
+    shortened ? t("toolbox.spray.note.shortened") : "",
   ].filter(Boolean).join(" · ");
   refs.sizeNote.hidden = false;
-  refs.sizeNote.textContent = `预计 ${kb} KB · ${suffix}`;
+  refs.sizeNote.textContent = t("toolbox.spray.note.size", { kb, suffix });
   refs.sizeNote.classList.toggle("is-warning", kb >= 512);
 }
 
@@ -698,10 +701,13 @@ function updateFooter() {
   if (state.busy) return;
   const project = activeProject();
   if (!project) {
-    refs.footerStatus.textContent = "导入素材后即可预览和输出。";
+    refs.footerStatus.textContent = t("toolbox.spray.footer.empty");
     return;
   }
-  refs.footerStatus.textContent = `当前 ${state.projects.length} 个项目，选中 ${getProjectDisplayName(project)}。`;
+  refs.footerStatus.textContent = t("toolbox.spray.footer.summary", {
+    count: state.projects.length,
+    name: getProjectDisplayName(project),
+  });
 }
 
 function setBusy(busy, message = "") {
@@ -728,7 +734,7 @@ function togglePlayback() {
   const project = activeProject();
   if (!project || project.frames.length <= 1) return;
   state.playing = true;
-  refs.playBtn.textContent = "暂停";
+  refs.playBtn.textContent = t("toolbox.spray.preview.pause");
   state.timer = setInterval(() => {
     moveFrame(1);
   }, 200);
@@ -736,7 +742,7 @@ function togglePlayback() {
 
 function stopPlayback() {
   state.playing = false;
-  refs.playBtn.textContent = "播放";
+  refs.playBtn.textContent = t("toolbox.spray.preview.play");
   if (state.timer) clearInterval(state.timer);
   state.timer = null;
 }
@@ -816,18 +822,18 @@ function showClipOptionsModal(file, meta) {
     const modal = el("div", "modal spray-clip-modal");
     const content = el("div", "modal-content modal-small spray-clip-content");
     const header = el("div", "modal-header");
-    header.append(el("h3", "", "动画导入"));
+    header.append(el("h3", "", t("toolbox.spray.clip.title")));
     const body = el("div", "modal-body spray-clip-body");
-    const start = numberControl("起始帧", "spray-clip-start", 0, 0);
+    const start = numberControl(t("toolbox.spray.clip.start"), "spray-clip-start", 0, 0);
     const endDefault = meta.frameCount || 1;
-    const end = numberControl("结束帧", "spray-clip-end", endDefault, 0);
-    const fps = numberControl("导入速度", "spray-clip-fps", meta.defaultFps || 1, 1, 30);
-    const all = checkboxControl("导入所有帧", "spray-clip-all", false);
+    const end = numberControl(t("toolbox.spray.clip.end"), "spray-clip-end", endDefault, 0);
+    const fps = numberControl(t("toolbox.spray.clip.fps"), "spray-clip-fps", meta.defaultFps || 1, 1, 30);
+    const all = checkboxControl(t("toolbox.spray.clip.allFrames"), "spray-clip-all", false);
     const fileLabel = el("p", "spray-clip-file", file.name || "");
     body.append(fileLabel, start, end, fps, all);
     const footer = el("div", "modal-footer");
-    const cancel = button("", "btn btn-secondary", "取消");
-    const accept = button("", "btn btn-primary", "导入");
+    const cancel = button("", "btn btn-secondary", t("toolbox.common.cancel"));
+    const accept = button("", "btn btn-primary", t("toolbox.spray.clip.accept"));
     footer.append(cancel, accept);
     content.append(header, body, footer);
     modal.appendChild(content);
@@ -916,14 +922,14 @@ function dimensionControl(labelText, id) {
   const control = input("text", id);
   control.className = "textInput spray-combo-input";
   control.setAttribute("inputmode", "numeric");
-  control.placeholder = "自动或输入像素";
+  control.placeholder = t("toolbox.spray.settings.dimensionPlaceholder");
   const trigger = button(`${id}-toggle`, "spray-combo-toggle", "");
-  trigger.setAttribute("aria-label", `${labelText}预设`);
+  trigger.setAttribute("aria-label", t("toolbox.spray.settings.presetAria", { label: labelText }));
   trigger.setAttribute("aria-expanded", "false");
   const menu = el("div", "select-menu spray-select-menu spray-combo-menu hidden");
   menu.id = `${id}-menu`;
 
-  ["自动", ...RESOLUTION_PRESETS].forEach((value) => {
+  [t("toolbox.spray.dimension.auto"), ...RESOLUTION_PRESETS].forEach((value) => {
     const option = createSelectOption(String(value), String(value));
     option.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -1019,7 +1025,7 @@ function normalizeSelectOption(optionValue) {
   const pair = Array.isArray(optionValue) ? optionValue : [optionValue, String(optionValue)];
   return {
     value: String(pair[0]),
-    label: pair[1] === "auto" ? "自动" : String(pair[1]),
+    label: pair[1] === "auto" ? t("toolbox.spray.dimension.auto") : String(pair[1]),
   };
 }
 
@@ -1041,7 +1047,7 @@ function setCustomSelectValue(valueInput, value, dispatchChange) {
     option.setAttribute("aria-selected", String(isActive));
     if (isActive) selectedLabel = option.textContent || "";
   });
-  if (trigger) trigger.textContent = selectedLabel || "请选择";
+  if (trigger) trigger.textContent = selectedLabel || t("toolbox.spray.select.placeholder");
   if (dispatchChange) {
     valueInput.dispatchEvent(new Event("change", { bubbles: true }));
   }
@@ -1200,12 +1206,15 @@ function el(tag, className, text) {
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
   if (typeof method !== "function") {
-    return Promise.reject(new Error(`当前后端不支持 ${methodName}`));
+    return Promise.reject(new Error(t("toolbox.common.backendUnsupported", { method: methodName })));
   }
   return method(...args);
 }
 
 function formatError(error) {
+  const code = error?.code;
+  if (typeof code === "string" && code.startsWith("toolbox.spray.")) return t(code);
   if (error?.message) return error.message;
-  return String(error || "未知错误");
+  if (error) return String(error);
+  return t("toolbox.common.unknownError");
 }

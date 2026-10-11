@@ -7,7 +7,8 @@ self.addEventListener("message", (event) => {
   } catch (error) {
     self.postMessage({
       ok: false,
-      error: error?.message || String(error || "转换失败"),
+      error: error?.message || String(error || ""),
+      code: typeof error?.code === "string" ? error.code : "",
     });
   }
 });

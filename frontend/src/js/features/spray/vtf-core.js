@@ -348,17 +348,26 @@ function getOriginalEncodedSize(width, totalHeight, format) {
   return width * totalHeight * 2;
 }
 
+// spray-worker（工作线程）与主线程共用本模块；worker 里没有语言目录，不能直接取
+// 目录文案。抛出的错误带 `code`（= i18n 目录 key），由主线程展示层翻译
+// （spray-tool.js 的 formatError；目录与测试见 toolbox.spray.error.*）。
+function codedError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
 function normalizeMipFrames(mipmaps) {
   if (!Array.isArray(mipmaps) || !mipmaps.length) {
-    throw new Error("没有可写入的图像帧");
+    throw codedError("toolbox.spray.error.noWriteFrames");
   }
   return mipmaps.map((mipFrames) => {
     if (!Array.isArray(mipFrames) || !mipFrames.length) {
-      throw new Error("mipmap 缺少帧数据");
+      throw codedError("toolbox.spray.error.mipFramesMissing");
     }
     return mipFrames.map((frame) => {
       if (!frame || !frame.data || !frame.width || !frame.height) {
-        throw new Error("帧数据不完整");
+        throw codedError("toolbox.spray.error.framesIncomplete");
       }
       return frame;
     });

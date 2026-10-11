@@ -1,5 +1,31 @@
 # Changelog
 
+## 未发布 — i18n：spray 家族（第 13 项第二十二批）（2026-10-12）
+
+- **扫描器修复先行**（`i18n-静态节点工具/scan_module_cjk.py` v3）：块注释状态机改为字符串感知 ——
+  `spray-tool.js` 里 `"image/*,.tga"` 的 `/*` 曾把状态机永久置为「块注释中」，整文件 84 行中文
+  被静默漏报（该文件此前扫描显示 0 处、总量被低估）。修复后该文件实测 89 处、本批总量 104 处。
+- `spray-tool.js`（89 处全量）：弹窗骨架（标题/副标题/关闭/保存 VTF·VMT）、素材面板、预览面板
+  （播放/暂停/等待素材）、设置面板（名称与占位/宽高/缩放/Mipmaps/单张动画/采样/DXT 质量/
+  纹理格式/替换层级与替换 Mipmap 两态）、项目列表（空态/帧数/移除）、页脚摘要与体积预估、
+  动画导入弹窗（起始/结束帧/速度/所有帧/取消/导入）、忙碌与通知文案，全部进 `toolbox.spray.*`；
+  「自动」显示值改经 `t("toolbox.spray.dimension.auto")`（显示与比较同源，仍接受手输 auto / 数字）；
+  复用 `toolbox.card.spray.title` / `toolbox.common.close|cancel|unknownError|backendUnsupported`。
+- `vtf.js`（11 处）：未选择素材 / 无可用帧 / 未导入素材 / 取消导入、图片读取与 TGA 校验错误
+  进 `toolbox.spray.error.*`；worker 转发错误落实「code 桥」——`buildVTFWithWorker` 把
+  `event.data.code` 挂到 Error 上。
+- `vtf-core.js` + `spray-worker.js`（3 + 1 处）：模块被工作线程与主线程共用、worker 里没有
+  语言目录 —— 三条帧校验错误改抛带 `code`（= i18n 目录 key）的错误（新增 `codedError` 助手），
+  worker 回传 `code` 字段；主线程 `spray-tool.js` 的 `formatError` 按 `toolbox.spray.` 前缀
+  翻译 code、兜底 `toolbox.common.unknownError`。该「client 侧错误桥」约定记入
+  docs/development/i18n.md。
+- 目录新增 91 key（`toolbox.spray.*` 15 组：modal / action / import / preview / settings /
+  dimension / project / notify / busy / save / note / footer / clip / select / error）；
+  复用 5 key。**重扫**：spray 家族 104 → 0。
+- 测试：新增 `features/spray/spray-errors.test.mjs`（错误桥行为 + 目录解析 + 源码接线三段式）。
+- 验证：`node --test`（frontend，显式清单 120 文件）581 项 0 失败；`npm run build` 通过
+  （spray-worker chunk 21.96 KiB）；`go test -count=1 ./...` / `go vet ./...` 全过。
+
 ## 未发布 — i18n：core 家族（第 13 项第二十一批）（2026-10-12）
 
 - `action-explanation.mjs`（67 处 → 迁 44 / 豁免 23）：13 条错误规则改「key 表 + 延迟取文案」
