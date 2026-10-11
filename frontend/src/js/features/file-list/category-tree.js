@@ -5,11 +5,13 @@
 // 这里不复制任何过滤逻辑；分类定义来自 PRESET_GROUPS（唯一事实源）。
 
 import { appState } from "../state.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   buildCategoryTree,
   countCategoryNode,
   flattenCategoryTree,
   nodeIsSelected,
+  nodeLabel,
   selectionForNode,
 } from "./category-tree.mjs";
 
@@ -177,7 +179,7 @@ function renderCategorySidebar(options = {}) {
       chevron.type = "button";
       chevron.className = "category-node-chevron";
       chevron.textContent = expanded ? "▾" : "▸";
-      chevron.title = expanded ? "收起" : "展开";
+      chevron.title = expanded ? t("mods.category.collapse") : t("mods.category.expand");
       chevron.addEventListener("click", (event) => {
         event.stopPropagation();
         if (expandedIds.has(node.id)) expandedIds.delete(node.id);
@@ -192,12 +194,15 @@ function renderCategorySidebar(options = {}) {
     }
 
     const selection = selectionForNode(node);
+    const nodeText = nodeLabel(node);
     const label = document.createElement("button");
     label.type = "button";
     label.className = "category-node-label";
-    label.textContent = node.label;
+    label.textContent = nodeText;
     label.disabled = !selection;
-    label.title = selection ? `只看：${node.label}（再点一次取消）` : `${node.label}（展开后选子分类）`;
+    label.title = selection
+      ? t("mods.category.tipSelect", { label: nodeText })
+      : t("mods.category.tipExpandFirst", { label: nodeText });
     if (selection) {
       label.addEventListener("click", () => {
         if (hasChildren) expandedIds.add(node.id);
@@ -210,11 +215,11 @@ function renderCategorySidebar(options = {}) {
     // 组/子组保留旧「内容预设」菜单的两个快捷动作：查看全部（聚合标签）与清空本组。
     if (hasChildren && node.allTag) {
       line.appendChild(
-        createNodeAction("全部", `只看${node.label}（用聚合标签）`, () => deps.selectAggregate(node.allTag)),
+        createNodeAction(t("mods.category.action.all"), t("mods.category.action.allTip", { label: nodeLabel(node) }), () => deps.selectAggregate(node.allTag)),
       );
     }
     if (hasChildren && Array.isArray(node.tags) && node.tags.length > 0) {
-      line.appendChild(createNodeAction("清空", `取消${node.label}里已选的标签`, () => deps.clearGroup(node.tags)));
+      line.appendChild(createNodeAction(t("mods.category.action.clear"), t("mods.category.action.clearTip", { label: nodeLabel(node) }), () => deps.clearGroup(node.tags)));
     }
 
     const count = countOf(node);
@@ -222,7 +227,7 @@ function renderCategorySidebar(options = {}) {
       const badge = document.createElement("span");
       badge.className = "category-node-count";
       badge.textContent = String(count);
-      badge.title = `${count} 个 Mod`;
+      badge.title = t("mods.category.badgeTip", { count });
       line.appendChild(badge);
     }
     container.appendChild(line);

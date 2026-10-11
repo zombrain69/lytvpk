@@ -341,7 +341,137 @@
       "searchPlaceholder": "搜索分类…",
       "searchAriaLabel": "搜索分类",
       "treeLabel": "Mod 分类",
-      "clear": "清除分类"
+      "clear": "清除分类",
+      "allMods": "全部 Mod",
+      "otherTags": "其它标签（{count}）",
+      "status": {
+        "label": "状态",
+        "enabled": "已启用（根目录 / 工坊）",
+        "disabled": "已禁用（disabled）",
+        "gameOn": "游戏内开启",
+        "gameOff": "游戏内关闭",
+        "gameUnknown": "未写入开关记录"
+      },
+      "collapse": "收起",
+      "expand": "展开",
+      "tipSelect": "只看：{label}（再点一次取消）",
+      "tipExpandFirst": "{label}（展开后选子分类）",
+      "action": {
+        "all": "全部",
+        "allTip": "只看{label}（用聚合标签）",
+        "clear": "清空",
+        "clearTip": "取消{label}里已选的标签"
+      },
+      "badgeTip": "{count} 个 Mod",
+      "preset": {
+        "firearms": {
+          "label": "枪械",
+          "desc": "19 把便携枪械 + 固定机关枪",
+          "pistol": "手枪",
+          "rifle": "步枪",
+          "smg": "冲锋枪",
+          "sniper": "狙击枪",
+          "shotgun": "霰弹枪",
+          "heavy": "特殊 / 重型",
+          "minigun": "固定机枪"
+        },
+        "officialMelee": {
+          "label": "官方近战",
+          "desc": "13 把官方近战；隐藏近战单独保留",
+          "blunt": "钝器",
+          "sharp": "锐器",
+          "tools": "工具",
+          "hidden": "隐藏近战"
+        },
+        "throwables": {
+          "label": "投掷物品",
+          "all": "全部投掷物"
+        },
+        "medicalItems": {
+          "label": "医疗物品",
+          "all": "全部医疗物品"
+        },
+        "supplyBoxes": {
+          "label": "补给盒",
+          "desc": "弹药堆、升级弹药与激光瞄准盒",
+          "ammo": "弹药堆",
+          "incendiary": "燃烧弹",
+          "explosive": "高爆弹",
+          "laser": "镭射"
+        },
+        "survivors": {
+          "label": "八位幸存者",
+          "desc": "一代四人和二代四人；按游戏角色资源路径自动识别",
+          "l4d1": "一代幸存者",
+          "l4d2": "二代幸存者"
+        },
+        "specialInfected": {
+          "label": "特殊感染者",
+          "desc": "八种特殊感染者；可按牵制、范围和高威胁角色细分",
+          "control": "牵制与突袭",
+          "ground": "爆炸、地面与冲撞",
+          "highRisk": "高威胁"
+        },
+        "commonInfected": {
+          "label": "普通感染者",
+          "desc": "常见感染者与罕见感染者的角色资源",
+          "kinds": "感染者种类"
+        },
+        "interfaceAndAudio": {
+          "label": "界面与声音",
+          "desc": "主菜单、HUD、提示元素，以及语音和环境音效",
+          "ui": "游戏界面",
+          "audio": "语音与声音",
+          "assetTypes": "资源类型"
+        },
+        "worldAndProps": {
+          "label": "场景与道具",
+          "desc": "关卡画面、交互元素和常用场景模型；可展开精确勾选",
+          "levels": "关卡画面",
+          "dynamic": "交互与动态元素",
+          "containers": "可搬运物与容器",
+          "props": "常用场景道具"
+        },
+        "mapGameModes": {
+          "label": "地图游戏模式",
+          "desc": "仅匹配从战役 mission 文件中解析出的模式标签；建议与主标签“地图”联用",
+          "modes": "支持的游戏模式"
+        },
+        "xdrAnimations": {
+          "label": "动作（XDR）",
+          "desc": "xdReanimsBase 的动作替换：槽位动作 / 基础包；一键列出全部含 xdr 相关的 Mod",
+          "slots": "槽位动作（<角色>_slot_NNN）",
+          "base": "基础包 / 工具"
+        },
+        "mediaAndScene": {
+          "label": "音画与场景",
+          "desc": "音乐 / 粒子特效 / 贴花 / 载具；按替换目标的真实资源路径识别",
+          "music": "音乐",
+          "particles": "粒子特效",
+          "decals": "贴花（弹痕 / 地面标志）",
+          "vehicles": "载具"
+        }
+      },
+      "tagLabel": {
+        "bill": "比尔 · Bill",
+        "zoey": "佐伊 · Zoey",
+        "louis": "路易斯 · Louis",
+        "francis": "弗朗西斯 · Francis",
+        "nick": "尼克 · Nick",
+        "rochelle": "萝雪儿 · Rochelle",
+        "coach": "教练 · Coach",
+        "ellis": "艾利斯 · Ellis",
+        "smoker": "舌头 · Smoker",
+        "hunter": "猎人 · Hunter",
+        "jockey": "猴子 · Jockey",
+        "boomer": "胖子 · Boomer",
+        "spitter": "口水 · Spitter",
+        "charger": "牛 · Charger",
+        "tank": "坦克 · Tank",
+        "witch": "女巫 · Witch",
+        "common": "常见感染者 · Common",
+        "uncommon": "罕见感染者 · Uncommon"
+      }
     },
     "columns": {
       "name": "文件名",

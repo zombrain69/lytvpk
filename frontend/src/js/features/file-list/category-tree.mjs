@@ -5,199 +5,207 @@
 //     不新增一套过滤引擎；状态节点落到已有的"位置 / 游戏内状态"筛选上。
 //   * 树只负责"选什么"，具体怎么筛仍然由 filters.js 处理（见 applyCategoryFilterSelection）。
 
+import { t } from "../../core/i18n-runtime.js";
+
 // 分类定义（唯一事实源）：筛选预设菜单与左侧分类树都读这一份。
+// 文案走目录（mods.category.*）：静态表只存 key（labelKey / descriptionKey / tagLabelKeys），
+// 渲染时经 nodeLabel / nodeDescription / presetTagLabel 取当前语言文案
+// —— 模块求值期不调 t()（CATEGORY_TREE 可以在模块级安全构建）。
 export const PRESET_GROUPS = [
   {
     id: "firearms",
-    label: "枪械",
+    labelKey: "mods.category.preset.firearms.label",
     allTag: "所有枪械",
-    description: "19 把便携枪械 + 固定机关枪",
+    descriptionKey: "mods.category.preset.firearms.desc",
     groups: [
-      { label: "手枪", allTag: "手枪", tags: ["小手枪", "马格南"] },
-      { label: "步枪", allTag: "步枪", tags: ["AK47", "M16", "三连发", "sg552"] },
-      { label: "冲锋枪", allTag: "冲锋枪", tags: ["乌兹", "消音", "MP5"] },
-      { label: "狙击枪", allTag: "狙击枪", tags: ["大狙", "猎枪", "军狙", "鸟狙"] },
-      { label: "霰弹枪", allTag: "霰弹枪", tags: ["木喷", "一代连喷", "铁喷", "二代连喷"] },
-      { label: "特殊 / 重型", tags: ["M60", "榴弹发射器"] },
+      { labelKey: "mods.category.preset.firearms.pistol", allTag: "手枪", tags: ["小手枪", "马格南"] },
+      { labelKey: "mods.category.preset.firearms.rifle", allTag: "步枪", tags: ["AK47", "M16", "三连发", "sg552"] },
+      { labelKey: "mods.category.preset.firearms.smg", allTag: "冲锋枪", tags: ["乌兹", "消音", "MP5"] },
+      { labelKey: "mods.category.preset.firearms.sniper", allTag: "狙击枪", tags: ["大狙", "猎枪", "军狙", "鸟狙"] },
+      { labelKey: "mods.category.preset.firearms.shotgun", allTag: "霰弹枪", tags: ["木喷", "一代连喷", "铁喷", "二代连喷"] },
+      { labelKey: "mods.category.preset.firearms.heavy", tags: ["M60", "榴弹发射器"] },
       // 固定机枪按本体模型分代：一代 = L4D1 Minigun（w_minigun），二代 = L4D2 Heavy MG（50cal）；
       // allTag 用聚合标签，点父节点两代都能看到。
-      { label: "固定机枪", allTag: "固定机关枪", tags: ["一代固定机枪", "二代固定机枪"] },
+      { labelKey: "mods.category.preset.firearms.minigun", allTag: "固定机关枪", tags: ["一代固定机枪", "二代固定机枪"] },
     ],
   },
   {
     id: "official-melee",
-    label: "官方近战",
+    labelKey: "mods.category.preset.officialMelee.label",
     allTag: "所有官方近战",
-    description: "13 把官方近战；隐藏近战单独保留",
+    descriptionKey: "mods.category.preset.officialMelee.desc",
     groups: [
-      { label: "钝器", tags: ["棒球棍", "板球拍", "吉他", "平底锅", "高尔夫球杆", "警棍"] },
-      { label: "锐器", tags: ["消防斧", "砍刀", "武士刀", "撬棍"] },
-      { label: "工具", tags: ["电锯", "草叉", "铁铲"] },
-      { label: "隐藏近战", tags: ["匕首", "防爆盾"] },
+      { labelKey: "mods.category.preset.officialMelee.blunt", tags: ["棒球棍", "板球拍", "吉他", "平底锅", "高尔夫球杆", "警棍"] },
+      { labelKey: "mods.category.preset.officialMelee.sharp", tags: ["消防斧", "砍刀", "武士刀", "撬棍"] },
+      { labelKey: "mods.category.preset.officialMelee.tools", tags: ["电锯", "草叉", "铁铲"] },
+      { labelKey: "mods.category.preset.officialMelee.hidden", tags: ["匕首", "防爆盾"] },
     ],
   },
   {
     id: "throwables",
-    label: "投掷物品",
+    labelKey: "mods.category.preset.throwables.label",
     allTag: "所有投掷物品",
     groups: [
-      { label: "全部投掷物", allTag: "投掷物", tags: ["土制炸弹", "燃烧瓶", "胆汁"] },
+      { labelKey: "mods.category.preset.throwables.all", allTag: "投掷物", tags: ["土制炸弹", "燃烧瓶", "胆汁"] },
     ],
   },
   {
     id: "medical-items",
-    label: "医疗物品",
+    labelKey: "mods.category.preset.medicalItems.label",
     allTag: "所有医疗物品",
     groups: [
-      { label: "全部医疗物品", allTag: "医疗物品", tags: ["医疗包", "电击器", "止痛药", "肾上腺"] },
+      { labelKey: "mods.category.preset.medicalItems.all", allTag: "医疗物品", tags: ["医疗包", "电击器", "止痛药", "肾上腺"] },
     ],
   },
   {
     id: "supply-boxes",
-    label: "补给盒",
+    labelKey: "mods.category.preset.supplyBoxes.label",
     allTag: "盒子",
-    description: "弹药堆、升级弹药与激光瞄准盒",
+    descriptionKey: "mods.category.preset.supplyBoxes.desc",
     groups: [
-      { label: "弹药堆", allTag: "弹药堆", tags: ["一代子弹堆", "二代子弹堆"] },
-      { label: "燃烧弹", allTag: "燃烧弹", tags: ["燃烧弹盒"] },
-      { label: "高爆弹", allTag: "高爆弹", tags: ["高爆弹盒"] },
-      { label: "镭射", allTag: "镭射", tags: ["激光瞄准盒"] },
+      { labelKey: "mods.category.preset.supplyBoxes.ammo", allTag: "弹药堆", tags: ["一代子弹堆", "二代子弹堆"] },
+      { labelKey: "mods.category.preset.supplyBoxes.incendiary", allTag: "燃烧弹", tags: ["燃烧弹盒"] },
+      { labelKey: "mods.category.preset.supplyBoxes.explosive", allTag: "高爆弹", tags: ["高爆弹盒"] },
+      { labelKey: "mods.category.preset.supplyBoxes.laser", allTag: "镭射", tags: ["激光瞄准盒"] },
     ],
   },
   {
     id: "survivors",
-    label: "八位幸存者",
+    labelKey: "mods.category.preset.survivors.label",
     allTag: "幸存者",
-    description: "一代四人和二代四人；按游戏角色资源路径自动识别",
+    descriptionKey: "mods.category.preset.survivors.desc",
     groups: [
       {
-        label: "一代幸存者",
+        labelKey: "mods.category.preset.survivors.l4d1",
         tags: ["Bill", "Zoey", "Louis", "Francis"],
-        tagLabels: {
-          Bill: "比尔 · Bill",
-          Zoey: "佐伊 · Zoey",
-          Louis: "路易斯 · Louis",
-          Francis: "弗朗西斯 · Francis",
+        tagLabelKeys: {
+          Bill: "mods.category.tagLabel.bill",
+          Zoey: "mods.category.tagLabel.zoey",
+          Louis: "mods.category.tagLabel.louis",
+          Francis: "mods.category.tagLabel.francis",
         },
       },
       {
-        label: "二代幸存者",
+        labelKey: "mods.category.preset.survivors.l4d2",
         tags: ["Nick", "Rochelle", "Coach", "Ellis"],
-        tagLabels: {
-          Nick: "尼克 · Nick",
-          Rochelle: "萝雪儿 · Rochelle",
-          Coach: "教练 · Coach",
-          Ellis: "艾利斯 · Ellis",
+        tagLabelKeys: {
+          Nick: "mods.category.tagLabel.nick",
+          Rochelle: "mods.category.tagLabel.rochelle",
+          Coach: "mods.category.tagLabel.coach",
+          Ellis: "mods.category.tagLabel.ellis",
         },
       },
     ],
   },
   {
     id: "special-infected",
-    label: "特殊感染者",
+    labelKey: "mods.category.preset.specialInfected.label",
     allTag: "特殊感染者",
-    description: "八种特殊感染者；可按牵制、范围和高威胁角色细分",
+    descriptionKey: "mods.category.preset.specialInfected.desc",
     groups: [
       {
-        label: "牵制与突袭",
+        labelKey: "mods.category.preset.specialInfected.control",
         tags: ["smoker", "hunter", "jockey"],
-        tagLabels: {
-          smoker: "舌头 · Smoker",
-          hunter: "猎人 · Hunter",
-          jockey: "猴子 · Jockey",
+        tagLabelKeys: {
+          smoker: "mods.category.tagLabel.smoker",
+          hunter: "mods.category.tagLabel.hunter",
+          jockey: "mods.category.tagLabel.jockey",
         },
       },
       {
-        label: "爆炸、地面与冲撞",
+        labelKey: "mods.category.preset.specialInfected.ground",
         tags: ["boomer", "spitter", "charger"],
-        tagLabels: {
-          boomer: "胖子 · Boomer",
-          spitter: "口水 · Spitter",
-          charger: "牛 · Charger",
+        tagLabelKeys: {
+          boomer: "mods.category.tagLabel.boomer",
+          spitter: "mods.category.tagLabel.spitter",
+          charger: "mods.category.tagLabel.charger",
         },
       },
       {
-        label: "高威胁",
+        labelKey: "mods.category.preset.specialInfected.highRisk",
         tags: ["tank", "witch"],
-        tagLabels: {
-          tank: "坦克 · Tank",
-          witch: "女巫 · Witch",
+        tagLabelKeys: {
+          tank: "mods.category.tagLabel.tank",
+          witch: "mods.category.tagLabel.witch",
         },
       },
     ],
   },
   {
     id: "common-infected",
-    label: "普通感染者",
+    labelKey: "mods.category.preset.commonInfected.label",
     allTag: "普通感染者",
-    description: "常见感染者与罕见感染者的角色资源",
+    descriptionKey: "mods.category.preset.commonInfected.desc",
     groups: [
       {
-        label: "感染者种类",
+        labelKey: "mods.category.preset.commonInfected.kinds",
         tags: ["common", "uncommon_infected"],
-        tagLabels: {
-          common: "常见感染者 · Common",
-          uncommon_infected: "罕见感染者 · Uncommon",
+        tagLabelKeys: {
+          common: "mods.category.tagLabel.common",
+          uncommon_infected: "mods.category.tagLabel.uncommon",
         },
       },
     ],
   },
   {
     id: "interface-and-audio",
-    label: "界面与声音",
-    description: "主菜单、HUD、提示元素，以及语音和环境音效",
+    labelKey: "mods.category.preset.interfaceAndAudio.label",
+    descriptionKey: "mods.category.preset.interfaceAndAudio.desc",
     groups: [
       {
-        label: "游戏界面",
+        labelKey: "mods.category.preset.interfaceAndAudio.ui",
         allTag: "UI",
         tags: ["主菜单", "HUD", "准星", "血条", "伤害指示器", "人物语音表"],
       },
       {
-        label: "语音与声音",
+        labelKey: "mods.category.preset.interfaceAndAudio.audio",
         allTag: "声音",
         tags: ["语音包", "人物语音表", "尸潮", "警报", "唱片机"],
       },
       {
-        label: "资源类型",
+        labelKey: "mods.category.preset.interfaceAndAudio.assetTypes",
         tags: ["模型", "贴图", "脚本"],
       },
     ],
   },
   {
     id: "world-and-props",
-    label: "场景与道具",
-    description: "关卡画面、交互元素和常用场景模型；可展开精确勾选",
+    labelKey: "mods.category.preset.worldAndProps.label",
+    descriptionKey: "mods.category.preset.worldAndProps.desc",
     groups: [
-      { label: "关卡画面", tags: ["天空", "过场画面", "载入画面"] },
-      { label: "交互与动态元素", tags: ["手电筒", "梯子", "动态箭头", "警报", "尸潮", "唱片机"] },
-      { label: "可搬运物与容器", tags: ["汽油桶", "煤气罐", "氧气罐", "烟花盒"] },
-      { label: "常用场景道具", tags: ["侏儒", "直升机", "海报", "船", "售货机", "电视", "屏幕", "货车", "面包车", "雕像"] },
+      { labelKey: "mods.category.preset.worldAndProps.levels", tags: ["天空", "过场画面", "载入画面"] },
+      { labelKey: "mods.category.preset.worldAndProps.dynamic", tags: ["手电筒", "梯子", "动态箭头", "警报", "尸潮", "唱片机"] },
+      { labelKey: "mods.category.preset.worldAndProps.containers", tags: ["汽油桶", "煤气罐", "氧气罐", "烟花盒"] },
+      {
+        labelKey: "mods.category.preset.worldAndProps.props",
+        tags: ["侏儒", "直升机", "海报", "船", "售货机", "电视", "屏幕", "货车", "面包车", "雕像"],
+      },
     ],
   },
   {
     id: "map-game-modes",
-    label: "地图游戏模式",
-    description: "仅匹配从战役 mission 文件中解析出的模式标签；建议与主标签“地图”联用",
+    labelKey: "mods.category.preset.mapGameModes.label",
+    descriptionKey: "mods.category.preset.mapGameModes.desc",
     groups: [
       {
-        label: "支持的游戏模式",
+        labelKey: "mods.category.preset.mapGameModes.modes",
         tags: ["战役模式", "对抗模式", "生存模式", "清道夫模式", "写实模式", "突变模式"],
       },
     ],
   },
   {
     id: "xdr-animations",
-    label: "动作（XDR）",
+    labelKey: "mods.category.preset.xdrAnimations.label",
     allTag: "XDR动画",
-    description: "xdReanimsBase 的动作替换：槽位动作 / 基础包；一键列出全部含 xdr 相关的 Mod",
+    descriptionKey: "mods.category.preset.xdrAnimations.desc",
     groups: [
       {
-        label: "槽位动作（<角色>_slot_NNN）",
+        labelKey: "mods.category.preset.xdrAnimations.slots",
         allTag: "XDR槽位动作",
         tags: ["XDR槽位动作"],
       },
       {
-        label: "基础包 / 工具",
+        labelKey: "mods.category.preset.xdrAnimations.base",
         allTag: "XDR基础包",
         tags: ["XDR基础包"],
       },
@@ -205,14 +213,14 @@ export const PRESET_GROUPS = [
   },
   {
     id: "media-and-scene",
-    label: "音画与场景",
+    labelKey: "mods.category.preset.mediaAndScene.label",
     allTag: "音画场景",
-    description: "音乐 / 粒子特效 / 贴花 / 载具；按替换目标的真实资源路径识别",
+    descriptionKey: "mods.category.preset.mediaAndScene.desc",
     groups: [
-      { label: "音乐", allTag: "音乐", tags: ["音乐"] },
-      { label: "粒子特效", allTag: "粒子特效", tags: ["粒子特效"] },
-      { label: "贴花（弹痕 / 地面标志）", allTag: "贴花", tags: ["贴花"] },
-      { label: "载具", allTag: "载具", tags: ["载具"] },
+      { labelKey: "mods.category.preset.mediaAndScene.music", allTag: "音乐", tags: ["音乐"] },
+      { labelKey: "mods.category.preset.mediaAndScene.particles", allTag: "粒子特效", tags: ["粒子特效"] },
+      { labelKey: "mods.category.preset.mediaAndScene.decals", allTag: "贴花", tags: ["贴花"] },
+      { labelKey: "mods.category.preset.mediaAndScene.vehicles", allTag: "载具", tags: ["载具"] },
     ],
   },
 ];
@@ -220,43 +228,64 @@ export const PRESET_GROUPS = [
 // 状态分支：位置 / 游戏内开关也能一键筛（与工具栏那两个下拉共用同一份筛选状态）。
 export const STATUS_BRANCH = {
   id: "status",
-  label: "状态",
+  labelKey: "mods.category.status.label",
   children: [
-    { id: "status-enabled", label: "已启用（根目录 / 工坊）", locations: ["root", "workshop"] },
-    { id: "status-disabled", label: "已禁用（disabled）", locations: ["disabled"] },
-    { id: "status-game-on", label: "游戏内开启", gameStates: ["game-enabled"] },
-    { id: "status-game-off", label: "游戏内关闭", gameStates: ["game-disabled"] },
-    { id: "status-game-unknown", label: "未写入开关记录", gameStates: ["unknown"] },
+    { id: "status-enabled", labelKey: "mods.category.status.enabled", locations: ["root", "workshop"] },
+    { id: "status-disabled", labelKey: "mods.category.status.disabled", locations: ["disabled"] },
+    { id: "status-game-on", labelKey: "mods.category.status.gameOn", gameStates: ["game-enabled"] },
+    { id: "status-game-off", labelKey: "mods.category.status.gameOff", gameStates: ["game-disabled"] },
+    { id: "status-game-unknown", labelKey: "mods.category.status.gameUnknown", gameStates: ["unknown"] },
   ],
 };
 
 /**
  * buildPresetTree 把内容预设原样映射成树：组 → 子组 → 标签。
- * 组/子组的 allTag 就是「查看全部」按钮挂的聚合标签，tagLabels 保留自定义显示名
- * （例如「比尔 · Bill」）—— 与旧的内容预设菜单逐条对应，一个功能都不少。
+ * 组/子组的 allTag 就是「查看全部」按钮挂的聚合标签；labelKey / tagLabelKeys 是
+ * 显示名（例如「比尔 · Bill」）的目录 key，经 nodeLabel / presetTagLabel 延迟取文案
+ * —— 与旧的内容预设菜单逐条对应，一个功能都不少。
  */
 export function buildPresetTree(presetGroups = PRESET_GROUPS) {
   return presetGroups.map((group) => {
     const collectTags = (sub) => (Array.isArray(sub?.tags) ? sub.tags : []);
     const children = (group.groups || []).map((sub, index) => ({
       id: `preset:${group.id}:${index}`,
-      label: sub.label,
+      labelKey: sub.labelKey,
       allTag: sub.allTag || "",
       tags: collectTags(sub),
       children: collectTags(sub).map((tag) => ({
         id: `tag:${tag}`,
-        label: (sub.tagLabels && sub.tagLabels[tag]) || tag,
+        label: tag,
+        labelKey: sub.tagLabelKeys && sub.tagLabelKeys[tag],
         tag,
       })),
     }));
     return {
       id: `preset:${group.id}`,
-      label: group.label,
+      labelKey: group.labelKey,
+      descriptionKey: group.descriptionKey,
       allTag: group.allTag || "",
       tags: (group.groups || []).flatMap(collectTags),
       children,
     };
   });
+}
+
+/** nodeLabel 取节点当前语言的显示名（labelKey → t()；数据标签回退到原文）。 */
+export function nodeLabel(node) {
+  if (!node) return "";
+  if (node.labelKey) return t(node.labelKey, node.labelParams);
+  return String(node.label ?? "");
+}
+
+/** nodeDescription 取节点说明文案（没有说明返回空串）。 */
+export function nodeDescription(node) {
+  return node?.descriptionKey ? t(node.descriptionKey) : "";
+}
+
+/** presetTagLabel 取预设子组里某个标签的显示名（tagLabelKeys → t()；否则原文）。 */
+export function presetTagLabel(subgroup, tag) {
+  const key = subgroup?.tagLabelKeys?.[tag];
+  return key ? t(key) : String(tag ?? "");
 }
 
 /**
@@ -271,7 +300,8 @@ export function buildOtherTagsBranch(allTags = [], usedTags = new Set(), limit =
   if (rest.length === 0) return null;
   return {
     id: "other-tags",
-    label: `其它标签（${rest.length}）`,
+    labelKey: "mods.category.otherTags",
+    labelParams: { count: rest.length },
     children: rest.slice(0, limit).map((tag) => ({ id: `tag:${tag}`, label: tag, tag })),
   };
 }
@@ -293,7 +323,7 @@ export function collectTreeTags(tree) {
 /** buildCategoryTree 组成完整分类树：全部 Mod + 内容预设 + 状态 + 其它标签兜底。 */
 export function buildCategoryTree(options = {}) {
   const nodes = [
-    { id: "all", label: "全部 Mod", kind: "all" },
+    { id: "all", labelKey: "mods.category.allMods", kind: "all" },
     ...buildPresetTree(options.presetGroups || PRESET_GROUPS),
     STATUS_BRANCH,
   ];
@@ -382,7 +412,7 @@ export function flattenCategoryTree(tree = CATEGORY_TREE, options = {}) {
 
   const matchesQuery = (node) => {
     if (!query) return true;
-    if (String(node.label || "").toLowerCase().includes(query)) return true;
+    if (String(nodeLabel(node)).toLowerCase().includes(query)) return true;
     return (node.children || []).some(matchesQuery);
   };
 

@@ -14,6 +14,10 @@ import {
   selectionForNode,
   toggleValues,
 } from "./category-tree.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+import { t } from "../../core/i18n-runtime.js";
+
+installTestCatalog();
 
 function file(path, tags = [], extra = {}) {
   return { path, secondaryTags: tags, location: "root", gameStateKnown: true, gameEnabled: true, ...extra };
@@ -95,15 +99,15 @@ test("预设树保留「查看全部」聚合标签与自定义显示名（不�
   assert.ok(firearms, "枪械组应该在");
   assert.equal(firearms.allTag, "所有枪械", "组级「查看全部」仍挂聚合标签");
 
-  const pistol = firearms.children.find((node) => node.label === "手枪");
+  const pistol = firearms.children.find((node) => node.labelKey === "mods.category.preset.firearms.pistol");
   assert.ok(pistol, "手枪子组应该在");
   assert.equal(pistol.allTag, "手枪", "子组级「查看全部」仍挂聚合标签");
   assert.ok(pistol.tags.includes("马格南"), "具体标签仍是叶子");
 
   const survivors = tree.find((node) => node.id === "preset:survivors");
-  const l4d1 = survivors.children.find((node) => node.label === "一代幸存者");
+  const l4d1 = survivors.children.find((node) => node.labelKey === "mods.category.preset.survivors.l4d1");
   const bill = l4d1.children.find((node) => node.tag === "Bill");
-  assert.equal(bill.label, "比尔 · Bill", "自定义显示名要保留");
+  assert.equal(t(bill.labelKey), "比尔 · Bill", "自定义显示名要保留");
 });
 
 // 「不漏包含」：扫描到但没进任何分类的标签，必须有兜底分支，且不与已收录的重复。

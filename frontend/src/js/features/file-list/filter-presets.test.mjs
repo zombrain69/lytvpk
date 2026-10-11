@@ -10,6 +10,7 @@ const here = new URL("./", import.meta.url);
 const filtersSource = readFileSync(new URL("category-tree.mjs", here), "utf8");
 const rulesSource = readFileSync(new URL("../../../../../internal/ruletable/rules.json", here), "utf8");
 const xdrSource = readFileSync(new URL("../../../../../internal/parser/xdr_parser.go", here), "utf8");
+const catalog = JSON.parse(readFileSync(new URL("../../../messages/zh-CN.json", here), "utf8"));
 
 function presetBlock(id) {
   const start = filtersSource.indexOf(`id: "${id}"`);
@@ -21,7 +22,8 @@ function presetBlock(id) {
 
 test("预设里有「动作（XDR）」并挂到 XDR 标签上", () => {
   const block = presetBlock("xdr-animations");
-  assert.ok(block.includes('"动作（XDR）"'), "预设名称应为「动作（XDR）」");
+  assert.ok(block.includes('"mods.category.preset.xdrAnimations.label"'), "预设名称应接线到目录 key");
+  assert.equal(catalog.mods.category.preset.xdrAnimations.label, "动作（XDR）", "目录里应是「动作（XDR）」");
   assert.ok(block.includes('allTag: "XDR动画"'), "根级“查看全部”应挂既有的 XDR动画 聚合标签");
   assert.ok(block.includes('"XDR槽位动作"'), "应有槽位动作细分");
   assert.ok(block.includes('"XDR基础包"'), "应有基础包细分");

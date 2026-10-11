@@ -14,7 +14,12 @@ import { scheduleScopedConflictAnalysis } from "../conflicts/conflicts.js";
 import { fileMatchesGroupFilter } from "../mod-groups/group-view.mjs";
 import { refreshModGroupMembershipState } from "../mod-groups/group-state.mjs";
 import { refreshCategorySidebar, syncCategorySidebarSelection } from "./category-tree.js";
-import { PRESET_GROUPS as SECONDARY_TAG_PRESET_GROUPS } from "./category-tree.mjs";
+import {
+  PRESET_GROUPS as SECONDARY_TAG_PRESET_GROUPS,
+  nodeDescription,
+  nodeLabel,
+  presetTagLabel,
+} from "./category-tree.mjs";
 import { GetPrimaryTags, GetSecondaryTags, GetSecondaryTagCounts, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
 import { compareSecondaryTagsByUsage } from "./secondary-tag-usage.mjs";
 
@@ -376,15 +381,15 @@ function createPresetSubgroup(subgroup) {
   const expandButton = document.createElement("button");
   expandButton.type = "button";
   expandButton.className = "preset-subgroup-expand";
-  expandButton.textContent = subgroup.label;
-  expandButton.title = `展开 ${subgroup.label} 的具体项目`;
+  expandButton.textContent = nodeLabel(subgroup);
+  expandButton.title = `展开 ${nodeLabel(subgroup)} 的具体项目`;
   expandButton.setAttribute("aria-expanded", "false");
 
   const items = document.createElement("div");
   items.className = "preset-tag-options";
   items.hidden = true;
   (subgroup.tags || []).forEach((tag) => {
-    items.appendChild(createPresetTagCheckbox(tag, subgroup.tagLabels?.[tag] || tag));
+    items.appendChild(createPresetTagCheckbox(tag, presetTagLabel(subgroup, tag)));
   });
 
   expandButton.addEventListener("click", (event) => {
@@ -402,7 +407,7 @@ function createPresetSubgroup(subgroup) {
     allButton.className = "preset-subgroup-all";
     allButton.dataset.presetTag = subgroup.allTag;
     allButton.textContent = "查看全部";
-    allButton.title = `只查看${subgroup.label}`;
+    allButton.title = `只查看${nodeLabel(subgroup)}`;
     allButton.addEventListener("click", (event) => {
       event.stopPropagation();
       selectPresetAggregate(subgroup.allTag);
@@ -425,10 +430,10 @@ function createPresetGroup(group) {
   const expandButton = document.createElement("button");
   expandButton.type = "button";
   expandButton.className = "preset-filter-group-expand";
-  expandButton.textContent = group.label;
-  expandButton.title = group.description
-    ? `展开 ${group.label} 的分类与具体项目：${group.description}`
-    : `展开 ${group.label} 的分类与具体项目`;
+  expandButton.textContent = nodeLabel(group);
+  expandButton.title = nodeDescription(group)
+    ? `展开 ${nodeLabel(group)} 的分类与具体项目：${nodeDescription(group)}`
+    : `展开 ${nodeLabel(group)} 的分类与具体项目`;
   expandButton.setAttribute("aria-expanded", "false");
 
   const selectedCount = document.createElement("span");
@@ -456,7 +461,7 @@ function createPresetGroup(group) {
     allButton.className = "preset-group-all";
     allButton.dataset.presetTag = group.allTag;
     allButton.textContent = "查看全部";
-    allButton.title = `一键只查看${group.label}`;
+    allButton.title = `一键只查看${nodeLabel(group)}`;
     allButton.addEventListener("click", (event) => {
       event.stopPropagation();
       selectPresetAggregate(group.allTag);
@@ -468,7 +473,7 @@ function createPresetGroup(group) {
   clearButton.type = "button";
   clearButton.className = "preset-group-clear";
   clearButton.textContent = "清空本组";
-  clearButton.title = `清除已选择的${group.label}标签`;
+  clearButton.title = `清除已选择的${nodeLabel(group)}标签`;
   clearButton.addEventListener("click", (event) => {
     event.stopPropagation();
     clearPresetGroup(group);

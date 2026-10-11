@@ -1,5 +1,20 @@
 # Changelog
 
+## 未发布 — i18n：分类树（category-tree 家族）迁移（第 13 项第四批）（2026-10-11）
+
+- `category-tree.mjs`：`PRESET_GROUPS` / `STATUS_BRANCH` / 「全部 Mod」/「其它标签」改
+  「key 表 + 延迟取文案」（`labelKey` / `descriptionKey` / `tagLabelKeys`）；数据标签
+  （`tag` / `allTag`）保持原文，标签匹配与后端规则零影响；新增解析器 `nodeLabel` /
+  `nodeDescription` / `presetTagLabel`（模块求值期不调 `t()`）；树搜索按解析后的显示名匹配。
+- `category-tree.js`：节点渲染与 tooltip、节点动作按钮（全部 / 清空）、计数 badge 改走目录。
+- `filters.js`：预设菜单消费方接线（subgroup / group / tag 显示名经解析器取文案；
+  本文件自身按钮文案留待后续批次）。
+- 目录新增 `mods.category.*` 96 key（preset 61 + status 6 + action 4 + tagLabel 18 + 散键 7）。
+- 测试：`category-tree.test.mjs` / `filter-presets.test.mjs` 适配（`filter-presets` 改
+  「源码接线 + 目录内容」双查）；另做全树渲染回退抽查（175 节点 0 未解析，抽查值逐字正确）。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：Mod 列表纯文案小模块迁移（priority-label / unrecorded-game-state / batch-game-state-format / move-result-format）（第 13 项第三批）（2026-10-11）
 
 - `priority-label.mjs`：分层来源名（显式分层 / 策略组权重 / addonlist 顺序号 / 未设置分层）、
