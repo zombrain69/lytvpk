@@ -16,6 +16,7 @@ const cssSource = readFileSync(
   "utf8",
 ).replace(/\/\*[\s\S]*?\*\//g, "");
 const groupUi = readFileSync(path.join(here, "group-ui.js"), "utf8");
+const catalog = JSON.parse(readFileSync(path.resolve(frontendRoot, "src/messages/zh-CN.json"), "utf8"));
 
 function lastRuleBody(css, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -94,13 +95,15 @@ test("标签与分组建议互相利用：可隐藏标签已覆盖的建议，�
   // 筛选栏里必须有"标签已覆盖"的开关（默认隐藏这类建议）。
   assert.match(indexHtml, /id="mod-group-suggest-tag-covered"/);
   assert.match(groupUi, /isSuggestionTagCovered/, "卡片需要判断标签是否已覆盖");
-  assert.match(groupUi, /用标签筛选/, "标签已覆盖的建议要能一键改用标签筛选");
+  assert.match(groupUi, /strategyGroups\.suggest\.useTagFilter"/, "标签已覆盖的建议要能一键改用标签筛选");
+  assert.match(catalog.strategyGroups.suggest.useTagFilter, /用标签筛选/);
   assert.match(groupUi, /applyTagFilterFromSuggestion/, "缺少「用标签筛选」的实现");
   assert.match(groupUi, /appState\.selectedSecondaryTags = \[tag\]/, "用标签筛选需要写入二级标签筛选");
 });
 
 test("分组菜单提供「打标签…」，并接到标签对话框", () => {
-  assert.match(groupUi, /"打标签…"/);
+  assert.match(groupUi, /strategyGroups\.filterMenu\.tag"/, "「打标签…」从目录取文案");
+  assert.match(catalog.strategyGroups.filterMenu.tag, /打标签…/);
   assert.match(groupUi, /openGroupTagDialog\(/);
   assert.match(indexHtml, /id="group-tag-modal"/);
   assert.match(indexHtml, /id="group-tag-input"/);
@@ -111,15 +114,18 @@ test("建议文件里带的标签可以直接应用（导入标签 → 落盘）
   assert.match(groupUi, /buildTagApplyPlan\(suggestion\)/, "需要把 tag / memberTags 整理成应用计划");
   assert.match(groupUi, /ApplyTagToModKeys/, "缺少应用标签的绑定调用");
   assert.match(groupUi, /applyImportedTags\(/, "缺少「应用标签」的实现");
-  assert.match(groupUi, /导入标签：/, "卡片需要显示导入标签徽标");
+  assert.match(groupUi, /strategyGroups\.suggest\.importTagBadge"/, "卡片需要显示导入标签徽标");
+  assert.match(catalog.strategyGroups.suggest.importTagBadge, /导入标签：/);
 });
 
 test("准备材料 / 导出清单会先重新扫描，并给出进行中反馈", () => {
   // 两个按钮的 tooltip 都要说明"先重新扫描"
   assert.match(indexHtml, /先重新扫描一遍 mod 目录/, "按钮提示需要写明会先扫描");
   // 导出期间要有进行中状态，结束后恢复
-  assert.match(groupUi, /正在扫描并导出…/, "需要「正在扫描并导出…」的进行中反馈");
-  assert.match(groupUi, /已按最新扫描导出 Mod 清单/, "成功提示要说明是按最新扫描导出的");
+  assert.match(groupUi, /strategyGroups\.suggest\.prepareBusy"/, "需要「正在扫描并导出…」的进行中反馈");
+  assert.match(catalog.strategyGroups.suggest.prepareBusy, /正在扫描并导出…/);
+  assert.match(groupUi, /strategyGroups\.suggest\.exported"/, "成功提示要说明是按最新扫描导出的");
+  assert.match(catalog.strategyGroups.suggest.exported, /已按最新扫描导出 Mod 清单/);
   const prepareBlock = groupUi.slice(
     groupUi.indexOf("async function prepareAgentWorkspace"),
     groupUi.indexOf("async function copyAgentPrompt"),

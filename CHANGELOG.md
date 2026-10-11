@@ -1,5 +1,36 @@
 # Changelog
 
+## 未发布 — i18n：分组层 + 策略组管理窗口（group-ui / strategy-group-manager 迁移）（第 13 项第八批）（2026-10-12）
+
+- `group-ui.js`（Mod 管理页分组层，162 处）：分组筛选菜单全部动态文案（空态 / 「按分组筛选」
+  表头与清空、顺序说明与三段悬停解释、组行 tooltip 组合（策略 · 成员数 · 组权重两态 · 缺失）、
+  前移 / 后移与整组开关、加 / 减选中的 N 个与两态 title、重命名 / 删除 / 打标签与各自 title）；
+  组成员编辑通知与确认（加入 / 移出结果与失败、重命名弹窗、删除确认、整组开关确认与结果、
+  整组优先级移动三项）；分组建议弹窗全部动态文案（准备材料 / 复制与保存提示词 / 导入导出 /
+  推导与筛选摘要 / 卡片按钮两态与徽标（含「导入标签」两态与 title）/ 标签应用流程）。
+- `strategy-group-manager.js`（「策略组管理」窗口，139 处）：组列表行模板的全部按钮与 tooltip
+  （拖动 / 勾选 / 展开两态 / ＋子组 / 筛选两态 / 按策略应用 / 随机单选 / 全关 / 重命名 / 删除 /
+  上级分组 / 权重 / 自动联动）、缺失与子树缺失提示、成员行与成员批量条、聚焦条、
+  批量工具条与禁用原因、搜索空态（无正则 / 无匹配）、建组按钮两态、全部确认弹窗与结果提示。
+- 跨文件同文片段统一放 `strategyGroups.common.*`（新增 17 key：整组开关 / 启用·关闭两态 /
+  整组开关三句（intro + vote + message）/ 结果与跳过 / 失败 / 已重命名为 / 重命名策略组 /
+  重命名 / 删除 / 删除策略组 / 下级分组回顶层行 / 删除失败 / 策略组名称）。
+- **复用**：预置 74 键中的 `window.batchFilterClear`（清除筛选）、`window.batchTierPlaceholder`
+  （权重）、`window.memberRemove`（移出本组）接线到 JS 消费方；另复用 `picker.allPresent`、
+  `view.modCount` / `view.createNone` / `view.fileAction.enable|disable`、`common.groupCreated`、
+  `tag.preview.moreNames`。
+- **扫描器盲区**（本批发现）：多行模板串里的裸文本（`>＋ 子组<`、`>按策略应用<`、`>随机单选<`、
+  `>全关<`、`>重命名<`、`>删除<`、保存权重、自动联动）与同行嵌套模板（「已应用 N 个标签」通知、
+  「给这条建议的成员打上标签：」）共 12 处不在 `scan_module_cjk.py` 输出里 —— 已本批一并迁完，
+  后续批次开始前先做一轮「裸文本」复查。
+- 目录新增 262 key（filterMenu 24 / groupActions 26 / suggest 81 / manager 114 / common +17）；
+  既有条目值零改动。`suggest.defaultReason`（来自分组建议）与 `groupActions.captureReason`
+  （来自 Mod 管理页的勾选）随创建持久化进 groups.json（按创建时语言留档，同第五批口径）。
+- 测试：`group-menu-layout`（2 处）、`group-suggest-layout`（5 处）、`strategy-group-batch`（16 处）、
+  `strategy-group-member-batch`（1 处）源级断言改「源码接线 + 目录内容」双查。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变。
+
 ## 未发布 — i18n：组视图/成员行（group-view / member-row 迁移）（第 13 项第七批）（2026-10-12）
 
 - `group-view.mjs`：策略名表（全部开启 / 全部关闭 / 互斥单选 / 随机单选）改 key 表

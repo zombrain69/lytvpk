@@ -16,6 +16,7 @@ const modsCss = readFileSync(path.resolve(here, "../../../css/app/mods.css"), "u
 );
 const groupUiSource = readFileSync(path.join(here, "group-ui.js"), "utf8");
 const groupStateSource = readFileSync(path.join(here, "group-state.mjs"), "utf8");
+const catalog = JSON.parse(readFileSync(path.resolve(here, "../../../messages/zh-CN.json"), "utf8"));
 
 function rulesFor(css, className) {
   const pattern = new RegExp(`([^{}]*\\.${className}[^{}]*)\\{([^}]*)\\}`, "g");
@@ -73,8 +74,10 @@ test("分组筛选菜单的顺序由组权重决定，并显示层级缩进与�
   // 菜单渲染：子组缩进 + 顺序说明 + 悬停解释"权重在哪设置、层级不影响优先级"。
   assert.match(groupUiSource, /formatGroupOptionIndent\(option\) \+ formatGroupOptionLabel\(option\)/);
   assert.match(groupUiSource, /mod-group-filter-order-hint/);
-  assert.match(groupUiSource, /顺序＝组权重（未设置排最后）· 子组紧跟上级分组/);
-  assert.match(groupUiSource, /「上级分组」只决定层级归属与缩进/);
+  // 文案本体已迁入目录：源码接线 + 目录内容双查。
+  assert.match(groupUiSource, /strategyGroups\.filterMenu\.orderHint"/, "顺序说明要从目录取文案");
+  assert.match(catalog.strategyGroups.filterMenu.orderHint, /顺序＝组权重（未设置排最后）· 子组紧跟上级分组/);
+  assert.match(catalog.strategyGroups.filterMenu.orderHintTitle, /「上级分组」只决定层级归属与缩进/);
   const rules = rulesFor(modsCss, "mod-group-filter-order-hint");
   assert.ok(rules.length > 0, "顺序说明需要自己的样式");
 });

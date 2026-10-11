@@ -9,6 +9,9 @@ import test from "node:test";
 const manager = readFileSync(new URL("./strategy-group-manager.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../../../../index.html", import.meta.url), "utf8");
 const memberRow = readFileSync(new URL("./member-row.js", import.meta.url), "utf8");
+const catalog = JSON.parse(
+  readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+);
 
 test("窗口里有成员批量条与全选入口", () => {
   for (const id of [
@@ -65,7 +68,12 @@ test("批量按钮真的调用后端（不是只改界面）", () => {
 });
 
 test("禁用与启用共用主列表的风险确认，而不是静默搬文件", () => {
-  assert.match(manager, /confirmVPKOperationWarning\(paths, `批量\$\{label\}策略组成员`\)/);
+  // 标题文案已迁入目录：源码接线 + 目录内容双查。
+  assert.match(
+    manager,
+    /confirmVPKOperationWarning\(paths, t\("strategyGroups\.manager\.batchWarningTitle", \{ label \}\)\)/,
+  );
+  assert.match(catalog.strategyGroups.manager.batchWarningTitle, /批量\{label\}策略组成员/);
 });
 
 test("批量游戏开关复用主列表的确认与结果文案", () => {

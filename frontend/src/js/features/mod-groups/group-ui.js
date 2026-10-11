@@ -8,6 +8,7 @@
 import { appState } from "../state.js";
 import { escapeHtml } from "../../core/utils.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   ApplyTagToModKeys,
   AddModStrategyGroupMembers,
@@ -98,7 +99,7 @@ function renderGroupFilterMenu() {
     const empty = document.createElement("div");
     empty.className = "mod-group-filter-empty";
     empty.textContent =
-      "还没有策略组。可以先点「分组建议」自动推导，或点「策略组管理…」用选中的 Mod 建组。";
+      t("strategyGroups.filterMenu.empty");
     menu.appendChild(empty);
     return;
   }
@@ -106,11 +107,11 @@ function renderGroupFilterMenu() {
   const header = document.createElement("div");
   header.className = "mod-group-filter-header";
   const headerText = document.createElement("span");
-  headerText.textContent = "按分组筛选";
+  headerText.textContent = t("strategyGroups.filterMenu.header");
   const clearButton = document.createElement("button");
   clearButton.type = "button";
   clearButton.className = "btn-link";
-  clearButton.textContent = "清空";
+  clearButton.textContent = t("strategyGroups.filterMenu.clear");
   clearButton.addEventListener("click", async (event) => {
     event.stopPropagation();
     appState.activeGroupFilter = new Set();
@@ -122,11 +123,8 @@ function renderGroupFilterMenu() {
   // 顺序说明：这一条回答"外面这个按分组筛选是什么顺序"，也提示怎么把常用组排上去。
   const orderHint = document.createElement("div");
   orderHint.className = "mod-group-filter-order-hint";
-  orderHint.textContent = "顺序＝组权重（未设置排最后）· 子组紧跟上级分组";
-  orderHint.title =
-    "组权重在「分组 → 策略组管理…」窗口里设置；给常用组填一个更小的权重，它会排到这份列表最上面。\n" +
-    "子组永远紧跟自己的上级分组：给子组设权重，它所在的整棵分组树会一起上浮（子组仍缩进显示）。\n" +
-    "「上级分组」只决定层级归属与缩进，不影响优先级。";
+  orderHint.textContent = t("strategyGroups.filterMenu.orderHint");
+  orderHint.title = t("strategyGroups.filterMenu.orderHintTitle");
   menu.appendChild(orderHint);
 
   options.forEach((option) => {
@@ -150,10 +148,15 @@ function renderGroupFilterMenu() {
     label.className = "mod-group-filter-name";
     label.textContent = formatGroupOptionIndent(option) + formatGroupOptionLabel(option);
     label.title =
-      `${formatGroupStrategy(option.strategy)} · 共 ${option.memberCount} 个成员` +
-      (Number.isFinite(option.tier ?? NaN) ? ` · 组权重 ${option.tier}` : " · 未设置组权重") +
+      t("strategyGroups.filterMenu.optionTitle", {
+        strategy: formatGroupStrategy(option.strategy),
+        count: option.memberCount,
+      }) +
+      (Number.isFinite(option.tier ?? NaN)
+        ? t("strategyGroups.filterMenu.tierTag", { tier: option.tier })
+        : t("strategyGroups.filterMenu.tierUnset")) +
       (option.missingCount > 0
-        ? ` · ${option.missingCount} 个成员的文件已不在列表里（放回同名文件会自动回到组里）`
+        ? t("strategyGroups.filterMenu.missingTag", { count: option.missingCount })
         : "");
     label.addEventListener("click", async () => {
       checkbox.checked = !checkbox.checked;
@@ -165,8 +168,8 @@ function renderGroupFilterMenu() {
     const moveUp = document.createElement("button");
     moveUp.type = "button";
     moveUp.className = "btn-link";
-    moveUp.textContent = "↑ 前移";
-    moveUp.title = "整组优先级前移 5 层（只写 priority.json，不会立刻重排）";
+    moveUp.textContent = t("strategyGroups.filterMenu.moveUp");
+    moveUp.title = t("strategyGroups.filterMenu.moveUpTitle");
     moveUp.addEventListener("click", (event) => {
       event.stopPropagation();
       void shiftGroupPriority(option.id, option.name, 5);
@@ -174,8 +177,8 @@ function renderGroupFilterMenu() {
     const moveDown = document.createElement("button");
     moveDown.type = "button";
     moveDown.className = "btn-link";
-    moveDown.textContent = "↓ 后移";
-    moveDown.title = "整组优先级后移 5 层（只写 priority.json，不会立刻重排）";
+    moveDown.textContent = t("strategyGroups.filterMenu.moveDown");
+    moveDown.title = t("strategyGroups.filterMenu.moveDownTitle");
     moveDown.addEventListener("click", (event) => {
       event.stopPropagation();
       void shiftGroupPriority(option.id, option.name, -5);
@@ -183,8 +186,8 @@ function renderGroupFilterMenu() {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "btn-link";
-    toggle.textContent = "整组开关";
-    toggle.title = "把该组所有成员一起启用或关闭（只改 addonlist.txt 的 0/1）";
+    toggle.textContent = t("strategyGroups.common.groupToggle");
+    toggle.title = t("strategyGroups.filterMenu.toggleTitle");
     toggle.addEventListener("click", (event) => {
       event.stopPropagation();
       void toggleGroupEnabled(option.id, option.name);
@@ -195,12 +198,17 @@ function renderGroupFilterMenu() {
     const addSelected = document.createElement("button");
     addSelected.type = "button";
     addSelected.className = "btn-link";
-    addSelected.textContent = `＋ 选中的 ${selectedKeys.length} 个`;
+    addSelected.textContent = t("strategyGroups.filterMenu.addSelected", {
+      count: selectedKeys.length,
+    });
     addSelected.disabled = selectedKeys.length === 0;
     addSelected.title =
       selectedKeys.length === 0
-        ? "先在列表里勾选要加入这个组的 Mod"
-        : `把当前勾选的 ${selectedKeys.length} 个 Mod 加入「${option.name}」（只写 groups.json）`;
+        ? t("strategyGroups.filterMenu.addSelectedEmpty")
+        : t("strategyGroups.filterMenu.addSelectedTitle", {
+            count: selectedKeys.length,
+            name: option.name,
+          });
     addSelected.addEventListener("click", (event) => {
       event.stopPropagation();
       void addSelectedModsToGroup(option.id, option.name);
@@ -208,12 +216,14 @@ function renderGroupFilterMenu() {
     const removeSelected = document.createElement("button");
     removeSelected.type = "button";
     removeSelected.className = "btn-link";
-    removeSelected.textContent = `－ 选中的 ${selectedKeys.length} 个`;
+    removeSelected.textContent = t("strategyGroups.filterMenu.removeSelected", {
+      count: selectedKeys.length,
+    });
     removeSelected.disabled = selectedKeys.length === 0;
     removeSelected.title =
       selectedKeys.length === 0
-        ? "先在列表里勾选要移出这个组的 Mod"
-        : `把当前勾选的 Mod 移出「${option.name}」（只写 groups.json，不动 Mod 文件）`;
+        ? t("strategyGroups.filterMenu.removeSelectedEmpty")
+        : t("strategyGroups.filterMenu.removeSelectedTitle", { name: option.name });
     removeSelected.addEventListener("click", (event) => {
       event.stopPropagation();
       void removeSelectedModsFromGroup(option.id, option.name);
@@ -223,8 +233,8 @@ function renderGroupFilterMenu() {
     const rename = document.createElement("button");
     rename.type = "button";
     rename.className = "btn-link";
-    rename.textContent = "重命名";
-    rename.title = "修改这个策略组的名称与描述（成员与优先级都不受影响）";
+    rename.textContent = t("strategyGroups.common.rename");
+    rename.title = t("strategyGroups.filterMenu.renameTitle");
     rename.addEventListener("click", (event) => {
       event.stopPropagation();
       void renameStrategyGroup(option.id, option.name);
@@ -232,8 +242,8 @@ function renderGroupFilterMenu() {
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "btn-link is-danger";
-    remove.textContent = "删除";
-    remove.title = "删除这个策略组（只删 groups.json 里的记录，不改动 addonlist.txt 与 Mod 文件）";
+    remove.textContent = t("strategyGroups.common.delete");
+    remove.title = t("strategyGroups.filterMenu.deleteTitle");
     remove.addEventListener("click", (event) => {
       event.stopPropagation();
       void confirmDeleteStrategyGroup(option);
@@ -243,8 +253,8 @@ function renderGroupFilterMenu() {
     const tagButton = document.createElement("button");
     tagButton.type = "button";
     tagButton.className = "btn-link";
-    tagButton.textContent = "打标签…";
-    tagButton.title = "给这一组的全部成员补一个统一标签（标签写在文件名里，会自动改绑本地记录的键）";
+    tagButton.textContent = t("strategyGroups.filterMenu.tag");
+    tagButton.title = t("strategyGroups.filterMenu.tagTitle");
     tagButton.addEventListener("click", (event) => {
       event.stopPropagation();
       void openGroupTagDialog({
@@ -289,7 +299,7 @@ function selectedGroupActionKeys() {
 async function addSelectedModsToGroup(groupId, groupName) {
   const keys = selectedGroupActionKeys();
   if (keys.length === 0) {
-    showError("请先在列表里勾选要加入这个组的 Mod");
+    showError(t("strategyGroups.groupActions.addNoSelection"));
     return;
   }
   try {
@@ -298,35 +308,47 @@ async function addSelectedModsToGroup(groupId, groupName) {
     const added = Math.max(0, (group.members || []).length - before);
     showNotification(
       added > 0
-        ? `已把 ${added} 个 Mod 加入「${groupName}」（现在共 ${(group.members || []).length} 个成员）`
-        : `选中的 Mod 已经都在「${groupName}」里了`,
+        ? t("strategyGroups.groupActions.added", {
+            added,
+            name: groupName,
+            total: (group.members || []).length,
+          })
+        : t("strategyGroups.picker.allPresent", { name: groupName }),
       added > 0 ? "success" : "info",
     );
     await refreshModGroupMembership();
     renderFileList();
     renderGroupFilterMenu();
   } catch (error) {
-    showError("加入策略组失败: " + String(error?.message || error));
+    showError(
+      t("strategyGroups.groupActions.addFailed", { error: String(error?.message || error) }),
+    );
   }
 }
 
 async function removeSelectedModsFromGroup(groupId, groupName) {
   const keys = selectedGroupActionKeys();
   if (keys.length === 0) {
-    showError("请先在列表里勾选要移出这个组的 Mod");
+    showError(t("strategyGroups.groupActions.removeNoSelection"));
     return;
   }
   try {
     const group = await RemoveModStrategyGroupMembers(groupId, keys);
     showNotification(
-      `已把 ${keys.length} 个 Mod 移出「${groupName}」（现在共 ${(group.members || []).length} 个成员）`,
+      t("strategyGroups.groupActions.removed", {
+        count: keys.length,
+        name: groupName,
+        total: (group.members || []).length,
+      }),
       "success",
     );
     await refreshModGroupMembership();
     renderFileList();
     renderGroupFilterMenu();
   } catch (error) {
-    showError("移出策略组失败: " + String(error?.message || error));
+    showError(
+      t("strategyGroups.groupActions.removeFailed", { error: String(error?.message || error) }),
+    );
   }
 }
 
@@ -346,18 +368,23 @@ async function renameStrategyGroup(groupId, currentName) {
   } catch (error) {
     console.warn("读取策略组描述失败（重命名时按空描述处理）:", error);
   }
-  showPromptModal("重命名策略组", `修改「${currentName}」的名称；描述可以留空。只写 groups.json 里的这一条记录。`, {
-    defaultValue: currentName,
-    confirmText: "保存名称",
-    placeholder: "策略组名称",
+  showPromptModal(
+    t("strategyGroups.common.renameTitle"),
+    t("strategyGroups.groupActions.renameMessage", { name: currentName }),
+    {
+      defaultValue: currentName,
+      confirmText: t("strategyGroups.groupActions.renameConfirm"),
+      placeholder: t("strategyGroups.common.nameLabel"),
     onConfirm: async (value) => {
       try {
         const group = await RenameModStrategyGroup(groupId, value, description);
-        showNotification(`已重命名为「${group.name}」`, "success");
+        showNotification(t("strategyGroups.common.renamed", { name: group.name }), "success");
         await refreshModGroupMembership();
         renderGroupFilterMenu();
       } catch (error) {
-        showError("重命名失败: " + String(error?.message || error));
+        showError(
+          t("strategyGroups.groupActions.renameFailed", { error: String(error?.message || error) }),
+        );
       }
     },
   });
@@ -376,28 +403,30 @@ async function confirmDeleteStrategyGroup(option) {
     console.warn("读取策略组影响范围失败（按已知信息提示）:", error);
   }
   showConfirmModal(
-    "删除策略组",
-    `删除「${option.name}」：\n` +
-      `· 只删除 groups.json 里的这一条记录（${memberCount} 个成员）\n` +
-      "· 不会改动 addonlist.txt，也不会删除任何 Mod 文件\n" +
-      "· 组成员里已经写入的 Mod 分层（priority.json）会保留\n" +
-      (childCount > 0
-        ? `· 它的 ${childCount} 个下级分组会回到顶层，不会被一起删除\n`
-        : "") +
-      "删除后这个组就没了（可以重新用「分组建议」或勾选 Mod 建组）。是否继续？",
+    t("strategyGroups.common.groupDeleteTitle"),
+    t("strategyGroups.groupActions.deleteMessage", {
+      name: option.name,
+      count: memberCount,
+      childLine:
+        childCount > 0
+          ? t("strategyGroups.common.deleteChildLine", { count: childCount })
+          : "",
+    }),
     async () => {
       try {
         await DeleteModStrategyGroup(option.id);
         const next = new Set(appState.activeGroupFilter);
         next.delete(option.id);
         appState.activeGroupFilter = next;
-        showNotification(`已删除策略组「${option.name}」`, "success");
+        showNotification(t("strategyGroups.groupActions.deleted", { name: option.name }), "success");
         await refreshModGroupMembership();
         renderFileList();
         renderGroupFilterMenu();
         await refreshFilesKeepFilter();
       } catch (error) {
-        showError("删除策略组失败: " + String(error?.message || error));
+        showError(
+          t("strategyGroups.common.deleteFailed", { error: String(error?.message || error) }),
+        );
       }
     },
   );
@@ -409,10 +438,18 @@ async function toggleGroupEnabled(groupId, groupName) {
   const nextEnabled = !vote.mostlyEnabled;
   // 使用应用内确认弹窗：WebView2 的原生 confirm 在锁屏/自动化环境下会阻塞页面。
   showConfirmModal(
-    "整组开关",
-    `把「${groupName}」的 ${members.length} 个成员一起${nextEnabled ? "启用" : "关闭"}。\n` +
-      `（当前统计：启用 ${vote.enabled} 个、关闭 ${vote.disabled} 个）\n` +
-      "只会修改 addonlist.txt 里的 0/1，不会重排顺序，也不会改动 Mod 文件。是否继续？",
+    t("strategyGroups.common.groupToggle"),
+    t("strategyGroups.common.toggleIntro", {
+      name: groupName,
+      count: members.length,
+      action: t(
+        nextEnabled
+          ? "strategyGroups.common.groupToggleOn"
+          : "strategyGroups.common.groupToggleOff",
+      ),
+    }) +
+      t("strategyGroups.common.toggleVote", { enabled: vote.enabled, disabled: vote.disabled }) +
+      t("strategyGroups.common.toggleMessage"),
     async () => {
       await applyGroupEnabledToggle(groupId, groupName, nextEnabled);
     },
@@ -424,15 +461,25 @@ async function applyGroupEnabledToggle(groupId, groupName, nextEnabled) {
     const result = await SetModStrategyGroupEnabled(groupId, nextEnabled);
     const skipped = Array.isArray(result.skipped) ? result.skipped : [];
     showNotification(
-      `「${groupName}」已整组${nextEnabled ? "启用" : "关闭"} ${(result.enabled?.length || 0) + (result.disabled?.length || 0)} 个成员` +
-        (skipped.length > 0 ? `，${skipped.length} 个成员的文件已不在列表里，已跳过` : ""),
+      t("strategyGroups.common.toggleResult", {
+        name: groupName,
+        action: t(
+          nextEnabled
+            ? "strategyGroups.common.groupToggleOn"
+            : "strategyGroups.common.groupToggleOff",
+        ),
+        count: (result.enabled?.length || 0) + (result.disabled?.length || 0),
+      }) +
+        (skipped.length > 0
+          ? t("strategyGroups.common.skippedNote", { count: skipped.length })
+          : ""),
       skipped.length > 0 ? "info" : "success",
     );
     await refreshModGroupMembership();
     renderFileList();
     await refreshFilesKeepFilter();
   } catch (error) {
-    showError("整组开关失败: " + String(error?.message || error));
+    showError(t("strategyGroups.common.toggleFailed", { error: String(error?.message || error) }));
   }
 }
 
@@ -454,15 +501,26 @@ async function shiftGroupPriority(groupId, groupName, delta) {
     const moved = result?.moved?.length || 0;
     const skipped = result?.skipped?.length || 0;
     showNotification(
-      `「${groupName}」已整组${delta > 0 ? "前移" : "后移"} ${Math.abs(delta)} 层（${moved} 个成员）` +
-        (skipped > 0 ? `，${skipped} 个成员不在 addonlist 中已跳过` : "") +
-        "；到“编辑加载顺序”点“按分层应用”后生效",
+      t("strategyGroups.groupActions.shiftResult", {
+        name: groupName,
+        action: t(
+          delta > 0
+            ? "strategyGroups.groupActions.shiftForward"
+            : "strategyGroups.groupActions.shiftBackward",
+        ),
+        count: Math.abs(delta),
+        moved,
+      }) +
+        (skipped > 0 ? t("strategyGroups.groupActions.shiftSkipped", { count: skipped }) : "") +
+        t("strategyGroups.groupActions.shiftNotice"),
       skipped > 0 ? "info" : "success",
     );
     await refreshModGroupMembership();
     renderFileList();
   } catch (error) {
-    showError("整组优先级移动失败: " + String(error?.message || error));
+    showError(
+      t("strategyGroups.groupActions.shiftFailed", { error: String(error?.message || error) }),
+    );
   }
 }
 
@@ -496,41 +554,43 @@ async function prepareAgentWorkspace() {
   const originalLabel = prepareButton?.textContent || "";
   if (prepareButton) {
     prepareButton.disabled = true;
-    prepareButton.textContent = "正在扫描并导出…";
+    prepareButton.textContent = t("strategyGroups.suggest.prepareBusy");
   }
   try {
     const workspace = await PrepareGroupingWorkspace();
     if (!workspace?.catalogPath) {
-      showError("准备材料失败：清单路径为空");
+      showError(t("strategyGroups.suggest.prepareNoPath"));
       return;
     }
     const copied = await copyTextToClipboard(workspace.prompt || "");
     showNotification(
-      `已按最新扫描导出 Mod 清单（${workspace.modCount} 个）` +
-        (copied ? "，提示词已复制到剪贴板" : "；提示词请点「复制智能体提示词」"),
+      t("strategyGroups.suggest.prepareExported", { count: workspace.modCount }) +
+        (copied
+          ? t("strategyGroups.suggest.prepareCopyOk")
+          : t("strategyGroups.suggest.prepareCopyTodo")),
       copied ? "success" : "info",
     );
     showConfirmModal(
-      "交给智能体的材料已就绪",
+      t("strategyGroups.suggest.prepareReady"),
       `<div style="line-height:1.6">` +
-        `<p style="margin:0 0 8px">这份材料是<b>刚重新扫描过</b>的最新状态（${workspace.modCount} 个 Mod）。</p>` +
+        `<p style="margin:0 0 8px">${t("strategyGroups.suggest.prepareFreshLead")}<b>${t("strategyGroups.suggest.prepareFreshStrong")}</b>${t("strategyGroups.suggest.prepareFreshTail", { count: workspace.modCount })}</p>` +
         (workspace.notice
           ? `<p style="margin:0 0 8px;color:var(--warning,#f5a524)">${escapeHtml(workspace.notice)}</p>`
           : "") +
-        `Mod 清单：<code style="word-break:break-all">${escapeHtml(workspace.catalogPath)}</code><br>` +
-        `建议文件（智能体写完后放这里，然后点「重新推导」）：` +
+        `${t("strategyGroups.suggest.prepareCatalogLabel")}<code style="word-break:break-all">${escapeHtml(workspace.catalogPath)}</code><br>` +
+        t("strategyGroups.suggest.prepareInboxLabel") +
         `<code style="word-break:break-all">${escapeHtml(workspace.inboxPath)}</code>` +
         `<p style="margin:10px 0 0">` +
         (copied
-          ? "提示词已复制到剪贴板，直接粘贴给智能体（Codex / Claude 等）即可。"
-          : "请点「复制智能体提示词」把提示词交给智能体。") +
-        `</p><p style="margin:6px 0 0">提示词里已经写清了清单字段、标准格式、可选策略和硬性要求。</p>` +
+          ? t("strategyGroups.suggest.prepareCopied")
+          : t("strategyGroups.suggest.prepareNotCopied")) +
+        `</p><p style="margin:6px 0 0">${t("strategyGroups.suggest.prepareFootnote")}</p>` +
         `</div>`,
       () => {},
       true,
     );
   } catch (error) {
-    showError("准备材料失败: " + String(error?.message || error));
+    showError(t("strategyGroups.suggest.prepareFailed", { error: String(error?.message || error) }));
   } finally {
     if (prepareButton) {
       prepareButton.disabled = false;
@@ -544,20 +604,20 @@ async function copyAgentPrompt() {
   try {
     const prompt = await GetGroupSuggestionAgentPrompt();
     if (!prompt) {
-      showError("提示词为空");
+      showError(t("strategyGroups.suggest.promptEmpty"));
       return;
     }
     const copied = await copyTextToClipboard(prompt);
     if (copied) {
-      showNotification("智能体提示词已复制到剪贴板", "success");
+      showNotification(t("strategyGroups.suggest.promptCopied"), "success");
       return;
     }
     const path = await SaveGroupSuggestionAgentPromptDialog();
     if (path) {
-      showNotification(`剪贴板不可用，已另存提示词：${path}`, "info");
+      showNotification(t("strategyGroups.suggest.promptSavedFallback", { path }), "info");
     }
   } catch (error) {
-    showError("复制提示词失败: " + String(error?.message || error));
+    showError(t("strategyGroups.suggest.promptCopyFailed", { error: String(error?.message || error) }));
   }
 }
 
@@ -568,9 +628,9 @@ async function saveAgentPrompt() {
     if (!path) {
       return;
     }
-    showNotification(`提示词已保存：${path}`, "success");
+    showNotification(t("strategyGroups.suggest.promptSaved", { path }), "success");
   } catch (error) {
-    showError("保存提示词失败: " + String(error?.message || error));
+    showError(t("strategyGroups.suggest.promptSaveFailed", { error: String(error?.message || error) }));
   }
 }
 
@@ -583,16 +643,21 @@ async function importExternalGroupSuggestions() {
     }
     const warnings = Array.isArray(result.warnings) ? result.warnings : [];
     showNotification(
-      `已导入 ${result.imported} 条建议（${result.memberCount} 个成员）` +
-        (result.skipped > 0 ? `，跳过 ${result.skipped} 条` : ""),
+      t("strategyGroups.suggest.imported", {
+        imported: result.imported,
+        members: result.memberCount,
+      }) +
+        (result.skipped > 0
+          ? t("strategyGroups.suggest.importSkipped", { count: result.skipped })
+          : ""),
       result.skipped > 0 || warnings.length > 0 ? "info" : "success",
     );
     await refreshModGroupSuggestions();
     if (warnings.length > 0) {
-      showConfirmModal("导入结果", warnings.slice(0, 8).join("\n"), () => {});
+      showConfirmModal(t("strategyGroups.suggest.importResultTitle"), warnings.slice(0, 8).join("\n"), () => {});
     }
   } catch (error) {
-    showError("导入建议失败: " + String(error?.message || error));
+    showError(t("strategyGroups.suggest.importFailed", { error: String(error?.message || error) }));
   }
 }
 
@@ -603,7 +668,7 @@ async function exportGroupingCatalog() {
   const originalLabel = exportButton?.textContent || "";
   if (exportButton) {
     exportButton.disabled = true;
-    exportButton.textContent = "正在扫描并导出…";
+    exportButton.textContent = t("strategyGroups.suggest.prepareBusy");
   }
   try {
     const path = await ExportGroupingCatalogDialog();
@@ -611,18 +676,18 @@ async function exportGroupingCatalog() {
       return; // 用户取消
     }
     const inbox = await GetGroupSuggestionInboxPath().catch(() => "");
-    showNotification(`已按最新扫描导出 Mod 清单：${path}`, "success");
+    showNotification(t("strategyGroups.suggest.exported", { path }), "success");
     if (inbox) {
       showConfirmModal(
-        "交给大模型分析",
-        `Mod 清单已导出：${path}\n\n` +
-          "可以把这份清单交给大模型（或人工）分析，让它按标准格式写出组建议文件，然后回到这里点「导入建议文件…」。\n\n" +
-          `建议文件的标准位置是：${inbox}（放进去后点「重新推导」也会自动读取）。`,
+        t("strategyGroups.suggest.exportDialogTitle"),
+        t("strategyGroups.suggest.exportLine", { path }) +
+          t("strategyGroups.suggest.exportHint") +
+          t("strategyGroups.suggest.exportInbox", { path: inbox }),
         () => {},
       );
     }
   } catch (error) {
-    showError("导出 Mod 清单失败: " + String(error?.message || error));
+    showError(t("strategyGroups.suggest.exportFailed", { error: String(error?.message || error) }));
   } finally {
     if (exportButton) {
       exportButton.disabled = false;
@@ -634,10 +699,10 @@ async function exportGroupingCatalog() {
 async function clearExternalGroupSuggestions() {
   try {
     await ClearExternalGroupSuggestions();
-    showNotification("已清除导入的组建议", "success");
+    showNotification(t("strategyGroups.suggest.cleared"), "success");
     await refreshModGroupSuggestions();
   } catch (error) {
-    showError("清除导入建议失败: " + String(error?.message || error));
+    showError(t("strategyGroups.suggest.clearFailed", { error: String(error?.message || error) }));
   }
 }
 
@@ -659,7 +724,7 @@ async function refreshModGroupSuggestions() {
   const summary = element("mod-group-suggest-summary");
   if (!list) return;
   list.replaceChildren();
-  if (summary) summary.textContent = "正在推导…";
+  if (summary) summary.textContent = t("strategyGroups.suggest.loading");
   try {
     const suggestions = (await SuggestModGroups()) || [];
     appState.groupSuggestions = suggestions;
@@ -671,7 +736,10 @@ async function refreshModGroupSuggestions() {
     suggestionVisibleCount = SUGGESTION_PAGE_SIZE;
     renderSuggestionList(suggestions);
   } catch (error) {
-    if (summary) summary.textContent = "推导失败: " + String(error?.message || error);
+    if (summary)
+      summary.textContent = t("strategyGroups.suggest.deriveFailed", {
+        error: String(error?.message || error),
+      });
   }
 }
 
@@ -770,11 +838,15 @@ function renderSuggestionList(suggestions) {
     const tagCoveredCount = countTagCoveredSuggestions(all);
     summary.textContent =
       all.length === 0
-        ? "没有发现明显同组的 Mod（可能已经都分好组了）"
-        : `共 ${all.length} 条建议` +
-          (externalCount > 0 ? `（其中 ${externalCount} 条来自导入的建议文件）` : "") +
-          (tagCoveredCount > 0 ? ` · ${tagCoveredCount} 条标签已覆盖（可直接用标签筛选）` : "") +
-          " · 客观证据（合集/文件夹结构/前缀/标签/作者）与小规模组优先";
+        ? t("strategyGroups.suggest.summaryNone")
+        : t("strategyGroups.suggest.summaryTotal", { count: all.length }) +
+          (externalCount > 0
+            ? t("strategyGroups.suggest.summaryExternal", { count: externalCount })
+            : "") +
+          (tagCoveredCount > 0
+            ? t("strategyGroups.suggest.summaryTagCovered", { count: tagCoveredCount })
+            : "") +
+          t("strategyGroups.suggest.summaryHint");
   }
 
   const view = applySuggestionView(all, suggestionFilter);
@@ -789,25 +861,25 @@ function renderSuggestionList(suggestions) {
   if (moreButton) {
     moreButton.classList.toggle("hidden", !page.hasMore);
     moreButton.textContent = page.hasMore
-      ? `显示更多建议（还有 ${page.hiddenCount} 条）`
-      : "显示更多建议";
+      ? t("strategyGroups.suggest.more", { count: page.hiddenCount })
+      : t("strategyGroups.suggest.moreIdle");
   }
 
   if (all.length === 0) {
     const empty = document.createElement("div");
     empty.className = "mod-group-suggest-empty";
-    empty.textContent = "可以先用标签或工坊合集整理出更明确的特征，再回来推导。";
+    empty.textContent = t("strategyGroups.suggest.emptyHint");
     list.appendChild(empty);
     return;
   }
   if (view.length === 0) {
     const empty = document.createElement("div");
     empty.className = "mod-group-suggest-empty";
-    empty.textContent = "没有符合筛选条件的建议。可以清空搜索词，或把置信度改回“全部置信度”。";
+    empty.textContent = t("strategyGroups.suggest.filterEmpty");
     const reset = document.createElement("button");
     reset.type = "button";
     reset.className = "btn btn-small btn-outline";
-    reset.textContent = "清除筛选";
+    reset.textContent = t("strategyGroups.window.batchFilterClear");
     reset.addEventListener("click", () => {
       suggestionFilter = { ...DEFAULT_SUGGESTION_FILTER };
       syncSuggestionFilterControls();
@@ -833,16 +905,16 @@ function renderSuggestionList(suggestions) {
       titleInput = document.createElement("input");
       titleInput.type = "text";
       titleInput.className = "mod-group-suggest-name";
-      titleInput.value = suggestion.label || "新策略组";
+      titleInput.value = suggestion.label || t("strategyGroups.suggest.defaultLabel");
       titleInput.maxLength = 60;
-      titleInput.setAttribute("aria-label", "策略组名称");
+      titleInput.setAttribute("aria-label", t("strategyGroups.common.nameLabel"));
       head.append(titleInput);
     } else {
       const titleText = document.createElement("button");
       titleText.type = "button";
       titleText.className = "mod-group-suggest-title";
-      titleText.textContent = suggestion.label || "新策略组";
-      titleText.title = "展开这条建议，查看成员与逐个操作";
+      titleText.textContent = suggestion.label || t("strategyGroups.suggest.defaultLabel");
+      titleText.title = t("strategyGroups.suggest.expandTitle");
       titleText.addEventListener("click", () => {
         suggestionExpanded.add(suggestion.id);
         renderSuggestionList(appState.groupSuggestions || []);
@@ -853,33 +925,36 @@ function renderSuggestionList(suggestions) {
     confidence.className = `mod-group-suggest-confidence ${suggestion.confidence || "low"}`;
     confidence.textContent = formatSuggestionConfidence(suggestion.confidence);
     if (suggestion.existingGroupId) {
-      confidence.textContent += " · 已建组";
+      confidence.textContent += t("strategyGroups.suggest.existingGroupTag");
     }
     head.append(confidence);
     if (suggestion.source === "external") {
       const sourceBadge = document.createElement("span");
       sourceBadge.className = "mod-group-suggest-source";
-      sourceBadge.textContent = "导入建议";
-      sourceBadge.title = "来自你导入的建议文件（大模型 / 人工整理），优先展示";
+      sourceBadge.textContent = t("strategyGroups.suggest.badgeImported");
+      sourceBadge.title = t("strategyGroups.suggest.badgeImportedTitle");
       head.append(sourceBadge);
     }
     const memberCountBadge = document.createElement("span");
     memberCountBadge.className = "mod-group-suggest-count";
-    memberCountBadge.textContent = `${(suggestion.memberKeys || []).length} 个 Mod`;
+    memberCountBadge.textContent = t("strategyGroups.view.modCount", {
+      count: (suggestion.memberKeys || []).length,
+    });
     head.append(memberCountBadge);
     if (isSuggestionTagCovered(suggestion)) {
       // 标签恰好只能筛出这一批 Mod：建组的增量价值低，给一个直接跳到标签筛选的入口。
       const tagBadge = document.createElement("span");
       tagBadge.className = "mod-group-suggest-tag-badge";
-      tagBadge.textContent = `标签已覆盖：${suggestion.tagKey}`;
-      tagBadge.title =
-        "这个标签恰好只能筛出这一批 Mod（没有别的 Mod 带它）：直接用标签筛选就能达到同样效果，不必再建组";
+      tagBadge.textContent = t("strategyGroups.suggest.tagCoveredBadge", { tag: suggestion.tagKey });
+      tagBadge.title = t("strategyGroups.suggest.tagCoveredBadgeTitle");
       head.append(tagBadge);
       const filterByTag = document.createElement("button");
       filterByTag.type = "button";
       filterByTag.className = "btn btn-small btn-outline";
-      filterByTag.textContent = "用标签筛选";
-      filterByTag.title = `关闭弹窗，并在标签筛选里选中「${suggestion.tagKey}」`;
+      filterByTag.textContent = t("strategyGroups.suggest.useTagFilter");
+      filterByTag.title = t("strategyGroups.suggest.useTagFilterTitle", {
+        tag: suggestion.tagKey,
+      });
       filterByTag.addEventListener("click", () => {
         void applyTagFilterFromSuggestion(suggestion);
       });
@@ -892,19 +967,29 @@ function renderSuggestionList(suggestions) {
       importedBadge.className = "mod-group-suggest-import-tag";
       importedBadge.textContent =
         importedTagPlan.length === 1
-          ? `导入标签：${importedTagPlan[0].tag}`
-          : `导入标签：${importedTagPlan[0].tag} 等 ${importedTagPlan.length} 个`;
-      importedBadge.title = [suggestion.tagReason, "来自建议文件里的 tag / memberTags"]
+          ? t("strategyGroups.suggest.importTagBadge", { tag: importedTagPlan[0].tag })
+          : t("strategyGroups.suggest.importTagBadgeMore", {
+              tag: importedTagPlan[0].tag,
+              count: importedTagPlan.length,
+            });
+      importedBadge.title = [suggestion.tagReason, t("strategyGroups.suggest.importTagOrigin")]
         .filter(Boolean)
         .join(" · ");
       head.append(importedBadge);
       const applyTagButton = document.createElement("button");
       applyTagButton.type = "button";
       applyTagButton.className = "btn btn-small btn-outline";
-      applyTagButton.textContent = "应用标签";
-      applyTagButton.title = `给这条建议的成员打上标签：${importedTagPlan
-        .map((entry) => `${entry.tag}（${entry.keys.length} 个）`)
-        .join("、")}`;
+      applyTagButton.textContent = t("strategyGroups.suggest.applyTags");
+      applyTagButton.title = t("strategyGroups.suggest.applyTagsTitle", {
+        summary: importedTagPlan
+          .map((entry) =>
+            t("strategyGroups.suggest.applyTagsPlanEntry", {
+              tag: entry.tag,
+              count: entry.keys.length,
+            }),
+          )
+          .join("、"),
+      });
       applyTagButton.addEventListener("click", () => {
         void applyImportedTags(suggestion, importedTagPlan);
       });
@@ -914,7 +999,9 @@ function renderSuggestionList(suggestions) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "btn btn-small btn-outline mod-group-suggest-toggle";
-    toggle.textContent = expanded ? "收起" : "展开详情";
+    toggle.textContent = expanded
+      ? t("strategyGroups.suggest.collapse")
+      : t("strategyGroups.suggest.expand");
     toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
     toggle.addEventListener("click", () => {
       if (expanded) suggestionExpanded.delete(suggestion.id);
@@ -951,7 +1038,7 @@ function renderSuggestionList(suggestions) {
     if (previewInfo.more > 0) {
       const more = document.createElement("span");
       more.className = "mod-group-suggest-preview-more";
-      more.textContent = `…还有 ${previewInfo.more} 个`;
+      more.textContent = t("strategyGroups.tag.preview.moreNames", { count: previewInfo.more });
       preview.appendChild(more);
     }
 
@@ -972,8 +1059,8 @@ function renderSuggestionList(suggestions) {
     const selectAllButton = document.createElement("button");
     selectAllButton.type = "button";
     selectAllButton.className = "btn btn-small btn-outline";
-    selectAllButton.textContent = "全选";
-    selectAllButton.title = "勾选这一组的全部 Mod";
+    selectAllButton.textContent = t("strategyGroups.suggest.selectAll");
+    selectAllButton.title = t("strategyGroups.suggest.selectAllTitle");
     selectAllButton.addEventListener("click", () => {
       const all = defaultSuggestionSelection(suggestion);
       suggestionSelections.set(suggestion.id, all);
@@ -982,8 +1069,8 @@ function renderSuggestionList(suggestions) {
     const clearAllButton = document.createElement("button");
     clearAllButton.type = "button";
     clearAllButton.className = "btn btn-small btn-outline";
-    clearAllButton.textContent = "全不选";
-    clearAllButton.title = "取消勾选这一组的全部 Mod";
+    clearAllButton.textContent = t("strategyGroups.suggest.clearAll");
+    clearAllButton.title = t("strategyGroups.suggest.clearAllTitle");
     clearAllButton.addEventListener("click", () => {
       suggestionSelections.set(suggestion.id, new Set());
       applySelectionToCard(card, suggestion);
@@ -992,14 +1079,14 @@ function renderSuggestionList(suggestions) {
     createButton.type = "button";
     createButton.className = "btn btn-small btn-primary";
     createButton.textContent = expanded
-      ? "创建为组"
-      : `创建为组（${selection.size}）`;
+      ? t("strategyGroups.suggest.create")
+      : t("strategyGroups.suggest.createWithCount", { count: selection.size });
     if (suggestion.existingGroupId) {
       createButton.disabled = true;
-      createButton.title = "这批 Mod 已经属于同一个策略组，无需重复创建";
+      createButton.title = t("strategyGroups.suggest.createDisabled");
     }
     createButton.addEventListener("click", () => {
-      const name = titleInput?.value || suggestion.label || "新策略组";
+      const name = titleInput?.value || suggestion.label || t("strategyGroups.suggest.defaultLabel");
       void createGroupFromSuggestion(suggestion, name, suggestionSelections.get(suggestion.id));
     });
     const selectActions = document.createElement("div");
@@ -1025,7 +1112,10 @@ function applySelectionToCard(card, suggestion) {
   if (footer) footer.textContent = formatSuggestionCreateSummary(suggestion, selection);
   const createButton = card.querySelector(".mod-group-suggest-actions .btn-primary");
   if (createButton && !suggestion.existingGroupId) {
-    createButton.textContent = selection.size === 0 ? "创建为组" : `创建为组（${selection.size}）`;
+    createButton.textContent =
+      selection.size === 0
+        ? t("strategyGroups.suggest.create")
+        : t("strategyGroups.suggest.createWithCount", { count: selection.size });
   }
 }
 
@@ -1035,7 +1125,7 @@ async function applyTagFilterFromSuggestion(suggestion) {
   if (!tag) return;
   closeModGroupSuggestionModal();
   appState.selectedSecondaryTags = [tag];
-  showNotification(`已按标签「${tag}」筛选（标签筛选里点「全部」可取消）`, "success");
+  showNotification(t("strategyGroups.suggest.tagFilterApplied", { tag }), "success");
   await refreshFilesKeepFilter();
   renderFileList();
 }
@@ -1043,13 +1133,17 @@ async function applyTagFilterFromSuggestion(suggestion) {
 // applyImportedTags 应用建议文件里带的标签（智能体给的 tag / memberTags）。
 // 会改文件名（＝改 addonlist 键），所以先用应用内确认框说明影响，后端负责把本地记录改绑。
 async function applyImportedTags(suggestion, plan) {
-  const summary = plan.map((entry) => `「${entry.tag}」× ${entry.keys.length} 个`).join("、");
+  const summary = plan
+    .map((entry) =>
+      t("strategyGroups.suggest.tagPlanEntry", { tag: entry.tag, count: entry.keys.length }),
+    )
+    .join("、");
   showConfirmModal(
-    "应用导入标签",
-    `给「${suggestion.label || "这条建议"}」的成员打标签：${summary}。\n` +
-      "标签写在文件名里（工坊 Mod 写进 .meta），会改变 addonlist 键；" +
-      "工具会自动把策略组 / 分层 / 依赖 / 忽略清单里的旧键改绑到新键。\n" +
-      "已经带该标签的成员会被跳过。是否继续？",
+    t("strategyGroups.suggest.applyImportedTitle"),
+    t("strategyGroups.suggest.applyImportedMessage", {
+      name: suggestion.label || t("strategyGroups.suggest.thisSuggestion"),
+      summary,
+    }),
     async () => {
       try {
         let applied = 0;
@@ -1066,8 +1160,13 @@ async function applyImportedTags(suggestion, plan) {
           if (Array.isArray(result?.reasons)) notes.push(...result.reasons);
         }
         showNotification(
-          `已应用 ${plan.length} 个标签：新增 ${applied} 个${skipped > 0 ? `，${skipped} 个已有` : ""}` +
-            `${missing > 0 ? `，${missing} 个文件缺失` : ""}${failed > 0 ? `，${failed} 个失败` : ""}`,
+          t("strategyGroups.suggest.applyTagsDone", {
+            count: plan.length,
+            applied,
+          }) +
+            (skipped > 0 ? t("strategyGroups.suggest.applyTagsExisting", { count: skipped }) : "") +
+            (missing > 0 ? t("strategyGroups.suggest.applyTagsMissing", { count: missing }) : "") +
+            (failed > 0 ? t("strategyGroups.suggest.applyTagsFailed", { count: failed }) : ""),
           failed > 0 ? "warning" : "success",
         );
         if (notes.length > 0) console.warn("应用导入标签失败详情:", notes);
@@ -1075,7 +1174,11 @@ async function applyImportedTags(suggestion, plan) {
         renderFileList();
         await refreshModGroupSuggestions();
       } catch (error) {
-        showError("应用导入标签失败: " + String(error?.message || error));
+        showError(
+          t("strategyGroups.suggest.applyImportedFailed", {
+            error: String(error?.message || error),
+          }),
+        );
       }
     },
   );
@@ -1101,7 +1204,9 @@ function buildSuggestionMemberList(suggestion, selection, onSelectionChange) {
         priorityLabel: planEntry ? formatPriorityLabel(planEntry) : "",
         pick: {
           checked: row.selected,
-          title: row.selected ? "取消勾选这个 Mod" : "把这个 Mod 加入该组",
+          title: row.selected
+            ? t("strategyGroups.suggest.unpickTitle")
+            : t("strategyGroups.suggest.pickTitle"),
           onChange: (checked) => {
             const next = new Set(suggestionSelections.get(suggestion.id) || []);
             if (checked) next.add(row.key);
@@ -1129,22 +1234,25 @@ async function refreshAfterSuggestionMemberAction() {
 async function createGroupFromSuggestion(suggestion, name, selection) {
   const keys = [...(selection || defaultSuggestionSelection(suggestion))];
   if (keys.length === 0) {
-    showError("请至少勾选一个 Mod");
+    showError(t("strategyGroups.view.createNone"));
     return;
   }
   try {
     const group = await CreateModStrategyGroupFromKeys(
-      String(name || "").trim() || suggestion.label || "新策略组",
-      suggestion.reason || "来自分组建议",
+      String(name || "").trim() || suggestion.label || t("strategyGroups.suggest.defaultLabel"),
+      suggestion.reason || t("strategyGroups.suggest.defaultReason"),
       suggestion.strategy || "single",
       keys,
     );
-    showNotification(`已创建策略组「${group.name}」（${keys.length} 个成员）`, "success");
+    showNotification(
+      t("strategyGroups.common.groupCreated", { name: group.name, count: keys.length }),
+      "success",
+    );
     await refreshModGroupMembership();
     await refreshModGroupSuggestions();
     renderFileList();
   } catch (error) {
-    showError("创建策略组失败: " + String(error?.message || error));
+    showError(t("strategyGroups.groupActions.createFailed", { error: String(error?.message || error) }));
   }
 }
 
@@ -1276,7 +1384,7 @@ export function initModGroupUI() {
 async function captureGroupFromSelection() {
   const selected = [...(appState.selectedFiles || [])];
   if (selected.length === 0) {
-    showError("请先在列表里勾选要归入同一组的 Mod");
+    showError(t("strategyGroups.groupActions.captureNoSelection"));
     return;
   }
   const keys = [];
@@ -1287,16 +1395,16 @@ async function captureGroupFromSelection() {
     if (fileKeys.length > 0) keys.push(fileKeys[0]);
   }
   if (keys.length === 0) {
-    showError("选中的 Mod 没有可用的 addonlist 键，无法建组");
+    showError(t("strategyGroups.groupActions.captureNoKeys"));
     return;
   }
   // 用应用内输入弹窗代替 window.prompt：WebView2 没有默认 prompt 实现。
   showPromptModal(
-    "用选中的 Mod 建组",
-    `把选中的 ${keys.length} 个 Mod 保存为同一个策略组，请输入组名。\n只写 groups.json，不会改动 Mod 文件，也不会改动 addonlist.txt。`,
+    t("strategyGroups.groupActions.captureTitle"),
+    t("strategyGroups.groupActions.captureMessage", { count: keys.length }),
     {
-      confirmText: "创建为组",
-      placeholder: "例如：命中反馈整合包",
+      confirmText: t("strategyGroups.groupActions.captureConfirm"),
+      placeholder: t("strategyGroups.groupActions.capturePlaceholder"),
       onConfirm: (name) => createGroupFromSelectionKeys(name, keys),
     },
   );
@@ -1305,17 +1413,25 @@ async function captureGroupFromSelection() {
 async function createGroupFromSelectionKeys(name, keys) {
   const trimmed = String(name || "").trim();
   if (!trimmed) {
-    showError("组名不能为空");
+    showError(t("strategyGroups.groupActions.nameRequired"));
     return false;
   }
   try {
-    const group = await CreateModStrategyGroupFromKeys(trimmed, "来自 Mod 管理页的勾选", "single", keys);
-    showNotification(`已创建策略组「${group.name}」（${keys.length} 个成员）`, "success");
+    const group = await CreateModStrategyGroupFromKeys(
+      trimmed,
+      t("strategyGroups.groupActions.captureReason"),
+      "single",
+      keys,
+    );
+    showNotification(
+      t("strategyGroups.common.groupCreated", { name: group.name, count: keys.length }),
+      "success",
+    );
     await refreshModGroupMembership();
     await refreshFilesKeepFilter();
     renderFileList();
   } catch (error) {
-    showError("创建策略组失败: " + String(error?.message || error));
+    showError(t("strategyGroups.groupActions.createFailed", { error: String(error?.message || error) }));
     return false;
   }
 }

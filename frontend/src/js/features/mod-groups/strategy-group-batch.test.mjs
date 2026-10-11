@@ -63,7 +63,12 @@ test("批量操作走同一个后端方法，并用应用内确认弹窗", () =>
   ["delete", "enforce_on", "enforce_off", "set_tier", "clear_tier"].forEach((action) => {
     assert.match(managerSource, new RegExp(`"${action}"`), `缺少 ${action} 动作`);
   });
-  assert.match(managerSource, /showConfirmModal\(\s*"批量管理策略组"/, "批量操作要应用内确认");
+  assert.match(
+    managerSource,
+    /showConfirmModal\(t\("strategyGroups\.manager\.batchTitle"\)/,
+    "批量操作要应用内确认",
+  );
+  assert.match(catalog.strategyGroups.manager.batchTitle, /批量管理策略组/);
   assert.match(managerSource, /formatStrategyGroupBatchResult/, "批量结果要有提示文案");
 });
 
@@ -82,15 +87,25 @@ test("选中集合存在 appState 里，跨重新渲染保留", () => {
 });
 
 test("组生命周期动作都在窗口里，删除仍只删 groups.json 记录", () => {
-  ["按策略应用", "随机单选", "全关", "重命名", "删除"].forEach((label) => {
-    assert.match(indexHtml + managerSource, new RegExp(label), `缺少「${label}」`);
+  // 按钮文案已迁入目录：源码接线 + 目录内容双查。
+  [
+    ["按策略应用", "strategyGroups.manager.applyStrategy"],
+    ["随机单选", "strategyGroups.manager.randomSingle"],
+    ["全关", "strategyGroups.manager.offAll"],
+    ["重命名", "strategyGroups.common.rename"],
+    ["删除", "strategyGroups.common.delete"],
+  ].forEach(([label, key]) => {
+    assert.match(managerSource, new RegExp(`"${key}"`), `缺少「${label}」的目录接线`);
+    const value = key.split(".").reduce((node, segment) => node?.[segment], catalog);
+    assert.match(value, new RegExp(label), `目录里缺少「${label}」`);
   });
   assert.match(managerSource, /DeleteModStrategyGroup\(/, "窗口需要删除");
   assert.match(managerSource, /RenameModStrategyGroup\(/, "窗口需要重命名");
   assert.match(managerSource, /SetModStrategyGroupTier\(/, "窗口需要组权重");
   assert.match(managerSource, /MoveModStrategyGroup\(/, "窗口需要上级分组");
+  assert.match(managerSource, /strategyGroups\.manager\.deleteMessage/, "删除确认要从目录取文案");
   assert.match(
-    managerSource,
+    catalog.strategyGroups.manager.deleteMessage,
     /不会改动 addonlist\.txt，也不会删除任何 Mod 文件/,
     "删除确认要写清影响范围",
   );
@@ -146,7 +161,11 @@ test("徽标点击 → 打开管理窗口并定位到那一组（列出这个 Mo
     "徽标点击不应再直接整组开关",
   );
   // ② 整组开关没丢：分组菜单里保留，窗口定位条上也有一个
-  assert.match(groupUiSource, /"整组开关"/, "分组菜单的整组开关要保留");
+  assert.match(
+    groupUiSource,
+    /"strategyGroups\.common\.groupToggle"/,
+    "分组菜单的整组开关要保留",
+  );
   assert.match(managerSource, /data-focus-action="toggle-group"/, "定位条要有整组开关");
   assert.match(managerSource, /SetModStrategyGroupEnabled\(/, "整组开关要走后端绑定");
   assert.match(managerSource, /groupEnabledVote\(/, "开关方向要与列表共用同一份纯函数");
@@ -254,8 +273,10 @@ test("在管理窗口里就能把组变成筛选（单组 + 多选批量）", ()
   assert.match(indexHtml, /用选中的组筛选/, "缺少批量筛选按钮文案");
   // 组行：筛选这组 / 取消筛选。
   assert.match(managerSource, /settings-strategy-filter/, "组行缺少筛选按钮");
-  assert.match(managerSource, /筛选这组/, "按钮文案要说明用途");
-  assert.match(managerSource, /取消筛选/, "再点一次要能取消");
+  assert.match(managerSource, /strategyGroups\.manager\.filter"/, "按钮文案要说明用途");
+  assert.match(managerSource, /strategyGroups\.manager\.unfilter"/, "再点一次要能取消");
+  assert.match(catalog.strategyGroups.manager.filter, /筛选这组/);
+  assert.match(catalog.strategyGroups.manager.unfilter, /取消筛选/);
   // 接线：改的是 appState.activeGroupFilter 并真的重新筛选列表。
   assert.match(managerSource, /function applyGroupFilterIds/);
   assert.match(managerSource, /appState\.activeGroupFilter = new Set\(/);
@@ -352,48 +373,71 @@ test("窗口里有一个真正的搜索框：按组名/成员名过滤，全选�
 
 test("禁用状态要说明原因（别让按钮看起来像坏了）", () => {
   // 批量按钮：没勾选时 tooltip 说明怎么勾；勾上后恢复原 tooltip。
-  assert.match(managerSource, /先勾选要批量操作的策略组（每行最左边的方框，或直接点组名）/, "批量按钮要解释禁用原因");
+  assert.match(managerSource, /strategyGroups\.manager\.batchDisabledHint/, "批量按钮要解释禁用原因");
+  assert.match(catalog.strategyGroups.manager.batchDisabledHint, /每行最左边的方框，或直接点组名/);
   assert.match(managerSource, /dataset\.defaultTitle/, "禁用提示不能覆盖按钮原有 tooltip");
   assert.match(managerSource, /id="strategy-group-batch-hint"|element\("strategy-group-batch-hint"\)/, "工具条要有提示行");
   assert.match(indexHtml, /id="strategy-group-batch-hint"/, "index.html 要有提示行元素");
   // 建组按钮：没勾 Mod 时把原因写在按钮上。
-  assert.match(managerSource, /先在 Mod 管理页勾选 Mod/, "建组按钮禁用时要说清原因");
-  assert.match(managerSource, /还没勾选 Mod：先回到 Mod 管理页勾选要归入同一组的 Mod/, "建组按钮要有 tooltip");
+  assert.match(managerSource, /strategyGroups\.manager\.captureIdle/, "建组按钮禁用时要说清原因");
+  assert.match(catalog.strategyGroups.manager.captureIdle, /先在 Mod 管理页勾选 Mod/);
+  assert.match(managerSource, /strategyGroups\.manager\.captureEmptyTitle/, "建组按钮要有 tooltip");
+  assert.match(
+    catalog.strategyGroups.manager.captureEmptyTitle,
+    /还没勾选 Mod：先回到 Mod 管理页勾选要归入同一组的 Mod/,
+  );
 });
 
 test("每组都有「＋ 子组」快捷入口，走 CreateModStrategyGroupChild", () => {
   // 组行按钮 + 提示：子组会累加全部上级分组的权重（和 FireAxe 的层级累加一致）。
   assert.match(managerSource, /settings-strategy-add-child/, "组行缺少「＋ 子组」按钮");
-  assert.match(managerSource, /＋ 子组/, "按钮文案");
-  assert.match(managerSource, /子组会累加它和全部上级分组的权重/, "tooltip 要说明累加语义");
+  assert.match(managerSource, /strategyGroups\.manager\.addChild/, "按钮文案");
+  assert.match(catalog.strategyGroups.manager.addChild, /＋ 子组/);
+  assert.match(
+    catalog.strategyGroups.manager.addChildTitle,
+    /子组会累加它和全部上级分组的权重/,
+    "tooltip 要说明累加语义",
+  );
   assert.match(managerSource, /CreateModStrategyGroupChild\(parentId, name, "single", selected\)/, "要调用后端接口并带上勾选的 Mod");
-  assert.match(managerSource, /showPromptModal\(\s*"新建子组"/, "新建子组要用应用内输入弹窗");
+  assert.match(
+    managerSource,
+    /showPromptModal\(\s*t\("strategyGroups\.manager\.childTitle"\)/,
+    "新建子组要用应用内输入弹窗",
+  );
   // 没勾 Mod 时允许建空子组，并在弹窗里说明。
-  assert.match(managerSource, /现在没有勾选 Mod，会先建一个空子组/, "空子组要说明");
+  assert.match(catalog.strategyGroups.manager.childEmptyLine, /现在没有勾选 Mod，会先建一个空子组/, "空子组要说明");
   // 后端会静默丢掉解析不了的成员：提示必须报实际入组数，并把丢掉的个数说出来。
   assert.match(managerSource, /const added = Array\.isArray\(created\?\.members\) \? created\.members\.length/, "提示要取实际入组数");
-  assert.match(managerSource, /另有 \$\{dropped\} 个无法加入/, "被丢掉的成员要说明");
+  assert.match(catalog.strategyGroups.manager.childCreatedDropped, /另有 \{dropped\} 个无法加入/, "被丢掉的成员要说明");
 });
 
 test("清空组权重要说明顺序不会自动还原（真机实测过）", () => {
   // 「顺序号」就是 addonlist 里的位置，上一次应用已经把位置改写；而且"没有任何分层时不写盘"
   // 是刻意的硬约束。所以清空权重后再点「按分层应用」不会回到设置前的顺序 —— 提示里要说清楚，
   // 否则用户会以为按钮没生效（manual-verification.md §7 原来的预期就是这么写的，已更正）。
+  assert.match(managerSource, /strategyGroups\.manager\.tierCleared/, "清空权重要从目录取文案");
   assert.match(
-    managerSource,
+    catalog.strategyGroups.manager.tierCleared,
     /已清除策略组权重（不会自动还原原顺序/,
     "清空权重时要说明不会自动还原",
   );
-  assert.match(managerSource, /「历史备份」里的 addonlist\.txt 备份/, "要指路怎么还原");
+  assert.match(
+    catalog.strategyGroups.manager.tierCleared,
+    /「历史备份」里的 addonlist\.txt 备份/,
+    "要指路怎么还原",
+  );
 });
 
 test("应用策略前先预检（对齐 FireAxe CheckEnableStrategy）", () => {
   assert.match(managerSource, /CheckModStrategyGroupApply\(id, \{/, "应用前要调用后端预检");
   // 不可执行 → 直接拦下并说明原因。
   assert.match(managerSource, /check\.applicable === false/, "不可执行要拦下");
-  assert.match(managerSource, /showNotification\(check\.reason \|\| "这个策略现在无法执行", "error"\)/);
+  assert.match(
+    managerSource,
+    /showNotification\(check\.reason \|\| t\("strategyGroups\.manager\.applyBlocked"\), "error"\)/,
+  );
   // 能执行但有提醒 → 应用内确认框逐条列出。
-  assert.match(managerSource, /"应用前检查"/, "有提醒时要确认");
+  assert.match(managerSource, /t\("strategyGroups\.manager\.checkTitle"\)/, "有提醒时要确认");
   assert.match(managerSource, /warnings\.join\("\\n· "\)/, "提醒要逐条列出");
   // 取消确认后按钮要恢复可用（showConfirmModal 的 onCancel 是第 6 个参数）。
   assert.match(managerSource, /() => void run\(\),\s*false,\s*"",\s*\(\) => \{\s*button\.disabled = false;/, "取消要恢复按钮");
@@ -402,7 +446,7 @@ test("应用策略前先预检（对齐 FireAxe CheckEnableStrategy）", () => {
 test("组行可以拖动排序（拖放落点判定走纯函数 + 后端两个接口）", () => {
   // 行本身可拖动，并带上落点提示。
   assert.match(managerSource, /data-group-row="\$\{escapeAttr\(group\.id\)\}"[^>]*draggable="true"/, "组行要可拖动");
-  assert.match(managerSource, /拖动这一行/, "行上要有拖动说明");
+  assert.match(managerSource, /strategyGroups\.manager\.dragRowTitle/, "行上要有拖动说明");
   // 落点判定：内部/前/后三种位置都要用到纯函数。
   ["resolveStrategyGroupDrop", "applyStrategyGroupDropOrder", "formatStrategyGroupDropMessage"].forEach((name) => {
     assert.match(managerSource, new RegExp(name), `缺少 ${name} 接线`);
@@ -436,7 +480,8 @@ test("父组行汇总子组缺失（AddonChildrenProblem）", () => {
   assert.match(managerSource, /formatGroupSubtreeMissingNotice\(/, "要用纯函数生成子树缺失文案");
   assert.match(managerSource, /subtreeMissingCount/, "要读后端新增的子树缺失字段");
   assert.match(managerSource, /settings-strategy-missing is-subtree/, "父组行要有独立的子树提示样式");
-  assert.match(managerSource, /展开子组即可看到/, "提示要说明下一步怎么做");
+  assert.match(managerSource, /strategyGroups\.manager\.subtreeMissingTitle/, "提示要说明下一步怎么做");
+  assert.match(catalog.strategyGroups.manager.subtreeMissingTitle, /展开子组即可看到/);
 });
 
 // 勾选相关的三个动作 + "范围"必须写清楚。
@@ -452,7 +497,8 @@ test("勾选有三档：取消全部 / 全选所有组 / 每组范围内的全�
   // ② 组内范围：每个展开的组头带一个「本组全选」
   assert.match(managerSource, /data-group-member-pick-all/, "每个展开组要带自己的「本组全选」");
   assert.match(cssSource, /\.strategy-group-members-header\s*\{/, "成员列表头要有样式");
-  assert.match(managerSource, /只勾选\/取消「/, "「本组全选」要说清只作用这一组");
+  assert.match(managerSource, /strategyGroups\.manager\.pickAllTitle/, "「本组全选」要说清只作用这一组");
+  assert.match(catalog.strategyGroups.manager.pickAllTitle, /只勾选\/取消「/);
   // ③ 接线：三个动作分别接去 scope 助手 / 全量集合 / 清空
   assert.match(managerSource, /element\("strategy-group-member-select-all-groups"\)\?\.addEventListener/, "「全选所有组」要接线");
   assert.match(managerSource, /element\("strategy-group-member-clear-all"\)\?\.addEventListener/, "「取消全部勾选」要接线");

@@ -10,6 +10,7 @@
 import { appState, onFileSelectionChanged } from "../state.js";
 import { escapeHtml } from "../../core/utils.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { getConfig, saveConfig } from "../../core/config.js";
 import { getFloatingModal, setupFloatingModal } from "../../core/floating-modal.js";
 import {
@@ -137,12 +138,12 @@ function parentOptionLabel(groupId) {
 function parentOptionSummaryHtml(group) {
   const parentId = String(group?.parentId || "");
   if (!parentId) {
-    return `<option value="">（顶层）</option>`;
+    return `<option value="">${t("strategyGroups.manager.parentTop")}</option>`;
   }
   // 上级可能已经被删掉（脏数据）：这时退回"顶层"，与后端迁移行为一致。
   const label = parentOptionLabel(parentId);
   if (!label) {
-    return `<option value="">（顶层）</option>`;
+    return `<option value="">${t("strategyGroups.manager.parentTop")}</option>`;
   }
   return `<option value="${escapeAttr(parentId)}" selected>${escapeHtml(label)}</option>`;
 }
@@ -157,7 +158,7 @@ function fillParentOptions(select) {
         `<option value="${escapeAttr(option.id)}" ${option.id === keep ? "selected" : ""}>${escapeHtml(option.label)}</option>`,
     )
     .join("");
-  select.innerHTML = `<option value="">（顶层）</option>${options}`;
+  select.innerHTML = `<option value="">${t("strategyGroups.manager.parentTop")}</option>${options}`;
   select.dataset.parentOptions = "filled";
   select.value = keep;
 }
@@ -189,7 +190,9 @@ async function loadManagerData() {
   if (groupsResult.status === "fulfilled") {
     groups = groupsResult.value || [];
   } else {
-    error = String(groupsResult.reason?.message || groupsResult.reason || "无法读取策略组");
+    error = String(
+      groupsResult.reason?.message || groupsResult.reason || t("strategyGroups.manager.loadFailed"),
+    );
   }
   const tree = treeResult.status === "fulfilled" ? treeResult.value || null : null;
   const missingByName = new Map();
@@ -259,7 +262,7 @@ async function applyGroupFilterIds(ids) {
   try {
     await refreshFilesKeepFilter();
   } catch (error) {
-    setStatus("筛选失败: " + String(error?.message || error));
+    setStatus(t("strategyGroups.manager.filterFailed", { error: String(error?.message || error) }));
   }
 }
 
@@ -283,8 +286,8 @@ function syncSelectAll() {
   selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
   selectAll.title =
     managerQuery && visibleIds.length !== (managerState?.groups || []).length
-      ? `全选当前搜索出的 ${visibleIds.length} 个组`
-      : "全选 / 取消全选下面列出的策略组";
+      ? t("strategyGroups.manager.pickAllFiltered", { count: visibleIds.length })
+      : t("strategyGroups.manager.pickAllVisible");
 }
 
 /** visibleGroupIds 当前搜索条件下显示的组 ID（批量操作与"全选"都以此为准）。 */
@@ -367,8 +370,8 @@ function updateMemberBatchBar() {
   if (hint) {
     hint.textContent =
       memberSelection.size > 0
-        ? "批量按钮一次作用于勾选的成员；每一行右侧的按钮仍然只作用那一行"
-        : "勾选成员行最左边的方框后，这一排按钮会一次作用于全部选中（和每行右侧的单行按钮同义）";
+        ? t("strategyGroups.manager.memberHintReady")
+        : t("strategyGroups.manager.memberHintIdle");
     hint.classList.toggle("is-ready", memberSelection.size > 0);
   }
 
@@ -387,8 +390,11 @@ function updateMemberBatchBar() {
     selectAll.disabled = expandedKeys.length === 0;
     selectAll.title =
       expandedKeys.length > 0
-        ? `全选 / 取消全选当前展开的 ${expandedSet().size} 个组（共 ${expandedKeys.length} 个成员）；不会动别的组已经勾上的`
-        : "先展开至少一个组（点组名左边的展开箭头），这里才能全选成员";
+        ? t("strategyGroups.manager.memberPickAllTitle", {
+            groups: expandedSet().size,
+            count: expandedKeys.length,
+          })
+        : t("strategyGroups.manager.memberPickAllEmpty");
   }
 
   // 每个组自己的「本组全选」：三态按本组勾选情况同步。
@@ -412,15 +418,20 @@ function updateMemberBatchBar() {
     selectAllGroups.disabled = allKeys.length === 0;
     selectAllGroups.classList.toggle("is-on", allSelected);
     selectAllGroups.setAttribute("aria-pressed", String(allSelected));
-    selectAllGroups.title = `勾选当前 ${(managerState?.groups || []).length} 个策略组的全部成员（共 ${allKeys.length} 个，多个组共用的 Mod 只算一次）`;
+    selectAllGroups.title = t("strategyGroups.manager.memberPickAllGroupsTitle", {
+      groups: (managerState?.groups || []).length,
+      count: allKeys.length,
+    });
   }
   const clearAll = element("strategy-group-member-clear-all");
   if (clearAll) {
     clearAll.disabled = memberSelection.size === 0;
     clearAll.title =
       memberSelection.size > 0
-        ? `取消全部勾选（包括折叠起来的组里的 ${countMemberKeysOutsideScope(memberSelection, expandedKeys)} 个）`
-        : "当前没有勾选任何成员";
+        ? t("strategyGroups.manager.memberClearAllTitle", {
+            count: countMemberKeysOutsideScope(memberSelection, expandedKeys),
+          })
+        : t("strategyGroups.manager.memberClearAllEmpty");
   }
 }
 
@@ -505,17 +516,15 @@ function renderFocusBar() {
   // 刚跳过去的那一组只剩 60px 无遮挡视野 —— 它右侧的组级按钮（标题下第二行）
   // 整排被落点盖住，elementFromPoint 命中测试 10/10 都点不到。
   // 说明改挂 title：鼠标悬停照样看得全，条上只留一行标题 + 一行组按钮。
-  host.title =
-    "点下面的组名＝展开它并跳到那一行；那一行右侧的「按策略应用 / 随机单选 / 全关 / 重命名 / 删除」就是组级管理；" +
-    "「展开成员」后还能勾选多行、用窗口底部的批量条一次处理。";
+  host.title = t("strategyGroups.manager.focusTitle");
   host.classList.remove("hidden");
   host.innerHTML =
     `<div class="strategy-group-focus-main">` +
-    `<span class="strategy-group-focus-title">定位：</span>` +
+    `<span class="strategy-group-focus-title">${t("strategyGroups.manager.focusLabel")}</span>` +
     `<span class="strategy-group-focus-file" title="${pathTitle}">${title}</span>` +
     `<span class="strategy-group-focus-count">${summary}</span>` +
-    `<button type="button" class="settings-strategy-batch-btn" data-focus-action="toggle-group" title="把当前定位的这一组全部成员一起启用或关闭（只改 addonlist.txt 的 0/1）">整组开关</button>` +
-    `<button type="button" class="settings-strategy-batch-btn" data-focus-action="clear" title="结束定位，回到普通的策略组列表（不会取消任何勾选）">清除定位</button>` +
+    `<button type="button" class="settings-strategy-batch-btn" data-focus-action="toggle-group" title="${escapeAttr(t("strategyGroups.manager.focusToggleTitle"))}">${t("strategyGroups.common.groupToggle")}</button>` +
+    `<button type="button" class="settings-strategy-batch-btn" data-focus-action="clear" title="${escapeAttr(t("strategyGroups.manager.focusClearTitle"))}">${t("strategyGroups.manager.focusClear")}</button>` +
     `</div>` +
     (chips ? `<div class="strategy-group-focus-chips">${chips}</div>` : "");
 }
@@ -616,7 +625,7 @@ async function toggleFocusedGroupEnabled() {
   const groupId = String(focusState?.groupId || "");
   const group = groupById(groupId);
   if (!group) {
-    setStatus("先在上面点一个组，再来整组开关");
+    setStatus(t("strategyGroups.manager.focusToggleNeedGroup"));
     return;
   }
   const vote = groupEnabledVote(
@@ -627,28 +636,36 @@ async function toggleFocusedGroupEnabled() {
   );
   const nextEnabled = !vote.mostlyEnabled;
   // 与 Mod 列表的「整组开关」同一句确认文案：只说会改 addonlist 的 0/1。
-  const action = nextEnabled ? "启用" : "关闭";
+  const action = t(
+    nextEnabled ? "strategyGroups.common.groupToggleOn" : "strategyGroups.common.groupToggleOff",
+  );
   const memberCount = (group.members || []).length;
   showConfirmModal(
-    "整组开关",
-    `把「${group.name}」的 ${memberCount} 个成员一起${action}。\n` +
-      `（当前统计：启用 ${vote.enabled} 个、关闭 ${vote.disabled} 个）\n` +
-      "只会修改 addonlist.txt 里的 0/1，不会重排顺序，也不会改动 Mod 文件。是否继续？",
+    t("strategyGroups.common.groupToggle"),
+    t("strategyGroups.common.toggleIntro", {
+      name: group.name,
+      count: memberCount,
+      action,
+    }) +
+      t("strategyGroups.common.toggleVote", { enabled: vote.enabled, disabled: vote.disabled }) +
+      t("strategyGroups.common.toggleMessage"),
     async () => {
       try {
         const result = await SetModStrategyGroupEnabled(groupId, nextEnabled);
         const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
         const done = (result?.enabled?.length || 0) + (result?.disabled?.length || 0);
         showNotification(
-          `「${group.name}」已整组${action} ${done} 个成员` +
-            (skipped.length > 0 ? `，${skipped.length} 个成员的文件已不在列表里，已跳过` : ""),
+          t("strategyGroups.common.toggleResult", { name: group.name, action, count: done }) +
+            (skipped.length > 0
+              ? t("strategyGroups.common.skippedNote", { count: skipped.length })
+              : ""),
           skipped.length > 0 ? "info" : "success",
         );
         await reload();
         await refreshAfterChange();
         revealFocusedGroup();
       } catch (error) {
-        setStatus("整组开关失败: " + String(error?.message || error));
+        setStatus(t("strategyGroups.common.toggleFailed", { error: String(error?.message || error) }));
       }
     },
   );
@@ -755,27 +772,32 @@ function renderManager() {
       button.disabled = !hasSelection;
       button.title = hasSelection
         ? button.dataset.defaultTitle
-        : "先勾选要批量操作的策略组（每行最左边的方框，或直接点组名）";
+        : t("strategyGroups.manager.batchDisabledHint");
     });
     const clearAll = element("strategy-group-clear-all");
     if (clearAll) {
       clearAll.disabled = !hasSelection;
       clearAll.title = hasSelection
-        ? `取消全部勾选（当前共选中 ${currentSummary().count} 个组）`
-        : "当前没有勾选任何策略组";
+        ? t("strategyGroups.manager.batchClearAllTitle", { count: currentSummary().count })
+        : t("strategyGroups.manager.batchClearAllEmpty");
     }
   }
   if (!list) return;
   if (allRows.length === 0) {
-    list.innerHTML =
-      `<div class="setting-row-desc">还没有策略组。在 Mod 管理页勾选几个 Mod，再用上面的「用选中的 N 个 Mod 建组」创建。</div>`;
+    list.innerHTML = `<div class="setting-row-desc">${t("strategyGroups.manager.emptyList")}</div>`;
     return;
   }
   if (rows.length === 0) {
     const invalidRegex = parseSearchSyntax(managerQuery).regexInvalid;
     list.innerHTML = invalidRegex
-      ? `<div class="setting-row-desc">正则表达式无效：${escapeHtml(invalidRegex)}；改好写法或清空搜索框即可看到全部 ${allRows.length} 个组。</div>`
-      : `<div class="setting-row-desc">没有匹配「${escapeHtml(managerQuery)}」的策略组；清空搜索框即可看到全部 ${allRows.length} 个组。</div>`;
+      ? `<div class="setting-row-desc">${t("strategyGroups.manager.regexInvalid", {
+          detail: escapeHtml(invalidRegex),
+          total: allRows.length,
+        })}</div>`
+      : `<div class="setting-row-desc">${t("strategyGroups.manager.noMatch", {
+          query: escapeHtml(managerQuery),
+          total: allRows.length,
+        })}</div>`;
     return;
   }
 
@@ -803,52 +825,52 @@ function renderManager() {
       const memberCount = (group.members || []).length;
       const isFiltered = activeFilter.has(String(group.id));
       return `
-        <div class="settings-profile-item${isFiltered ? " is-filtered" : ""}" data-group-row="${escapeAttr(group.id)}" data-group-name="${escapeAttr(group.name)}" data-group-depth="${Math.max(depth, 1)}" draggable="true" title="拖动这一行：放到别的组中间 = 变成它的子组；放到行的上/下边缘 = 排到它前/后；拖到列表空白处 = 回到顶层" style="margin-left: ${Math.max(depth - 1, 0) * 1.25}rem">
+        <div class="settings-profile-item${isFiltered ? " is-filtered" : ""}" data-group-row="${escapeAttr(group.id)}" data-group-name="${escapeAttr(group.name)}" data-group-depth="${Math.max(depth, 1)}" draggable="true" title="${escapeAttr(t("strategyGroups.manager.dragRowTitle"))}" style="margin-left: ${Math.max(depth - 1, 0) * 1.25}rem">
           <div class="settings-profile-main">
-            <label class="settings-strategy-pick" title="选中这个策略组（用于批量管理）">
+            <label class="settings-strategy-pick" title="${escapeAttr(t("strategyGroups.manager.pickTitle"))}">
               <input type="checkbox" class="settings-strategy-pick-input" data-group-id="${escapeAttr(group.id)}" ${selection.has(String(group.id)) ? "checked" : ""}>
               <strong>${depth > 1 ? "└ " : ""}${escapeHtml(group.name)}</strong>
             </label>
-            <span>${escapeHtml(formatStrategyGroupStrategy(group.strategy))} · ${(group.members || []).length} 个成员${group.enforce ? " · 自动联动" : ""}</span>
+            <span>${escapeHtml(formatStrategyGroupStrategy(group.strategy))} · ${t("strategyGroups.common.memberCount", { count: (group.members || []).length })}${group.enforce ? ` · ${t("strategyGroups.common.enforce")}` : ""}</span>
             ${
               notice
-                ? `<span class="settings-strategy-missing" title="组成员不会因为文件被删除而移除；放在 addons / workshop / disabled 的同名文件会自动回到组里">⚠️ ${escapeHtml(notice)}</span>`
+                ? `<span class="settings-strategy-missing" title="${escapeAttr(t("strategyGroups.manager.missingTitle"))}">⚠️ ${escapeHtml(notice)}</span>`
                 : ""
             }
             ${
               subtreeNotice
-                ? `<span class="settings-strategy-missing is-subtree" title="这个组自己的成员都在，但它的子孙组里有缺失文件；展开子组即可看到具体是哪些">⚠️ ${escapeHtml(subtreeNotice)}</span>`
+                ? `<span class="settings-strategy-missing is-subtree" title="${escapeAttr(t("strategyGroups.manager.subtreeMissingTitle"))}">⚠️ ${escapeHtml(subtreeNotice)}</span>`
                 : ""
             }
           </div>
           <div class="settings-profile-actions">
-            <button type="button" class="settings-strategy-expand" data-group-id="${escapeAttr(group.id)}" title="展开成员后可以直接查看详情、改游戏开关、启用/禁用、复制到 addons、把单个 Mod 移出本组">${isExpanded ? "收起成员" : `展开成员（${memberCount}）`}</button>
-            <button type="button" class="settings-strategy-add-child" data-group-id="${escapeAttr(group.id)}" data-group-name="${escapeAttr(group.name)}" title="在这个组下面新建一个子组（子组会累加它和全部上级分组的权重；最多 4 层）">＋ 子组</button>
-            <button type="button" class="settings-strategy-filter${isFiltered ? " is-active" : ""}" data-group-id="${escapeAttr(group.id)}" title="只让主界面显示属于这个组的 Mod（等同于「按分组筛选」勾上这个组；再点一次取消）">${isFiltered ? "取消筛选" : "筛选这组"}</button>
-            <button type="button" class="settings-strategy-apply" data-group-id="${escapeAttr(group.id)}">按策略应用</button>
-            <button type="button" class="settings-strategy-random" data-group-id="${escapeAttr(group.id)}">随机单选</button>
-            <button type="button" class="settings-strategy-off" data-group-id="${escapeAttr(group.id)}" title="把这一组全部成员在 addonlist.txt 里设为关闭（组级动作，不删文件）。只想处理勾选的成员，请用窗口底部的成员批量条。">全关</button>
-            <button type="button" class="settings-strategy-rename" data-group-id="${escapeAttr(group.id)}" title="修改组名与描述（成员、权重、层级都不受影响）">重命名</button>
-            <button type="button" class="settings-strategy-delete" data-group-id="${escapeAttr(group.id)}" title="删除这个策略组（只删 groups.json 里的记录）">删除</button>
-            <span class="settings-strategy-parent" title="上级分组只影响这里的展示层级，不会改变优先级（优先级由组权重与 Mod 分层决定）">
-              <select class="settings-strategy-parent-select" data-group-id="${escapeAttr(group.id)}" aria-label="上级分组">
+            <button type="button" class="settings-strategy-expand" data-group-id="${escapeAttr(group.id)}" title="${escapeAttr(t("strategyGroups.manager.expandTitle"))}">${isExpanded ? t("strategyGroups.manager.collapseMembers") : t("strategyGroups.manager.expandMembers", { count: memberCount })}</button>
+            <button type="button" class="settings-strategy-add-child" data-group-id="${escapeAttr(group.id)}" data-group-name="${escapeAttr(group.name)}" title="${escapeAttr(t("strategyGroups.manager.addChildTitle"))}">${t("strategyGroups.manager.addChild")}</button>
+            <button type="button" class="settings-strategy-filter${isFiltered ? " is-active" : ""}" data-group-id="${escapeAttr(group.id)}" title="${escapeAttr(t("strategyGroups.manager.filterTitle"))}">${isFiltered ? t("strategyGroups.manager.unfilter") : t("strategyGroups.manager.filter")}</button>
+            <button type="button" class="settings-strategy-apply" data-group-id="${escapeAttr(group.id)}">${t("strategyGroups.manager.applyStrategy")}</button>
+            <button type="button" class="settings-strategy-random" data-group-id="${escapeAttr(group.id)}">${t("strategyGroups.manager.randomSingle")}</button>
+            <button type="button" class="settings-strategy-off" data-group-id="${escapeAttr(group.id)}" title="${escapeAttr(t("strategyGroups.manager.offAllTitle"))}">${t("strategyGroups.manager.offAll")}</button>
+            <button type="button" class="settings-strategy-rename" data-group-id="${escapeAttr(group.id)}" title="${escapeAttr(t("strategyGroups.manager.renameRowTitle"))}">${t("strategyGroups.common.rename")}</button>
+            <button type="button" class="settings-strategy-delete" data-group-id="${escapeAttr(group.id)}" title="${escapeAttr(t("strategyGroups.manager.deleteTitle"))}">${t("strategyGroups.common.delete")}</button>
+            <span class="settings-strategy-parent" title="${escapeAttr(t("strategyGroups.manager.parentTitle"))}">
+              <select class="settings-strategy-parent-select" data-group-id="${escapeAttr(group.id)}" aria-label="${escapeAttr(t("strategyGroups.manager.parentAria"))}">
                 ${parentOptionSummaryHtml(group)}
               </select>
             </span>
-            <span class="settings-strategy-tier" title="组权重：叠加到组内成员的有效分层；数值越小越先加载。留空表示未设置，多个组的权重取最小值。">
+            <span class="settings-strategy-tier" title="${escapeAttr(t("strategyGroups.manager.tierTitle"))}">
               <input
                 type="number"
                 class="settings-strategy-tier-input"
                 data-group-id="${escapeAttr(group.id)}"
                 value="${group.tier === null || group.tier === undefined ? "" : escapeAttr(String(group.tier))}"
-                placeholder="权重"
-                aria-label="策略组权重"
+                placeholder="${escapeAttr(t("strategyGroups.window.batchTierPlaceholder"))}"
+                aria-label="${escapeAttr(t("strategyGroups.manager.tierAria"))}"
               >
-              <button type="button" class="settings-strategy-tier-save" data-group-id="${escapeAttr(group.id)}">保存权重</button>
+              <button type="button" class="settings-strategy-tier-save" data-group-id="${escapeAttr(group.id)}">${t("strategyGroups.manager.tierSave")}</button>
             </span>
-            <label class="settings-strategy-enforce" title="开启后，手动开关组内成员时会按策略自动联动其它成员">
+            <label class="settings-strategy-enforce" title="${escapeAttr(t("strategyGroups.manager.enforceTitle"))}">
               <input type="checkbox" class="settings-strategy-enforce-toggle" data-group-id="${escapeAttr(group.id)}" ${group.enforce ? "checked" : ""}>
-              <span>自动联动</span>
+              <span>${t("strategyGroups.common.enforce")}</span>
             </label>
           </div>
           <div class="strategy-group-members" data-members-for="${escapeAttr(group.id)}"${isExpanded ? "" : " hidden"}></div>
@@ -889,7 +911,7 @@ function renderExpandedMembers() {
     if (members.length === 0) {
       const empty = document.createElement("div");
       empty.className = "setting-row-desc";
-      empty.textContent = "这个组还没有成员：先在 Mod 管理页勾选 Mod，再用「分组 → ＋ 选中的 N 个」加入。";
+      empty.textContent = t("strategyGroups.manager.membersEmpty");
       host.appendChild(empty);
       return;
     }
@@ -901,7 +923,10 @@ function renderExpandedMembers() {
     header.className = "strategy-group-members-header";
     const pickAllLabel = document.createElement("label");
     pickAllLabel.className = "strategy-group-members-pick-all";
-    pickAllLabel.title = `只勾选/取消「${String(group.name || "")}」这一组的 ${members.length} 个成员，不影响别的组`;
+    pickAllLabel.title = t("strategyGroups.manager.pickAllTitle", {
+      name: String(group.name || ""),
+      count: members.length,
+    });
     const pickAllInput = document.createElement("input");
     pickAllInput.type = "checkbox";
     pickAllInput.dataset.groupMemberPickAll = String(group.id);
@@ -912,11 +937,11 @@ function renderExpandedMembers() {
       updateMemberBatchBar();
     });
     const pickAllText = document.createElement("span");
-    pickAllText.textContent = "本组全选";
+    pickAllText.textContent = t("strategyGroups.manager.pickAll");
     pickAllLabel.append(pickAllInput, pickAllText);
     const countText = document.createElement("span");
     countText.className = "strategy-group-members-count";
-    countText.textContent = `本组 ${members.length} 个成员`;
+    countText.textContent = t("strategyGroups.manager.membersCount", { count: members.length });
     header.append(pickAllLabel, countText);
     host.appendChild(header);
 
@@ -935,7 +960,7 @@ function renderExpandedMembers() {
           // 与「分组建议」共用同一行实现，视觉与语义保持一致。
           pick: {
             checked: memberSelection.has(normalizedKey),
-          title: "勾选这个 Mod，用窗口底部的成员批量按钮一次处理多个（游戏开关 / 启用·禁用 / 复制到 addons / 移出本组）",
+          title: t("strategyGroups.manager.memberPickTitle"),
             onChange: (checked) => {
               if (checked) memberSelection.add(normalizedKey);
               else memberSelection.delete(normalizedKey);
@@ -944,9 +969,9 @@ function renderExpandedMembers() {
           },
           extraActions: [
             {
-              text: "移出本组",
+              text: t("strategyGroups.window.memberRemove"),
               className: "settings-strategy-member-remove",
-              title: "把这个 Mod 移出当前策略组（只写 groups.json；组至少要保留 1 个成员）",
+              title: t("strategyGroups.manager.memberRemoveTitle"),
               onClick: () => RemoveModStrategyGroupMembers(group.id, [key]),
             },
           ],
@@ -987,8 +1012,8 @@ async function applyGroup(button, id, options) {
       console.warn("策略预检失败，按原流程继续:", error);
     }
     if (check && check.applicable === false) {
-      setStatus(check.reason || "这个策略现在无法执行");
-      showNotification(check.reason || "这个策略现在无法执行", "error");
+      setStatus(check.reason || t("strategyGroups.manager.applyBlocked"));
+      showNotification(check.reason || t("strategyGroups.manager.applyBlocked"), "error");
       button.disabled = false;
       return;
     }
@@ -1000,17 +1025,18 @@ async function applyGroup(button, id, options) {
         await reload();
         await refreshAfterChange();
       } catch (error) {
-        setStatus("应用策略组失败: " + String(error?.message || error));
+        setStatus(t("strategyGroups.manager.applyFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     };
     if (warnings.length > 0) {
       // 能执行但有需要注意的成员（缺失 / disabled 目录 / 单选没有空间）→ 让用户确认。
       showConfirmModal(
-        "应用前检查",
-        `策略组「${check.groupName}」现在可以执行，但有几点要确认：\n· ` +
-          warnings.join("\n· ") +
-          "\n\n是否继续应用？",
+        t("strategyGroups.manager.checkTitle"),
+        t("strategyGroups.manager.checkMessage", {
+          name: check.groupName,
+          list: warnings.join("\n· "),
+        }),
         () => void run(),
         false,
         "",
@@ -1022,7 +1048,7 @@ async function applyGroup(button, id, options) {
     }
     await run();
   } catch (error) {
-    setStatus("应用策略组失败: " + String(error?.message || error));
+    setStatus(t("strategyGroups.manager.applyFailed", { error: String(error?.message || error) }));
     button.disabled = false;
   }
 }
@@ -1030,10 +1056,10 @@ async function applyGroup(button, id, options) {
 async function runBatchAction(action, tier) {
   const summary = currentSummary();
   if (summary.count === 0) {
-    setStatus("请先勾选要批量操作的策略组");
+    setStatus(t("strategyGroups.manager.batchNoSelection"));
     return;
   }
-  showConfirmModal("批量管理策略组", formatStrategyGroupBatchConfirm(action, summary), async () => {
+  showConfirmModal(t("strategyGroups.manager.batchTitle"), formatStrategyGroupBatchConfirm(action, summary), async () => {
     try {
       const result = await BatchUpdateModStrategyGroups([...selectionSet()], action, tier ?? null);
       if (action === "delete") selectionSet().clear();
@@ -1041,7 +1067,7 @@ async function runBatchAction(action, tier) {
       await reload();
       await refreshAfterChange();
     } catch (error) {
-      setStatus("批量操作失败: " + String(error?.message || error));
+      setStatus(t("strategyGroups.manager.batchFailed", { error: String(error?.message || error) }));
     }
   });
 }
@@ -1056,11 +1082,13 @@ async function runBatchAction(action, tier) {
 async function runMemberBatchGameState(enabled) {
   const targets = currentMemberTargets();
   if (targets.game.length === 0) {
-    showNotification("勾选的成员都不能改游戏开关（都在 disabled 目录里）", "info");
+    showNotification(t("strategyGroups.manager.gameStateBlocked"), "info");
     return;
   }
   showConfirmModal(
-    enabled ? "批量游戏内启用" : "批量游戏内关闭",
+    enabled
+      ? t("strategyGroups.manager.batchGameOnTitle")
+      : t("strategyGroups.manager.batchGameOffTitle"),
     formatBatchGameStateConfirm(
       {
         total: targets.game.length,
@@ -1080,7 +1108,7 @@ async function runMemberBatchGameState(enabled) {
           updated > 0 ? "success" : "info",
         );
       } catch (error) {
-        showError("批量设置游戏内开关失败: " + String(error?.message || error));
+        showError(t("strategyGroups.manager.batchGameFailed", { error: String(error?.message || error) }));
       }
     },
   );
@@ -1089,18 +1117,23 @@ async function runMemberBatchGameState(enabled) {
 async function runMemberBatchFileToggle(kind) {
   const targets = currentMemberTargets();
   const paths = kind === "enable" ? targets.enable : targets.disable;
-  const label = kind === "enable" ? "启用" : "禁用";
+  const label = t(
+    kind === "enable"
+      ? "strategyGroups.view.fileAction.enable"
+      : "strategyGroups.view.fileAction.disable",
+  );
   if (paths.length === 0) {
     showNotification(
       kind === "enable"
-        ? "没有可启用的成员：只有 disabled 目录里的 Mod 需要搬回 addons"
-        : "没有可禁用的成员：只有 addons 根目录里的 Mod 能搬进 disabled",
+        ? t("strategyGroups.manager.enableNone")
+        : t("strategyGroups.manager.disableNone"),
       "info",
     );
     return;
   }
   // 与主列表的批量启用 / 禁用同一条风险提示（VPK 完整性问题不阻断，但要先说清）。
-  if (!(await confirmVPKOperationWarning(paths, `批量${label}策略组成员`))) return;
+  if (!(await confirmVPKOperationWarning(paths, t("strategyGroups.manager.batchWarningTitle", { label }))))
+    return;
   const failures = [];
   const results = await Promise.all(
     paths.map(async (path) => {
@@ -1131,7 +1164,7 @@ async function runMemberBatchFileToggle(kind) {
 async function runMemberBatchTransfer() {
   const targets = currentMemberTargets();
   if (targets.transfer.length === 0) {
-    showNotification("没有可复制的成员：只有创意工坊里的 Mod 需要复制到 addons", "info");
+    showNotification(t("strategyGroups.manager.transferNone"), "info");
     return;
   }
   // 复用主列表的批量转移（一次确认 + 进度事件 + 冲突处理），避免这里再写一套。
@@ -1143,21 +1176,23 @@ async function runMemberBatchTransfer() {
 async function runMemberBatchRemove() {
   const plan = planMemberRemoval([...memberSelection], managerState?.groups || []);
   if (plan.length === 0) {
-    showNotification("请先勾选要移出的成员", "info");
+    showNotification(t("strategyGroups.manager.removeNone"), "info");
     return;
   }
   const totalKeys = plan.reduce((sum, item) => sum + item.keys.length, 0);
   const emptying = plan.filter((item) => item.wouldEmpty);
   const lines = [
-    `把勾选的 ${totalKeys} 个成员从所属策略组移出？`,
-    "· 只写 groups.json，不移动、不删除任何 Mod 文件",
+    t("strategyGroups.manager.removeConfirmIntro", { count: totalKeys }),
+    t("strategyGroups.manager.removeConfirmNote"),
   ];
   if (emptying.length > 0) {
     lines.push(
-      `· 「${emptying.map((item) => item.groupName).join("」「")}」会被清空，后端会拒绝（每个组至少要保留 1 个成员）`,
+      t("strategyGroups.manager.removeConfirmEmptying", {
+        names: emptying.map((item) => item.groupName).join("」「"),
+      }),
     );
   }
-  showConfirmModal("批量移出成员", lines.join("\n"), async () => {
+  showConfirmModal(t("strategyGroups.manager.removeConfirmTitle"), lines.join("\n"), async () => {
     let succeeded = 0;
     const failures = [];
     for (const item of plan) {
@@ -1172,9 +1207,14 @@ async function runMemberBatchRemove() {
     await reload();
     await refreshAfterChange();
     if (failures.length > 0) {
-      showError(`有 ${failures.length} 个组没有移出成功：${failures[0]}`);
+      showError(
+        t("strategyGroups.manager.removeFailed", {
+          count: failures.length,
+          error: failures[0],
+        }),
+      );
     }
-    if (succeeded > 0) showNotification(`已从策略组移出 ${succeeded} 个成员`, "success");
+    if (succeeded > 0) showNotification(t("strategyGroups.manager.removeDone", { count: succeeded }), "success");
   });
 }
 
@@ -1240,20 +1280,22 @@ function bindRowActions() {
       const parentName = String(button.dataset.groupName || "");
       const selected = [...(appState.selectedFiles || [])];
       showPromptModal(
-        "新建子组",
-        `在「${parentName}」下面新建一个子组。\n` +
-          (selected.length > 0
-            ? `· 当前在 Mod 管理页勾选的 ${selected.length} 个 Mod 会一起放进这个子组\n`
-            : "· 现在没有勾选 Mod，会先建一个空子组（之后可用「加入策略组…」把 Mod 放进去）\n") +
-          "· 子组的有效分层会累加它自己和全部上级分组的权重（最多 4 层）",
+        t("strategyGroups.manager.childTitle"),
+        t("strategyGroups.manager.childMessage", {
+          name: parentName,
+          selectedLine:
+            selected.length > 0
+              ? t("strategyGroups.manager.childSelectedLine", { count: selected.length })
+              : t("strategyGroups.manager.childEmptyLine"),
+        }),
         {
           defaultValue: "",
-          placeholder: "子组名称，例如 上衣关 / 材质包",
-          confirmText: "创建子组",
+          placeholder: t("strategyGroups.manager.childPlaceholder"),
+          confirmText: t("strategyGroups.manager.childConfirm"),
           onConfirm: async (value) => {
             const name = String(value || "").trim();
             if (!name) {
-              setStatus("子组名称不能为空");
+              setStatus(t("strategyGroups.manager.childNameRequired"));
               return;
             }
             try {
@@ -1262,19 +1304,29 @@ function bindRowActions() {
               // 所以这里必须报"实际入组数"，否则提示会拿勾选数骗人（真机联调时踩到过）。
               const added = Array.isArray(created?.members) ? created.members.length : selected.length;
               const dropped = Math.max(0, selected.length - added);
-              const groupLabel = `已在「${parentName}」下创建子组「${created?.name || name}」`;
+              const groupLabel = t("strategyGroups.manager.childCreated", {
+                parent: parentName,
+                name: created?.name || name,
+              });
               showNotification(
                 dropped > 0
-                  ? `${groupLabel}（加入 ${added} 个 Mod，另有 ${dropped} 个无法加入）`
+                  ? t("strategyGroups.manager.childCreatedDropped", {
+                      base: groupLabel,
+                      added,
+                      dropped,
+                    })
                   : added > 0
-                    ? `${groupLabel}（含 ${added} 个 Mod）`
+                    ? t("strategyGroups.manager.childCreatedWithMembers", {
+                        base: groupLabel,
+                        added,
+                      })
                     : groupLabel,
                 "success",
               );
               await reload();
               await refreshAfterChange();
             } catch (error) {
-              setStatus("新建子组失败: " + String(error?.message || error));
+              setStatus(t("strategyGroups.manager.childFailed", { error: String(error?.message || error) }));
             }
           },
         },
@@ -1296,26 +1348,26 @@ function bindRowActions() {
       const group = groupById(id);
       if (!id) return;
       showPromptModal(
-        "重命名策略组",
-        `修改「${group?.name || id}」的名称；描述会一起保存。只写 groups.json 里的这一条记录。`,
+        t("strategyGroups.common.renameTitle"),
+        t("strategyGroups.manager.renameMessage", { name: group?.name || id }),
         {
           defaultValue: group?.name || "",
-          placeholder: "策略组名称",
-          confirmText: "保存",
+          placeholder: t("strategyGroups.common.nameLabel"),
+          confirmText: t("strategyGroups.manager.renameSave"),
           onConfirm: async (value) => {
             const name = String(value || "").trim();
             if (!name) {
-              setStatus("策略组名称不能为空");
+              setStatus(t("strategyGroups.manager.renameNameRequired"));
               return;
             }
             try {
               await RenameModStrategyGroup(id, name, group?.description || "");
-              showNotification(`已重命名为「${name}」`, "success");
+              showNotification(t("strategyGroups.common.renamed", { name }), "success");
               await reload();
               // 组名会出现在「按分组筛选」菜单里，改完要一起刷新。
               await refreshAfterChange();
             } catch (error) {
-              setStatus("重命名策略组失败: " + String(error?.message || error));
+              setStatus(t("strategyGroups.manager.renameFailed", { error: String(error?.message || error) }));
             }
           },
         },
@@ -1331,23 +1383,25 @@ function bindRowActions() {
       const group = groups.find((item) => String(item.id) === String(id));
       const childCount = groups.filter((item) => String(item.parentId || "") === String(id)).length;
       showConfirmModal(
-        "删除策略组",
-        `删除「${group?.name || id}」：\n` +
-          `· 只删除 groups.json 里的这一条记录（${(group?.members || []).length} 个成员）\n` +
-          "· 不会改动 addonlist.txt，也不会删除任何 Mod 文件\n" +
-          "· 组成员已经写入的 Mod 分层（priority.json）会保留\n" +
-          (childCount > 0 ? `· 它的 ${childCount} 个下级分组会回到顶层，不会被一起删除\n` : "") +
-          "是否继续？",
+        t("strategyGroups.common.groupDeleteTitle"),
+        t("strategyGroups.manager.deleteMessage", {
+          name: group?.name || id,
+          count: (group?.members || []).length,
+          childLine:
+            childCount > 0
+              ? t("strategyGroups.common.deleteChildLine", { count: childCount })
+              : "",
+        }),
         async () => {
           button.disabled = true;
           try {
             await DeleteModStrategyGroup(id);
             selectionSet().delete(String(id));
-            showNotification("策略组已删除", "success");
+            showNotification(t("strategyGroups.manager.deleted"), "success");
             await reload();
             await refreshAfterChange();
           } catch (error) {
-            setStatus("删除策略组失败: " + String(error?.message || error));
+            setStatus(t("strategyGroups.common.deleteFailed", { error: String(error?.message || error) }));
             button.disabled = false;
           }
         },
@@ -1363,14 +1417,16 @@ function bindRowActions() {
       try {
         await SetModStrategyGroupEnforcement(id, input.checked);
         showNotification(
-          input.checked ? "已开启策略组自动联动" : "已关闭策略组自动联动",
+          input.checked
+            ? t("strategyGroups.manager.enforceOn")
+            : t("strategyGroups.manager.enforceOff"),
           "success",
         );
         await reload();
         await refreshAfterChange();
       } catch (error) {
         input.checked = !input.checked;
-        setStatus("保存自动联动设置失败: " + String(error?.message || error));
+        setStatus(t("strategyGroups.manager.enforceFailed", { error: String(error?.message || error) }));
       } finally {
         input.disabled = false;
       }
@@ -1387,7 +1443,7 @@ function bindRowActions() {
       const raw = String(input?.value ?? "").trim();
       const tier = normalizePriorityTier(raw);
       if (raw !== "" && tier === null) {
-        setStatus("组权重必须是整数（可为负数；数值越小越先加载）");
+        setStatus(t("strategyGroups.manager.tierInvalid"));
         return;
       }
       button.disabled = true;
@@ -1395,8 +1451,8 @@ function bindRowActions() {
         await SetModStrategyGroupTier(id, tier);
         showNotification(
           tier === null
-            ? "已清除策略组权重（不会自动还原原顺序；要还原请用「历史备份」里的 addonlist.txt 备份）"
-            : `已保存策略组权重 ${tier}（需按分层应用才会重排）`,
+            ? t("strategyGroups.manager.tierCleared")
+            : t("strategyGroups.manager.tierSaved", { tier }),
           "success",
         );
         await reload();
@@ -1404,7 +1460,7 @@ function bindRowActions() {
         // （以前这里只 reload 了本窗口：外面菜单要手动点"刷新"才更新）。
         await refreshAfterChange();
       } catch (error) {
-        setStatus("保存策略组权重失败: " + String(error?.message || error));
+        setStatus(t("strategyGroups.manager.tierFailed", { error: String(error?.message || error) }));
         button.disabled = false;
       }
     });
@@ -1417,12 +1473,17 @@ function bindRowActions() {
       select.disabled = true;
       try {
         await MoveModStrategyGroup(id, select.value || "");
-        showNotification(select.value ? "已设置上级分组" : "已移动到顶层", "success");
+        showNotification(
+          select.value
+            ? t("strategyGroups.manager.parentSet")
+            : t("strategyGroups.manager.parentMovedTop"),
+          "success",
+        );
         await reload();
         // 层级会改变筛选菜单里的分组归属与缩进，改完要一起刷新。
         await refreshAfterChange();
       } catch (error) {
-        setStatus("设置上级分组失败: " + String(error?.message || error));
+        setStatus(t("strategyGroups.manager.parentFailed", { error: String(error?.message || error) }));
         select.disabled = false;
         await reload({ keepStatus: true });
       }
@@ -1591,7 +1652,7 @@ async function applyStrategyGroupDrop(movingId, targetId, position, plan) {
     await reload();
     await refreshAfterChange();
   } catch (error) {
-    setStatus("拖动策略组失败: " + String(error?.message || error));
+    setStatus(t("strategyGroups.manager.dragFailed", { error: String(error?.message || error) }));
     await reload({ keepStatus: true });
   }
 }
@@ -1599,13 +1660,13 @@ async function applyStrategyGroupDrop(movingId, targetId, position, plan) {
 async function captureGroupFromSelection() {
   const name = String(element("strategy-group-name")?.value || "").trim();
   if (!name) {
-    setStatus("请先填写策略组名称");
+    setStatus(t("strategyGroups.manager.captureNameRequired"));
     element("strategy-group-name")?.focus();
     return;
   }
   const members = buildGroupMembersFromSelection([...(appState.selectedFiles || [])]);
   if (members.length === 0) {
-    setStatus("请先在 Mod 管理页选中要归入策略组的 Mod");
+    setStatus(t("strategyGroups.manager.captureNoSelection"));
     return;
   }
   const button = element("strategy-group-capture");
@@ -1619,11 +1680,11 @@ async function captureGroupFromSelection() {
     );
     const input = element("strategy-group-name");
     if (input) input.value = "";
-    showNotification(`已保存策略组「${name}」`, "success");
+    showNotification(t("strategyGroups.manager.captureSaved", { name }), "success");
     await reload();
     await refreshAfterChange();
   } catch (error) {
-    setStatus("保存策略组失败: " + String(error?.message || error));
+    setStatus(t("strategyGroups.manager.captureFailed", { error: String(error?.message || error) }));
   } finally {
     if (button) button.disabled = false;
   }
@@ -1664,11 +1725,14 @@ export function updateCaptureButton() {
   const count = appState.selectedFiles?.size || 0;
   button.disabled = count === 0;
   // 禁用时把"为什么不能点"写在按钮上，避免看起来像坏掉的按钮。
-  button.textContent = count > 0 ? `用选中的 ${count} 个 Mod 建组` : "先在 Mod 管理页勾选 Mod";
+  button.textContent =
+    count > 0
+      ? t("strategyGroups.manager.captureButton", { count })
+      : t("strategyGroups.manager.captureIdle");
   button.title =
     count > 0
-      ? `把 Mod 管理页当前勾选的 ${count} 个 Mod 建成一个策略组（名称见左边的输入框）`
-      : "还没勾选 Mod：先回到 Mod 管理页勾选要归入同一组的 Mod，这个按钮就会亮起来";
+      ? t("strategyGroups.manager.captureTitle", { count })
+      : t("strategyGroups.manager.captureEmptyTitle");
 }
 
 /** refreshStrategyGroupManagerIfOpen 组归属变化时，窗口开着就同步刷新。 */
@@ -1848,7 +1912,7 @@ export function initStrategyGroupManager() {
     const raw = String(element("strategy-group-batch-tier-input")?.value ?? "").trim();
     const tier = normalizePriorityTier(raw);
     if (raw === "" || tier === null) {
-      setStatus("批量设置权重需要一个整数（可为负数；越小越先加载）");
+      setStatus(t("strategyGroups.manager.batchTierInvalid"));
       return;
     }
     void runBatchAction("set_tier", tier);
@@ -1858,7 +1922,7 @@ export function initStrategyGroupManager() {
   element("strategy-group-batch-filter")?.addEventListener("click", () => {
     const ids = [...selectionSet()];
     if (ids.length === 0) {
-      setStatus("请先勾选要用作筛选的策略组");
+      setStatus(t("strategyGroups.manager.batchFilterNoSelection"));
       return;
     }
     void applyGroupFilterIds(ids);
