@@ -1,4 +1,5 @@
 import { showMessageModal } from "../../core/message-modal.js";
+import { t, applyTranslations } from "../../core/i18n-runtime.js";
 
 let getConfig;
 let saveConfig;
@@ -14,14 +15,14 @@ export function configureUpdates(deps) {
 }
 
 const updateNoteCategories = [
-  { key: "feat", title: "新功能", badge: "feat" },
-  { key: "refactor", title: "修改", badge: "refactor" },
-  { key: "fix", title: "问题修复", badge: "fix" },
+  { key: "feat", title: t("update.category.feat"), badge: "feat" },
+  { key: "refactor", title: t("update.category.refactor"), badge: "refactor" },
+  { key: "fix", title: t("update.category.fix"), badge: "fix" },
 ];
 
 const otherUpdateNoteCategory = {
   key: "other",
-  title: "其他",
+  title: t("update.category.other"),
   badge: "other",
 };
 
@@ -81,7 +82,7 @@ function renderReleaseNoteCategory(container, category, items) {
 
   const count = document.createElement("span");
   count.className = "update-note-category-count";
-  count.textContent = `${items.length} 项`;
+  count.textContent = t("update.category.count", { count: items.length });
 
   header.append(badge, title, count);
 
@@ -118,7 +119,7 @@ function renderReleaseNotes(container, rawNote, view) {
 
   if (view === "version") {
     container.classList.add("is-version-view");
-    container.textContent = rawNote || "暂无更新日志";
+    container.textContent = rawNote || t("update.releaseNote.empty");
     return;
   }
 
@@ -141,7 +142,7 @@ function renderReleaseNotes(container, rawNote, view) {
   if (!hasItems) {
     const empty = document.createElement("div");
     empty.className = "update-note-empty";
-    empty.textContent = "暂无可分类的更新内容";
+    empty.textContent = t("update.releaseNote.unclassified");
     container.appendChild(empty);
   }
 }
@@ -195,7 +196,7 @@ export async function manualCheckUpdate() {
   if (!btn) return;
 
   btn.disabled = true;
-  btn.textContent = "检查中...";
+  btn.textContent = t("update.check.checking");
   msgDiv.classList.add("hidden");
   msgDiv.className = "update-msg hidden"; // reset classes
 
@@ -207,17 +208,17 @@ export async function manualCheckUpdate() {
     }
 
     if (info.error) {
-      msgDiv.textContent = "检查失败: " + info.error;
+      msgDiv.textContent = t("update.check.failed", { error: info.error });
       msgDiv.classList.add("error");
       msgDiv.classList.remove("hidden");
     } else if (info.has_update) {
-      msgDiv.innerHTML = `发现新版本: <strong>v${info.latest_ver}</strong>`;
+      msgDiv.innerHTML = `${t("update.check.discovered")} <strong>v${info.latest_ver}</strong>`;
       msgDiv.classList.add("success");
       msgDiv.classList.remove("hidden");
 
       showUpdateModal(info);
     } else {
-      msgDiv.textContent = `当前已是最新版本 (v${info.latest_ver})`;
+      msgDiv.textContent = t("update.check.upToDate", { version: info.latest_ver });
       msgDiv.classList.add("success");
       msgDiv.classList.remove("hidden");
       if (info.release_note) {
@@ -225,12 +226,12 @@ export async function manualCheckUpdate() {
       }
     }
   } catch (e) {
-    msgDiv.textContent = "发生错误: " + e;
+    msgDiv.textContent = t("update.check.error", { error: e });
     msgDiv.classList.add("error");
     msgDiv.classList.remove("hidden");
   } finally {
     btn.disabled = false;
-    btn.textContent = "检查更新";
+    btn.textContent = t("update.check.action");
   }
 }
 
@@ -269,11 +270,11 @@ export async function showUpdateModal(info) {
   const ignoreBtn = document.getElementById("ignore-update-btn");
   const updateOptions = document.getElementById("update-download-options");
 
-  title.textContent = readOnly ? "当前已是最新版本" : "发现新版本";
+  title.textContent = readOnly ? t("update.modal.titleUpToDate") : t("update.modal.titleAvailable");
   versionArrow.textContent = readOnly ? "✓" : "→";
   newVer.textContent = info.latest_ver;
   curVer.textContent = info.current_ver;
-  const releaseNote = info.release_note || "暂无更新日志";
+  const releaseNote = info.release_note || t("update.releaseNote.empty");
   setReleaseNotesView(notes, noteViewButtons, releaseNote, "category");
 
   noteViewButtons.forEach((button) => {
@@ -295,10 +296,11 @@ export async function showUpdateModal(info) {
     modalFooter.classList.remove("hidden");
     ignoreBtn.classList.add("hidden");
     confirmBtn.classList.add("hidden");
-    cancelBtn.textContent = "关闭";
+    cancelBtn.textContent = t("update.modal.close");
     const closeReadOnlyModal = () => modal.classList.add("hidden");
     cancelBtn.onclick = closeReadOnlyModal;
     closeBtn.onclick = closeReadOnlyModal;
+    applyTranslations(modal);
     modal.classList.remove("hidden");
     return;
   }
@@ -306,7 +308,7 @@ export async function showUpdateModal(info) {
   updateOptions?.classList.remove("hidden");
   ignoreBtn.classList.remove("hidden");
   confirmBtn.classList.remove("hidden");
-  cancelBtn.textContent = "稍后提醒";
+  cancelBtn.textContent = t("update.modal.remindLater");
 
   // Helper to set selected option
   const setSelected = (value, htmlContent) => {
@@ -385,16 +387,16 @@ export async function showUpdateModal(info) {
         div.className = "custom-option";
 
         let latencyClass = "unknown";
-        let latencyText = "检测中...";
+        let latencyText = t("update.mirror.detecting");
 
         let displayName = item.url;
         if (item.url === "") {
-          displayName = "GitHub 直连";
+          displayName = t("update.mirror.direct");
         }
 
         const innerHTML = `
-            <span class="mirror-url" title="${item.url || "GitHub 直连"}">${displayName}</span>
-            <span class="latency-tag ${latencyClass}">测试中</span>
+            <span class="mirror-url" title="${item.url || t("update.mirror.direct")}">${displayName}</span>
+            <span class="latency-tag ${latencyClass}">${t("update.mirror.testing")}</span>
         `;
 
         div.innerHTML = innerHTML;
@@ -403,7 +405,7 @@ export async function showUpdateModal(info) {
           userInteracted = true;
           // Re-fetch current innerHTML to get updated latency tag
           const currentTag = div.querySelector(".latency-tag").outerHTML;
-          const currentUrlHtml = `<span class="mirror-url" title="${item.url || "GitHub 直连"}">${displayName}</span>`;
+          const currentUrlHtml = `<span class="mirror-url" title="${item.url || t("update.mirror.direct")}">${displayName}</span>`;
           setSelected(item.url, currentUrlHtml + currentTag);
         };
         mirrorOptionsList.appendChild(div);
@@ -418,10 +420,10 @@ export async function showUpdateModal(info) {
 
     const customOption = document.createElement("div");
     customOption.className = "custom-option";
-    customOption.innerHTML = `<span class="mirror-url">自定义镜像源...</span>`;
+    customOption.innerHTML = `<span class="mirror-url">${t("update.mirror.custom")}</span>`;
     customOption.onclick = () => {
       userInteracted = true;
-      setSelected("custom", `<span class="mirror-url">自定义镜像源...</span>`);
+      setSelected("custom", `<span class="mirror-url">${t("update.mirror.custom")}</span>`);
     };
     mirrorOptionsList.appendChild(customOption);
 
@@ -429,7 +431,7 @@ export async function showUpdateModal(info) {
     if (!defaultSelected) {
       setSelected(
         "",
-        `<span class="mirror-url">GitHub 直连</span><span class="latency-tag unknown">未知</span>`
+        `<span class="mirror-url">${t("update.mirror.direct")}</span><span class="latency-tag unknown">${t("update.mirror.unknown")}</span>`
       );
     }
 
@@ -446,7 +448,7 @@ export async function showUpdateModal(info) {
 
         let isMatch = false;
         // Handle Direct connection (empty URL) case
-        if (result.url === "" && urlSpan.title === "GitHub 直连") {
+        if (result.url === "" && urlSpan.title === t("update.mirror.direct")) {
           isMatch = true;
         } else if (result.url === urlSpan.title) {
           isMatch = true;
@@ -456,11 +458,11 @@ export async function showUpdateModal(info) {
           const tag = div.querySelector(".latency-tag");
           if (tag) {
             let latencyClass = "unknown";
-            let latencyText = "测试中";
+            let latencyText = t("update.mirror.testing");
 
             if (result.latency === -1) {
               latencyClass = "bad";
-              latencyText = "超时";
+              latencyText = t("update.mirror.timeout");
             } else if (result.latency < 200) {
               latencyClass = "good";
               latencyText = result.latency + "ms";
@@ -509,7 +511,7 @@ export async function showUpdateModal(info) {
   } catch (e) {
     console.error("Failed to load mirrors:", e);
     // Fallback
-    setSelected("", `<span class="mirror-url">GitHub 直连</span>`);
+    setSelected("", `<span class="mirror-url">${t("update.mirror.direct")}</span>`);
   }
 
   // Refresh Handler
@@ -520,13 +522,13 @@ export async function showUpdateModal(info) {
     const tags = mirrorOptionsList.querySelectorAll(".latency-tag");
     tags.forEach((tag) => {
       tag.className = "latency-tag unknown";
-      tag.textContent = "测试中";
+      tag.textContent = t("update.mirror.testing");
     });
 
     const displayTag = mirrorSelectedDisplay.querySelector(".latency-tag");
     if (displayTag) {
       displayTag.className = "latency-tag unknown";
-      displayTag.textContent = "测试中";
+      displayTag.textContent = t("update.mirror.testing");
     }
 
     TestMirrorsLatency();
@@ -541,7 +543,7 @@ export async function showUpdateModal(info) {
   progressContainer.classList.add("hidden");
   modalFooter.classList.remove("hidden");
   confirmBtn.disabled = false;
-  confirmBtn.textContent = "立即更新";
+  confirmBtn.textContent = t("update.modal.updateNow");
 
   let cancelProgress = null;
 
@@ -589,7 +591,7 @@ export async function showUpdateModal(info) {
     if (mirror === "custom") {
       mirror = customInput.value.trim();
       if (!mirror) {
-        showMessageModal("提示", "请输入自定义镜像地址");
+        showMessageModal(t("update.dialog.hintTitle"), t("update.dialog.customMirrorRequired"));
         return;
       }
     }
@@ -623,6 +625,7 @@ export async function showUpdateModal(info) {
   cancelBtn.onclick = cleanup;
   closeBtn.onclick = cleanup;
 
+  applyTranslations(modal);
   modal.classList.remove("hidden");
 }
 
@@ -632,13 +635,13 @@ export { showMessageModal };
 export async function performUpdate(mirrorUrl) {
   // 显示全局加载提示
   const btn = document.getElementById("refresh-btn");
-  if (btn) btn.textContent = "正在更新...";
+  if (btn) btn.textContent = t("update.button.updating");
 
   // 也可以在关于页面显示状态
   const updateBtn = document.getElementById("check-update-btn");
   if (updateBtn) {
     updateBtn.disabled = true;
-    updateBtn.textContent = "正在下载...";
+    updateBtn.textContent = t("update.button.downloading");
   }
 
   // 调用后端 DoUpdate，传入镜像地址
@@ -650,7 +653,7 @@ export async function performUpdate(mirrorUrl) {
     config.ignoredVersion = "";
     saveConfig(config);
 
-    showMessageModal("更新成功", "程序将自动重启以应用更新。", async () => {
+    showMessageModal(t("update.dialog.successTitle"), t("update.dialog.successMessage"), async () => {
       try {
         // 尝试调用重启方法
         if (typeof RestartApplication === "function") {
@@ -665,11 +668,11 @@ export async function performUpdate(mirrorUrl) {
       }
     });
   } else {
-    showMessageModal("更新失败", result);
-    if (btn) btn.textContent = "刷新";
+    showMessageModal(t("update.dialog.failureTitle"), result);
+    if (btn) btn.textContent = t("update.button.refresh");
     if (updateBtn) {
       updateBtn.disabled = false;
-      updateBtn.textContent = "检查更新";
+      updateBtn.textContent = t("update.check.action");
     }
   }
 }

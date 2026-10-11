@@ -958,7 +958,7 @@
             <div class="update-info-container">
               <div class="update-header">
                 <span class="version-tag current"
-                  >当前: v<span id="current-version-number"></span
+                  ><span data-i18n="update.modal.currentPrefix">当前: v</span><span id="current-version-number"></span
                 ></span>
                 <span id="update-version-arrow" class="version-arrow">→</span>
                 <span class="version-tag new"
@@ -968,12 +968,13 @@
 
               <div class="update-notes">
                 <div class="update-notes-header">
-                  <h4>更新内容:</h4>
+                  <h4 data-i18n="update.modal.notesTitle">更新内容:</h4>
                   <div class="update-notes-view-toggle" role="tablist">
                     <button
                       type="button"
                       class="update-notes-view-btn active"
                       data-update-notes-view="category"
+                      data-i18n="update.modal.viewCategory"
                     >
                       分类视图
                     </button>
@@ -981,6 +982,7 @@
                       type="button"
                       class="update-notes-view-btn"
                       data-update-notes-view="version"
+                      data-i18n="update.modal.viewVersion"
                     >
                       版本视图
                     </button>
@@ -990,7 +992,7 @@
               </div>
 
               <div id="update-download-options" class="update-options">
-                <label for="mirror-select-value">下载源选择:</label>
+                <label for="mirror-select-value" data-i18n="update.modal.mirrorLabel">下载源选择:</label>
                 <div
                   class="mirror-selection-group"
                   style="
@@ -1009,7 +1011,7 @@
                       id="mirror-select-container"
                     >
                       <div class="selected-option" id="mirror-selected-display">
-                        <span class="selected-text">GitHub 直连</span>
+                        <span class="selected-text" data-i18n="update.mirror.direct">GitHub 直连</span>
                         <span class="select-arrow">▼</span>
                       </div>
                       <div class="options-list hidden" id="mirror-options-list">
@@ -1021,7 +1023,7 @@
                   <button
                     id="refresh-mirrors-btn"
                     class="btn btn-icon-only"
-                    title="重新检测延迟"
+                    title="重新检测延迟" data-i18n-title="update.modal.refreshMirrorsTitle"
                   >
                     <svg
                       class="icon-svg"
@@ -1041,7 +1043,7 @@
                   type="text"
                   id="custom-mirror-input"
                   class="form-input hidden custom-mirror-input"
-                  placeholder="输入镜像地址 (例如 https://mirror.example.com/)"
+                  placeholder="输入镜像地址 (例如 https://mirror.example.com/)" data-i18n-placeholder="update.modal.customMirrorPlaceholder"
                 />
               </div>
 
@@ -1051,7 +1053,7 @@
                 class="update-progress hidden"
               >
                 <div class="progress-info">
-                  <span>正在下载更新...</span>
+                  <span data-i18n="update.modal.downloading">正在下载更新...</span>
                   <span id="update-progress-text">0%</span>
                 </div>
                 <div class="progress-bar">
@@ -1067,13 +1069,14 @@
             <button
               id="ignore-update-btn"
               class="btn btn-outline-danger ignore-update-btn"
+              data-i18n="update.modal.ignore"
             >
               不再提醒
             </button>
-            <button id="cancel-update-btn" class="btn btn-secondary">
+            <button id="cancel-update-btn" class="btn btn-secondary" data-i18n="update.modal.remindLater">
               稍后提醒
             </button>
-            <button id="confirm-update-btn" class="btn btn-primary">
+            <button id="confirm-update-btn" class="btn btn-primary" data-i18n="update.modal.updateNow">
               立即更新
             </button>
           </div>

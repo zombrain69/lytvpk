@@ -1,5 +1,16 @@
 # Changelog
 
+## 未发布 — i18n：更新弹窗 / 更新面板迁移（2026-10-11）
+
+- `features/update/updates.js` 全部用户可见文案改走 `t()`：更新日志分类与空态、手动检查状态、
+  镜像下拉与延迟标签（「GitHub 直连」的显示与标题比对同源，避免翻译后比对失配）、
+  更新进度、成功 / 失败与提示弹窗；文案目录新增 `update.*` 键组（41 个 key）。
+- `index.html` 的 `#update-modal` 静态节点改挂 `data-i18n` / `data-i18n-title` /
+  `data-i18n-placeholder`，弹窗打开时调用 `applyTranslations()` —— i18n.md 里的
+  「静态节点」迁移路径首次投入实用；未回填时节点保留原中文，行为与迁移前一致。
+- 文档：`docs/development/i18n.md`（已迁移清单）、`docs/development/manual-verification.md` §13。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）564 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — i18n：迁移「关于」页 + 文案目录一致性测试（2026-10-11）
 
 - **关于页迁移**：`features/about/about.js`（同一渲染器同时服务「关于」页面与「关于」弹窗）

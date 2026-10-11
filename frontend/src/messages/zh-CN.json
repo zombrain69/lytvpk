@@ -92,5 +92,62 @@
       "openFailed": "打开崩溃报告目录失败: {error}",
       "noConfigDir": "未配置配置目录，暂无可打开的崩溃报告目录"
     }
+  },
+  "update": {
+    "category": {
+      "feat": "新功能",
+      "refactor": "修改",
+      "fix": "问题修复",
+      "other": "其他",
+      "count": "{count} 项"
+    },
+    "releaseNote": {
+      "empty": "暂无更新日志",
+      "unclassified": "暂无可分类的更新内容"
+    },
+    "check": {
+      "checking": "检查中...",
+      "failed": "检查失败: {error}",
+      "discovered": "发现新版本:",
+      "upToDate": "当前已是最新版本 (v{version})",
+      "error": "发生错误: {error}",
+      "action": "检查更新"
+    },
+    "modal": {
+      "titleAvailable": "发现新版本",
+      "titleUpToDate": "当前已是最新版本",
+      "notesTitle": "更新内容:",
+      "viewCategory": "分类视图",
+      "viewVersion": "版本视图",
+      "mirrorLabel": "下载源选择:",
+      "refreshMirrorsTitle": "重新检测延迟",
+      "customMirrorPlaceholder": "输入镜像地址 (例如 https://mirror.example.com/)",
+      "downloading": "正在下载更新...",
+      "currentPrefix": "当前: v",
+      "ignore": "不再提醒",
+      "remindLater": "稍后提醒",
+      "updateNow": "立即更新",
+      "close": "关闭"
+    },
+    "mirror": {
+      "direct": "GitHub 直连",
+      "custom": "自定义镜像源...",
+      "detecting": "检测中...",
+      "testing": "测试中",
+      "timeout": "超时",
+      "unknown": "未知"
+    },
+    "button": {
+      "updating": "正在更新...",
+      "downloading": "正在下载...",
+      "refresh": "刷新"
+    },
+    "dialog": {
+      "hintTitle": "提示",
+      "customMirrorRequired": "请输入自定义镜像地址",
+      "successTitle": "更新成功",
+      "successMessage": "程序将自动重启以应用更新。",
+      "failureTitle": "更新失败"
+    }
   }
 }

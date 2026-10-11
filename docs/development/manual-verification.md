@@ -504,7 +504,9 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
   （`frontend/src/js/core/i18n.test.mjs`）。
 - 文案目录一致性：页面里 `t("...")` 引用的每个 key 必须存在于 `messages/zh-CN.json`
   （`frontend/src/js/core/i18n-catalog.test.mjs`）。
-- 工具箱与关于页已改用 `t()`；`npm run build` 通过说明文案目录可被正常打包。
+- 工具箱与关于页已改用 `t()`；更新弹窗的静态节点走 `data-i18n` + 打开弹窗时
+  `applyTranslations()` 回填（未回填时节点保留原中文，行为不变）；
+  `npm run build` 通过说明文案目录可被正常打包。
 
 ### 待人工验证
 
@@ -512,6 +514,9 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
   - 预期：标题、分区说明、三张卡片的标题/说明/状态/按钮文案与迁移前完全一致。
 - [ ] 打开“关于”页面（侧边栏「关于」，与「关于」弹窗共用同一渲染器）。
   - 预期：hero 文案、项目信息、操作按钮、崩溃报告面板、版本号与检查更新状态文案与迁移前一致。
+- [ ] 打开更新弹窗（启动有可用更新时自动弹出，或在关于页点「检查更新」）。
+  - 预期：标题、更新内容、分类视图/版本视图、下载源选择、镜像项与延迟标签、进度区与底部按钮
+    文案与迁移前一致；静态节点由 `applyTranslations()` 回填（data-i18n 路径首次实用）。
 - [ ] （迁移完成后）切换语言。
   - 预期：所有已迁移页面的文案整体切换；未迁移页面保持中文原文，不出现空白。
 
