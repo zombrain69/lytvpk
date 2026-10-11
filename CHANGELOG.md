@@ -1,5 +1,19 @@
 # Changelog
 
+## 未发布 — i18n：运行时与目录装配分离（Node / 构建双兼容）（2026-10-11）
+
+- `i18n-runtime.js` 不再 import JSON，改由新增的 `installCatalog()` 装载目录；
+  `main.js` 最先导入新增的 `core/i18n-setup.js` 完成浏览器端接线。
+  原因：JSON 模块的 `with { type: "json" }` 属性 Node 认、Rollup 2（Vite 3）不认
+  （实测构建 `Unexpected token` 失败），不写属性则 Node 报
+  `ERR_IMPORT_ATTRIBUTE_MISSING` —— 「纯模块（有 node 单测的 .mjs）直接 import
+  runtime 用 t()」与浏览器构建不可兼得，拆分后两边都成立。
+- 新增 `core/i18n-test-catalog.mjs`（`installTestCatalog()`）：`node --test` 里安装
+  真实中文目录，供纯模块单测断言中文文案（缺 key 时断言直接失败，等于多一道对照）。
+- 文档：`docs/development/i18n.md` 文件与职责表 + 拆分原因。
+- 验证：Node 导入 runtime / helper 均 OK（安装前 `t()` 返回 key、安装后返回中文）；
+  `node --test`（frontend）565 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — i18n：迁移 mods 页（mod-rotation.js）+ 静态节点反查（2026-10-11）
 
 - `features/mods/mod-rotation.js` 全部用户可见文案改走 `t()`：轮换按钮文案（启用 / 关闭 /
