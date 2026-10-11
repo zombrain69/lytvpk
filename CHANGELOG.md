@@ -1,5 +1,19 @@
 # Changelog
 
+## 未发布 — i18n：迁移「关于」页 + 文案目录一致性测试（2026-10-11）
+
+- **关于页迁移**：`features/about/about.js`（同一渲染器同时服务「关于」页面与「关于」弹窗）
+  的全部用户可见文案改走 `t()` —— hero、项目信息、操作按钮、更新检查状态、崩溃报告面板；
+  文案目录新增 `about.*` 键组（35 个 key）。
+- **工具箱页补齐**：两个分区标题（游戏配置 / 通用工具）此前漏接线，本次并入 `t()`；
+  过期键 `toolbox.section.packaging`（文案还是被替换掉的旧结构「打包与解包」）更名为
+  `toolbox.section.generalTools` 并同步当前文案。
+- **新增一致性测试** `frontend/src/js/core/i18n-catalog.test.mjs`：页面代码里 `t("...")`
+  引用的每个 key 必须真实存在于 `messages/zh-CN.json`，防"接好线忘加文案"静默渲染成 key。
+- 文档：`docs/development/i18n.md`（已迁移页面清单 + 一致性检查一节）、
+  `docs/development/manual-verification.md` §13。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）564 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — 体检新增「文件名长度守卫」（2026-10-11）
 
 - **新体检类型 `filename_too_long`（文件名超长不会加载）**：VPK 主干名（不含 `.vpk`）超过

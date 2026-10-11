@@ -14,9 +14,9 @@
         "title": "游戏配置",
         "description": "检查并维护游戏启动时读取的配置文件。"
       },
-      "packaging": {
-        "title": "打包与解包",
-        "description": "查看、拆解和重新打包 VPK 资源。"
+      "generalTools": {
+        "title": "通用工具",
+        "description": "用于处理单个 VPK 文件和常见文件维护操作。"
       }
     },
     "card": {
@@ -40,6 +40,57 @@
         "status": "可检测",
         "action": "打开检测工具"
       }
+    }
+  },
+  "about": {
+    "hero": {
+      "kicker": "Left 4 Dead 2 MOD Manager",
+      "title": "LytVPK Community Fork",
+      "description": "基于 LaoYutang/lytvpk 的非官方修改版。更新、源码和反馈均由本 Fork 维护；上游链接只用于出处与致谢。"
+    },
+    "info": {
+      "ariaLabel": "应用信息",
+      "title": "项目信息",
+      "item": {
+        "upstreamAuthor": "上游作者",
+        "forkMaintainer": "Fork 维护",
+        "license": "开源协议",
+        "repo": "更新与源码",
+        "issues": "问题反馈",
+        "version": "当前版本"
+      }
+    },
+    "version": {
+      "detecting": "检测中...",
+      "unknown": "未知",
+      "fetchFailed": "获取失败"
+    },
+    "action": {
+      "title": "操作",
+      "openRepo": "打开 GitHub 仓库",
+      "openUpstream": "查看上游项目",
+      "openLicense": "查看开源协议",
+      "feedback": "问题反馈",
+      "checkUpdate": "检查更新",
+      "checking": "检查中..."
+    },
+    "update": {
+      "failed": "检查失败: {error}",
+      "discovered": "发现新版本 v{version}",
+      "upToDate": "当前已是最新版本 v{version}",
+      "error": "发生错误: {error}"
+    },
+    "crash": {
+      "title": "崩溃报告",
+      "description": "本应用捕获自己的 panic 与前端未处理异常，写成只保存在本机的报告（版本、堆栈、日志尾部），不会联网上传。游戏/系统的原生崩溃转储仍用“工具箱 → 崩溃转储查看器”打开。",
+      "openDirectory": "打开崩溃报告目录",
+      "empty": "本机还没有崩溃报告",
+      "count": "本机有 {count} 份崩溃报告（最新：{latest}）",
+      "unknownTime": "未知时间",
+      "bindingsMissing": "崩溃报告接口不可用：前端绑定缺失（请更新到最新版本）",
+      "readFailed": "读取崩溃报告失败: {error}",
+      "openFailed": "打开崩溃报告目录失败: {error}",
+      "noConfigDir": "未配置配置目录，暂无可打开的崩溃报告目录"
     }
   }
 }

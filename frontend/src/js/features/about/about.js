@@ -1,4 +1,5 @@
 import logoUrl from "../../../assets/images/logo.png";
+import { t } from "../../core/i18n-runtime.js";
 
 const ABOUT_LINKS = {
   repo: "https://github.com/zombrain69/lytvpk",
@@ -26,75 +27,71 @@ export async function renderAboutPage({
           <img src="${logoUrl}" alt="" />
         </div>
         <div class="about-hero-copy">
-          <div class="about-kicker">Left 4 Dead 2 MOD Manager</div>
-          <h2>LytVPK Community Fork</h2>
-          <p>基于 LaoYutang/lytvpk 的非官方修改版。更新、源码和反馈均由本 Fork 维护；上游链接只用于出处与致谢。</p>
+          <div class="about-kicker">${t("about.hero.kicker")}</div>
+          <h2>${t("about.hero.title")}</h2>
+          <p>${t("about.hero.description")}</p>
         </div>
       </section>
 
-      <section class="about-grid" aria-label="应用信息">
+      <section class="about-grid" aria-label="${t("about.info.ariaLabel")}">
         <div class="about-info-panel">
-          <div class="about-panel-title">项目信息</div>
+          <div class="about-panel-title">${t("about.info.title")}</div>
           <dl class="about-meta-list">
             <div>
-              <dt>上游作者</dt>
+              <dt>${t("about.info.item.upstreamAuthor")}</dt>
               <dd>LaoYutang</dd>
             </div>
             <div>
-              <dt>Fork 维护</dt>
+              <dt>${t("about.info.item.forkMaintainer")}</dt>
               <dd>zombrain69</dd>
             </div>
             <div>
-              <dt>开源协议</dt>
+              <dt>${t("about.info.item.license")}</dt>
               <dd>GPL-3.0-only</dd>
             </div>
             <div>
-              <dt>更新与源码</dt>
+              <dt>${t("about.info.item.repo")}</dt>
               <dd>zombrain69/lytvpk</dd>
             </div>
             <div>
-              <dt>问题反馈</dt>
+              <dt>${t("about.info.item.issues")}</dt>
               <dd>GitHub Issues</dd>
             </div>
             <div>
-              <dt>当前版本</dt>
-              <dd id="about-current-version">检测中...</dd>
+              <dt>${t("about.info.item.version")}</dt>
+              <dd id="about-current-version">${t("about.version.detecting")}</dd>
             </div>
           </dl>
         </div>
 
         <div class="about-info-panel about-action-panel">
-          <div class="about-panel-title">操作</div>
+          <div class="about-panel-title">${t("about.action.title")}</div>
           <div class="about-actions">
             <button class="about-action-btn primary" type="button" data-about-url="${ABOUT_LINKS.repo}">
-              <span>打开 GitHub 仓库</span>
+              <span>${t("about.action.openRepo")}</span>
             </button>
             <button class="about-action-btn" type="button" data-about-url="${ABOUT_LINKS.upstream}">
-              <span>查看上游项目</span>
+              <span>${t("about.action.openUpstream")}</span>
             </button>
             <button class="about-action-btn" type="button" data-about-url="${ABOUT_LINKS.license}">
-              <span>查看开源协议</span>
+              <span>${t("about.action.openLicense")}</span>
             </button>
             <button class="about-action-btn" type="button" data-about-url="${ABOUT_LINKS.issue}">
-              <span>问题反馈</span>
+              <span>${t("about.action.feedback")}</span>
             </button>
             <button id="about-check-update-btn" class="about-action-btn" type="button">
-              <span>检查更新</span>
+              <span>${t("about.action.checkUpdate")}</span>
             </button>
           </div>
           <div id="about-update-status" class="about-update-status" aria-live="polite"></div>
         </div>
 
         <div class="about-info-panel about-action-panel">
-          <div class="about-panel-title">崩溃报告</div>
-          <p class="about-panel-desc">
-            本应用捕获自己的 panic 与前端未处理异常，写成只保存在本机的报告
-            （版本、堆栈、日志尾部），不会联网上传。游戏/系统的原生崩溃转储仍用
-            “工具箱 → 崩溃转储查看器”打开。
-          </p>
+          <div class="about-panel-title">${t("about.crash.title")}</div>
+          <p class="about-panel-desc">${t("about.crash.description")}</p>
           <div class="about-actions">
             <button id="about-open-crash-dir-btn" class="about-action-btn" type="button">
-              <span>打开崩溃报告目录</span>
+              <span>${t("about.crash.openDirectory")}</span>
             </button>
           </div>
           <div id="about-crash-status" class="about-update-status" aria-live="polite"></div>
@@ -146,7 +143,7 @@ function bindAboutActions({
     // 静默 return 会让"绑定没注入"看起来像"功能正常但没数据"，
     // 这里必须把缺失本身显示出来，方便一眼定位。
     if (typeof ListCrashReports !== "function") {
-      crashStatus.textContent = "崩溃报告接口不可用：前端绑定缺失（请更新到最新版本）";
+      crashStatus.textContent = t("about.crash.bindingsMissing");
       console.warn("ListCrashReports 未注入，跳过崩溃报告统计");
       return;
     }
@@ -154,15 +151,15 @@ function bindAboutActions({
       const reports = (await ListCrashReports()) || [];
       crashStatus.textContent =
         reports.length === 0
-          ? "本机还没有崩溃报告"
-          : `本机有 ${reports.length} 份崩溃报告（最新：${reports[0]?.createdAt || "未知时间"}）`;
+          ? t("about.crash.empty")
+          : t("about.crash.count", { count: reports.length, latest: reports[0]?.createdAt || t("about.crash.unknownTime") });
     } catch (error) {
-      crashStatus.textContent = "读取崩溃报告失败: " + String(error?.message || error);
+      crashStatus.textContent = t("about.crash.readFailed", { error: String(error?.message || error) });
     }
   })();
   document.getElementById("about-open-crash-dir-btn")?.addEventListener("click", async () => {
     if (typeof GetCrashReportDirectory !== "function" || typeof OpenFileLocation !== "function") {
-      if (crashStatus) crashStatus.textContent = "崩溃报告接口不可用：前端绑定缺失（请更新到最新版本）";
+      if (crashStatus) crashStatus.textContent = t("about.crash.bindingsMissing");
       console.warn("崩溃报告目录接口未注入", {
         GetCrashReportDirectory: typeof GetCrashReportDirectory,
         OpenFileLocation: typeof OpenFileLocation,
@@ -172,12 +169,12 @@ function bindAboutActions({
     try {
       const dir = await GetCrashReportDirectory();
       if (!dir) {
-        if (crashStatus) crashStatus.textContent = "未配置配置目录，暂无可打开的崩溃报告目录";
+        if (crashStatus) crashStatus.textContent = t("about.crash.noConfigDir");
         return;
       }
       await OpenFileLocation(dir);
     } catch (error) {
-      if (crashStatus) crashStatus.textContent = "打开崩溃报告目录失败: " + String(error?.message || error);
+      if (crashStatus) crashStatus.textContent = t("about.crash.openFailed", { error: String(error?.message || error) });
     }
   });
 }
@@ -188,9 +185,9 @@ async function hydrateVersion(GetAppVersion) {
 
   try {
     const version = await GetAppVersion();
-    versionEl.textContent = version ? `v${version}` : "未知";
+    versionEl.textContent = version ? `v${version}` : t("about.version.unknown");
   } catch (error) {
-    versionEl.textContent = "获取失败";
+    versionEl.textContent = t("about.version.fetchFailed");
   }
 }
 
@@ -201,7 +198,7 @@ async function checkAboutUpdate({ CheckUpdate, showUpdateModal } = {}) {
   if (!button || !status || typeof CheckUpdate !== "function") return;
 
   button.disabled = true;
-  button.querySelector("span").textContent = "检查中...";
+  button.querySelector("span").textContent = t("about.action.checking");
   status.className = "about-update-status";
   status.textContent = "";
 
@@ -212,26 +209,26 @@ async function checkAboutUpdate({ CheckUpdate, showUpdateModal } = {}) {
     }
 
     if (info.error) {
-      status.textContent = `检查失败: ${info.error}`;
+      status.textContent = t("about.update.failed", { error: info.error });
       status.classList.add("error");
     } else if (info.has_update) {
-      status.textContent = `发现新版本 v${info.latest_ver}`;
+      status.textContent = t("about.update.discovered", { version: info.latest_ver });
       status.classList.add("success");
       if (typeof showUpdateModal === "function") {
         showUpdateModal(info);
       }
     } else {
-      status.textContent = `当前已是最新版本 v${info.latest_ver || info.current_ver}`;
+      status.textContent = t("about.update.upToDate", { version: info.latest_ver || info.current_ver });
       status.classList.add("success");
       if (info.release_note && typeof showUpdateModal === "function") {
         showUpdateModal(info);
       }
     }
   } catch (error) {
-    status.textContent = `发生错误: ${error}`;
+    status.textContent = t("about.update.error", { error });
     status.classList.add("error");
   } finally {
     button.disabled = false;
-    button.querySelector("span").textContent = "检查更新";
+    button.querySelector("span").textContent = t("about.action.checkUpdate");
   }
 }

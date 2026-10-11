@@ -111,8 +111,8 @@ export async function renderDiagnosticsPage({
 
       <section class="toolbox-section">
         <div class="toolbox-section-header">
-          <h3>游戏配置</h3>
-          <p>检查并维护游戏启动时读取的配置文件。</p>
+          <h3>${t("toolbox.section.gameConfig.title")}</h3>
+          <p>${t("toolbox.section.gameConfig.description")}</p>
         </div>
         <div class="diagnostics-tool-grid">
           <section class="diagnostics-tool-card">
@@ -133,8 +133,8 @@ export async function renderDiagnosticsPage({
 
       <section class="toolbox-section">
         <div class="toolbox-section-header">
-          <h3>通用工具</h3>
-          <p>用于处理单个 VPK 文件和常见文件维护操作。</p>
+          <h3>${t("toolbox.section.generalTools.title")}</h3>
+          <p>${t("toolbox.section.generalTools.description")}</p>
         </div>
         <div class="diagnostics-tool-grid">
           <section class="diagnostics-tool-card">
