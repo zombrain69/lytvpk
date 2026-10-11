@@ -8,12 +8,15 @@
         "close": "关闭"
       },
       "commandPalette": {
-        "tooltip": "命令面板（Ctrl+K）：输入关键词跳转页面或执行常用动作"
+        "tooltip": "命令面板（Ctrl+K）：输入关键词跳转页面或执行常用动作",
+        "ariaLabel": "命令面板",
+        "inputPlaceholder": "输入命令或页面名（例如：冲突 / 体检 / 工坊 / 字号）"
       },
       "shortcuts": {
         "dialogLabel": "键盘快捷键总览",
         "tooltip": "快捷键总览"
-      }
+      },
+      "title": "LytVPK - L4D2 MOD管理工具"
     },
     "loadingMessage": "正在加载...",
     "exit": {
@@ -62,6 +65,23 @@
         "status": "可检测",
         "action": "打开检测工具"
       }
+    },
+    "snapshot": {
+      "title": "Mod 快照",
+      "descBefore": "在批量启用/禁用、整理文件、更新或删除 Mod 之前留一个可整体回滚的状态。 快照只保存在本机；",
+      "descStrong": "完整备份",
+      "descAfter": "会复制 VPK 与同名图片/.meta，占用更大。 workshop 目录里的 Mod 只记录启停状态、不复制文件。",
+      "namePlaceholder": "快照名称，例如 整理前 / 写实包",
+      "modeNames": "文件名快照（快）",
+      "modeFull": "完整备份（含文件）",
+      "create": "创建快照",
+      "openFolder": "打开存放位置",
+      "restorePlanTitle": "恢复计划",
+      "restoreConfirm": "确认并执行恢复",
+      "cancel": "取消"
+    },
+    "modelStats": {
+      "subtitle": "统计启用与创意工坊 Mod 的 LOD0 顶点数和三角形数量"
     }
   },
   "about": {
@@ -328,7 +348,21 @@
       "fileSizeLabel": "文件大小:",
       "locationLabel": "位置:",
       "statusLabel": "状态:",
-      "modifiedLabel": "最后修改:"
+      "modifiedLabel": "最后修改:",
+      "openInBrowserTooltip": "使用系统浏览器打开创意工坊页面",
+      "ignoreDescBefore": "每行一个 VPK 内部路径，例如 materials/shared.vtf；以 / 结尾表示整个目录。 命中这些路径时，",
+      "ignoreDescStrong": "只有这个 Mod",
+      "ignoreDescAfter": "不再参与对应资源的冲突判定， 内置规则与设置页的全局忽略清单始终生效。"
+    },
+    "sort": {
+      "menu": {
+        "name": "文件名排序",
+        "date": "更新时间排序",
+        "size": "VPK 大小排序",
+        "modelComplexity": "模型复杂度排序",
+        "loadOrder": "优先级排序（分层优先，其次加载顺序）",
+        "xdrSlot": "动作槽排序（XDR）"
+      }
     }
   },
   "workshop": {
@@ -879,7 +913,8 @@
       "addressLabel": "服务器地址 (IP/域名，端口可选)",
       "placeholder": "例如: 127.0.0.1:27015 或 example.com",
       "portHint": "端口用「:」拼接，未填写时默认 27015。",
-      "cancel": "取消"
+      "cancel": "取消",
+      "pasteHint": "支持粘贴 connect 127.0.0.1:27015 或 steam://connect/127.0.0.1:27015。"
     }
   },
   "settings": {
@@ -1771,6 +1806,84 @@
         "after": "已把「{name}」排到「{target}」后面",
         "inside": "已把「{name}」移动到「{target}」下面"
       }
+    },
+    "window": {
+      "title": "策略组管理",
+      "hint": "策略组只写 groups.json：不改动任何 Mod 文件，也不改 addonlist.txt 的开关与顺序。 「按策略应用 / 随机单选 / 全关」只切换组成员的开关；「组权重」是本地分层， 需要在「加载顺序」窗口里点「按分层应用」才会重排游戏内优先级。 展开成员后可勾选多行，用窗口底部那一排批量按钮一次处理（启用 / 禁用 / 游戏内开关 / 复制到 addons / 移出本组）—— 不必逐个点每行右侧的按钮。",
+      "blockLabel": "新建策略组：填名称、选策略，再用「用选中的 N 个 Mod 建组」（Mod 在 Mod 管理页勾选）",
+      "namePlaceholder": "新策略组的名称，例如 角色替换包",
+      "nameTitle": "这是新建组的名称输入框，不是搜索框；搜索在下面那一行",
+      "strategyAria": "策略类型",
+      "strategySingle": "互斥单选（保留当前启用的一个）",
+      "searchPlaceholder": "搜索策略组（组名 / 成员名 / 描述；支持 -排除 / re: 正则 / tag:状态）…",
+      "searchAria": "搜索策略组",
+      "helpTooltip": "搜索语法说明书",
+      "helpDialogLabel": "策略组搜索语法说明书",
+      "dragHint": "提示：直接拖动组名所在的整行来整理层级 —— 拖到别的组中间＝变成它的子组，拖到行的上/下边缘＝排到它前/后，拖到最下面的「回到顶层」＝取消上级。最多 4 层。",
+      "dropRoot": "拖到这里 → 变成顶层组",
+      "batchEnforceOn": "开启自动联动",
+      "batchEnforceOff": "关闭自动联动",
+      "batchTierTitle": "批量设置组权重：叠加到组内成员的有效分层；数值越小越先加载。留空并点「清除权重」表示取消权重。",
+      "batchTierPlaceholder": "权重",
+      "batchTierAria": "批量组权重",
+      "batchTierSet": "设置权重",
+      "batchTierClear": "清除权重",
+      "batchFilterTitle": "只显示属于这些组的 Mod（等同于主界面「按分组筛选」勾上同样几个组）",
+      "batchFilterApply": "用选中的组筛选",
+      "batchFilterClearTitle": "恢复显示全部 Mod（清除「按分组筛选」）",
+      "batchFilterClear": "清除筛选",
+      "batchClearAllTitle": "取消全部勾选（包括被搜索筛掉、列表里看不见的组）",
+      "batchClearAll": "取消全部勾选",
+      "memberSelectAll": "全选展开的成员",
+      "memberSelectAllGroups": "全选所有组",
+      "memberClearAll": "取消全部勾选",
+      "memberGameOn": "游戏内开启",
+      "memberGameOff": "游戏内关闭",
+      "memberTransfer": "复制到 addons",
+      "memberRemove": "移出本组",
+      "close": "关闭",
+      "batchGroupsPickAllTitle": "全选 / 取消全选当前的策略组列表",
+      "batchMembersPickAllTitle": "全选 / 取消全选「当前展开的组」里的成员；不会动别的组已经勾上的"
+    },
+    "suggest": {
+      "refresh": "重新推导",
+      "importTitle": "导入标准格式的组建议文件（大模型 / 人工 / 外部脚本写好的结果）",
+      "import": "导入建议文件…",
+      "exportTitle": "先重新扫描一遍 mod 目录（保证清单是最新状态），再导出当前 Mod 的分组用元数据（键、标题、作者、标签、主体、语音角色），交给大模型分析",
+      "export": "导出 Mod 清单…",
+      "prepareTitle": "一步到位：先重新扫描一遍 mod 目录（保证材料是最新状态），再导出 Mod 清单 + 复制交给智能体（agent）的提示词，提示词里已填好清单路径与建议文件路径",
+      "prepare": "准备给智能体的材料",
+      "promptTitle": "编辑交给智能体的提示词：默认用 LytVPK 填好的一套，可以改成你自己的，也可以随时恢复默认",
+      "prompt": "编辑提示词…",
+      "clearTitle": "移除已导入的建议文件；不会删除任何 Mod 或已创建的策略组",
+      "clear": "清除导入",
+      "searchPlaceholder": "搜索组建议（组名 / 成员名 / 信号）…",
+      "searchAria": "搜索分组建议",
+      "confidenceAria": "按置信度筛选",
+      "sourceAria": "按来源筛选",
+      "sortAria": "排序方式",
+      "tagCoveredAria": "标签已覆盖的建议",
+      "tagCoveredTitle": "标签恰好只能筛出这一批 Mod 时，直接用标签筛选即可，不必再建组",
+      "confidenceAll": "全部置信度",
+      "confidenceHigh": "仅高置信度",
+      "confidenceMedium": "仅中置信度",
+      "confidenceLow": "仅低置信度",
+      "sourceAll": "全部来源",
+      "sourceImported": "仅导入建议",
+      "sourceBuiltin": "仅内置推导",
+      "sortRecommended": "推荐顺序",
+      "sortConfidence": "置信度优先",
+      "sortMembers": "成员多优先",
+      "sortName": "名称顺序",
+      "tagCoveredHide": "隐藏标签已覆盖",
+      "tagCoveredShow": "显示全部",
+      "tagCoveredOnly": "只看标签已覆盖",
+      "expandAllTitle": "展开全部建议的成员列表",
+      "expandAll": "全部展开",
+      "collapseAllTitle": "只保留每条建议的摘要，方便快速浏览",
+      "collapseAll": "全部折叠",
+      "hint": "下面是\"可能属于同一组\"的候选：可以取消勾选个别 Mod、修改组名，确认后再点“创建为组”。 默认只显示每条建议的摘要，点「展开」查看成员与逐个操作；窗口右下角可以拖动缩放。 推导只做只读扫描（工坊合集成员、文件夹结构、同名文件的不同版本、文件名前缀、共同标签、 同一作者、相同主体、语音角色），也可以「导入建议文件…」把大模型 / 人工整理好的结果 按标准格式导入（见文档「分组建议与外部导入」）， 不会改动任何 Mod 文件，也不会改动 addonlist.txt。",
+      "close": "关闭"
     }
   },
   "modals": {
@@ -1817,7 +1930,64 @@
       "textAria": "提示词内容",
       "reset": "恢复默认",
       "cancel": "取消",
+      "save": "保存",
+      "hintScope": "默认那一套已经写明：处理范围只限",
+      "hintRootPlus": "根目录 +",
+      "hintJsonFormat": "、建议文件的 JSON 格式（含",
+      "hintAndValidate": "）、 以及\"写完先用",
+      "hintTail": "自检\"。你可以按自己的习惯改， 改完点「保存」；「恢复默认」随时可以回到 LytVPK 的这一套。"
+    },
+    "closeAria": "关闭",
+    "setTags": {
+      "title": "设置自定义标签",
+      "primaryLabel": "一级标签",
+      "secondaryLabel": "二级标签",
+      "inputPlaceholder": "输入或选择标签",
+      "add": "添加",
+      "reset": "重置",
+      "cancel": "取消",
       "save": "保存"
+    },
+    "batchSetTags": {
+      "title": "批量编辑标签",
+      "countPrefix": "已选中",
+      "countSuffix": "个文件",
+      "primaryLabel": "一级标签",
+      "secondaryLabel": "二级标签",
+      "primaryKeep": "不修改",
+      "primarySet": "设置",
+      "secondaryKeep": "不修改",
+      "secondaryAppend": "追加",
+      "secondarySet": "设置",
+      "inputPlaceholder": "输入或选择标签",
+      "add": "添加",
+      "reset": "重置",
+      "cancel": "取消",
+      "save": "保存"
+    },
+    "groupTag": {
+      "fieldLabel": "标签",
+      "inputPlaceholder": "例如：M16 武器",
+      "hint": "标签会写进文件名（`[标签]名字.vpk`，工坊 Mod 写进同名 `.meta`）：这会改变 addonlist 键， 工具会自动把策略组 / 分层 / 依赖 / 忽略清单里的旧键改绑到新键。已经带该标签的成员会被跳过。",
+      "cancel": "取消",
+      "apply": "给这组打标签"
+    },
+    "groupPicker": {
+      "searchPlaceholder": "搜索策略组（名称 / 上级分组 / 策略）…",
+      "searchAria": "搜索策略组",
+      "relevantTitle": "只显示包含这些 Mod 的策略组（移出 / 换组时最常用）",
+      "relevantLabel": "只看相关",
+      "newNamePlaceholder": "或者新建一个组，把这些 Mod 直接放进去",
+      "newButton": "新建并加入",
+      "hint": "↑↓ 选择 · Enter 确认 · 双击直接执行 · Esc 关闭",
+      "cancel": "取消"
+    },
+    "info": {
+      "title": "关于 LytVPK Community Fork",
+      "upstreamAuthor": "上游作者:",
+      "upstreamProject": "上游项目:",
+      "license": "开源协议:",
+      "versionInfo": "版本信息:"
     }
   },
   "loadOrder": {
@@ -1881,6 +2051,59 @@
     "tipsCycleNote": "如果前后关系出现循环，不会写入文件。",
     "restoreBackup": "恢复上一份备份…",
     "cancel": "取消",
-    "save": "保存更改"
+    "save": "保存更改",
+    "tierHelp": "分层是\"想让谁覆盖谁\"的意图：数值越小越先加载。未设置分层时优先级完全等同于 addonlist.txt 的顺序号；设置分层本身不会改动文件，只有点击\"按分层应用\"才会重排。",
+    "tipsValue": "数值",
+    "tipsSmaller": "越小",
+    "tipsLoadPriority": "，加载优先级",
+    "tipsHigher": "越高。"
+  },
+  "conflicts": {
+    "summaryPrefix": "发现",
+    "summarySuffix": "组冲突",
+    "filterInfo": "普通",
+    "filterAll": "全部",
+    "searchPlaceholder": "搜索资源路径或 Mod 名（支持 -排除 / re: 正则 / tag:状态）",
+    "searchAria": "搜索冲突",
+    "searchHelpTooltip": "搜索语法说明书",
+    "searchHelpDialogLabel": "冲突搜索语法说明书",
+    "overrideBadge": "覆盖",
+    "overrideTitle": "已判定覆盖关系",
+    "overrideHint": "这些 Mod 共享同一资源，但都在 addonlist.txt 中记录了加载顺序，胜负已确定（顺序靠后者生效），因此不再计为冲突。",
+    "modIgnoreBadge": "已忽略",
+    "modIgnoreTitle": "因 Mod 自身的忽略规则跳过",
+    "modIgnoreHint": "这些路径本来会参与重叠判定，但对应的 Mod 自己声明\"不提供该文件\"（对齐 FireAxe 的 ConflictIgnoringFiles 语义），因此退出了判定。可在 Mod 详情的\"该 Mod 的冲突忽略文件\"里调整。",
+    "fixBadge": "建议",
+    "fixTitle": "修复建议（需要你确认）",
+    "fixHintBefore": "这些建议只写入",
+    "fixHintMid": "；真正重排",
+    "fixHintAfter": "仍需要你在 “编辑加载顺序”里点“按分层应用”。应用不会自动改动任何 Mod 文件。",
+    "close": "关闭",
+    "scope": {
+      "title": "冲突分析对比范围",
+      "targetLabel": "分析目标：",
+      "rulesLegend": "选择对比范围（可多选）",
+      "ruleEnabled": "游戏内开启",
+      "ruleEnabledHint": "addonlist.txt 为 1 且不在 disabled",
+      "ruleNotDisabled": "未禁用",
+      "ruleNotDisabledHint": "文件不在 disabled 目录",
+      "ruleRoot": "根目录 Mod",
+      "ruleRootHint": "当前 addons 目录下的文件",
+      "ruleWorkshop": "创意工坊 Mod",
+      "ruleWorkshopHint": "workshop 子目录下的文件",
+      "ruleTag": "拥有指定标签",
+      "ruleTagHint": "匹配主标签或附加标签",
+      "tagAria": "选择冲突对比标签",
+      "modeGroupAria": "条件组合方式",
+      "modeLegend": "多个条件如何组合",
+      "modeAnd": "满足全部（AND）",
+      "modeOr": "满足任一（OR）",
+      "overrideLegend": "覆盖判定",
+      "priorityLabel": "按加载顺序判定胜负",
+      "priorityHint": "能判定胜负的重叠归入“覆盖关系”，只有无法判定胜负的重叠才计为冲突",
+      "footHint": "需要读取 addonlist.txt：其中标记为关闭的 Mod 不参与判定；未写入 addonlist.txt 的 Mod 无法判定胜负，相关重叠仍会保留为冲突。",
+      "cancel": "取消",
+      "apply": "应用并分析"
+    }
   }
 }

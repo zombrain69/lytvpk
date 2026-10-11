@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>LytVPK - L4D2 MOD管理工具</title>
+    <title data-i18n="app.shell.title">LytVPK - L4D2 MOD管理工具</title>
   </head>
   <body>
     <div id="app">
@@ -502,7 +502,7 @@
                         <line x1="10" x2="8" y1="9" y2="9" />
                       </svg>
                     </span>
-                    文件名排序
+                    <span data-i18n="mods.sort.menu.name">文件名排序</span>
                   </button>
                   <button id="sort-date-btn" class="dropdown-item">
                     <span class="btn-icon">
@@ -521,7 +521,7 @@
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
                     </span>
-                    更新时间排序
+                    <span data-i18n="mods.sort.menu.date">更新时间排序</span>
                   </button>
                   <button id="sort-size-btn" class="dropdown-item">
                     <span class="btn-icon">
@@ -532,7 +532,7 @@
                         <path d="m7 17 3 3"></path>
                       </svg>
                     </span>
-                    VPK 大小排序
+                    <span data-i18n="mods.sort.menu.size">VPK 大小排序</span>
                   </button>
                   <button id="sort-model-complexity-btn" class="dropdown-item">
                     <span class="btn-icon">
@@ -548,7 +548,7 @@
                         <path d="m16.24 7.76 2.12-2.12"></path>
                       </svg>
                     </span>
-                    模型复杂度排序
+                    <span data-i18n="mods.sort.menu.modelComplexity">模型复杂度排序</span>
                   </button>
                   <button id="sort-load-order-btn" class="dropdown-item">
                     <span class="btn-icon">
@@ -571,7 +571,7 @@
                         <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path>
                       </svg>
                     </span>
-                    优先级排序（分层优先，其次加载顺序）
+                    <span data-i18n="mods.sort.menu.loadOrder">优先级排序（分层优先，其次加载顺序）</span>
                   </button>
                   <button id="sort-xdr-slot-btn" class="dropdown-item">
                     <span class="btn-icon">
@@ -582,7 +582,7 @@
                         <line x1="16" y1="3" x2="14" y2="21"></line>
                       </svg>
                     </span>
-                    动作槽排序（XDR）
+                    <span data-i18n="mods.sort.menu.xdrSlot">动作槽排序（XDR）</span>
                   </button>
                 </div>
               </div>
@@ -881,13 +881,13 @@
       <div id="info-modal" class="modal hidden">
         <div class="modal-content modal-small">
           <div class="modal-header">
-            <h3>关于 LytVPK Community Fork</h3>
+            <h3 data-i18n="modals.info.title">关于 LytVPK Community Fork</h3>
             <button id="close-info-modal-btn" class="close-btn">&times;</button>
           </div>
           <div class="modal-body">
             <div class="info-section">
               <div class="info-item">
-                <label>上游作者:</label>
+                <label data-i18n="modals.info.upstreamAuthor">上游作者:</label>
                 <span>LaoYutang</span>
               </div>
 
@@ -904,7 +904,7 @@
               </div>
 
               <div class="info-item">
-                <label>上游项目:</label>
+                <label data-i18n="modals.info.upstreamProject">上游项目:</label>
                 <a
                   href="https://github.com/LaoYutang/lytvpk"
                   target="_blank"
@@ -916,7 +916,7 @@
               </div>
 
               <div class="info-item">
-                <label>开源协议:</label>
+                <label data-i18n="modals.info.license">开源协议:</label>
                 <a
                   href="https://github.com/zombrain69/lytvpk/blob/master/LICENSE"
                   target="_blank"
@@ -928,7 +928,7 @@
               </div>
 
               <div class="info-item update-section">
-                <label>版本信息:</label>
+                <label data-i18n="modals.info.versionInfo">版本信息:</label>
                 <div class="version-control">
                   <span id="current-version-display">检测中...</span>
                   <button
@@ -1140,7 +1140,7 @@
                       class="btn btn-small btn-outline hidden"
                       type="button"
                       title="使用系统浏览器打开创意工坊页面"
-                    >
+                     data-i18n-title="mods.detail.openInBrowserTooltip">
                       <span class="icon" aria-hidden="true">↗</span>
                       <span data-i18n="mods.detail.openInBrowser">在浏览器打开</span>
                     </button>
@@ -1203,9 +1203,9 @@
             <div id="detail-ignore-section" class="detail-section">
               <h4 data-i18n="mods.detail.ignoreSection">该 Mod 的冲突忽略文件</h4>
               <p class="detail-ignore-description">
-                每行一个 VPK 内部路径，例如 materials/shared.vtf；以 / 结尾表示整个目录。
-                命中这些路径时，<strong>只有这个 Mod</strong> 不再参与对应资源的冲突判定，
-                内置规则与设置页的全局忽略清单始终生效。
+                <span data-i18n="mods.detail.ignoreDescBefore">每行一个 VPK 内部路径，例如 materials/shared.vtf；以 / 结尾表示整个目录。
+                命中这些路径时，</span><strong data-i18n="mods.detail.ignoreDescStrong">只有这个 Mod</strong> <span data-i18n="mods.detail.ignoreDescAfter">不再参与对应资源的冲突判定，
+                内置规则与设置页的全局忽略清单始终生效。</span>
               </p>
               <textarea
                 id="detail-ignore-input"
@@ -1336,7 +1336,7 @@
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                   </svg>
-                  <span>下载</span>
+                  <span data-i18n="downloads.modal.download">下载</span>
                 </button>
                 <button id="copy-url-btn" class="btn btn-success">
                   <span class="icon" aria-hidden="true">
@@ -1425,33 +1425,33 @@
     <div id="mod-snapshot-modal" class="modal hidden">
       <div class="modal-content modal-large">
         <div class="modal-header">
-          <h2>Mod 快照</h2>
+          <h2 data-i18n="toolbox.snapshot.title">Mod 快照</h2>
           <button class="close-btn" id="mod-snapshot-close-btn">&times;</button>
         </div>
         <div class="modal-body">
           <p class="setting-row-desc">
-            在批量启用/禁用、整理文件、更新或删除 Mod 之前留一个可整体回滚的状态。
-            快照只保存在本机；<strong>完整备份</strong>会复制 VPK 与同名图片/.meta，占用更大。
-            workshop 目录里的 Mod 只记录启停状态、不复制文件。
+            <span data-i18n="toolbox.snapshot.descBefore">在批量启用/禁用、整理文件、更新或删除 Mod 之前留一个可整体回滚的状态。
+            快照只保存在本机；</span><strong data-i18n="toolbox.snapshot.descStrong">完整备份</strong><span data-i18n="toolbox.snapshot.descAfter">会复制 VPK 与同名图片/.meta，占用更大。
+            workshop 目录里的 Mod 只记录启停状态、不复制文件。</span>
           </p>
           <div class="addonlist-action-row">
-            <input type="text" id="mod-snapshot-name" class="form-input settings-profile-name-input" maxlength="60" placeholder="快照名称，例如 整理前 / 写实包">
+            <input type="text" id="mod-snapshot-name" class="form-input settings-profile-name-input" maxlength="60" placeholder="快照名称，例如 整理前 / 写实包" data-i18n-placeholder="toolbox.snapshot.namePlaceholder">
             <select id="mod-snapshot-mode" class="form-input" style="max-width: 12rem">
-              <option value="names">文件名快照（快）</option>
-              <option value="full">完整备份（含文件）</option>
+              <option value="names" data-i18n="toolbox.snapshot.modeNames">文件名快照（快）</option>
+              <option value="full" data-i18n="toolbox.snapshot.modeFull">完整备份（含文件）</option>
             </select>
-            <button type="button" id="mod-snapshot-create-btn" class="trigger-check-btn addonlist-action-btn">创建快照</button>
-            <button type="button" id="mod-snapshot-open-folder-btn" class="trigger-check-btn addonlist-secondary-btn">打开存放位置</button>
+            <button type="button" id="mod-snapshot-create-btn" class="trigger-check-btn addonlist-action-btn" data-i18n="toolbox.snapshot.create">创建快照</button>
+            <button type="button" id="mod-snapshot-open-folder-btn" class="trigger-check-btn addonlist-secondary-btn" data-i18n="toolbox.snapshot.openFolder">打开存放位置</button>
           </div>
           <p id="mod-snapshot-status" class="setting-row-status"></p>
           <div id="mod-snapshot-list" class="settings-profile-list"></div>
           <div id="mod-snapshot-plan" class="mod-snapshot-plan hidden">
-            <h3>恢复计划</h3>
+            <h3 data-i18n="toolbox.snapshot.restorePlanTitle">恢复计划</h3>
             <p id="mod-snapshot-plan-summary" class="setting-row-desc"></p>
             <div id="mod-snapshot-plan-items" class="mod-snapshot-plan-items"></div>
             <div class="addonlist-action-row">
-              <button type="button" id="mod-snapshot-restore-btn" class="trigger-check-btn addonlist-action-btn">确认并执行恢复</button>
-              <button type="button" id="mod-snapshot-plan-cancel" class="trigger-check-btn addonlist-secondary-btn">取消</button>
+              <button type="button" id="mod-snapshot-restore-btn" class="trigger-check-btn addonlist-action-btn" data-i18n="toolbox.snapshot.restoreConfirm">确认并执行恢复</button>
+              <button type="button" id="mod-snapshot-plan-cancel" class="trigger-check-btn addonlist-secondary-btn" data-i18n="toolbox.snapshot.cancel">取消</button>
             </div>
           </div>
         </div>
@@ -2139,8 +2139,8 @@
               端口用「:」拼接，未填写时默认 27015。
             </p>
             <p class="text-sm-tertiary mt-8">
-              支持粘贴 connect 127.0.0.1:27015 或
-              steam://connect/127.0.0.1:27015。
+              <span data-i18n="servers.directConnect.pasteHint">支持粘贴 connect 127.0.0.1:27015 或
+              steam://connect/127.0.0.1:27015。</span>
             </p>
           </div>
           <div class="modal-footer server-form-footer">
@@ -2279,7 +2279,7 @@
 
               <div id="load-order-priority-panel" class="load-order-priority-panel">
                 <label for="load-order-tier-input" class="load-order-label" data-i18n="loadOrder.tierLabel">优先级分层（可选）</label>
-                <p class="load-order-control-help">
+                <p class="load-order-control-help" data-i18n="loadOrder.tierHelp">
                   分层是"想让谁覆盖谁"的意图：数值越小越先加载。未设置分层时优先级完全等同于
                   addonlist.txt 的顺序号；设置分层本身不会改动文件，只有点击"按分层应用"才会重排。
                 </p>
@@ -2416,10 +2416,10 @@
                   <p class="load-order-tips-title" data-i18n="loadOrder.tipsTitle">加载顺序说明</p>
                   <ul class="load-order-tips-list">
                     <li>
-                      数值
-                      <span class="load-order-tips-highlight">越小</span
-                      >，加载优先级
-                      <span class="load-order-tips-highlight">越高</span>。
+                      <span data-i18n="loadOrder.tipsValue">数值</span>
+                      <span class="load-order-tips-highlight" data-i18n="loadOrder.tipsSmaller">越小</span
+                      ><span data-i18n="loadOrder.tipsLoadPriority">，加载优先级</span>
+                      <span class="load-order-tips-highlight" data-i18n="loadOrder.tipsHigher">越高。</span>
                     </li>
                     <li data-i18n="loadOrder.tipsSingleOnly">单项模式只能移动已经写入 addonlist.txt 的 Mod。</li>
                     <li data-i18n="loadOrder.tipsBatchNote">批量规则仅在本次“应用优化并写入”时生效，后续可随时重新调整。</li>
@@ -2474,10 +2474,10 @@
             aria-label="提示词内容"
            data-i18n-aria-label="modals.agentPrompt.textAria"></textarea>
           <p class="agent-prompt-hint">
-            默认那一套已经写明：处理范围只限 <code>addons</code> 根目录 + <code>workshop</code> +
-            <code>disabled</code>、建议文件的 JSON 格式（含 <code>tag</code> / <code>memberTags</code>）、
-            以及"写完先用 <code>--validate-group-suggestions</code> 自检"。你可以按自己的习惯改，
-            改完点「保存」；「恢复默认」随时可以回到 LytVPK 的这一套。
+            <span data-i18n="modals.agentPrompt.hintScope">默认那一套已经写明：处理范围只限</span> <code>addons</code> <span data-i18n="modals.agentPrompt.hintRootPlus">根目录 +</span> <code>workshop</code> +
+            <code>disabled</code><span data-i18n="modals.agentPrompt.hintJsonFormat">、建议文件的 JSON 格式（含</span> <code>tag</code> / <code>memberTags</code><span data-i18n="modals.agentPrompt.hintAndValidate">）、
+            以及"写完先用</span> <code>--validate-group-suggestions</code> <span data-i18n="modals.agentPrompt.hintTail">自检"。你可以按自己的习惯改，
+            改完点「保存」；「恢复默认」随时可以回到 LytVPK 的这一套。</span>
           </p>
         </div>
         <div class="modal-footer agent-prompt-footer">
@@ -2494,29 +2494,29 @@
       <div class="modal-content group-tag-content">
         <div class="modal-header">
           <h3 id="group-tag-title">给这组打标签</h3>
-          <button id="group-tag-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+          <button id="group-tag-close-btn" class="close-btn" type="button" aria-label="关闭" data-i18n-aria-label="modals.closeAria">&times;</button>
         </div>
         <div class="group-tag-body">
           <p id="group-tag-summary" class="group-tag-summary" aria-live="polite"></p>
           <label class="group-tag-field">
-            <span>标签</span>
+            <span data-i18n="modals.groupTag.fieldLabel">标签</span>
             <input
               id="group-tag-input"
               class="group-tag-input"
               type="text"
               maxlength="60"
               placeholder="例如：M16 武器"
-            >
+             data-i18n-placeholder="modals.groupTag.inputPlaceholder">
           </label>
-          <p class="group-tag-hint">
+          <p class="group-tag-hint" data-i18n="modals.groupTag.hint">
             标签会写进文件名（`[标签]名字.vpk`，工坊 Mod 写进同名 `.meta`）：这会改变 addonlist 键，
             工具会自动把策略组 / 分层 / 依赖 / 忽略清单里的旧键改绑到新键。已经带该标签的成员会被跳过。
           </p>
           <div id="group-tag-preview" class="group-tag-preview"></div>
         </div>
         <div class="modal-footer">
-          <button id="group-tag-cancel-btn" class="btn btn-secondary" type="button">取消</button>
-          <button id="group-tag-apply-btn" class="btn btn-primary" type="button">给这组打标签</button>
+          <button id="group-tag-cancel-btn" class="btn btn-secondary" type="button" data-i18n="modals.groupTag.cancel">取消</button>
+          <button id="group-tag-apply-btn" class="btn btn-primary" type="button" data-i18n="modals.groupTag.apply">给这组打标签</button>
         </div>
       </div>
     </div>
@@ -2526,7 +2526,7 @@
       <div class="modal-content group-picker-content">
         <div class="modal-header">
           <h3 id="group-picker-title">加入策略组</h3>
-          <button id="group-picker-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+          <button id="group-picker-close-btn" class="close-btn" type="button" aria-label="关闭" data-i18n-aria-label="modals.closeAria">&times;</button>
         </div>
         <!-- 工具条固定在滚动区之外：组多的时候搜索框与筛选也要一眼可见。 -->
         <div class="group-picker-toolbar">
@@ -2537,10 +2537,10 @@
             autocomplete="off"
             placeholder="搜索策略组（名称 / 上级分组 / 策略）…"
             aria-label="搜索策略组"
-          >
-          <label class="group-picker-relevant" title="只显示包含这些 Mod 的策略组（移出 / 换组时最常用）">
+           data-i18n-placeholder="modals.groupPicker.searchPlaceholder" data-i18n-aria-label="modals.groupPicker.searchAria">
+          <label class="group-picker-relevant" title="只显示包含这些 Mod 的策略组（移出 / 换组时最常用）" data-i18n-title="modals.groupPicker.relevantTitle">
             <input type="checkbox" id="group-picker-relevant-only">
-            <span>只看相关</span>
+            <span data-i18n="modals.groupPicker.relevantLabel">只看相关</span>
           </label>
         </div>
         <div class="group-picker-body">
@@ -2556,12 +2556,12 @@
             type="text"
             maxlength="60"
             placeholder="或者新建一个组，把这些 Mod 直接放进去"
-          >
-          <button id="group-picker-new-btn" class="btn btn-small btn-outline" type="button">新建并加入</button>
+           data-i18n-placeholder="modals.groupPicker.newNamePlaceholder">
+          <button id="group-picker-new-btn" class="btn btn-small btn-outline" type="button" data-i18n="modals.groupPicker.newButton">新建并加入</button>
         </div>
-        <p class="group-picker-hint">↑↓ 选择 · Enter 确认 · 双击直接执行 · Esc 关闭</p>
+        <p class="group-picker-hint" data-i18n="modals.groupPicker.hint">↑↓ 选择 · Enter 确认 · 双击直接执行 · Esc 关闭</p>
         <div class="modal-footer">
-          <button id="group-picker-cancel-btn" class="btn btn-secondary" type="button">取消</button>
+          <button id="group-picker-cancel-btn" class="btn btn-secondary" type="button" data-i18n="modals.groupPicker.cancel">取消</button>
           <button id="group-picker-confirm-btn" class="btn btn-primary" type="button">加入这个组</button>
         </div>
       </div>
@@ -2571,12 +2571,12 @@
     <div id="strategy-group-modal" class="modal hidden">
       <div class="modal-content strategy-group-content">
         <div class="modal-header">
-          <h3>策略组管理</h3>
-          <button id="strategy-group-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+          <h3 data-i18n="strategyGroups.window.title">策略组管理</h3>
+          <button id="strategy-group-close-btn" class="close-btn" type="button" aria-label="关闭" data-i18n-aria-label="modals.closeAria">&times;</button>
         </div>
         <div class="strategy-group-body">
           <!-- 浮动 / 停靠开关由 core/floating-modal.js 统一插到标题栏（与其它管理窗口一致）。 -->
-          <p class="strategy-group-hint">
+          <p class="strategy-group-hint" data-i18n="strategyGroups.window.hint">
             策略组只写 groups.json：不改动任何 Mod 文件，也不改 addonlist.txt 的开关与顺序。
             「按策略应用 / 随机单选 / 全关」只切换组成员的开关；「组权重」是本地分层，
             需要在「加载顺序」窗口里点「按分层应用」才会重排游戏内优先级。
@@ -2584,7 +2584,7 @@
             复制到 addons / 移出本组）—— 不必逐个点每行右侧的按钮。
           </p>
           <!-- 新建组：这一行是"名称 + 策略 + 建组按钮"，不是搜索框（搜索框在下面一行）。 -->
-          <p class="strategy-group-block-label">新建策略组：填名称、选策略，再用「用选中的 N 个 Mod 建组」（Mod 在 Mod 管理页勾选）</p>
+          <p class="strategy-group-block-label" data-i18n="strategyGroups.window.blockLabel">新建策略组：填名称、选策略，再用「用选中的 N 个 Mod 建组」（Mod 在 Mod 管理页勾选）</p>
           <div class="addonlist-action-row settings-profile-capture-row">
             <input
               type="text"
@@ -2593,14 +2593,14 @@
               maxlength="60"
               placeholder="新策略组的名称，例如 角色替换包"
               title="这是新建组的名称输入框，不是搜索框；搜索在下面那一行"
-            >
-            <select id="strategy-group-strategy" class="settings-strategy-select" aria-label="策略类型">
-              <option value="single">互斥单选（保留当前启用的一个）</option>
-              <option value="single_random">随机单选</option>
-              <option value="all">全部开启</option>
-              <option value="off">全部关闭</option>
+             data-i18n-placeholder="strategyGroups.window.namePlaceholder" data-i18n-title="strategyGroups.window.nameTitle">
+            <select id="strategy-group-strategy" class="settings-strategy-select" aria-label="策略类型" data-i18n-aria-label="strategyGroups.window.strategyAria">
+              <option value="single" data-i18n="strategyGroups.window.strategySingle">互斥单选（保留当前启用的一个）</option>
+              <option value="single_random" data-i18n="strategyGroups.strategy.singleRandom">随机单选</option>
+              <option value="all" data-i18n="strategyGroups.strategy.all">全部开启</option>
+              <option value="off" data-i18n="strategyGroups.strategy.off">全部关闭</option>
             </select>
-            <button type="button" id="strategy-group-capture" class="btn btn-small btn-primary" disabled>用选中的 Mod 建组</button>
+            <button type="button" id="strategy-group-capture" class="btn btn-small btn-primary" disabled data-i18n="mods.toolbar.groupCapture">用选中的 Mod 建组</button>
           </div>
           <!-- 搜索组：按组名 / 成员名过滤下面的组列表，「全选」只作用于搜索结果。 -->
           <div class="strategy-group-search-row">
@@ -2611,7 +2611,7 @@
               placeholder="搜索策略组（组名 / 成员名 / 描述；支持 -排除 / re: 正则 / tag:状态）…"
               aria-label="搜索策略组"
               autocomplete="off"
-            >
+             data-i18n-placeholder="strategyGroups.window.searchPlaceholder" data-i18n-aria-label="strategyGroups.window.searchAria">
             <button
               type="button"
               id="strategy-group-search-help-btn"
@@ -2619,52 +2619,52 @@
               title="搜索语法说明书"
               aria-expanded="false"
               aria-controls="strategy-group-search-help-popover"
-            >?</button>
+             data-i18n-title="strategyGroups.window.helpTooltip">?</button>
             <div
               id="strategy-group-search-help-popover"
               class="search-help-popover hidden"
               role="dialog"
               aria-label="策略组搜索语法说明书"
-            ></div>
+             data-i18n-aria-label="strategyGroups.window.helpDialogLabel"></div>
             <span id="strategy-group-visible" class="strategy-group-visible" aria-live="polite"></span>
           </div>
           <p id="strategy-group-status" class="setting-row-status" aria-live="polite"></p>
-          <div class="strategy-group-drag-hint">提示：直接拖动组名所在的整行来整理层级 —— 拖到别的组中间＝变成它的子组，拖到行的上/下边缘＝排到它前/后，拖到最下面的「回到顶层」＝取消上级。最多 4 层。</div>
+          <div class="strategy-group-drag-hint" data-i18n="strategyGroups.window.dragHint">提示：直接拖动组名所在的整行来整理层级 —— 拖到别的组中间＝变成它的子组，拖到行的上/下边缘＝排到它前/后，拖到最下面的「回到顶层」＝取消上级。最多 4 层。</div>
           <!-- 定位条：从 Mod 列表的「组：xxx」徽标点进来时出现，列出这个 Mod 所属的全部组。
                粘在滚动区顶部，滚到列表下半部分时它还在（否则等于没用）。 -->
           <div id="strategy-group-focus" class="strategy-group-focus hidden" aria-live="polite"></div>
           <div id="strategy-group-list" class="settings-profile-list strategy-group-list"></div>
-          <div id="strategy-group-drop-root" class="strategy-group-drop-root">拖到这里 → 变成顶层组</div>
+          <div id="strategy-group-drop-root" class="strategy-group-drop-root" data-i18n="strategyGroups.window.dropRoot">拖到这里 → 变成顶层组</div>
         </div>
         <!-- 组级批量：勾选策略组后出现。和成员批量条一样固定在窗口底部，
              否则滚到列表下半部分勾选组时，工具条留在滚动区顶部看不见。 -->
         <div class="settings-strategy-batch strategy-group-dock-bar hidden" id="strategy-group-batch">
-          <label class="settings-strategy-batch-pick-all" title="全选 / 取消全选当前的策略组列表">
+          <label class="settings-strategy-batch-pick-all" title="全选 / 取消全选当前的策略组列表" data-i18n-title="strategyGroups.window.batchGroupsPickAllTitle">
             <input type="checkbox" id="strategy-group-select-all">
-            <span>全选</span>
+            <span data-i18n="mods.status.selectAll">全选</span>
           </label>
           <span id="strategy-group-selection" class="settings-strategy-selection" aria-live="polite"></span>
-          <button type="button" id="strategy-group-batch-delete" class="settings-strategy-batch-btn is-danger" disabled>批量删除</button>
-          <button type="button" id="strategy-group-batch-enforce-on" class="settings-strategy-batch-btn" disabled>开启自动联动</button>
-          <button type="button" id="strategy-group-batch-enforce-off" class="settings-strategy-batch-btn" disabled>关闭自动联动</button>
-          <span class="settings-strategy-batch-tier" title="批量设置组权重：叠加到组内成员的有效分层；数值越小越先加载。留空并点「清除权重」表示取消权重。">
-            <input type="number" id="strategy-group-batch-tier-input" class="settings-strategy-tier-input" placeholder="权重" aria-label="批量组权重">
-            <button type="button" id="strategy-group-batch-tier-save" class="settings-strategy-batch-btn" disabled>设置权重</button>
-          <button type="button" id="strategy-group-batch-tier-clear" class="settings-strategy-batch-btn" disabled>清除权重</button>
+          <button type="button" id="strategy-group-batch-delete" class="settings-strategy-batch-btn is-danger" disabled data-i18n="mods.batch.delete">批量删除</button>
+          <button type="button" id="strategy-group-batch-enforce-on" class="settings-strategy-batch-btn" disabled data-i18n="strategyGroups.window.batchEnforceOn">开启自动联动</button>
+          <button type="button" id="strategy-group-batch-enforce-off" class="settings-strategy-batch-btn" disabled data-i18n="strategyGroups.window.batchEnforceOff">关闭自动联动</button>
+          <span class="settings-strategy-batch-tier" title="批量设置组权重：叠加到组内成员的有效分层；数值越小越先加载。留空并点「清除权重」表示取消权重。" data-i18n-title="strategyGroups.window.batchTierTitle">
+            <input type="number" id="strategy-group-batch-tier-input" class="settings-strategy-tier-input" placeholder="权重" aria-label="批量组权重" data-i18n-placeholder="strategyGroups.window.batchTierPlaceholder" data-i18n-aria-label="strategyGroups.window.batchTierAria">
+            <button type="button" id="strategy-group-batch-tier-save" class="settings-strategy-batch-btn" disabled data-i18n="strategyGroups.window.batchTierSet">设置权重</button>
+          <button type="button" id="strategy-group-batch-tier-clear" class="settings-strategy-batch-btn" disabled data-i18n="strategyGroups.window.batchTierClear">清除权重</button>
           </span>
-          <button type="button" id="strategy-group-batch-filter" class="settings-strategy-batch-btn" title="只显示属于这些组的 Mod（等同于主界面「按分组筛选」勾上同样几个组）" disabled>用选中的组筛选</button>
-            <button type="button" id="strategy-group-batch-filter-clear" class="settings-strategy-batch-btn" title="恢复显示全部 Mod（清除「按分组筛选」）" disabled>清除筛选</button>
+          <button type="button" id="strategy-group-batch-filter" class="settings-strategy-batch-btn" title="只显示属于这些组的 Mod（等同于主界面「按分组筛选」勾上同样几个组）" disabled data-i18n-title="strategyGroups.window.batchFilterTitle" data-i18n="strategyGroups.window.batchFilterApply">用选中的组筛选</button>
+            <button type="button" id="strategy-group-batch-filter-clear" class="settings-strategy-batch-btn" title="恢复显示全部 Mod（清除「按分组筛选」）" disabled data-i18n-title="strategyGroups.window.batchFilterClearTitle" data-i18n="strategyGroups.window.batchFilterClear">清除筛选</button>
             <span id="strategy-group-filter-state" class="strategy-group-filter-state" aria-live="polite"></span>
-            <button type="button" id="strategy-group-clear-all" class="settings-strategy-batch-btn" title="取消全部勾选（包括被搜索筛掉、列表里看不见的组）">取消全部勾选</button>
+            <button type="button" id="strategy-group-clear-all" class="settings-strategy-batch-btn" title="取消全部勾选（包括被搜索筛掉、列表里看不见的组）" data-i18n-title="strategyGroups.window.batchClearAllTitle" data-i18n="strategyGroups.window.batchClearAll">取消全部勾选</button>
             <span id="strategy-group-batch-hint" class="strategy-group-batch-hint" aria-live="polite"></span>
           </div>
         <!-- 成员级批量：展开成员后勾选多行，一次处理多个 Mod（与每行右侧的单行按钮同义）。
              放在滚动区**外面**（窗口底部固定），否则滚下去看成员时它会跟着滚出视野 —— 之前就是这样，
              用户只能看到组头的「全关」，看不到这里才是真正的批量入口。 -->
         <div class="settings-strategy-batch settings-strategy-member-batch strategy-group-dock-bar hidden" id="strategy-group-member-batch">
-          <label class="settings-strategy-batch-pick-all" title="全选 / 取消全选「当前展开的组」里的成员；不会动别的组已经勾上的">
+          <label class="settings-strategy-batch-pick-all" title="全选 / 取消全选「当前展开的组」里的成员；不会动别的组已经勾上的" data-i18n-title="strategyGroups.window.batchMembersPickAllTitle">
             <input type="checkbox" id="strategy-group-member-select-all">
-            <span>全选展开的成员</span>
+            <span data-i18n="strategyGroups.window.memberSelectAll">全选展开的成员</span>
           </label>
           <button
             type="button"
@@ -2672,7 +2672,7 @@
             class="settings-strategy-batch-btn"
             aria-pressed="false"
             title="勾选当前所有策略组的全部成员"
-          >
+           data-i18n="strategyGroups.window.memberSelectAllGroups">
             全选所有组
           </button>
           <button
@@ -2680,20 +2680,20 @@
             id="strategy-group-member-clear-all"
             class="settings-strategy-batch-btn"
             title="取消全部勾选（包括折叠起来的组里的）"
-          >
+           data-i18n="strategyGroups.window.memberClearAll">
             取消全部勾选
           </button>
           <span id="strategy-group-member-selection" class="settings-strategy-selection" aria-live="polite"></span>
-          <button type="button" id="strategy-group-member-batch-game-on" class="settings-strategy-batch-btn" disabled>游戏内开启</button>
-          <button type="button" id="strategy-group-member-batch-game-off" class="settings-strategy-batch-btn" disabled>游戏内关闭</button>
-          <button type="button" id="strategy-group-member-batch-enable" class="settings-strategy-batch-btn" disabled>批量启用</button>
-          <button type="button" id="strategy-group-member-batch-disable" class="settings-strategy-batch-btn is-danger" disabled>批量禁用</button>
-          <button type="button" id="strategy-group-member-batch-transfer" class="settings-strategy-batch-btn" disabled>复制到 addons</button>
-          <button type="button" id="strategy-group-member-batch-remove" class="settings-strategy-batch-btn is-danger" disabled>移出本组</button>
+          <button type="button" id="strategy-group-member-batch-game-on" class="settings-strategy-batch-btn" disabled data-i18n="strategyGroups.window.memberGameOn">游戏内开启</button>
+          <button type="button" id="strategy-group-member-batch-game-off" class="settings-strategy-batch-btn" disabled data-i18n="strategyGroups.window.memberGameOff">游戏内关闭</button>
+          <button type="button" id="strategy-group-member-batch-enable" class="settings-strategy-batch-btn" disabled data-i18n="mods.batch.enable">批量启用</button>
+          <button type="button" id="strategy-group-member-batch-disable" class="settings-strategy-batch-btn is-danger" disabled data-i18n="mods.batch.disable">批量禁用</button>
+          <button type="button" id="strategy-group-member-batch-transfer" class="settings-strategy-batch-btn" disabled data-i18n="strategyGroups.window.memberTransfer">复制到 addons</button>
+          <button type="button" id="strategy-group-member-batch-remove" class="settings-strategy-batch-btn is-danger" disabled data-i18n="strategyGroups.window.memberRemove">移出本组</button>
           <span id="strategy-group-member-batch-hint" class="strategy-group-batch-hint" aria-live="polite"></span>
         </div>
         <div class="modal-footer">
-          <button id="strategy-group-close-footer-btn" class="btn btn-secondary" type="button">关闭</button>
+          <button id="strategy-group-close-footer-btn" class="btn btn-secondary" type="button" data-i18n="strategyGroups.window.close">关闭</button>
         </div>
       </div>
     </div>
@@ -2702,21 +2702,21 @@
     <div id="mod-group-suggest-modal" class="modal hidden">
       <div class="modal-content mod-group-suggest-content">
         <div class="modal-header">
-          <h3>分组建议</h3>
-          <button id="mod-group-suggest-close-btn" class="close-btn" type="button" aria-label="关闭">&times;</button>
+          <h3 data-i18n="mods.toolbar.groupSuggest">分组建议</h3>
+          <button id="mod-group-suggest-close-btn" class="close-btn" type="button" aria-label="关闭" data-i18n-aria-label="modals.closeAria">&times;</button>
         </div>
         <div class="mod-group-suggest-body">
           <!-- 工具行 + 筛选栏合成一条停靠区：两条都吸在滚动区顶部，
               不会互相盖住，也不会在翻建议列表时被滚走。 -->
           <div class="mod-group-suggest-dock">
           <div class="mod-group-suggest-toolbar">
-            <button id="mod-group-suggest-refresh-btn" class="btn btn-small btn-outline" type="button">重新推导</button>
+            <button id="mod-group-suggest-refresh-btn" class="btn btn-small btn-outline" type="button" data-i18n="strategyGroups.suggest.refresh">重新推导</button>
             <button
               id="mod-group-suggest-import-btn"
               class="btn btn-small btn-outline"
               type="button"
               title="导入标准格式的组建议文件（大模型 / 人工 / 外部脚本写好的结果）"
-            >
+             data-i18n-title="strategyGroups.suggest.importTitle" data-i18n="strategyGroups.suggest.import">
               导入建议文件…
             </button>
             <button
@@ -2724,7 +2724,7 @@
               class="btn btn-small btn-outline"
               type="button"
               title="先重新扫描一遍 mod 目录（保证清单是最新状态），再导出当前 Mod 的分组用元数据（键、标题、作者、标签、主体、语音角色），交给大模型分析"
-            >
+             data-i18n-title="strategyGroups.suggest.exportTitle" data-i18n="strategyGroups.suggest.export">
               导出 Mod 清单…
             </button>
             <button
@@ -2732,7 +2732,7 @@
               class="btn btn-small btn-primary"
               type="button"
               title="一步到位：先重新扫描一遍 mod 目录（保证材料是最新状态），再导出 Mod 清单 + 复制交给智能体（agent）的提示词，提示词里已填好清单路径与建议文件路径"
-            >
+             data-i18n-title="strategyGroups.suggest.prepareTitle" data-i18n="strategyGroups.suggest.prepare">
               准备给智能体的材料
             </button>
             <button
@@ -2740,7 +2740,7 @@
               class="btn btn-small btn-outline"
               type="button"
               title="编辑交给智能体的提示词：默认用 LytVPK 填好的一套，可以改成你自己的，也可以随时恢复默认"
-            >
+             data-i18n-title="strategyGroups.suggest.promptTitle" data-i18n="strategyGroups.suggest.prompt">
               编辑提示词…
             </button>
             <button
@@ -2748,7 +2748,7 @@
               class="btn btn-small btn-outline"
               type="button"
               title="移除已导入的建议文件；不会删除任何 Mod 或已创建的策略组"
-            >
+             data-i18n-title="strategyGroups.suggest.clearTitle" data-i18n="strategyGroups.suggest.clear">
               清除导入
             </button>
             <span id="mod-group-suggest-summary" class="mod-group-suggest-summary" aria-live="polite"></span>
@@ -2760,40 +2760,40 @@
               type="search"
               placeholder="搜索组建议（组名 / 成员名 / 信号）…"
               aria-label="搜索分组建议"
-            >
-            <select id="mod-group-suggest-confidence" class="mod-group-suggest-select" aria-label="按置信度筛选">
-              <option value="">全部置信度</option>
-              <option value="high">仅高置信度</option>
-              <option value="medium">仅中置信度</option>
-              <option value="low">仅低置信度</option>
+             data-i18n-placeholder="strategyGroups.suggest.searchPlaceholder" data-i18n-aria-label="strategyGroups.suggest.searchAria">
+            <select id="mod-group-suggest-confidence" class="mod-group-suggest-select" aria-label="按置信度筛选" data-i18n-aria-label="strategyGroups.suggest.confidenceAria">
+              <option value="" data-i18n="strategyGroups.suggest.confidenceAll">全部置信度</option>
+              <option value="high" data-i18n="strategyGroups.suggest.confidenceHigh">仅高置信度</option>
+              <option value="medium" data-i18n="strategyGroups.suggest.confidenceMedium">仅中置信度</option>
+              <option value="low" data-i18n="strategyGroups.suggest.confidenceLow">仅低置信度</option>
             </select>
-            <select id="mod-group-suggest-source" class="mod-group-suggest-select" aria-label="按来源筛选">
-              <option value="">全部来源</option>
-              <option value="external">仅导入建议</option>
-              <option value="builtin">仅内置推导</option>
+            <select id="mod-group-suggest-source" class="mod-group-suggest-select" aria-label="按来源筛选" data-i18n-aria-label="strategyGroups.suggest.sourceAria">
+              <option value="" data-i18n="strategyGroups.suggest.sourceAll">全部来源</option>
+              <option value="external" data-i18n="strategyGroups.suggest.sourceImported">仅导入建议</option>
+              <option value="builtin" data-i18n="strategyGroups.suggest.sourceBuiltin">仅内置推导</option>
             </select>
-            <select id="mod-group-suggest-sort" class="mod-group-suggest-select" aria-label="排序方式">
-              <option value="recommended">推荐顺序</option>
-              <option value="confidence">置信度优先</option>
-              <option value="members">成员多优先</option>
-              <option value="name">名称顺序</option>
+            <select id="mod-group-suggest-sort" class="mod-group-suggest-select" aria-label="排序方式" data-i18n-aria-label="strategyGroups.suggest.sortAria">
+              <option value="recommended" data-i18n="strategyGroups.suggest.sortRecommended">推荐顺序</option>
+              <option value="confidence" data-i18n="strategyGroups.suggest.sortConfidence">置信度优先</option>
+              <option value="members" data-i18n="strategyGroups.suggest.sortMembers">成员多优先</option>
+              <option value="name" data-i18n="strategyGroups.suggest.sortName">名称顺序</option>
             </select>
             <select
               id="mod-group-suggest-tag-covered"
               class="mod-group-suggest-select"
               aria-label="标签已覆盖的建议"
               title="标签恰好只能筛出这一批 Mod 时，直接用标签筛选即可，不必再建组"
-            >
-              <option value="hide">隐藏标签已覆盖</option>
-              <option value="show">显示全部</option>
-              <option value="only">只看标签已覆盖</option>
+             data-i18n-aria-label="strategyGroups.suggest.tagCoveredAria" data-i18n-title="strategyGroups.suggest.tagCoveredTitle">
+              <option value="hide" data-i18n="strategyGroups.suggest.tagCoveredHide">隐藏标签已覆盖</option>
+              <option value="show" data-i18n="strategyGroups.suggest.tagCoveredShow">显示全部</option>
+              <option value="only" data-i18n="strategyGroups.suggest.tagCoveredOnly">只看标签已覆盖</option>
             </select>
-            <button id="mod-group-suggest-expand-all-btn" class="btn btn-small btn-outline" type="button" title="展开全部建议的成员列表">全部展开</button>
-            <button id="mod-group-suggest-collapse-all-btn" class="btn btn-small btn-outline" type="button" title="只保留每条建议的摘要，方便快速浏览">全部折叠</button>
+            <button id="mod-group-suggest-expand-all-btn" class="btn btn-small btn-outline" type="button" title="展开全部建议的成员列表" data-i18n-title="strategyGroups.suggest.expandAllTitle" data-i18n="strategyGroups.suggest.expandAll">全部展开</button>
+            <button id="mod-group-suggest-collapse-all-btn" class="btn btn-small btn-outline" type="button" title="只保留每条建议的摘要，方便快速浏览" data-i18n-title="strategyGroups.suggest.collapseAllTitle" data-i18n="strategyGroups.suggest.collapseAll">全部折叠</button>
             <span id="mod-group-suggest-filter-summary" class="mod-group-suggest-summary" aria-live="polite"></span>
           </div>
           </div>
-          <p class="mod-group-suggest-hint">
+          <p class="mod-group-suggest-hint" data-i18n="strategyGroups.suggest.hint">
             下面是"可能属于同一组"的候选：可以取消勾选个别 Mod、修改组名，确认后再点“创建为组”。
             默认只显示每条建议的摘要，点「展开」查看成员与逐个操作；窗口右下角可以拖动缩放。
             推导只做只读扫描（工坊合集成员、文件夹结构、同名文件的不同版本、文件名前缀、共同标签、
@@ -2807,7 +2807,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button id="mod-group-suggest-close-footer-btn" class="btn btn-secondary" type="button">关闭</button>
+          <button id="mod-group-suggest-close-footer-btn" class="btn btn-secondary" type="button" data-i18n="strategyGroups.suggest.close">关闭</button>
         </div>
       </div>
     </div>
@@ -2842,8 +2842,8 @@
                     <path d="M12 17h.01"></path>
                   </svg>
                 </span>
-                发现
-                <span id="conflict-count">0</span> 组冲突
+                <span data-i18n="conflicts.summaryPrefix">发现</span>
+                <span id="conflict-count">0</span> <span data-i18n="conflicts.summarySuffix">组冲突</span>
               </div>
               <div id="conflict-scope-summary" class="conflict-scope-summary" aria-live="polite"></div>
               <div class="conflict-filters">
@@ -2851,16 +2851,16 @@
                   type="button"
                   class="btn btn-small filter-btn active"
                   data-filter="critical"
-                >
+                 data-i18n="settings.health.severity.critical">
                   严重
                 </button>
-                <button type="button" class="btn btn-small filter-btn" data-filter="warning">
+                <button type="button" class="btn btn-small filter-btn" data-filter="warning" data-i18n="settings.health.severity.warning">
                   警告
                 </button>
-                <button type="button" class="btn btn-small filter-btn" data-filter="info">
+                <button type="button" class="btn btn-small filter-btn" data-filter="info" data-i18n="conflicts.filterInfo">
                   普通
                 </button>
-                <button type="button" class="btn btn-small filter-btn" data-filter="all">
+                <button type="button" class="btn btn-small filter-btn" data-filter="all" data-i18n="conflicts.filterAll">
                   全部
                 </button>
               </div>
@@ -2873,7 +2873,7 @@
                   placeholder="搜索资源路径或 Mod 名（支持 -排除 / re: 正则 / tag:状态）"
                   aria-label="搜索冲突"
                   autocomplete="off"
-                >
+                 data-i18n-placeholder="conflicts.searchPlaceholder" data-i18n-aria-label="conflicts.searchAria">
                 <button
                   type="button"
                   id="conflict-search-help-btn"
@@ -2881,13 +2881,13 @@
                   title="搜索语法说明书"
                   aria-expanded="false"
                   aria-controls="conflict-search-help-popover"
-                >?</button>
+                 data-i18n-title="conflicts.searchHelpTooltip">?</button>
                 <div
                   id="conflict-search-help-popover"
                   class="search-help-popover hidden"
                   role="dialog"
                   aria-label="冲突搜索语法说明书"
-                ></div>
+                 data-i18n-aria-label="conflicts.searchHelpDialogLabel"></div>
                 <span id="conflict-search-count" class="conflict-search-count" aria-live="polite"></span>
               </div>
               <div id="conflict-filter-desc" class="conflict-filter-desc">
@@ -2901,11 +2901,11 @@
             <!-- 优先级感知模式：胜负已判定的覆盖关系，不计入冲突 -->
             <div id="conflict-override-section" class="conflict-override-section hidden">
               <div class="conflict-override-header">
-                <span class="severity-badge override">覆盖</span>
-                <span class="conflict-override-title">已判定覆盖关系</span>
+                <span class="severity-badge override" data-i18n="conflicts.overrideBadge">覆盖</span>
+                <span class="conflict-override-title" data-i18n="conflicts.overrideTitle">已判定覆盖关系</span>
                 <span id="conflict-override-count" class="conflict-override-count">0 组</span>
               </div>
-              <p class="conflict-override-hint">
+              <p class="conflict-override-hint" data-i18n="conflicts.overrideHint">
                 这些 Mod 共享同一资源，但都在 addonlist.txt 中记录了加载顺序，胜负已确定（顺序靠后者生效），因此不再计为冲突。
               </p>
               <div id="conflict-override-list" class="conflict-list"></div>
@@ -2914,11 +2914,11 @@
             <!-- 单 Mod 忽略清单：这些重叠因为 Mod 自己的规则被跳过 -->
             <div id="conflict-mod-ignore-section" class="conflict-mod-ignore-section hidden">
               <div class="conflict-mod-ignore-header">
-                <span class="severity-badge info">已忽略</span>
-                <span class="conflict-mod-ignore-title">因 Mod 自身的忽略规则跳过</span>
+                <span class="severity-badge info" data-i18n="conflicts.modIgnoreBadge">已忽略</span>
+                <span class="conflict-mod-ignore-title" data-i18n="conflicts.modIgnoreTitle">因 Mod 自身的忽略规则跳过</span>
                 <span id="conflict-mod-ignore-count" class="conflict-mod-ignore-count">0 项</span>
               </div>
-              <p class="conflict-mod-ignore-hint">
+              <p class="conflict-mod-ignore-hint" data-i18n="conflicts.modIgnoreHint">
                 这些路径本来会参与重叠判定，但对应的 Mod 自己声明"不提供该文件"（对齐 FireAxe 的
                 ConflictIgnoringFiles 语义），因此退出了判定。可在 Mod 详情的"该 Mod 的冲突忽略文件"里调整。
               </p>
@@ -2927,8 +2927,8 @@
             <!-- 变更驱动复检给出的修复建议（仅建议，需要用户确认） -->
             <div id="conflict-fix-section" class="conflict-fix-section hidden">
               <div class="conflict-fix-header">
-                <span class="severity-badge info">建议</span>
-                <span class="conflict-fix-title">修复建议（需要你确认）</span>
+                <span class="severity-badge info" data-i18n="conflicts.fixBadge">建议</span>
+                <span class="conflict-fix-title" data-i18n="conflicts.fixTitle">修复建议（需要你确认）</span>
                 <span id="conflict-fix-count" class="conflict-fix-count">0 条</span>
                 <button
                   type="button"
@@ -2940,8 +2940,8 @@
               </div>
               <div id="conflict-fix-body" class="conflict-fix-body hidden">
                 <p class="conflict-fix-hint">
-                  这些建议只写入 <code>priority.json</code>；真正重排 <code>addonlist.txt</code> 仍需要你在
-                  “编辑加载顺序”里点“按分层应用”。应用不会自动改动任何 Mod 文件。
+                  <span data-i18n="conflicts.fixHintBefore">这些建议只写入</span> <code>priority.json</code><span data-i18n="conflicts.fixHintMid">；真正重排</span> <code>addonlist.txt</code> <span data-i18n="conflicts.fixHintAfter">仍需要你在
+                  “编辑加载顺序”里点“按分层应用”。应用不会自动改动任何 Mod 文件。</span>
                 </p>
                 <div id="conflict-fix-list" class="conflict-fix-list"></div>
               </div>
@@ -2964,7 +2964,7 @@
           <button class="btn btn-primary" id="start-conflict-check-btn" type="button">
             开始检测
           </button>
-          <button class="btn btn-secondary" id="close-conflict-btn" type="button">
+          <button class="btn btn-secondary" id="close-conflict-btn" type="button" data-i18n="conflicts.close">
             关闭
           </button>
         </div>
@@ -2974,62 +2974,62 @@
     <div id="conflict-scope-modal" class="modal hidden" aria-labelledby="conflict-scope-title">
       <div class="modal-content conflict-scope-modal-content">
         <div class="modal-header">
-          <h2 id="conflict-scope-title">冲突分析对比范围</h2>
+          <h2 id="conflict-scope-title" data-i18n="conflicts.scope.title">冲突分析对比范围</h2>
           <button class="close-btn" id="close-conflict-scope-modal" type="button">&times;</button>
         </div>
         <div class="modal-body conflict-scope-body">
           <div class="conflict-scope-intro">
-            <div><strong>分析目标：</strong><span id="conflict-scope-target-count">0 个当前筛选目标</span></div>
+            <div><strong data-i18n="conflicts.scope.targetLabel">分析目标：</strong><span id="conflict-scope-target-count">0 个当前筛选目标</span></div>
             <div id="conflict-scope-preview" class="conflict-scope-preview">当前：游戏内开启</div>
           </div>
           <fieldset class="conflict-scope-fieldset">
-            <legend>选择对比范围（可多选）</legend>
+            <legend data-i18n="conflicts.scope.rulesLegend">选择对比范围（可多选）</legend>
             <div class="conflict-scope-rule-grid">
               <label class="conflict-scope-rule-card">
                 <input type="checkbox" data-conflict-scope-rule="enabled" />
-                <span><strong>游戏内开启</strong><small>addonlist.txt 为 1 且不在 disabled</small></span>
+                <span><strong data-i18n="conflicts.scope.ruleEnabled">游戏内开启</strong><small data-i18n="conflicts.scope.ruleEnabledHint">addonlist.txt 为 1 且不在 disabled</small></span>
               </label>
               <label class="conflict-scope-rule-card">
                 <input type="checkbox" data-conflict-scope-rule="not_disabled" />
-                <span><strong>未禁用</strong><small>文件不在 disabled 目录</small></span>
+                <span><strong data-i18n="conflicts.scope.ruleNotDisabled">未禁用</strong><small data-i18n="conflicts.scope.ruleNotDisabledHint">文件不在 disabled 目录</small></span>
               </label>
               <label class="conflict-scope-rule-card">
                 <input type="checkbox" data-conflict-scope-rule="root" />
-                <span><strong>根目录 Mod</strong><small>当前 addons 目录下的文件</small></span>
+                <span><strong data-i18n="conflicts.scope.ruleRoot">根目录 Mod</strong><small data-i18n="conflicts.scope.ruleRootHint">当前 addons 目录下的文件</small></span>
               </label>
               <label class="conflict-scope-rule-card">
                 <input type="checkbox" data-conflict-scope-rule="workshop" />
-                <span><strong>创意工坊 Mod</strong><small>workshop 子目录下的文件</small></span>
+                <span><strong data-i18n="conflicts.scope.ruleWorkshop">创意工坊 Mod</strong><small data-i18n="conflicts.scope.ruleWorkshopHint">workshop 子目录下的文件</small></span>
               </label>
               <label class="conflict-scope-rule-card conflict-scope-tag-card">
                 <input type="checkbox" data-conflict-scope-rule="tag" />
-                <span><strong>拥有指定标签</strong><small>匹配主标签或附加标签</small></span>
-                <select id="conflict-scope-tag" aria-label="选择冲突对比标签"></select>
+                <span><strong data-i18n="conflicts.scope.ruleTag">拥有指定标签</strong><small data-i18n="conflicts.scope.ruleTagHint">匹配主标签或附加标签</small></span>
+                <select id="conflict-scope-tag" aria-label="选择冲突对比标签" data-i18n-aria-label="conflicts.scope.tagAria"></select>
               </label>
             </div>
           </fieldset>
           <fieldset class="conflict-scope-fieldset">
-            <legend>多个条件如何组合</legend>
-            <div class="conflict-scope-mode-switch" role="group" aria-label="条件组合方式">
-              <button type="button" class="btn btn-small conflict-scope-mode-btn" data-conflict-match-mode="and" aria-pressed="false">满足全部（AND）</button>
-              <button type="button" class="btn btn-small conflict-scope-mode-btn" data-conflict-match-mode="or" aria-pressed="false">满足任一（OR）</button>
+            <legend data-i18n="conflicts.scope.modeLegend">多个条件如何组合</legend>
+            <div class="conflict-scope-mode-switch" role="group" aria-label="条件组合方式" data-i18n-aria-label="conflicts.scope.modeGroupAria">
+              <button type="button" class="btn btn-small conflict-scope-mode-btn" data-conflict-match-mode="and" aria-pressed="false" data-i18n="conflicts.scope.modeAnd">满足全部（AND）</button>
+              <button type="button" class="btn btn-small conflict-scope-mode-btn" data-conflict-match-mode="or" aria-pressed="false" data-i18n="conflicts.scope.modeOr">满足任一（OR）</button>
             </div>
             <p class="conflict-scope-hint" id="conflict-scope-mode-hint">例如“游戏内开启 + 创意工坊”可只比较已开启的工坊 Mod；“根目录或创意工坊”可覆盖两类来源。</p>
           </fieldset>
           <fieldset class="conflict-scope-fieldset">
-            <legend>覆盖判定</legend>
+            <legend data-i18n="conflicts.scope.overrideLegend">覆盖判定</legend>
             <label class="conflict-scope-rule-card">
               <input type="checkbox" id="conflict-priority-aware" />
-              <span><strong>按加载顺序判定胜负</strong><small>能判定胜负的重叠归入“覆盖关系”，只有无法判定胜负的重叠才计为冲突</small></span>
+              <span><strong data-i18n="conflicts.scope.priorityLabel">按加载顺序判定胜负</strong><small data-i18n="conflicts.scope.priorityHint">能判定胜负的重叠归入“覆盖关系”，只有无法判定胜负的重叠才计为冲突</small></span>
             </label>
-            <p class="conflict-scope-hint">
+            <p class="conflict-scope-hint" data-i18n="conflicts.scope.footHint">
               需要读取 addonlist.txt：其中标记为关闭的 Mod 不参与判定；未写入 addonlist.txt 的 Mod 无法判定胜负，相关重叠仍会保留为冲突。
             </p>
           </fieldset>
         </div>
         <div class="modal-footer conflict-scope-footer">
-          <button class="btn btn-secondary" id="cancel-conflict-scope-btn" type="button">取消</button>
-          <button class="btn btn-primary" id="apply-conflict-scope-btn" type="button">应用并分析</button>
+          <button class="btn btn-secondary" id="cancel-conflict-scope-btn" type="button" data-i18n="conflicts.scope.cancel">取消</button>
+          <button class="btn btn-primary" id="apply-conflict-scope-btn" type="button" data-i18n="conflicts.scope.apply">应用并分析</button>
         </div>
       </div>
     </div>
@@ -3037,14 +3037,14 @@
     <div id="set-tags-modal" class="modal hidden">
       <div class="modal-content modal-small">
         <div class="modal-header">
-          <h2>设置自定义标签</h2>
+          <h2 data-i18n="modals.setTags.title">设置自定义标签</h2>
           <button id="close-set-tags-modal-btn" class="close-btn">
             &times;
           </button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="primary-tag-trigger" class="input-label">一级标签</label>
+            <label for="primary-tag-trigger" class="input-label" data-i18n="modals.setTags.primaryLabel">一级标签</label>
             <div
               id="primary-tag-dropdown"
               class="single-select-dropdown set-tags-primary-dropdown"
@@ -3062,26 +3062,26 @@
                 class="select-menu hidden"
                 role="listbox"
               >
-                <button type="button" class="select-option" data-value="" role="option">
+                <button type="button" class="select-option" data-value="" role="option" data-i18n="settings.addonlist.dependencies.none">
                   无
                 </button>
-                <button type="button" class="select-option" data-value="地图" role="option">
+                <button type="button" class="select-option" data-value="地图" role="option" data-i18n="servers.panel.status.map">
                   地图
                 </button>
-                <button type="button" class="select-option" data-value="人物" role="option">
+                <button type="button" class="select-option" data-value="人物" role="option" data-i18n="mods.rotation.type.character">
                   人物
                 </button>
-                <button type="button" class="select-option" data-value="武器" role="option">
+                <button type="button" class="select-option" data-value="武器" role="option" data-i18n="mods.rotation.type.weapon">
                   武器
                 </button>
-                <button type="button" class="select-option" data-value="其他" role="option">
+                <button type="button" class="select-option" data-value="其他" role="option" data-i18n="update.category.other">
                   其他
                 </button>
               </div>
             </div>
           </div>
           <div class="form-group mt-16">
-            <label class="input-label">二级标签</label>
+            <label class="input-label" data-i18n="modals.setTags.secondaryLabel">二级标签</label>
             <div id="secondary-tags-list" class="tags-container">
               <!-- Tags will be injected here -->
             </div>
@@ -3096,11 +3096,11 @@
                   aria-haspopup="listbox"
                   aria-expanded="false"
                   aria-controls="secondary-tag-suggestions"
-                />
+                 data-i18n-placeholder="modals.setTags.inputPlaceholder"/>
                 <button
                   id="add-secondary-tag-btn"
                   class="btn btn-small btn-primary ml-8"
-                >
+                 data-i18n="modals.setTags.add">
                   添加
                 </button>
               </div>
@@ -3113,14 +3113,14 @@
           </div>
         </div>
         <div class="modal-footer" style="justify-content: space-between">
-          <button id="clear-tags-btn" class="btn btn-danger-outline">
+          <button id="clear-tags-btn" class="btn btn-danger-outline" data-i18n="modals.setTags.reset">
             重置
           </button>
           <div style="display: flex; gap: 8px">
-            <button id="cancel-set-tags-btn" class="btn btn-secondary">
+            <button id="cancel-set-tags-btn" class="btn btn-secondary" data-i18n="modals.setTags.cancel">
               取消
             </button>
-            <button id="save-tags-btn" class="btn btn-primary">保存</button>
+            <button id="save-tags-btn" class="btn btn-primary" data-i18n="modals.setTags.save">保存</button>
           </div>
         </div>
       </div>
@@ -3130,9 +3130,9 @@
       <div class="modal-content modal-small">
         <div class="modal-header">
           <h2>
-            批量编辑标签
+            <span data-i18n="modals.batchSetTags.title">批量编辑标签</span>
             <span class="batch-tags-count">
-              已选中 <span id="batch-tags-file-count">0</span> 个文件
+              <span data-i18n="modals.batchSetTags.countPrefix">已选中</span> <span id="batch-tags-file-count">0</span> <span data-i18n="modals.batchSetTags.countSuffix">个文件</span>
             </span>
           </h2>
           <button id="close-batch-set-tags-modal-btn" class="close-btn">
@@ -3143,17 +3143,17 @@
           <!-- 一级标签区块 -->
           <section class="batch-tags-section">
             <div class="batch-tags-section-header">
-              <h3>一级标签</h3>
+              <h3 data-i18n="modals.batchSetTags.primaryLabel">一级标签</h3>
             </div>
             <div
               class="mode-toggle-group batch-mode-group"
               data-target="primary"
             >
               <span class="mode-toggle-slider" aria-hidden="true"></span>
-              <button class="mode-option active" data-mode="keep">
+              <button class="mode-option active" data-mode="keep" data-i18n="modals.batchSetTags.primaryKeep">
                 不修改
               </button>
-              <button class="mode-option" data-mode="set">设置</button>
+              <button class="mode-option" data-mode="set" data-i18n="modals.batchSetTags.primarySet">设置</button>
             </div>
             <div
               class="batch-tags-action-area hidden"
@@ -3183,7 +3183,7 @@
                     class="select-option active"
                     data-value=""
                     role="option"
-                  >
+                   data-i18n="settings.addonlist.dependencies.none">
                     无
                   </button>
                   <button
@@ -3191,7 +3191,7 @@
                     class="select-option"
                     data-value="地图"
                     role="option"
-                  >
+                   data-i18n="servers.panel.status.map">
                     地图
                   </button>
                   <button
@@ -3199,7 +3199,7 @@
                     class="select-option"
                     data-value="人物"
                     role="option"
-                  >
+                   data-i18n="mods.rotation.type.character">
                     人物
                   </button>
                   <button
@@ -3207,7 +3207,7 @@
                     class="select-option"
                     data-value="武器"
                     role="option"
-                  >
+                   data-i18n="mods.rotation.type.weapon">
                     武器
                   </button>
                   <button
@@ -3215,7 +3215,7 @@
                     class="select-option"
                     data-value="其他"
                     role="option"
-                  >
+                   data-i18n="update.category.other">
                     其他
                   </button>
                 </div>
@@ -3226,18 +3226,18 @@
           <!-- 二级标签区块 -->
           <section class="batch-tags-section mt-16">
             <div class="batch-tags-section-header">
-              <h3>二级标签</h3>
+              <h3 data-i18n="modals.batchSetTags.secondaryLabel">二级标签</h3>
             </div>
             <div
               class="mode-toggle-group batch-mode-group"
               data-target="secondary"
             >
               <span class="mode-toggle-slider" aria-hidden="true"></span>
-              <button class="mode-option active" data-mode="keep">
+              <button class="mode-option active" data-mode="keep" data-i18n="modals.batchSetTags.secondaryKeep">
                 不修改
               </button>
-              <button class="mode-option" data-mode="append">追加</button>
-              <button class="mode-option" data-mode="set">设置</button>
+              <button class="mode-option" data-mode="append" data-i18n="modals.batchSetTags.secondaryAppend">追加</button>
+              <button class="mode-option" data-mode="set" data-i18n="modals.batchSetTags.secondarySet">设置</button>
             </div>
             <div
               class="batch-tags-action-area hidden"
@@ -3258,11 +3258,11 @@
                     aria-haspopup="listbox"
                     aria-expanded="false"
                     aria-controls="batch-secondary-tag-suggestions"
-                  />
+                   data-i18n-placeholder="modals.batchSetTags.inputPlaceholder"/>
                   <button
                     id="batch-add-secondary-tag-btn"
                     class="btn btn-small btn-primary ml-8"
-                  >
+                   data-i18n="modals.batchSetTags.add">
                     添加
                   </button>
                 </div>
@@ -3277,18 +3277,18 @@
           </section>
         </div>
         <div class="modal-footer" style="justify-content: space-between">
-          <button id="clear-batch-tags-btn" class="btn btn-danger-outline">
+          <button id="clear-batch-tags-btn" class="btn btn-danger-outline" data-i18n="modals.batchSetTags.reset">
             重置
           </button>
           <div style="display: flex; gap: 8px">
-            <button id="cancel-batch-set-tags-btn" class="btn btn-secondary">
+            <button id="cancel-batch-set-tags-btn" class="btn btn-secondary" data-i18n="modals.batchSetTags.cancel">
               取消
             </button>
             <button
               id="save-batch-set-tags-btn"
               class="btn btn-primary"
               disabled
-            >
+             data-i18n="modals.batchSetTags.save">
               保存
             </button>
           </div>
@@ -3488,8 +3488,8 @@
       <div class="modal-content model-stats-modal-content">
         <div class="modal-header model-stats-modal-header">
           <div>
-            <h2>Mod 模型面数检测 <span class="model-stats-beta-badge">Beta</span></h2>
-            <p>统计启用与创意工坊 Mod 的 LOD0 顶点数和三角形数量</p>
+            <h2><span data-i18n="toolbox.card.modelStats.title">Mod 模型面数检测</span> <span class="model-stats-beta-badge">Beta</span></h2>
+            <p data-i18n="toolbox.modelStats.subtitle">统计启用与创意工坊 Mod 的 LOD0 顶点数和三角形数量</p>
           </div>
           <button id="close-model-stats-modal-btn" class="close-btn" type="button">
             &times;
@@ -3502,14 +3502,14 @@
     <!-- 确认对话框 -->
     <!-- 命令面板（Ctrl+K）：一栏检索所有页面与常用动作 -->
     <div id="command-palette-modal" class="modal hidden" style="z-index: 21000">
-      <div class="modal-content command-palette-content" role="dialog" aria-label="命令面板">
+      <div class="modal-content command-palette-content" role="dialog" aria-label="命令面板" data-i18n-aria-label="app.shell.commandPalette.ariaLabel">
         <input
           type="text"
           id="command-palette-input"
           class="command-palette-input"
           placeholder="输入命令或页面名（例如：冲突 / 体检 / 工坊 / 字号）"
           autocomplete="off"
-        />
+         data-i18n-placeholder="app.shell.commandPalette.inputPlaceholder"/>
         <div id="command-palette-list" class="command-palette-list" role="listbox"></div>
         <div id="command-palette-hint" class="command-palette-hint" aria-live="polite"></div>
       </div>
