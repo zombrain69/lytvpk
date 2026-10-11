@@ -1,5 +1,26 @@
 # Changelog
 
+## 未发布 — i18n：建议/提示词阅览层 + 管理窗口配套小模块迁移（第 13 项第六批）（2026-10-11）
+
+- `suggestion-filter.mjs`：四张选项表（置信度 / 来源 / 排序 / 标签覆盖）的 `label` 改
+  `labelKey`（与 index.html 静态下拉使用同一批 key；表本身暂无 JS 消费方，静态下拉为准）；
+  筛选计数文案（没有符合筛选条件的建议 / 显示 N / M 条建议（还有 K 条未显示））改走目录。
+- `agent-prompt-view.mjs` + `agent-prompt.js`（智能体提示词编辑器）：状态行（默认 / 自定义 /
+  保存时间 / 未保存提示）、保存与恢复默认结果、占位符按钮 tooltip、四条错误、恢复默认确认弹窗
+  全文改走目录（`strategyGroups.agentPrompt.*`）。
+- `strategy-group-filter.mjs`（管理窗口组搜索）：`tag:` 分类值 key 表（全开 / 全关 / 单选 /
+  随机单选 / 子组 / 顶层；「自动联动」复用 `common.enforce`）、计数文案（共 N 个组 / 显示 N / M 个组 /
+  没有匹配的组（共 N 个）/ 名词「个组」）与批量工具条提示改走目录。
+- `member-batch.mjs`（窗口成员批量条）：空态标题、缺失备注与跳过备注、六个按钮的两个态文案、
+  选择计数（含未展开组提示）、结果汇总（已{label} N 个成员 / 跳过 / 失败 / 首个失败原因）改走目录；
+  `describeMemberBatchActions` 内的局部变量 `t`（targets 别名）改名为 `sums`——否则会遮蔽 i18n 的 `t()`。
+- 目录新增 50 key：`agentPrompt.*` 14 + `memberBatch.*` 21 + `suggest.summary.*` 3 +
+  `filter` 增补 10 + `selection` 增补 2；既有条目值零改动。
+- 测试：`suggestion-filter.test.mjs` / `agent-prompt-view.test.mjs` / `member-batch.test.mjs`
+  注入 `installTestCatalog()`（`strategy-group-filter.test.mjs` 此前已注入）。
+- 验证：`node --test`（frontend）571 项 0 失败；`npm run build` 通过；
+  `go test ./...` / `go vet ./...` 全 ok。zh-CN 下用户可见文案逐字不变。
+
 ## 未发布 — i18n：组成员操作家族（group-picker / group-tag 迁移）（第 13 项第五批）（2026-10-11）
 
 - `group-picker-view.mjs`：行禁用原因五条、三种模式动词（静态表 `MODE_VERBS` → key 表

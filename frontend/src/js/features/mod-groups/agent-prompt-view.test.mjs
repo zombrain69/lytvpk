@@ -6,6 +6,9 @@ import {
   insertPromptPlaceholder,
   summarizePromptChange,
 } from "./agent-prompt-view.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 test("formatPromptStatus 区分默认与自定义", () => {
   assert.equal(

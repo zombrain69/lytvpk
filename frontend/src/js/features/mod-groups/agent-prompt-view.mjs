@@ -1,13 +1,16 @@
 // 「编辑智能体提示词」的纯文案/编辑逻辑（与 DOM 无关，node --test 覆盖）。
 
+import { t } from "../../core/i18n-runtime.js";
+
 /** formatPromptStatus 生成编辑器顶部的状态行。 */
 export function formatPromptStatus(state, currentText) {
+  const savedAt = state?.savedAt ? t("strategyGroups.agentPrompt.status.savedAt", { time: state.savedAt }) : "";
   const base = state?.isCustom
-    ? `当前使用：你自己的提示词${state?.savedAt ? `（保存于 ${state.savedAt}）` : ""}`
-    : "当前使用：LytVPK 内置默认提示词";
+    ? t("strategyGroups.agentPrompt.status.custom") + savedAt
+    : t("strategyGroups.agentPrompt.status.default");
   // state.text 是"上一次加载/保存"的内容：和它不一致就说明编辑器里有未保存的修改。
   const dirty = typeof currentText === "string" && currentText !== state?.text;
-  return dirty ? `${base} · 有未保存的修改` : base;
+  return dirty ? t("strategyGroups.agentPrompt.status.dirty", { base }) : base;
 }
 
 /** insertPromptPlaceholder 在光标处插入占位符，返回新文本与新光标位置。 */
@@ -27,8 +30,8 @@ export function insertPromptPlaceholder(text, placeholder, selectionStart, selec
 export function summarizePromptChange(action, state) {
   if (action === "reset") {
     return state?.isCustom
-      ? "已恢复默认（但文件仍存在，请重试）"
-      : "已恢复 LytVPK 内置默认提示词";
+      ? t("strategyGroups.agentPrompt.change.resetRetry")
+      : t("strategyGroups.agentPrompt.change.resetDone");
   }
-  return "已保存：以后「准备给智能体的材料」「复制提示词」「保存提示词…」都用这一套";
+  return t("strategyGroups.agentPrompt.change.saved");
 }

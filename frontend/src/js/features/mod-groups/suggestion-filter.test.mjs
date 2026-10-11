@@ -16,6 +16,9 @@ import {
   suggestionMatchesQuery,
   suggestionPreviewMembers,
 } from "./suggestion-filter.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 const suggestions = [
   {

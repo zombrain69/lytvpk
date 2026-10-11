@@ -8,6 +8,7 @@
 //   - 「游戏开关」只改 addonlist.txt 的 0/1，disabled 里的会被跳过。
 // 这里把"哪些按钮可用、为什么不可用"算清楚，界面照结果渲染。
 
+import { t } from "../../core/i18n-runtime.js";
 import { normalizeGroupKey } from "./group-view.mjs";
 
 /**
@@ -118,11 +119,11 @@ export function applyMemberScopeToggle(selection, scopeKeys, checked) {
  */
 export function formatMemberBatchSelectionLabel(count, hiddenCount = 0) {
   const total = Number(count) || 0;
-  if (total <= 0) return "先在成员行左侧勾选 Mod";
+  if (total <= 0) return t("strategyGroups.memberBatch.selectionNone");
   const hidden = Number(hiddenCount) || 0;
   return hidden > 0
-    ? `已选 ${total} 个成员（其中 ${hidden} 个在未展开的组里）`
-    : `已选 ${total} 个成员`;
+    ? t("strategyGroups.memberBatch.selectionHidden", { count: total, hidden })
+    : t("strategyGroups.memberBatch.selectionCount", { count: total });
 }
 
 // 成员批量条上的按钮顺序（与 index.html 一致）。
@@ -130,79 +131,80 @@ const MEMBER_BATCH_ACTION_IDS = ["game-on", "game-off", "enable", "disable", "tr
 
 // 一个成员都没勾选时，六个按钮的理由都是"还没选"。
 // 组级批量条（strategy-group-manager.js）也是这套说法，两处保持一致。
-const MEMBER_BATCH_EMPTY_TITLE = "先勾选要批量操作的成员（每行最左边的方框，或点「全选成员」）";
+const MEMBER_BATCH_EMPTY_KEY = "strategyGroups.memberBatch.emptyTitle";
 
 /**
  * describeMemberBatchActions 算出每个批量按钮是否可点、不可点时为什么。
  * 返回顺序与界面上的按钮顺序一致。
  */
 export function describeMemberBatchActions(targets) {
-  const t = targets || {};
-  if ((t.total || 0) === 0) {
+  const sums = targets || {};
+  if ((sums.total || 0) === 0) {
     // 原来这里回的是"没有可禁用的成员：只有 addons 根目录里的 Mod 能搬进 disabled" ——
     // 用户还没勾任何东西，这句话答非所问（真机联调时在策略组管理窗口复现）。
     return MEMBER_BATCH_ACTION_IDS.map((id) => ({
       id,
       disabled: true,
-      title: MEMBER_BATCH_EMPTY_TITLE,
+      title: t(MEMBER_BATCH_EMPTY_KEY),
     }));
   }
-  const game = (t.game || []).length;
-  const enable = (t.enable || []).length;
-  const disable = (t.disable || []).length;
-  const transfer = (t.transfer || []).length;
-  const missing = (t.missing || []).length;
-  const skipped = (t.gameSkipped || []).length;
+  const game = (sums.game || []).length;
+  const enable = (sums.enable || []).length;
+  const disable = (sums.disable || []).length;
+  const transfer = (sums.transfer || []).length;
+  const missing = (sums.missing || []).length;
+  const skipped = (sums.gameSkipped || []).length;
 
-  const missingNote = missing > 0 ? `；${missing} 个成员的文件当前不在列表里，会被忽略` : "";
+  const missingNote = missing > 0 ? t("strategyGroups.memberBatch.missingNote", { count: missing }) : "";
+  const skippedNote = skipped > 0 ? t("strategyGroups.memberBatch.gameSkipped", { count: skipped }) : "";
   return [
     {
       id: "game-on",
       disabled: game === 0,
       title:
         game === 0
-          ? `选中的成员都不能改游戏开关（都在 disabled 目录）${missingNote}`
-          : `把这些成员在 addonlist.txt 里设为开启${skipped > 0 ? `；${skipped} 个在 disabled 目录会被跳过` : ""}${missingNote}`,
+          ? t("strategyGroups.memberBatch.gameToggleBlocked", { note: missingNote })
+          : t("strategyGroups.memberBatch.gameOn", { skipped: skippedNote, note: missingNote }),
     },
     {
       id: "game-off",
       disabled: game === 0,
       title:
         game === 0
-          ? `选中的成员都不能改游戏开关（都在 disabled 目录）${missingNote}`
-          : `把这些成员在 addonlist.txt 里设为关闭${skipped > 0 ? `；${skipped} 个在 disabled 目录会被跳过` : ""}${missingNote}`,
+          ? t("strategyGroups.memberBatch.gameToggleBlocked", { note: missingNote })
+          : t("strategyGroups.memberBatch.gameOff", { skipped: skippedNote, note: missingNote }),
     },
     {
       id: "enable",
       disabled: enable === 0,
       title:
         enable === 0
-          ? `没有可启用的成员：只有 disabled 目录里的 Mod 需要搬回 addons${missingNote}`
-          : `把 ${enable} 个 disabled 里的成员搬回 addons${missingNote}`,
+          ? t("strategyGroups.memberBatch.enableNone", { note: missingNote })
+          : t("strategyGroups.memberBatch.enable", { count: enable, note: missingNote }),
     },
     {
       id: "disable",
       disabled: disable === 0,
       title:
         disable === 0
-          ? `没有可禁用的成员：只有 addons 根目录里的 Mod 能搬进 disabled${missingNote}`
-          : `把 ${disable} 个根目录成员搬进 disabled${missingNote}`,
+          ? t("strategyGroups.memberBatch.disableNone", { note: missingNote })
+          : t("strategyGroups.memberBatch.disable", { count: disable, note: missingNote }),
     },
     {
       id: "transfer",
       disabled: transfer === 0,
       title:
         transfer === 0
-          ? `没有可复制的成员：只有创意工坊里的 Mod 需要复制到 addons${missingNote}`
-          : `把 ${transfer} 个工坊成员复制到 addons（原件保留并关闭）${missingNote}`,
+          ? t("strategyGroups.memberBatch.transferNone", { note: missingNote })
+          : t("strategyGroups.memberBatch.transfer", { count: transfer, note: missingNote }),
     },
     {
       id: "remove",
-      disabled: (t.total || 0) === 0,
+      disabled: (sums.total || 0) === 0,
       title:
-        (t.total || 0) === 0
-          ? "先勾选要移出策略组的成员"
-          : "把勾选的成员从它们所属的策略组里移出（每个组至少要保留 1 个成员）",
+        (sums.total || 0) === 0
+          ? t("strategyGroups.memberBatch.removeNone")
+          : t("strategyGroups.memberBatch.removeTitle"),
     },
   ];
 }
@@ -252,10 +254,10 @@ export function formatMemberBatchResult({
   skipped = 0,
   firstError = "",
 }) {
-  const parts = [`已${label} ${succeeded} 个成员`];
-  if (skipped > 0) parts.push(`${skipped} 个不适用于这个动作，已跳过`);
-  if (failed > 0) parts.push(`${failed} 个失败`);
+  const parts = [t("strategyGroups.memberBatch.result.done", { label, count: succeeded })];
+  if (skipped > 0) parts.push(t("strategyGroups.memberBatch.result.skipped", { count: skipped }));
+  if (failed > 0) parts.push(t("strategyGroups.memberBatch.result.failed", { count: failed }));
   const summary = parts.join("；");
   const reason = String(firstError || "").trim();
-  return reason ? `${summary}（${reason}）` : summary;
+  return reason ? t("strategyGroups.memberBatch.result.reason", { summary, reason }) : summary;
 }

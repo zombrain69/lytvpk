@@ -5,6 +5,7 @@
 
 import { showConfirmModal } from "../modals/confirm.js";
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import {
   GetGroupSuggestionAgentPromptState,
   ResetGroupSuggestionAgentPrompt,
@@ -38,7 +39,7 @@ function renderPlaceholders() {
     button.type = "button";
     button.className = "agent-prompt-placeholder";
     button.textContent = placeholder;
-    button.title = "在光标处插入这个占位符";
+    button.title = t("strategyGroups.agentPrompt.placeholder.insertTitle");
     button.addEventListener("click", () => {
       const textarea = element("agent-prompt-text");
       if (!textarea) return;
@@ -64,7 +65,7 @@ export async function openAgentPromptEditor() {
   try {
     promptState = await GetGroupSuggestionAgentPromptState();
   } catch (error) {
-    showError("读取提示词失败: " + String(error?.message || error));
+    showError(t("strategyGroups.agentPrompt.error.readFailed", { error: String(error?.message || error) }));
     return;
   }
   const textarea = element("agent-prompt-text");
@@ -83,7 +84,7 @@ async function saveAgentPrompt() {
   const textarea = element("agent-prompt-text");
   const text = String(textarea?.value || "");
   if (!text.trim()) {
-    showError("提示词不能为空；如需回到内置版本请点「恢复默认」");
+    showError(t("strategyGroups.agentPrompt.error.empty"));
     return;
   }
   const button = element("agent-prompt-save-btn");
@@ -96,7 +97,7 @@ async function saveAgentPrompt() {
     showNotification(summarizePromptChange("save", promptState), "success");
     closeAgentPromptEditor();
   } catch (error) {
-    showError("保存提示词失败: " + String(error?.message || error));
+    showError(t("strategyGroups.agentPrompt.error.saveFailed", { error: String(error?.message || error) }));
   } finally {
     if (button) button.disabled = false;
   }
@@ -104,9 +105,8 @@ async function saveAgentPrompt() {
 
 function resetAgentPrompt() {
   showConfirmModal(
-    "恢复默认提示词",
-    "会把自定义提示词删掉，回到 LytVPK 内置的那一套（含处理范围、建议文件格式与自检要求）。\n" +
-      "已经复制/导出给智能体的文件不受影响。是否继续？",
+    t("strategyGroups.agentPrompt.reset.title"),
+    t("strategyGroups.agentPrompt.reset.message"),
     async () => {
       try {
         await ResetGroupSuggestionAgentPrompt();
@@ -116,7 +116,7 @@ function resetAgentPrompt() {
         refreshStatus();
         showNotification(summarizePromptChange("reset", promptState), "success");
       } catch (error) {
-        showError("恢复默认失败: " + String(error?.message || error));
+        showError(t("strategyGroups.agentPrompt.error.resetFailed", { error: String(error?.message || error) }));
       }
     },
   );

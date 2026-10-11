@@ -3,6 +3,8 @@
 // 与 DOM 无关，node --test 覆盖；弹窗（group-ui.js）只负责把结果渲染出来。
 // 设计目标：234 条建议时也能"先扫一遍、再决定看哪条"，而不是一屏只能看两条。
 
+import { t } from "../../core/i18n-runtime.js";
+
 /** 折叠后每页渲染的建议条数（点「显示更多」继续加载）。 */
 export const SUGGESTION_PAGE_SIZE = 24;
 
@@ -19,30 +21,31 @@ export const DEFAULT_SUGGESTION_FILTER = {
   sort: "recommended",
 };
 
+// 选项文案走目录（labelKey；与 index.html 静态下拉使用同一批 key）。
 export const SUGGESTION_CONFIDENCE_FILTERS = [
-  { value: "", label: "全部置信度" },
-  { value: "high", label: "仅高置信度" },
-  { value: "medium", label: "仅中置信度" },
-  { value: "low", label: "仅低置信度" },
+  { value: "", labelKey: "strategyGroups.suggest.confidenceAll" },
+  { value: "high", labelKey: "strategyGroups.suggest.confidenceHigh" },
+  { value: "medium", labelKey: "strategyGroups.suggest.confidenceMedium" },
+  { value: "low", labelKey: "strategyGroups.suggest.confidenceLow" },
 ];
 
 export const SUGGESTION_SOURCE_FILTERS = [
-  { value: "", label: "全部来源" },
-  { value: "external", label: "仅导入建议" },
-  { value: "builtin", label: "仅内置推导" },
+  { value: "", labelKey: "strategyGroups.suggest.sourceAll" },
+  { value: "external", labelKey: "strategyGroups.suggest.sourceImported" },
+  { value: "builtin", labelKey: "strategyGroups.suggest.sourceBuiltin" },
 ];
 
 export const SUGGESTION_SORT_OPTIONS = [
-  { value: "recommended", label: "推荐顺序" },
-  { value: "confidence", label: "置信度优先" },
-  { value: "members", label: "成员多优先" },
-  { value: "name", label: "名称顺序" },
+  { value: "recommended", labelKey: "strategyGroups.suggest.sortRecommended" },
+  { value: "confidence", labelKey: "strategyGroups.suggest.sortConfidence" },
+  { value: "members", labelKey: "strategyGroups.suggest.sortMembers" },
+  { value: "name", labelKey: "strategyGroups.suggest.sortName" },
 ];
 
 export const SUGGESTION_TAG_COVERAGE_FILTERS = [
-  { value: "hide", label: "隐藏标签已覆盖" },
-  { value: "show", label: "显示全部" },
-  { value: "only", label: "只看标签已覆盖" },
+  { value: "hide", labelKey: "strategyGroups.suggest.tagCoveredHide" },
+  { value: "show", labelKey: "strategyGroups.suggest.tagCoveredShow" },
+  { value: "only", labelKey: "strategyGroups.suggest.tagCoveredOnly" },
 ];
 
 /** isSuggestionTagCovered：标签恰好只能筛出这一批 Mod。 */
@@ -193,9 +196,11 @@ export function paginateSuggestions(suggestions, visibleCount = SUGGESTION_PAGE_
 
 /** formatSuggestionViewSummary 给筛选栏右侧的计数文案。 */
 export function formatSuggestionViewSummary({ total = 0, shown = 0, hidden = 0 } = {}) {
-  if (Number(total) <= 0) return "没有符合筛选条件的建议";
-  const base = `显示 ${shown} / ${total} 条建议`;
-  return Number(hidden) > 0 ? `${base}（还有 ${hidden} 条未显示）` : base;
+  if (Number(total) <= 0) return t("strategyGroups.suggest.summary.empty");
+  const base = t("strategyGroups.suggest.summary.shown", { shown, total });
+  return Number(hidden) > 0
+    ? t("strategyGroups.suggest.summary.hidden", { base, count: hidden })
+    : base;
 }
 
 /** parseStoredSuggestionModalSize 解析 localStorage 里记住的弹窗尺寸。 */

@@ -12,6 +12,9 @@ import {
   memberKeysOfGroup,
   planMemberRemoval,
 } from "./member-batch.mjs";
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
+
+installTestCatalog();
 
 // 成员批量操作的判据：同一组里可能同时有根目录 / 工坊 / disabled 三种成员，
 // 每个批量按钮只对其中一类有意义，剩下的要"说清为什么不能点"而不是静默无事发生。

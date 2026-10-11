@@ -7,23 +7,25 @@
 // 语法与 Mod 列表 / 归档 / 模型统计**同一套**（core/field-search.mjs 同一份实现）：
 // 普通词（多个词要同时命中）/ `"引号短语"` / `-排除` / `re:` 正则 / `tag:` 组状态。
 
+import { t } from "../../core/i18n-runtime.js";
 import { describeFieldSearch, matchByFields } from "../../core/field-search.mjs";
 import { parseSearchSyntax } from "../file-list/search-syntax.mjs";
 
-const STRATEGY_TAGS = {
-  all: "全开",
-  off: "全关",
-  single: "单选",
-  single_random: "随机单选",
+// 文案走目录（模块求值期不调 t()）：key 表 + 取值时解析。
+const STRATEGY_TAG_KEYS = {
+  all: "strategyGroups.filter.tags.all",
+  off: "strategyGroups.filter.tags.off",
+  single: "strategyGroups.filter.tags.single",
+  single_random: "strategyGroups.filter.tags.singleRandom",
 };
 
 /** groupTags 返回这个组在 `tag:` 里的分类值：策略 / 层级 / 是否常开联动。 */
 export function groupTags(group) {
   const tags = [];
   const strategy = String(group?.strategy || "").trim();
-  if (STRATEGY_TAGS[strategy]) tags.push(STRATEGY_TAGS[strategy]);
-  tags.push(group?.parentId ? "子组" : "顶层");
-  if (group?.enforce) tags.push("自动联动");
+  if (STRATEGY_TAG_KEYS[strategy]) tags.push(t(STRATEGY_TAG_KEYS[strategy]));
+  tags.push(t(group?.parentId ? "strategyGroups.filter.tags.sub" : "strategyGroups.filter.tags.top"));
+  if (group?.enforce) tags.push(t("strategyGroups.common.enforce"));
   return tags;
 }
 
@@ -111,21 +113,27 @@ function rejectedByNegatives(group, spec) {
 export function describeStrategyGroupSearch({ total = 0, shown = 0, query = "" } = {}) {
   const all = Number(total || 0);
   const visible = Number(shown || 0);
-  if (!String(query || "").trim()) return `共 ${all} 个组`;
+  if (!String(query || "").trim()) return t("strategyGroups.filter.countAll", { count: all });
   // 正则写错时直说原因（与其它列表一致），不再含糊地报"没有匹配的组"。
   const invalid = parseSearchSyntax(query).regexInvalid;
   if (invalid) {
-    return describeFieldSearch({ total: all, matched: 0, query, regexInvalid: invalid, noun: "个组" });
+    return describeFieldSearch({
+      total: all,
+      matched: 0,
+      query,
+      regexInvalid: invalid,
+      noun: t("strategyGroups.filter.noun"),
+    });
   }
-  if (visible === 0) return `没有匹配的组（共 ${all} 个）`;
-  return `显示 ${visible} / ${all} 个组`;
+  if (visible === 0) return t("strategyGroups.filter.noMatch", { count: all });
+  return t("strategyGroups.filter.visible", { shown: visible, total: all });
 }
 
 /** formatBatchHint 生成批量工具条的提示：没勾选时告诉用户先勾，勾了之后给数量。 */
 export function formatBatchHint(selectionCount) {
   const count = Number(selectionCount || 0);
   if (count <= 0) {
-    return "先勾选组（每行最左边的方框，或点组名）才能批量删除 / 开关自动联动 / 设置权重 / 用这些组筛选";
+    return t("strategyGroups.selection.hintEmpty");
   }
-  return `已勾选 ${count} 个组，下面的批量按钮已可用`;
+  return t("strategyGroups.selection.hintCount", { count });
 }
