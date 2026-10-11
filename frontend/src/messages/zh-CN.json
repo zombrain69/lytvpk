@@ -192,5 +192,130 @@
         "disabled": "Mod随机轮换已关闭"
       }
     }
+  },
+  "workshop": {
+    "filter": {
+      "survivors": "幸存者",
+      "infected": "感染者",
+      "specialInfected": "特感",
+      "commonInfected": "普通感染者",
+      "modes": "模式 & 战役",
+      "campaigns": "战役",
+      "coop": "合作",
+      "survival": "生存",
+      "versus": "对抗",
+      "scavenge": "清道夫",
+      "realism": "写实",
+      "realismVersus": "写实对抗",
+      "mutations": "突变",
+      "singlePlayer": "单人",
+      "weapons": "武器",
+      "rifle": "步枪",
+      "smg": "冲锋枪",
+      "shotgun": "散弹枪",
+      "sniper": "狙击枪",
+      "pistol": "手枪",
+      "melee": "近战",
+      "grenadeLauncher": "榴弹",
+      "throwable": "投掷物",
+      "items": "物品",
+      "medkit": "治疗包",
+      "defibrillator": "电击器",
+      "adrenaline": "肾上腺素",
+      "pills": "止痛药",
+      "moreResources": "其他资源",
+      "sounds": "音效",
+      "scripts": "脚本",
+      "models": "模型",
+      "textures": "纹理",
+      "miscellaneous": "杂项",
+      "other": "其他"
+    },
+    "itemFallbackTitle": "工坊 #{id}",
+    "badge": {
+      "collection": "合集"
+    },
+    "stats": {
+      "views": "点击",
+      "subscriptions": "订阅",
+      "favorites": "收藏",
+      "size": "大小",
+      "updated": "更新",
+      "items": "物品"
+    },
+    "search": {
+      "placeholder": "搜索工坊物品标题（由 Steam 搜索，不支持 tag: / re: 等本地语法）",
+      "note": "工坊搜索由 Steam 服务端执行：只按关键词匹配（标题、作者等），会跟着分页一起返回；不支持 tag: / re: / -排除 这类本地语法。想用本地语法请到：Mod 列表、压缩包管理、模型统计、策略组管理、冲突检测、体检结果。"
+    },
+    "list": {
+      "loadFailedRetry": "加载失败，点击重试",
+      "loadMore": "加载更多",
+      "optimizingTitle": "正在优选最佳网络线路...",
+      "optimizingHint": "优选完成后将自动加载创意工坊列表",
+      "loadingFirst": "正在加载创意工坊列表...",
+      "loadingMore": "正在加载更多内容...",
+      "empty": "未找到相关结果",
+      "loadFailed": "加载失败: {error}"
+    },
+    "detail": {
+      "back": "返回",
+      "backToList": "返回列表",
+      "backToCollection": "返回合集",
+      "openInBrowser": "在浏览器打开",
+      "download": "下载",
+      "downloadInstall": "下载并安装",
+      "downloadCollection": "下载合集",
+      "descriptionTitleItem": "MOD 介绍",
+      "descriptionTitleCollection": "合集介绍",
+      "noDescription": "暂无描述",
+      "loading": "正在加载物品详情...",
+      "loadFailed": "加载详情失败: {error}"
+    },
+    "collection": {
+      "itemsTitle": "合集物品",
+      "itemsCount": "{count} 个物品",
+      "itemsUnavailable": "暂时无法获取合集中的物品列表"
+    },
+    "required": {
+      "title": "依赖物品",
+      "count": "{count} 个前置",
+      "hint": "该 Mod 声明了以下必需前置，缺了可能不生效或直接报错。",
+      "noPreview": "无预览图"
+    },
+    "watchLater": {
+      "saveFailed": "保存稍后再看失败: {error}",
+      "removed": "已从稍后再看移除",
+      "added": "已添加到稍后再看",
+      "addedLabel": "已加入稍后再看",
+      "addLabel": "添加到稍后再看",
+      "justNow": "刚刚",
+      "addedAt": "ID {id} · {date} 加入",
+      "remove": "移除",
+      "clearTitle": "确认清空",
+      "clearConfirm": "确定要清空稍后再看列表吗？列表中有 {count} 个物品，此操作不可撤销。",
+      "cleared": "已清空稍后再看列表"
+    },
+    "protocol": {
+      "parsing": "正在解析工坊ID: {id}",
+      "opening": "正在打开工坊: {id}",
+      "waitingIP": "正在等待IP优选完成...",
+      "noDetail": "无法获取详细信息，请检查网络连接",
+      "fetchFailedDetail": "获取详情失败: {error}\\n\\n请检查网络连接或稍后重试",
+      "fetchFailed": "获取工坊详情失败: {error}"
+    },
+    "idJump": {
+      "inputRequired": "请输入工坊 ID 或链接",
+      "invalid": "无法识别工坊 ID",
+      "invalidWithError": "无法识别工坊 ID: {error}"
+    },
+    "translate": {
+      "action": "翻译描述",
+      "inProgress": "翻译中...",
+      "empty": "没有可翻译的描述内容",
+      "done": "描述翻译完成",
+      "alreadyChinese": "描述内容已是中文",
+      "failed": "翻译失败: {error}",
+      "paragraphFailed": "这一段翻译失败"
+    }
   }
 }

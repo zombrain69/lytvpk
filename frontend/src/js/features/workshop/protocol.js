@@ -1,11 +1,12 @@
 import { workshopDeps } from "./deps.js";
 import { openWorkshopDetail } from "./detail.js";
 import { openBrowser } from "./list.js";
+import { t } from "../../core/i18n-runtime.js";
 
 export async function handleProtocolParse(workshopId) {
   console.log("处理协议解析:", workshopId);
 
-  workshopDeps.showNotification(`正在解析工坊ID: ${workshopId}`, "info");
+  workshopDeps.showNotification(t("workshop.protocol.parsing", { id: workshopId }), "info");
   workshopDeps.openWorkshopModal();
 
   document.getElementById("workshop-url").value = workshopId;
@@ -26,13 +27,13 @@ export async function handleProtocolWorkshop(workshopId) {
     workshopDeps.closeModal();
   }
 
-  workshopDeps.showNotification(`正在打开工坊: ${workshopId}`, "info");
+  workshopDeps.showNotification(t("workshop.protocol.opening", { id: workshopId }), "info");
   openBrowser();
 
   const isSelecting = await workshopDeps.IsSelectingIP();
   if (isSelecting) {
     console.log("正在优选IP，等待完成...");
-    workshopDeps.showNotification("正在等待IP优选完成...", "info");
+    workshopDeps.showNotification(t("workshop.protocol.waitingIP"), "info");
 
     await waitForIPSelection();
     console.log("IP优选已完成，继续获取详情");
@@ -46,20 +47,20 @@ export async function handleProtocolWorkshop(workshopId) {
       } else {
         openWorkshopDetail({
           publishedfileid: workshopId,
-          title: `工坊 #${workshopId}`,
+          title: t("workshop.itemFallbackTitle", { id: workshopId }),
           preview_url: "",
-          description: "无法获取详细信息，请检查网络连接",
+          description: t("workshop.protocol.noDetail"),
         });
       }
     } catch (err) {
       console.error("获取工坊详情失败:", err);
       openWorkshopDetail({
         publishedfileid: workshopId,
-        title: `工坊 #${workshopId}`,
+        title: t("workshop.itemFallbackTitle", { id: workshopId }),
         preview_url: "",
-        description: `获取详情失败: ${err}\n\n请检查网络连接或稍后重试`,
+        description: t("workshop.protocol.fetchFailedDetail", { error: err }),
       });
-      workshopDeps.showError(`获取工坊详情失败: ${err}`);
+      workshopDeps.showError(t("workshop.protocol.fetchFailed", { error: err }));
     }
   }, 500);
 }

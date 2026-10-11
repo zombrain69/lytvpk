@@ -17,6 +17,7 @@ const indexHtml = read("index.html");
 const searchHelp = read("src/js/features/file-list/search-help.mjs");
 const appRuntime = read("src/js/features/app-runtime.js");
 const workshopNote = read("src/js/features/workshop/search-mode-note.mjs");
+const catalog = JSON.parse(read("src/messages/zh-CN.json"));
 const workshopList = read("src/js/features/workshop/list.js");
 
 /** 走统一语法的面板：id → 需要的 `?` 按钮 / 浮层 / 变体 / 实现文件。 */
@@ -97,13 +98,19 @@ test("统一语法的 6 个面板都有 `?` 说明书，且内容来自同一份
 });
 
 test("工坊浏览器是服务端搜索：明说不支持本地语法，并指出去哪用", () => {
-  assert.match(workshopNote, /Steam 服务端执行/, "要说明这是服务端搜索");
-  assert.match(workshopNote, /不支持 tag: \/ re:/, "要明说不支持本地语法");
+  // 文案本体在目录里（页内 t() 的 key 由 i18n-catalog.test.mjs 校验存在性，这里校验内容）。
+  const searchPlaceholder = String(catalog?.workshop?.search?.placeholder || "");
+  const searchNote = String(catalog?.workshop?.search?.note || "");
+  assert.match(searchNote, /Steam 服务端执行/, "要说明这是服务端搜索");
+  assert.match(searchNote, /不支持 tag: \/ re:/, "要明说不支持本地语法");
   for (const panel of ["Mod 列表", "压缩包管理", "模型统计", "策略组管理", "冲突检测", "体检结果"]) {
-    assert.ok(workshopNote.includes(panel), `工坊提示里应指出本地语法可用于「${panel}」`);
+    assert.ok(searchNote.includes(panel), `工坊提示里应指出本地语法可用于「${panel}」`);
   }
-  // 界面真的用上了这份文案（占位 + 悬停提示）
-  assert.match(workshopList, /WORKSHOP_SEARCH_PLACEHOLDER/, "占位文案要用同一份说明");
+  assert.ok(searchPlaceholder.includes("不支持"), "占位也要写清楚不收本地语法");
+  // 说明模块从目录取文案；界面真的用上了这份文案（占位 + 悬停提示）
+  assert.match(workshopNote, /workshop\.search\.placeholder/, "占位文案来自同一份目录");
+  assert.match(workshopNote, /workshop\.search\.note/, "悬停提示来自同一份目录");
+  assert.match(workshopList, /getWorkshopSearchPlaceholder\(\)/, "占位文案要用同一份说明");
   assert.match(workshopList, /describeWorkshopSearchMode\(\)/, "悬停提示要用同一份说明");
   assert.match(indexHtml, /id="browser-search-input"[\s\S]{0,240}不支持 tag:/, "静态占位也要写清楚");
   // 服务端搜索的占位不能再写成本地语法那一套

@@ -1,5 +1,6 @@
 import { loadWorkshopList } from "./list.js";
 import { browserState, resetWorkshopPaging } from "./state.js";
+import { t } from "../../core/i18n-runtime.js";
 
 const SORT_ICONS = {
   trend: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4"/><path d="M17 9l-5-5-5 5"/></svg>`,
@@ -9,7 +10,7 @@ const SORT_ICONS = {
 
 const WORKSHOP_CATEGORIES = [
   {
-    name: "幸存者",
+    nameKey: "workshop.filter.survivors",
     children: [
       { name: "Bill", tag: "Bill" },
       { name: "Francis", tag: "Francis" },
@@ -22,9 +23,9 @@ const WORKSHOP_CATEGORIES = [
     ],
   },
   {
-    name: "感染者",
+    nameKey: "workshop.filter.infected",
     children: [
-      { name: "特感", tag: "Special Infected" },
+      { nameKey: "workshop.filter.specialInfected", tag: "Special Infected" },
       { name: "Tank", tag: "Tank" },
       { name: "Witch", tag: "Witch" },
       { name: "Hunter", tag: "Hunter" },
@@ -33,56 +34,56 @@ const WORKSHOP_CATEGORIES = [
       { name: "Charger", tag: "Charger" },
       { name: "Jockey", tag: "Jockey" },
       { name: "Spitter", tag: "Spitter" },
-      { name: "普通感染者", tag: "Common Infected" },
+      { nameKey: "workshop.filter.commonInfected", tag: "Common Infected" },
     ],
   },
   {
-    name: "模式 & 战役",
+    nameKey: "workshop.filter.modes",
     children: [
-      { name: "战役", tag: "Campaigns" },
-      { name: "合作", tag: "Co-op" },
-      { name: "生存", tag: "Survival" },
-      { name: "对抗", tag: "Versus" },
-      { name: "清道夫", tag: "Scavenge" },
-      { name: "写实", tag: "Realism" },
-      { name: "写实对抗", tag: "Realism Versus" },
-      { name: "突变", tag: "Mutations" },
-      { name: "单人", tag: "Single Player" },
+      { nameKey: "workshop.filter.campaigns", tag: "Campaigns" },
+      { nameKey: "workshop.filter.coop", tag: "Co-op" },
+      { nameKey: "workshop.filter.survival", tag: "Survival" },
+      { nameKey: "workshop.filter.versus", tag: "Versus" },
+      { nameKey: "workshop.filter.scavenge", tag: "Scavenge" },
+      { nameKey: "workshop.filter.realism", tag: "Realism" },
+      { nameKey: "workshop.filter.realismVersus", tag: "Realism Versus" },
+      { nameKey: "workshop.filter.mutations", tag: "Mutations" },
+      { nameKey: "workshop.filter.singlePlayer", tag: "Single Player" },
     ],
   },
   {
-    name: "武器",
+    nameKey: "workshop.filter.weapons",
     children: [
-      { name: "步枪", tag: "Rifle" },
-      { name: "冲锋枪", tag: "SMG" },
-      { name: "散弹枪", tag: "Shotgun" },
-      { name: "狙击枪", tag: "Sniper" },
-      { name: "手枪", tag: "Pistol" },
-      { name: "近战", tag: "Melee" },
-      { name: "榴弹", tag: "Grenade Launcher" },
+      { nameKey: "workshop.filter.rifle", tag: "Rifle" },
+      { nameKey: "workshop.filter.smg", tag: "SMG" },
+      { nameKey: "workshop.filter.shotgun", tag: "Shotgun" },
+      { nameKey: "workshop.filter.sniper", tag: "Sniper" },
+      { nameKey: "workshop.filter.pistol", tag: "Pistol" },
+      { nameKey: "workshop.filter.melee", tag: "Melee" },
+      { nameKey: "workshop.filter.grenadeLauncher", tag: "Grenade Launcher" },
       { name: "M60", tag: "M60" },
-      { name: "投掷物", tag: "Throwable" },
+      { nameKey: "workshop.filter.throwable", tag: "Throwable" },
     ],
   },
   {
-    name: "物品",
+    nameKey: "workshop.filter.items",
     children: [
-      { name: "治疗包", tag: "Medkit" },
-      { name: "电击器", tag: "Defibrillator" },
-      { name: "肾上腺素", tag: "Adrenaline" },
-      { name: "止痛药", tag: "Pills" },
+      { nameKey: "workshop.filter.medkit", tag: "Medkit" },
+      { nameKey: "workshop.filter.defibrillator", tag: "Defibrillator" },
+      { nameKey: "workshop.filter.adrenaline", tag: "Adrenaline" },
+      { nameKey: "workshop.filter.pills", tag: "Pills" },
     ],
   },
   {
-    name: "其他资源",
+    nameKey: "workshop.filter.moreResources",
     children: [
       { name: "UI", tag: "UI" },
-      { name: "音效", tag: "Sounds" },
-      { name: "脚本", tag: "Scripts" },
-      { name: "模型", tag: "Models" },
-      { name: "纹理", tag: "Textures" },
-      { name: "杂项", tag: "Miscellaneous" },
-      { name: "其他", tag: "Other" },
+      { nameKey: "workshop.filter.sounds", tag: "Sounds" },
+      { nameKey: "workshop.filter.scripts", tag: "Scripts" },
+      { nameKey: "workshop.filter.models", tag: "Models" },
+      { nameKey: "workshop.filter.textures", tag: "Textures" },
+      { nameKey: "workshop.filter.miscellaneous", tag: "Miscellaneous" },
+      { nameKey: "workshop.filter.other", tag: "Other" },
     ],
   },
 ];
@@ -99,7 +100,7 @@ export function renderWorkshopSidebar() {
 
     if (cat.name !== "全部") {
       const title = document.createElement("h4");
-      title.textContent = cat.name;
+      title.textContent = displayFilterName(cat);
       group.appendChild(title);
     }
 
@@ -107,12 +108,12 @@ export function renderWorkshopSidebar() {
     list.className = "filter-list";
 
     if (cat.tag !== undefined) {
-      renderFilterItem(list, cat.name, cat.tag, cat.searchText, true);
+      renderFilterItem(list, displayFilterName(cat), cat.tag, cat.searchText, true);
     }
 
     if (cat.children) {
       cat.children.forEach((child) => {
-        renderFilterItem(list, child.name, child.tag, child.searchText);
+        renderFilterItem(list, displayFilterName(child), child.tag, child.searchText);
       });
     }
 
@@ -203,6 +204,11 @@ export function updateBrowserCategoryIndicator(skipTransition = false) {
     indicator.style.height = `${itemRect.height}px`;
     indicator.style.transform = `translateY(${newOffset}px)`;
   }
+}
+
+/** displayFilterName 分类条目存 key（nameKey）或字面名（name），显示时统一取文案。 */
+function displayFilterName(entry) {
+  return entry.nameKey ? t(entry.nameKey) : entry.name;
 }
 
 function renderFilterItem(parentList, name, tag, searchText) {

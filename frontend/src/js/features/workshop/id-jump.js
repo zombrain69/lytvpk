@@ -2,6 +2,7 @@
 // 不用先搜索再翻列表。ID 解析复用后端已有的 ParseWorkshopID。
 
 import { showError } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { ParseWorkshopID } from "../../../../wailsjs/go/app/App";
 import { openWorkshopDetail } from "./detail.js";
 
@@ -25,20 +26,20 @@ export function closeWorkshopIdJumpModal() {
 async function jumpToWorkshopId() {
   const raw = String(document.getElementById(INPUT_ID)?.value || "").trim();
   if (!raw) {
-    showError("请输入工坊 ID 或链接");
+    showError(t("workshop.idJump.inputRequired"));
     return;
   }
 
   try {
     const id = String(await ParseWorkshopID(raw));
     if (!id || id === "0") {
-      showError("无法识别工坊 ID");
+      showError(t("workshop.idJump.invalid"));
       return;
     }
     closeWorkshopIdJumpModal();
     await openWorkshopDetail({ publishedfileid: id });
   } catch (error) {
-    showError("无法识别工坊 ID: " + error);
+    showError(t("workshop.idJump.invalidWithError", { error }));
   }
 }
 

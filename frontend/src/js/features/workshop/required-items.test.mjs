@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { installTestCatalog } from "../../core/i18n-test-catalog.mjs";
 import { buildRequiredItemsHtml, normalizeRequiredItems } from "./required-items.mjs";
+
+installTestCatalog();
 
 test("normalizeRequiredItems 过滤无 ID 的脏数据", () => {
   const items = normalizeRequiredItems({

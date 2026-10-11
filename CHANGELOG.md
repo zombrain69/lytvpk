@@ -1,5 +1,21 @@
 # Changelog
 
+## 未发布 — i18n：迁移工坊浏览器页（workshop，9 个 JS 模块）（2026-10-11）
+
+- `features/workshop/` 全部 JS 模块的用户可见文案改走 `t()` —— 侧边分类名（表存 `nameKey`，
+  渲染时取文案）、列表加载 / 空态 / 失败、卡片与详情页（返回 / 下载 / 翻译描述、统计标签、
+  合集物品、依赖物品区块）、稍后再看抽屉、工坊 ID 直达、协议唤起提示；文案目录新增
+  `workshop.*` 键组（99 个 key）。
+- `search-mode-note.mjs` 文案本体移入目录，导出改为取值函数；`search-consistency.test.mjs`
+  改为「源码接线 + 目录内容」双重校验（六个面板清单与「不支持本地语法」要求原样保留）。
+- `required-items.mjs`（带 node 单测的纯模块）在单测里用新增的 `installTestCatalog()`
+  安装真实目录后断言中文 —— 缺 key 时断言直接失败，纯模块也有了防漏文案的对照。
+- 弹窗静态骨架（排序列表 / 工具栏按钮 / 抽屉标题等纯 HTML 节点）**未迁**，
+  留待静态节点统一轮次（记录在 i18n.md 已迁移清单与路线图）。
+- 文档：`docs/development/i18n.md`、`docs/development/manual-verification.md` §13。
+- 验证：`go test ./...` / `go vet ./...` 全 ok；`node --test`（frontend）565 项 0 失败；
+  `npm run build` 通过。
+
 ## 未发布 — i18n：运行时与目录装配分离（Node / 构建双兼容）（2026-10-11）
 
 - `i18n-runtime.js` 不再 import JSON，改由新增的 `installCatalog()` 装载目录；

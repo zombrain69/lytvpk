@@ -1,4 +1,5 @@
 import { WORKSHOP_COLLECTION_FILE_TYPE } from "./state.js";
+import { t } from "../../core/i18n-runtime.js";
 
 export function getWorkshopItemId(item) {
   return String(item?.publishedfileid || "");
@@ -42,7 +43,7 @@ export function formatSize(bytes) {
 }
 
 export function renderWorkshopLoading(
-  message = "正在加载创意工坊列表...",
+  message = t("workshop.list.loadingFirst"),
   hint = ""
 ) {
   const hintHtml = hint ? `<span class="workshop-loading-hint">${hint}</span>` : "";

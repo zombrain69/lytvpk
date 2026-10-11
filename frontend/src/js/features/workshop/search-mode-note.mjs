@@ -4,15 +4,22 @@
 // 关键词发给 Steam，由工坊自己匹配标题/作者等，分页结果也来自服务端。
 // 用户很容易照着 Mod 列表的习惯输入 `tag:步枪`、`re:^ak`，然后以为"搜索坏了"。
 // 这里把"这个框不收本地语法、本地语法该用在哪"写成一句话，界面与测试共用。
+// 文案本体在 messages/zh-CN.json 的 `workshop.search.*`；内容约束由
+// core/search-consistency.test.mjs 继续核对（含"六个面板"清单）。
 
-export const WORKSHOP_SEARCH_PLACEHOLDER = "搜索工坊物品标题（由 Steam 搜索，不支持 tag: / re: 等本地语法）";
+import { t } from "../../core/i18n-runtime.js";
 
-export const WORKSHOP_SEARCH_NOTE =
-  "工坊搜索由 Steam 服务端执行：只按关键词匹配（标题、作者等），会跟着分页一起返回；" +
-  "不支持 tag: / re: / -排除 这类本地语法。想用本地语法请到：Mod 列表、压缩包管理、模型统计、" +
-  "策略组管理、冲突检测、体检结果。";
+/** getWorkshopSearchPlaceholder 返回搜索框占位文案（来自文案目录）。 */
+export function getWorkshopSearchPlaceholder() {
+  return t("workshop.search.placeholder");
+}
+
+/** getWorkshopSearchNote 返回完整模式说明（来自文案目录，供悬停提示用）。 */
+export function getWorkshopSearchNote() {
+  return t("workshop.search.note");
+}
 
 /** describeWorkshopSearchMode 返回悬停提示（一行版，供 title 用）。 */
 export function describeWorkshopSearchMode() {
-  return WORKSHOP_SEARCH_NOTE;
+  return getWorkshopSearchNote();
 }

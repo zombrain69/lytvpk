@@ -22,6 +22,7 @@ import {
   isWorkshopCollection,
   renderWorkshopLoading,
 } from "./utils.js";
+import { t } from "../../core/i18n-runtime.js";
 
 const descriptionTranslationCache = new Map();
 let workshopDetailRequestId = 0;
@@ -101,7 +102,7 @@ function renderDetailBackButton(parentDetail) {
             <path d="M19 12H5"></path>
             <path d="m12 19-7-7 7-7"></path>
         </svg>
-        <span>${parentDetail ? "返回合集" : "返回列表"}</span>
+        <span>${parentDetail ? t("workshop.detail.backToCollection") : t("workshop.detail.backToList")}</span>
     </button>
   `;
 }
@@ -116,7 +117,7 @@ function renderDetailHeader(parentDetail) {
                     <path d="M12 6v6l4 2"></path>
                     <circle cx="12" cy="12" r="9"></circle>
                 </svg>
-                <span class="watch-later-label">添加到稍后再看</span>
+                <span class="watch-later-label">${t("workshop.watchLater.addLabel")}</span>
             </button>
             <a href="javascript:void(0)" id="open-in-steam-browser" class="btn btn-outline">
                 <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -124,7 +125,7 @@ function renderDetailHeader(parentDetail) {
                     <path d="M10 14 21 3"></path>
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                 </svg>
-                <span>在浏览器打开</span>
+                <span>${t("workshop.detail.openInBrowser")}</span>
             </a>
         </div>
     </div>
@@ -180,23 +181,23 @@ function renderItemStats(detail) {
     <div class="detail-stats-bar">
         <div class="stat-item">
             <span class="stat-value">${formatNumber(detail.views)}</span>
-            <span class="stat-label">点击</span>
+            <span class="stat-label">${t("workshop.stats.views")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${formatNumber(detail.subscriptions)}</span>
-            <span class="stat-label">订阅</span>
+            <span class="stat-label">${t("workshop.stats.subscriptions")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${formatNumber(detail.favorited)}</span>
-            <span class="stat-label">收藏</span>
+            <span class="stat-label">${t("workshop.stats.favorites")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${formatSize(detail.file_size)}</span>
-            <span class="stat-label">大小</span>
+            <span class="stat-label">${t("workshop.stats.size")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${formatWorkshopDate(detail.time_updated)}</span>
-            <span class="stat-label">更新</span>
+            <span class="stat-label">${t("workshop.stats.updated")}</span>
         </div>
     </div>
   `;
@@ -208,23 +209,23 @@ function renderCollectionStats(detail) {
     <div class="detail-stats-bar">
         <div class="stat-item">
             <span class="stat-value">${formatNumber(detail.views)}</span>
-            <span class="stat-label">点击</span>
+            <span class="stat-label">${t("workshop.stats.views")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${formatNumber(detail.subscriptions)}</span>
-            <span class="stat-label">订阅</span>
+            <span class="stat-label">${t("workshop.stats.subscriptions")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${formatNumber(detail.favorited)}</span>
-            <span class="stat-label">收藏</span>
+            <span class="stat-label">${t("workshop.stats.favorites")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${childCount}</span>
-            <span class="stat-label">物品</span>
+            <span class="stat-label">${t("workshop.stats.items")}</span>
         </div>
         <div class="stat-item">
             <span class="stat-value">${formatWorkshopDate(detail.time_updated)}</span>
-            <span class="stat-label">更新</span>
+            <span class="stat-label">${t("workshop.stats.updated")}</span>
         </div>
     </div>
   `;
@@ -237,10 +238,10 @@ function renderCollectionItems(detail) {
     return `
       <div class="collection-items-section">
         <div class="collection-items-header">
-          <h3>合集物品</h3>
-          <span>0 个物品</span>
+          <h3>${t("workshop.collection.itemsTitle")}</h3>
+          <span>${t("workshop.collection.itemsCount", { count: 0 })}</span>
         </div>
-        <div class="collection-empty-state">暂时无法获取合集中的物品列表</div>
+        <div class="collection-empty-state">${t("workshop.collection.itemsUnavailable")}</div>
       </div>
     `;
   }
@@ -248,14 +249,14 @@ function renderCollectionItems(detail) {
   return `
     <div class="collection-items-section">
       <div class="collection-items-header">
-        <h3>合集物品</h3>
-        <span>${childItems.length} 个物品</span>
+        <h3>${t("workshop.collection.itemsTitle")}</h3>
+        <span>${t("workshop.collection.itemsCount", { count: childItems.length })}</span>
       </div>
       <div class="collection-items-list">
         ${childItems
           .map((child) => {
             const childId = getWorkshopItemId(child);
-            const title = child.title || `工坊 #${childId}`;
+            const title = child.title || t("workshop.itemFallbackTitle", { id: childId });
             const previewUrl = child.preview_url || "assets/images/no-preview.png";
             return `
               <div class="collection-child-card" role="button" tabindex="0" data-workshop-id="${escapeHtml(childId)}">
@@ -266,17 +267,17 @@ function renderCollectionItems(detail) {
                   <div class="collection-child-title">${escapeHtml(title)}</div>
                   <div class="collection-child-meta">
                     <span>ID ${escapeHtml(childId)}</span>
-                    <span>点击 ${formatNumber(child.views)}</span>
-                    <span>订阅 ${formatNumber(child.subscriptions)}</span>
+                    <span>${t("workshop.stats.views")} ${formatNumber(child.views)}</span>
+                    <span>${t("workshop.stats.subscriptions")} ${formatNumber(child.subscriptions)}</span>
                   </div>
                 </div>
-                <button class="btn btn-secondary btn-small collection-child-download-btn" type="button" data-workshop-id="${escapeHtml(childId)}" aria-label="下载 ${escapeHtml(title)}">
+                <button class="btn btn-secondary btn-small collection-child-download-btn" type="button" data-workshop-id="${escapeHtml(childId)}" aria-label="${t("workshop.detail.download")} ${escapeHtml(title)}">
                   <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                   </svg>
-                  <span>下载</span>
+                  <span>${t("workshop.detail.download")}</span>
                 </button>
               </div>
             `;
@@ -298,11 +299,11 @@ function renderItemDetail(detail, parentDetail) {
                   <h1 class="detail-title-large">${escapeHtml(detail.title)}</h1>
                   ${renderItemStats(detail)}
                   ${renderDetailTags(detail)}
-                  ${renderDetailDownloadButton("下载并安装")}
+                  ${renderDetailDownloadButton(t("workshop.detail.downloadInstall"))}
               </div>
           </div>
           ${buildRequiredItemsHtml(detail, { formatCount: (value) => formatNumber(value) })}
-          ${renderDescriptionBox(detail, "MOD 介绍")}
+          ${renderDescriptionBox(detail, t("workshop.detail.descriptionTitleItem"))}
         </div>
     </div>
   `;
@@ -317,16 +318,16 @@ function renderCollectionDetail(detail, parentDetail) {
               ${renderDetailPreview(detail)}
               <div class="detail-info-wrapper">
                   <div class="detail-title-row">
-                    <span class="detail-type-badge">合集</span>
+                    <span class="detail-type-badge">${t("workshop.badge.collection")}</span>
                     <h1 class="detail-title-large">${escapeHtml(detail.title)}</h1>
                   </div>
                   ${renderCollectionStats(detail)}
-                  ${renderDetailTags(detail, '<span class="tag-badge collection-detail-tag">合集</span>')}
-                  ${renderDetailDownloadButton("下载合集")}
+                  ${renderDetailTags(detail, `<span class="tag-badge collection-detail-tag">${t("workshop.badge.collection")}</span>`)}
+                  ${renderDetailDownloadButton(t("workshop.detail.downloadCollection"))}
               </div>
           </div>
           ${renderCollectionItems(detail)}
-          ${renderDescriptionBox(detail, "合集介绍")}
+          ${renderDescriptionBox(detail, t("workshop.detail.descriptionTitleCollection"))}
         </div>
     </div>
   `;
@@ -342,13 +343,13 @@ function renderDescriptionBox(detail, title) {
             hasDescription
               ? `<button class="btn btn-outline btn-small detail-translate-btn" type="button" data-translate-description-btn>
                   ${TRANSLATE_ICON_SVG}
-                  <span>翻译描述</span>
+                  <span>${t("workshop.translate.action")}</span>
                 </button>`
               : ""
           }
         </div>
         <div class="detail-description-text" data-description-text>${
-          hasDescription ? formatDescriptionParagraphs(detail.description) : "暂无描述"
+          hasDescription ? formatDescriptionParagraphs(detail.description) : t("workshop.detail.noDescription")
         }</div>
     </div>
   `;
@@ -483,7 +484,7 @@ export async function openWorkshopDetail(item, options = {}) {
   const detailView = document.getElementById("browser-detail-view");
   const browserBody = detailView.closest(".browser-body");
   showWorkshopDetailView(detailView, browserBody);
-  detailView.innerHTML = `<div class="workshop-detail-loading">${renderWorkshopLoading("正在加载物品详情...")}</div>`;
+  detailView.innerHTML = `<div class="workshop-detail-loading">${renderWorkshopLoading(t("workshop.detail.loading"))}</div>`;
 
   try {
     const detail = await workshopDeps.FetchWorkshopDetail(getWorkshopItemId(item));
@@ -493,8 +494,8 @@ export async function openWorkshopDetail(item, options = {}) {
     if (requestId !== workshopDetailRequestId) return;
     detailView.innerHTML = `
             <div class="loading-placeholder">
-                <p>加载详情失败: ${err}</p>
-                <button class="btn btn-primary" id="detail-error-back-btn">${options.parentDetail ? "返回合集" : "返回"}</button>
+                <p>${t("workshop.detail.loadFailed", { error: err })}</p>
+                <button class="btn btn-primary" id="detail-error-back-btn">${options.parentDetail ? t("workshop.detail.backToCollection") : t("workshop.detail.back")}</button>
             </div>`;
     document
       .getElementById("detail-error-back-btn")
@@ -646,7 +647,7 @@ function bindDescriptionTranslation(detailView, detail) {
       .filter((segment) => segment.text && segment.resultEl);
 
     if (segments.length === 0) {
-      workshopDeps.showNotification?.("没有可翻译的描述内容", "info");
+      workshopDeps.showNotification?.(t("workshop.translate.empty"), "info");
       return;
     }
 
@@ -685,11 +686,11 @@ function bindDescriptionTranslation(detailView, detail) {
       }
 
       if (failedError) {
-        workshopDeps.showError?.("翻译失败: " + failedError);
+        workshopDeps.showError?.(t("workshop.translate.failed", { error: failedError }));
         return;
       }
       workshopDeps.showNotification?.(
-        translatedCount > 0 ? "描述翻译完成" : "描述内容已是中文",
+        translatedCount > 0 ? t("workshop.translate.done") : t("workshop.translate.alreadyChinese"),
         translatedCount > 0 ? "success" : "info"
       );
     } finally {
@@ -706,13 +707,13 @@ function setTranslateButtonLoading(button, loading) {
     spinner.className = "btn-spinner";
     button.appendChild(spinner);
     const label = document.createElement("span");
-    label.textContent = "翻译中...";
+    label.textContent = t("workshop.translate.inProgress");
     button.appendChild(label);
     return;
   }
   button.appendChild(createTranslateIconElement());
   const label = document.createElement("span");
-  label.textContent = "翻译描述";
+  label.textContent = t("workshop.translate.action");
   button.appendChild(label);
 }
 
@@ -742,7 +743,7 @@ function setParagraphTranslationLoading(resultEl) {
   const spinner = document.createElement("span");
   spinner.className = "btn-spinner";
   const label = document.createElement("span");
-  label.textContent = "翻译中...";
+  label.textContent = t("workshop.translate.inProgress");
   resultEl.appendChild(spinner);
   resultEl.appendChild(label);
 }
@@ -766,7 +767,7 @@ function showParagraphTranslation(resultEl, text, originalText) {
 }
 
 function showParagraphTranslationError(resultEl) {
-  resultEl.textContent = "这一段翻译失败";
+  resultEl.textContent = t("workshop.translate.paragraphFailed");
   resultEl.classList.remove("hidden", "is-loading", "detail-translation-enter");
   resultEl.classList.add("is-error");
 }

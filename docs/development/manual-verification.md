@@ -505,10 +505,11 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
 - 文案目录一致性：页面里 `t("...")` 引用的每个 key 必须存在于 `messages/zh-CN.json`，
   同一测试还反向检查 `index.html` 静态节点 `data-i18n*` 引用的 key
   （`frontend/src/js/core/i18n-catalog.test.mjs`）。
-- 工具箱、关于页与 mods 页（轮换，`frontend/src/js/features/mods/mod-rotation.js`）
-  已改用 `t()`；更新弹窗的静态节点在打开时由 `applyTranslations()` 回填
-  （未回填时节点保留原中文，行为不变）；轮换按钮 tooltip 已挂 `data-i18n-title`，
-  等全局回填路径接通后生效；
+- 工具箱、关于页与 mods 页（轮换，`frontend/src/js/features/mods/mod-rotation.js`）、
+  工坊浏览器（`features/workshop/` 9 个 JS 模块）已改用 `t()`；更新弹窗的静态节点在打开时
+  由 `applyTranslations()` 回填（未回填时节点保留原中文，行为不变）；轮换按钮 tooltip 已挂
+  `data-i18n-title`，等全局回填路径接通后生效；工坊弹窗的静态骨架（排序/工具栏/抽屉标题）
+  尚未迁移；
   `npm run build` 通过说明文案目录可被正常打包。
 
 ### 待人工验证
@@ -524,6 +525,12 @@ pwsh -File scripts/devtools/clean-cua-artifacts.ps1           # 真删（回收�
   - 预期：按钮文案（轮换已关闭 / 轮换已启用 / 人物轮换已启用 / 武器轮换已启用 /
     分类轮换已启用（N 类））与迁移前一致；确认弹窗（标题、两个开关、按分类输入与提示、
     两个手动轮换按钮、说明段落）文案一致；手动执行后出现「…轮换已完成」提示。
+- [ ] 打开工坊浏览器（下载弹窗页「浏览创意工坊」），逐项检查（i18n 迁移后文案不变）。
+  - 预期：侧边分类（幸存者 / 武器 / …）与排序列表正常；搜索框占位与悬停提示明说
+    「由 Steam 搜索、不支持本地语法」；打开物品详情与合集详情各一次：返回按钮、下载按钮、
+    统计标签（点击/订阅/收藏/大小/更新/物品）、合集物品 / 依赖物品区块、翻译描述按钮
+    与翻译状态文案一致；稍后再看抽屉（空态 / 计数 / 清空确认）文案一致；
+    「ID 直达」空输入与非法输入的错误提示文案一致。
 - [ ] （迁移完成后）切换语言。
   - 预期：所有已迁移页面的文案整体切换；未迁移页面保持中文原文，不出现空白。
 

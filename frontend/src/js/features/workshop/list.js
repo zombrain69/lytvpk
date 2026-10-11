@@ -1,4 +1,5 @@
 import { showGlobalSettings } from "../settings/settings.js";
+import { t } from "../../core/i18n-runtime.js";
 import { workshopDeps } from "./deps.js";
 import { openWorkshopDetail, resetWorkshopDetailView } from "./detail.js";
 import {
@@ -8,7 +9,7 @@ import {
   updateBrowserSortIndicator,
 } from "./sidebar.js";
 import { browserState, resetWorkshopPaging } from "./state.js";
-import { WORKSHOP_SEARCH_PLACEHOLDER, describeWorkshopSearchMode } from "./search-mode-note.mjs";
+import { getWorkshopSearchPlaceholder, describeWorkshopSearchMode } from "./search-mode-note.mjs";
 import {
   escapeHtml,
   formatNumber,
@@ -68,10 +69,10 @@ function updateWorkshopLoadMoreButton() {
   if (!loadMoreBtn) return;
 
   if (browserState.loadFailed) {
-    loadMoreBtn.textContent = "加载失败，点击重试";
+    loadMoreBtn.textContent = t("workshop.list.loadFailedRetry");
     loadMoreBtn.classList.remove("hidden");
   } else {
-    loadMoreBtn.textContent = "加载更多";
+    loadMoreBtn.textContent = t("workshop.list.loadMore");
     loadMoreBtn.classList.add("hidden");
   }
 }
@@ -156,8 +157,8 @@ export async function loadWorkshopList() {
       if (loadingEl) {
         loadingEl.classList.remove("hidden");
         loadingEl.innerHTML = renderWorkshopLoading(
-          "正在优选最佳网络线路...",
-          "优选完成后将自动加载创意工坊列表"
+          t("workshop.list.optimizingTitle"),
+          t("workshop.list.optimizingHint")
         );
       }
 
@@ -196,7 +197,7 @@ export async function loadWorkshopList() {
     loadingEl?.classList.remove("hidden");
     if (loadingEl) {
       loadingEl.innerHTML = renderWorkshopLoading(
-        browserState.page === 1 ? "正在加载创意工坊列表..." : "正在加载更多内容..."
+        browserState.page === 1 ? t("workshop.list.loadingFirst") : t("workshop.list.loadingMore")
       );
     }
     browserState.loadFailed = false;
@@ -237,7 +238,7 @@ export async function loadWorkshopList() {
       browserState.hasMore = false;
       if (browserState.page === 1 && grid) {
         grid.innerHTML =
-          '<div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-tertiary);">未找到相关结果</div>';
+          `<div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-tertiary);">${t("workshop.list.empty")}</div>`;
       }
     }
   } catch (err) {
@@ -246,7 +247,7 @@ export async function loadWorkshopList() {
     browserState.loadFailed = true;
     const grid = document.getElementById("browser-grid");
     if (browserState.page === 1 && grid) {
-      grid.innerHTML = `<div class="error-state" style="grid-column: 1/-1; text-align: center; color: var(--danger);">加载失败: ${err}</div>`;
+      grid.innerHTML = `<div class="error-state" style="grid-column: 1/-1; text-align: center; color: var(--danger);">${t("workshop.list.loadFailed", { error: err })}</div>`;
     }
   } finally {
     if (!isCurrentRequest() || waitingForIP) return;
@@ -279,7 +280,7 @@ function renderWorkshopGrid(items) {
                 }" loading="lazy" decoding="async" alt="${escapeHtml(item.title)}"
                 style="opacity: 0; transition: opacity 0.3s; position: relative; z-index: 2;"
                 onload="this.style.opacity='1'; this.parentElement.classList.remove('skeleton-anim'); this.previousElementSibling.style.display='none';">
-                ${isCollection ? '<span class="collection-card-tag">合集</span>' : ""}
+                ${isCollection ? `<span class="collection-card-tag">${t("workshop.badge.collection")}</span>` : ""}
             </div>
             <div class="card-info">
                 <div class="card-title">${escapeHtml(item.title)}</div>
@@ -304,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 工坊搜索是服务端搜索：占位与悬停提示都明说"不收本地语法"，并指出去哪里用本地语法。
   const workshopSearchInput = document.getElementById("browser-search-input");
   if (workshopSearchInput) {
-    workshopSearchInput.placeholder = WORKSHOP_SEARCH_PLACEHOLDER;
+    workshopSearchInput.placeholder = getWorkshopSearchPlaceholder();
     workshopSearchInput.title = describeWorkshopSearchMode();
   }
   const openBrowserBtn = document.getElementById("open-browser-btn");

@@ -4,6 +4,7 @@ import { browserState } from "./state.js";
 import { openWorkshopDetail } from "./detail.js";
 import { getWorkshopPreviewImages } from "./detail-images.js";
 import { formatNumber, getWorkshopItemId } from "./utils.js";
+import { t } from "../../core/i18n-runtime.js";
 
 let watchLaterItems = [];
 
@@ -37,7 +38,7 @@ export function saveWatchLaterItems(items) {
   watchLaterItems = normalizeWatchLaterItems(items);
   workshopDeps.SaveWorkshopWatchLaterStorage?.({ items: watchLaterItems }).catch((err) => {
     console.error("保存稍后再看数据失败:", err);
-    workshopDeps.showError?.("保存稍后再看失败: " + err);
+    workshopDeps.showError?.(t("workshop.watchLater.saveFailed", { error: err }));
   });
   updateWatchLaterBadge();
 }
@@ -48,7 +49,7 @@ function normalizeWatchLaterItems(items) {
     .filter((item) => item && item.publishedfileid)
     .map((item) => ({
       publishedfileid: String(item.publishedfileid),
-      title: item.title || `工坊 #${item.publishedfileid}`,
+      title: item.title || t("workshop.itemFallbackTitle", { id: item.publishedfileid }),
       preview_url: item.preview_url || "",
       views: item.views || 0,
       subscriptions: item.subscriptions || 0,
@@ -68,7 +69,7 @@ export function createWatchLaterItem(detail) {
   const images = getWorkshopPreviewImages(detail);
   return {
     publishedfileid: getWorkshopItemId(detail),
-    title: detail.title || `工坊 #${detail.publishedfileid}`,
+    title: detail.title || t("workshop.itemFallbackTitle", { id: detail.publishedfileid }),
     preview_url: images[0] || detail.preview_url || "",
     views: detail.views || 0,
     subscriptions: detail.subscriptions || 0,
@@ -100,11 +101,11 @@ export function toggleWatchLaterItem(detail) {
   renderWatchLaterDrawer();
 
   if (exists) {
-    workshopDeps.showNotification?.("已从稍后再看移除", "info");
+    workshopDeps.showNotification?.(t("workshop.watchLater.removed"), "info");
     return false;
   }
 
-  workshopDeps.showNotification?.("已添加到稍后再看", "success");
+  workshopDeps.showNotification?.(t("workshop.watchLater.added"), "success");
   return true;
 }
 
@@ -127,14 +128,14 @@ export function updateWatchLaterDetailButton(button, detail) {
   button.classList.toggle("active", active);
   button.setAttribute("aria-pressed", active ? "true" : "false");
   button.querySelector(".watch-later-label").textContent = active
-    ? "已加入稍后再看"
-    : "添加到稍后再看";
+    ? t("workshop.watchLater.addedLabel")
+    : t("workshop.watchLater.addLabel");
 }
 
 function formatWatchLaterDate(value) {
-  if (!value) return "刚刚";
+  if (!value) return t("workshop.watchLater.justNow");
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "刚刚";
+  if (Number.isNaN(date.getTime())) return t("workshop.watchLater.justNow");
   return date.toLocaleDateString();
 }
 
@@ -195,14 +196,14 @@ export function renderWatchLaterDrawer() {
 
     const meta = document.createElement("div");
     meta.className = "watch-later-item-meta";
-    meta.textContent = `ID ${item.publishedfileid} · ${formatWatchLaterDate(item.addedAt)} 加入`;
+    meta.textContent = t("workshop.watchLater.addedAt", { id: item.publishedfileid, date: formatWatchLaterDate(item.addedAt) });
 
     const stats = document.createElement("div");
     stats.className = "watch-later-stats";
     stats.innerHTML = `
-      <span>点击 ${formatNumber(item.views)}</span>
-      <span>订阅 ${formatNumber(item.subscriptions)}</span>
-      <span>收藏 ${formatNumber(item.favorited)}</span>
+      <span>${t("workshop.stats.views")} ${formatNumber(item.views)}</span>
+      <span>${t("workshop.stats.subscriptions")} ${formatNumber(item.subscriptions)}</span>
+      <span>${t("workshop.stats.favorites")} ${formatNumber(item.favorited)}</span>
     `;
 
     content.append(title, meta, stats);
@@ -210,7 +211,7 @@ export function renderWatchLaterDrawer() {
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "watch-later-remove";
-    removeBtn.textContent = "移除";
+    removeBtn.textContent = t("workshop.watchLater.remove");
     removeBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       const nextItems = getWatchLaterItems().filter(
@@ -267,12 +268,12 @@ function clearWatchLater() {
   if (items.length === 0) return;
 
   showConfirmModal(
-    "确认清空",
-    `确定要清空稍后再看列表吗？列表中有 ${items.length} 个物品，此操作不可撤销。`,
+    t("workshop.watchLater.clearTitle"),
+    t("workshop.watchLater.clearConfirm", { count: items.length }),
     () => {
       saveWatchLaterItems([]);
       renderWatchLaterDrawer();
-      workshopDeps.showNotification?.("已清空稍后再看列表", "info");
+      workshopDeps.showNotification?.(t("workshop.watchLater.cleared"), "info");
     }
   );
 }
