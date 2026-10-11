@@ -3899,7 +3899,7 @@
       "fieldLabel": "新文件名",
       "useModName": "使用 Mod 名称",
       "placeholder": "输入新文件名",
-      "help": "无需输入 .vpk 后缀，保持原有隐藏状态",
+      "help": "无需输入 .vpk 后缀；原有隐藏状态与 [标签] 前缀自动保留",
       "cancel": "取消",
       "confirm": "确定",
       "emptyName": "文件名不能为空",

@@ -14,6 +14,7 @@ import { performSearch, refreshFilesKeepFilter } from "./filters.js";
 import { getFileLoadOrderIndex, refreshLoadOrderMap } from "./sorting.js";
 import { updateSingleFileDisplay } from "./render.js";
 import { getUnrecordedGameStateOptions } from "./unrecorded-game-state.mjs";
+import { buildRenamePreview, computeRenameEditName, sanitizeRenameTitle } from "./rename-edit.mjs";
 import { explainActionAvailability, formatExplanation } from "../../core/action-explanation.mjs";
 import { formatStrategyGroupEnforcementNotice } from "../settings/strategy-group-format.mjs";
 import {
@@ -482,80 +483,9 @@ export async function toggleFileVisibility(filePath) {
   }
 }
 
-function sanitizeRenameTitle(title) {
-  const cleaned = String(title || "")
-    .replace(/[\u0000-\u001f<>:"/\\|?*]+/g, " ")
-    .replace(/\.vpk$/i, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/[. ]+$/g, "");
-
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(cleaned)) {
-    return `_${cleaned}`;
-  }
-
-  return cleaned;
-}
-
 const WINDOWS_PATH_WARNING_LENGTH = 240;
 const WINDOWS_MAX_PATH_LENGTH = 260;
 const WINDOWS_MAX_FILENAME_LENGTH = 255;
-
-function getDirectoryPath(filePath) {
-  const path = String(filePath || "");
-  const separatorIndex = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
-  return separatorIndex >= 0 ? path.slice(0, separatorIndex) : "";
-}
-
-function joinPathForPreview(dir, filename) {
-  if (!dir) return filename;
-  if (dir.endsWith("\\") || dir.endsWith("/")) {
-    return dir + filename;
-  }
-  return `${dir}\\${filename}`;
-}
-
-function parseFilenameTags(filename) {
-  const match = String(filename || "").match(/^(_?)\[(.*?)\](.*)$/);
-  if (!match) {
-    return { hasTags: false, tags: [] };
-  }
-
-  const tags = match[2]
-    .split(/[,+]/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-
-  return { hasTags: true, tags };
-}
-
-function buildRenamePreview(filePath, oldFileName, inputName, isHidden) {
-  let finalName = inputName.trim();
-  if (!finalName.toLowerCase().endsWith(".vpk")) {
-    finalName += ".vpk";
-  }
-  if (isHidden) {
-    finalName = "_" + finalName;
-  }
-
-  const oldTags = parseFilenameTags(oldFileName);
-  const newTags = parseFilenameTags(finalName);
-  if (oldTags.hasTags && !newTags.hasTags && oldTags.tags.length > 0) {
-    let prefix = "";
-    let body = finalName;
-    if (finalName.startsWith("_")) {
-      prefix = "_";
-      body = finalName.substring(1);
-    }
-
-    finalName = `${prefix}[${oldTags.tags.join("+")}]${body}`;
-  }
-
-  return {
-    filename: finalName,
-    path: joinPathForPreview(getDirectoryPath(filePath), finalName),
-  };
-}
 
 export async function renameFile(filePath) {
   const file =
@@ -568,19 +498,7 @@ export async function renameFile(filePath) {
 
   const fileName = file.name;
   const isHidden = fileName.startsWith("_");
-
-  let editName = fileName;
-  const tagMatch = fileName.match(/^_?\[(.*?)\](.*)$/);
-  if (tagMatch) {
-    editName = (tagMatch[1] || "") + tagMatch[2];
-  }
-
-  if (isHidden) {
-    editName = editName.substring(1);
-  }
-  if (editName.toLowerCase().endsWith(".vpk")) {
-    editName = editName.substring(0, editName.length - 4);
-  }
+  const editName = computeRenameEditName(fileName);
 
   const modal = document.getElementById("rename-modal");
   const input = document.getElementById("rename-input");
