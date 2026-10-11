@@ -53,7 +53,7 @@
       <div id="loading-screen" class="loading-screen">
         <div class="loading-content">
           <div class="loading-spinner"></div>
-          <p id="loading-message" class="loading-text">正在加载...</p>
+          <p id="loading-message" class="loading-text" data-i18n="app.loadingMessage">正在加载...</p>
         </div>
       </div>
 
@@ -229,7 +229,7 @@
               title="快捷键总览"
               aria-expanded="false"
               aria-controls="shortcuts-help-popover"
-            >?</button>
+             data-i18n-title="app.shell.shortcuts.tooltip">?</button>
           </div>
           <div
             id="shortcuts-help-popover"
@@ -304,7 +304,7 @@
                       class="btn btn-small btn-outline"
                       title="把当前勾选的 Mod 保存成一个新的策略组"
                       type="button"
-                    >
+                     data-i18n-title="mods.toolbar.groupCaptureTooltip">
                       <span class="icon">▣</span> <span data-i18n="mods.toolbar.groupCapture">用选中的 Mod 建组</span>
                     </button>
                     <button
@@ -336,7 +336,7 @@
                 id="upload-btn"
                 class="btn btn-small btn-primary"
                 title="上传文件"
-              >
+               data-i18n-title="mods.toolbar.uploadTooltip">
                 <svg
                   class="icon-svg"
                   viewBox="0 0 24 24"
@@ -630,7 +630,7 @@
           >
             <div class="file-list-loading-content">
               <div class="file-list-loading-spinner"></div>
-              <p id="file-list-loading-message">正在加载...</p>
+              <p id="file-list-loading-message" data-i18n="mods.loading">正在加载...</p>
             </div>
           </div>
         </div>
@@ -1094,40 +1094,40 @@
           </div>
           <div class="modal-body">
             <div class="detail-section" id="preview-section">
-              <h4>预览图</h4>
+              <h4 data-i18n="mods.detail.previewSection">预览图</h4>
               <div class="preview-container">
                 <img
                   id="detail-preview-image"
                   class="preview-image"
                   alt="预览图"
                   decoding="async"
-                />
-                <div id="detail-preview-loading" class="detail-preview-loading" role="status">
+                 data-i18n-alt="mods.detail.previewAlt"/>
+                <div id="detail-preview-loading" class="detail-preview-loading" role="status" data-i18n="mods.detail.previewLoading">
                   正在读取 VPK 预览图…
                 </div>
               </div>
             </div>
             <div class="detail-section" id="vpk-info-section">
-              <h4>VPK信息</h4>
+              <h4 data-i18n="mods.detail.vpkSection">VPK信息</h4>
               <div class="detail-grid">
                 <div class="detail-item">
-                  <label>标题:</label>
+                  <label data-i18n="mods.detail.workshopTitle">标题:</label>
                   <span id="detail-vpk-title"></span>
                 </div>
                 <div class="detail-item" id="detail-vpk-author-item">
-                  <label>作者:</label>
+                  <label data-i18n="mods.detail.workshopAuthor">作者:</label>
                   <span id="detail-vpk-author"></span>
                 </div>
                 <div class="detail-item" id="detail-vpk-version-item">
-                  <label>版本:</label>
+                  <label data-i18n="mods.detail.workshopVersion">版本:</label>
                   <span id="detail-vpk-version"></span>
                 </div>
                 <div class="detail-item-full" id="detail-vpk-desc-item">
-                  <label>描述:</label>
+                  <label data-i18n="mods.detail.workshopDescription">描述:</label>
                   <span id="detail-vpk-desc"></span>
                 </div>
                 <div class="detail-item-full" id="detail-vpk-url-item">
-                  <label>链接:</label>
+                  <label data-i18n="mods.detail.workshopLink">链接:</label>
                   <div class="detail-workshop-link-actions">
                     <a
                       href="#"
@@ -1142,14 +1142,14 @@
                       title="使用系统浏览器打开创意工坊页面"
                     >
                       <span class="icon" aria-hidden="true">↗</span>
-                      在浏览器打开
+                      <span data-i18n="mods.detail.openInBrowser">在浏览器打开</span>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
             <div class="detail-section" id="map-info-section">
-              <h4>地图信息</h4>
+              <h4 data-i18n="mods.detail.mapSection">地图信息</h4>
               <div class="map-info-content">
                 <div class="campaign-name" id="detail-campaign"></div>
                 <div class="chapters-list" id="detail-chapters-list">
@@ -1158,50 +1158,50 @@
               </div>
             </div>
             <div class="detail-section">
-              <h4>基本信息</h4>
+              <h4 data-i18n="mods.detail.basicSection">基本信息</h4>
               <div class="detail-grid">
                 <div class="detail-item">
-                  <label>文件名:</label>
+                  <label data-i18n="mods.detail.fileNameLabel">文件名:</label>
                   <span id="detail-name"></span>
                 </div>
                 <div class="detail-item">
-                  <label>文件大小:</label>
+                  <label data-i18n="mods.detail.fileSizeLabel">文件大小:</label>
                   <span id="detail-size"></span>
                 </div>
                 <div class="detail-item">
-                  <label>位置:</label>
+                  <label data-i18n="mods.detail.locationLabel">位置:</label>
                   <span id="detail-location"></span>
                 </div>
                 <div class="detail-item">
-                  <label>状态:</label>
+                  <label data-i18n="mods.detail.statusLabel">状态:</label>
                   <span id="detail-status"></span>
                 </div>
                 <div class="detail-item">
-                  <label>最后修改:</label>
+                  <label data-i18n="mods.detail.modifiedLabel">最后修改:</label>
                   <span id="detail-modified"></span>
                 </div>
               </div>
             </div>
             <div class="detail-section">
-              <h4>主体识别</h4>
+              <h4 data-i18n="mods.detail.subjectSection">主体识别</h4>
               <div id="detail-subject" class="detail-subject-summary">
                 <!-- 动态生成主体摘要 -->
               </div>
             </div>
             <div class="detail-section">
-              <h4>标签</h4>
+              <h4 data-i18n="mods.detail.tagsSection">标签</h4>
               <div id="detail-tags" class="tag-list">
                 <!-- 动态生成标签 -->
               </div>
             </div>
             <div class="detail-section">
-              <h4>详细标签</h4>
+              <h4 data-i18n="mods.detail.detailTagsSection">详细标签</h4>
               <div id="detail-detail-tags" class="tag-list">
                 <!-- 动态生成详细标签 -->
               </div>
             </div>
             <div id="detail-ignore-section" class="detail-section">
-              <h4>该 Mod 的冲突忽略文件</h4>
+              <h4 data-i18n="mods.detail.ignoreSection">该 Mod 的冲突忽略文件</h4>
               <p class="detail-ignore-description">
                 每行一个 VPK 内部路径，例如 materials/shared.vtf；以 / 结尾表示整个目录。
                 命中这些路径时，<strong>只有这个 Mod</strong> 不再参与对应资源的冲突判定，
@@ -1215,8 +1215,8 @@
                 placeholder="materials/shared.vtf&#10;scripts/vscripts/"
               ></textarea>
               <div class="detail-ignore-actions">
-                <button id="detail-ignore-save-btn" type="button" class="btn btn-small btn-primary">保存忽略清单</button>
-                <button id="detail-ignore-clear-btn" type="button" class="btn btn-small btn-outline">清空</button>
+                <button id="detail-ignore-save-btn" type="button" class="btn btn-small btn-primary" data-i18n="mods.detail.ignoreSave">保存忽略清单</button>
+                <button id="detail-ignore-clear-btn" type="button" class="btn btn-small btn-outline" data-i18n="mods.detail.ignoreClear">清空</button>
                 <span id="detail-ignore-status" class="detail-ignore-status" aria-live="polite"></span>
               </div>
             </div>
@@ -2164,17 +2164,17 @@
       <div id="exit-confirm-modal" class="modal hidden">
         <div class="modal-content confirm-modal-content">
           <div class="modal-header">
-            <h2>确认退出</h2>
+            <h2 data-i18n="app.exit.title">确认退出</h2>
             <button id="close-exit-modal-btn" class="close-btn">&times;</button>
           </div>
           <div class="modal-body">
             <p>
-              当前有正在进行的下载或上传任务，退出将导致任务中断。<br />确定要退出吗？
+              <span data-i18n="app.exit.descHead">当前有正在进行的下载或上传任务，退出将导致任务中断。</span><br /><span data-i18n="app.exit.descTail">确定要退出吗？</span>
             </p>
           </div>
           <div class="modal-footer">
-            <button id="exit-cancel-btn" class="btn btn-secondary">取消</button>
-            <button id="exit-confirm-btn" class="btn btn-danger">退出</button>
+            <button id="exit-cancel-btn" class="btn btn-secondary" data-i18n="app.exit.cancel">取消</button>
+            <button id="exit-confirm-btn" class="btn btn-danger" data-i18n="app.exit.confirm">退出</button>
           </div>
         </div>
       </div>
@@ -2183,7 +2183,7 @@
       <div id="rename-modal" class="modal hidden">
         <div class="modal-content modal-small">
           <div class="modal-header">
-            <h2>重命名文件</h2>
+            <h2 data-i18n="modals.rename.title">重命名文件</h2>
             <button id="close-rename-modal-btn" class="close-btn">
               &times;
             </button>
@@ -2191,12 +2191,12 @@
           <div class="modal-body">
             <div class="form-group">
               <div class="rename-field-header">
-                <label for="rename-input" class="input-label">新文件名</label>
+                <label for="rename-input" class="input-label" data-i18n="modals.rename.fieldLabel">新文件名</label>
                 <button
                   id="fill-rename-from-title-btn"
                   class="rename-title-btn"
                   type="button"
-                >
+                 data-i18n="modals.rename.useModName">
                   使用 Mod 名称
                 </button>
               </div>
@@ -2206,20 +2206,20 @@
                   id="rename-input"
                   class="form-input flex-1"
                   placeholder="输入新文件名"
-                />
+                 data-i18n-placeholder="modals.rename.placeholder"/>
                 <span class="input-suffix ml-8 text-sm-tertiary">.vpk</span>
               </div>
-              <p class="help-text mt-8 text-sm-tertiary">
+              <p class="help-text mt-8 text-sm-tertiary" data-i18n="modals.rename.help">
                 无需输入 .vpk 后缀，保持原有隐藏状态
               </p>
               <p id="rename-length-hint" class="rename-length-hint hidden"></p>
             </div>
           </div>
           <div class="modal-footer">
-            <button id="cancel-rename-btn" class="btn btn-secondary">
+            <button id="cancel-rename-btn" class="btn btn-secondary" data-i18n="modals.rename.cancel">
               取消
             </button>
-            <button id="confirm-rename-btn" class="btn btn-primary">
+            <button id="confirm-rename-btn" class="btn btn-primary" data-i18n="modals.rename.confirm">
               确定
             </button>
           </div>
@@ -3518,7 +3518,7 @@
     <div id="confirm-modal" class="modal hidden" style="z-index: 20000">
       <div class="modal-content confirm-modal-content">
         <div class="modal-header">
-          <h2 id="confirm-title">确认</h2>
+          <h2 id="confirm-title" data-i18n="modals.confirm.title">确认</h2>
           <button id="close-confirm-modal-btn" class="close-btn">
             &times;
           </button>
@@ -3527,10 +3527,10 @@
           <div id="confirm-message" class="confirm-message"></div>
         </div>
         <div class="modal-footer">
-          <button id="confirm-cancel-btn" class="btn btn-secondary">
+          <button id="confirm-cancel-btn" class="btn btn-secondary" data-i18n="modals.confirm.cancel">
             取消
           </button>
-          <button id="confirm-ok-btn" class="btn btn-primary">确定</button>
+          <button id="confirm-ok-btn" class="btn btn-primary" data-i18n="modals.confirm.confirm">确定</button>
         </div>
       </div>
     </div>
@@ -3539,8 +3539,8 @@
     <div id="prompt-modal" class="modal hidden" style="z-index: 20001">
       <div class="modal-content prompt-modal-content">
         <div class="modal-header">
-          <h2 id="prompt-modal-title">输入</h2>
-          <button id="close-prompt-modal-btn" class="close-btn" type="button" aria-label="关闭">
+          <h2 id="prompt-modal-title" data-i18n="modals.prompt.title">输入</h2>
+          <button id="close-prompt-modal-btn" class="close-btn" type="button" aria-label="关闭" data-i18n-aria-label="modals.prompt.closeAria">
             &times;
           </button>
         </div>
@@ -3555,8 +3555,8 @@
           />
         </div>
         <div class="modal-footer">
-          <button id="prompt-modal-cancel-btn" class="btn btn-secondary" type="button">取消</button>
-          <button id="prompt-modal-ok-btn" class="btn btn-primary" type="button">确定</button>
+          <button id="prompt-modal-cancel-btn" class="btn btn-secondary" type="button" data-i18n="modals.prompt.cancel">取消</button>
+          <button id="prompt-modal-ok-btn" class="btn btn-primary" type="button" data-i18n="modals.prompt.confirm">确定</button>
         </div>
       </div>
     </div>
@@ -3565,7 +3565,7 @@
     <div id="file-conflict-modal" class="modal hidden" style="z-index: 20002">
       <div class="modal-content file-conflict-modal-content">
         <div class="modal-header">
-          <h2 id="file-conflict-title">文件冲突</h2>
+          <h2 id="file-conflict-title" data-i18n="modals.fileConflict.title">文件冲突</h2>
           <button id="close-file-conflict-modal-btn" class="close-btn" type="button">
             &times;
           </button>
@@ -3575,15 +3575,15 @@
           <div id="file-conflict-list" class="file-conflict-list"></div>
           <label class="file-conflict-all-option">
             <input id="file-conflict-apply-all" type="checkbox" />
-            <span>对后续冲突都执行相同操作</span>
+            <span data-i18n="modals.fileConflict.applyAll">对后续冲突都执行相同操作</span>
           </label>
         </div>
         <div class="modal-footer file-conflict-footer">
-          <button id="file-conflict-compare-btn" class="btn btn-secondary" type="button">比较文件信息</button>
+          <button id="file-conflict-compare-btn" class="btn btn-secondary" type="button" data-i18n="modals.fileConflict.compare">比较文件信息</button>
           <span class="file-conflict-footer-spacer"></span>
-          <button id="file-conflict-cancel-btn" class="btn btn-secondary" type="button">取消</button>
-          <button id="file-conflict-skip-btn" class="btn btn-secondary" type="button">跳过</button>
-          <button id="file-conflict-replace-btn" class="btn btn-primary" type="button">替换目标文件</button>
+          <button id="file-conflict-cancel-btn" class="btn btn-secondary" type="button" data-i18n="modals.fileConflict.cancel">取消</button>
+          <button id="file-conflict-skip-btn" class="btn btn-secondary" type="button" data-i18n="modals.fileConflict.skip">跳过</button>
+          <button id="file-conflict-replace-btn" class="btn btn-primary" type="button" data-i18n="modals.fileConflict.replace">替换目标文件</button>
         </div>
       </div>
     </div>
@@ -3592,7 +3592,7 @@
     <div id="message-modal" class="modal hidden" style="z-index: 20001">
       <div class="modal-content modal-small">
         <div class="modal-header">
-          <h3 id="message-modal-title">提示</h3>
+          <h3 id="message-modal-title" data-i18n="modals.message.title">提示</h3>
           <button id="close-message-modal-btn" class="close-btn">
             &times;
           </button>
@@ -3601,7 +3601,7 @@
           <div id="message-modal-content" class="message-content"></div>
         </div>
         <div class="modal-footer">
-          <button id="message-modal-confirm-btn" class="btn btn-primary">
+          <button id="message-modal-confirm-btn" class="btn btn-primary" data-i18n="modals.message.confirm">
             确定
           </button>
         </div>
@@ -3616,7 +3616,7 @@
         id="image-modal-prev"
         class="image-modal-nav image-modal-prev hidden"
         aria-label="上一张"
-      >
+       data-i18n-aria-label="modals.lightbox.prev">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M15 6l-6 6 6 6"></path>
         </svg>
@@ -3627,7 +3627,7 @@
         id="image-modal-next"
         class="image-modal-nav image-modal-next hidden"
         aria-label="下一张"
-      >
+       data-i18n-aria-label="modals.lightbox.next">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9 6l6 6-6 6"></path>
         </svg>

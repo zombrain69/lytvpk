@@ -11,8 +11,17 @@
         "tooltip": "命令面板（Ctrl+K）：输入关键词跳转页面或执行常用动作"
       },
       "shortcuts": {
-        "dialogLabel": "键盘快捷键总览"
+        "dialogLabel": "键盘快捷键总览",
+        "tooltip": "快捷键总览"
       }
+    },
+    "loadingMessage": "正在加载...",
+    "exit": {
+      "title": "确认退出",
+      "descHead": "当前有正在进行的下载或上传任务，退出将导致任务中断。",
+      "descTail": "确定要退出吗？",
+      "cancel": "取消",
+      "confirm": "退出"
     }
   },
   "toolbox": {
@@ -231,7 +240,9 @@
       "conflictScopeTooltip": "选择冲突分析的对比范围和条件组合方式",
       "categoryToggle": "分类",
       "categoryToggleTooltip": "显示/隐藏分类树（按角色、武器、动作 XDR、音画场景等分类）",
-      "sortTooltip": "排序方式"
+      "sortTooltip": "排序方式",
+      "uploadTooltip": "上传文件",
+      "groupCaptureTooltip": "把当前勾选的 Mod 保存成一个新的策略组"
     },
     "search": {
       "placeholder": "搜索 VPK（支持 tag:武器、slot:heal、-tag:材质、re:^ak 等写法；Ctrl+F 聚焦，↑↓ 选结果，Enter 打开详情，Esc 清空）",
@@ -292,6 +303,32 @@
       "cancel": "取消",
       "coexist": "两者共存",
       "replace": "关闭旧的并启用"
+    },
+    "loading": "正在加载...",
+    "detail": {
+      "previewSection": "预览图",
+      "previewAlt": "预览图",
+      "previewLoading": "正在读取 VPK 预览图…",
+      "vpkSection": "VPK信息",
+      "mapSection": "地图信息",
+      "basicSection": "基本信息",
+      "subjectSection": "主体识别",
+      "tagsSection": "标签",
+      "detailTagsSection": "详细标签",
+      "ignoreSection": "该 Mod 的冲突忽略文件",
+      "openInBrowser": "在浏览器打开",
+      "ignoreSave": "保存忽略清单",
+      "ignoreClear": "清空",
+      "workshopTitle": "标题:",
+      "workshopAuthor": "作者:",
+      "workshopVersion": "版本:",
+      "workshopDescription": "描述:",
+      "workshopLink": "链接:",
+      "fileNameLabel": "文件名:",
+      "fileSizeLabel": "文件大小:",
+      "locationLabel": "位置:",
+      "statusLabel": "状态:",
+      "modifiedLabel": "最后修改:"
     }
   },
   "workshop": {
@@ -1734,6 +1771,44 @@
         "after": "已把「{name}」排到「{target}」后面",
         "inside": "已把「{name}」移动到「{target}」下面"
       }
+    }
+  },
+  "modals": {
+    "rename": {
+      "title": "重命名文件",
+      "fieldLabel": "新文件名",
+      "useModName": "使用 Mod 名称",
+      "placeholder": "输入新文件名",
+      "help": "无需输入 .vpk 后缀，保持原有隐藏状态",
+      "cancel": "取消",
+      "confirm": "确定"
+    },
+    "confirm": {
+      "title": "确认",
+      "cancel": "取消",
+      "confirm": "确定"
+    },
+    "prompt": {
+      "title": "输入",
+      "cancel": "取消",
+      "confirm": "确定",
+      "closeAria": "关闭"
+    },
+    "fileConflict": {
+      "title": "文件冲突",
+      "applyAll": "对后续冲突都执行相同操作",
+      "compare": "比较文件信息",
+      "cancel": "取消",
+      "skip": "跳过",
+      "replace": "替换目标文件"
+    },
+    "message": {
+      "title": "提示",
+      "confirm": "确定"
+    },
+    "lightbox": {
+      "prev": "上一张",
+      "next": "下一张"
     }
   }
 }
