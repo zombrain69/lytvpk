@@ -124,16 +124,20 @@ test("高亮参数只跟正向普通词与合法正则走", () => {
 // 纯函数绿了不代表界面接上了：这里静态检查归档管理器真的用上这套检索。
 test("归档管理器接上了统一检索（语法提示 / 计数 / 高亮 / 状态 chip）", () => {
   const source = readFileSync(new URL("./archive-manager.js", import.meta.url), "utf8");
+  const catalog = JSON.parse(readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"));
   assert.match(source, /searchArchivePackages\(archiveManagerPackages, archiveManagerQuery\)/, "文本检索要走统一语法");
   assert.match(source, /describeArchiveSearchResult\(/, "要有命中计数文案");
   assert.match(source, /highlightMatches\(titleText, highlightSpec\)/, "命中的压缩包名要高亮");
   assert.match(source, /search\.title = buildSearchHelpTitle\(ARCHIVE_SEARCH_HELP_VARIANT\)/, "搜索框提示要与说明书同源");
   assert.match(source, /helpPopover\.innerHTML = buildSearchHelpHtml\(ARCHIVE_SEARCH_HELP_VARIANT\)/, "要挂上同一份说明书浮层");
-  assert.match(source, /tag:状态/, "占位文字要能看出支持 tag: 语法");
+  // 文案已 i18n 化（第 13 项第十五批）：源码接线 + 目录内容双查。
+  assert.match(source, /t\("toolbox\.archiveManager\.searchPlaceholder"\)/, "占位文字要走目录文案");
+  assert.match(catalog.toolbox.archiveManager.searchPlaceholder, /tag:状态/, "占位文字要能看出支持 tag: 语法（目录侧）");
   assert.match(source, /archivePackageStateTags\(item\)/, "tag: 命中要说清是哪个状态");
   // 键盘光标（与 Mod 列表同一套：↑↓ 移动、Enter 展开、Esc 清空）
   assert.match(source, /nextResultPath\(keys, archiveCursorPath/, "缺少上下键移动光标");
-  assert.match(source, /describeResultCursor\(keys, archiveCursorPath, "Enter 展开 \/ 收起"\)/, "计数要显示光标位置与 Enter 的作用");
+  assert.match(source, /describeResultCursor\(keys, archiveCursorPath, t\("toolbox\.common\.enterHint"\)\)/, "计数要显示光标位置与 Enter 的作用");
+  assert.equal(catalog.toolbox.common.enterHint, "Enter 展开 / 收起");
   assert.match(source, /section\.dataset\.cursorKey = String\(item\.path/, "行上要有光标键");
   assert.match(source, /syncCursorHighlight\(list, "\.archive-manager-package\[data-cursor-key\]", archiveCursorPath\)/, "重画后要恢复光标");
 });

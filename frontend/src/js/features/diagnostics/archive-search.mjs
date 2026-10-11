@@ -9,18 +9,25 @@
 // 高亮交给 search-match.mjs 的 highlightMatches，避免出现"搜出来了却没有高亮"。
 
 import { describeFieldSearch, highlightSpecFor, matchByFields, searchByFields } from "../../core/field-search.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
-export const ARCHIVE_STATE_TAGS = ["密码", "错误", "已有", "待导入"];
+/** ARCHIVE_STATE_TAG_KEYS 四种包状态的文案 key（t() 延迟取，模块求值期不调）。 */
+export const ARCHIVE_STATE_TAG_KEYS = [
+  "toolbox.archiveSearch.tagPassword",
+  "toolbox.archiveSearch.tagError",
+  "toolbox.archiveSearch.tagExisting",
+  "toolbox.archiveSearch.tagNew",
+];
 
 /** archivePackageStateTags 返回这个压缩包的状态标签（供 `tag:` 与界面角标使用）。 */
 export function archivePackageStateTags(item) {
   const tags = [];
   if (!item) return tags;
-  if (item.requiresPassword) tags.push("密码");
-  if (item.error && !item.requiresPassword) tags.push("错误");
+  if (item.requiresPassword) tags.push(t("toolbox.archiveSearch.tagPassword"));
+  if (item.error && !item.requiresPassword) tags.push(t("toolbox.archiveSearch.tagError"));
   const vpks = Array.isArray(item.vpks) ? item.vpks : [];
-  if (vpks.some((vpk) => vpk?.matchState === "new")) tags.push("待导入");
-  if (vpks.some((vpk) => vpk?.matchState === "existing")) tags.push("已有");
+  if (vpks.some((vpk) => vpk?.matchState === "new")) tags.push(t("toolbox.archiveSearch.tagNew"));
+  if (vpks.some((vpk) => vpk?.matchState === "existing")) tags.push(t("toolbox.archiveSearch.tagExisting"));
   return tags;
 }
 
@@ -58,7 +65,7 @@ export function searchArchivePackages(items, query) {
  * 只是把名词换成"压缩包"。
  */
 export function describeArchiveSearchResult({ total = 0, matched = 0, query = "", regexInvalid = "" } = {}) {
-  return describeFieldSearch({ total, matched, query, regexInvalid, noun: "压缩包" });
+  return describeFieldSearch({ total, matched, query, regexInvalid, noun: t("toolbox.archiveSearch.noun") });
 }
 
 /**

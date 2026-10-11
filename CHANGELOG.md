@@ -1,5 +1,24 @@
 # Changelog
 
+## 未发布 — i18n：压缩包管理家族（archive-manager / archive-search）（第 13 项第十五批）（2026-10-12）
+
+- `archive-manager.js`：压缩包管理窗口全量文案 —— 扫描忙碌 / 完成 / 失败提示、窗口标题两态（含数量）、
+  工具栏摘要与搜索（占位 / aria / 说明书按钮）、排序与状态筛选下拉全部选项、密度切换按钮两态、
+  全选 / 取消全选 / 移动已选 / 刷新全部、空态；包卡片（勾选 tooltip、需要密码后读取、条目统计模板、
+  定位 / 打开按钮与失败前缀）、状态 chip、文件树（目录 / 显示全部条目）、7Z 密码重试面板四条、
+  VPK 行（目录读取受限 / 压缩算法不支持 / 已有 Mod + 位置 + 游戏状态 / 待导入 addons / VPK 读取失败 /
+  内部文件数与内部示例）、移动完成通知两态、冲突处理弹窗（标题 / 消息 / 目标文件 / 替换 / 跳过 / 取消）。
+- `archive-search.mjs`：`tag:` 包状态值（密码 / 错误 / 已有 / 待导入）改「key 表 + 延迟取文案」
+  （`ARCHIVE_STATE_TAG_KEYS`），检索计数名词「压缩包」进目录 —— 与冲突检索同口径，tag 值随界面语言。
+- **复用**：`toolbox.common.cancel|close|unknownError|backendUnsupported|enterHint`、
+  `mods.category.status.gameOn|gameOff`（游戏状态名）。`toolbox.common` 新增 `cancel` 与 `enterHint`
+  （「Enter 展开 / 收起」，模型统计批次将复用同一 hint）。
+- 目录新增 73 key（`toolbox.archiveManager` 66 / `toolbox.archiveSearch` 5 / `toolbox.common` +2）；
+  既有条目零改动。
+- 测试：`archive-search.test.mjs` 两条源级断言改「源码接线 + 目录内容」双查（搜索占位 / Enter 提示）。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；`go test ./...` /
+  `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：工具箱 VPK 工具家族 + 工具箱剩余卡片（第 13 项第十四批）（2026-10-12）
 
 - `diagnostics-page.js`（工具箱页剩余卡片）：8 张工具卡片（autoexec 编辑器 / VPK 解包 / VPK 打包 /

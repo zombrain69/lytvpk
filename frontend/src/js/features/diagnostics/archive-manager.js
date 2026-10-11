@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 import { createImeAwareSearchController } from "./archive-search-controller.mjs";
 import { formatMoveFailures } from "../file-list/move-result-format.mjs";
@@ -66,7 +67,7 @@ function bindArchiveHelpDismissOnce() {
 
 export async function openArchiveManager() {
   if (archiveManagerRunning) {
-    showNotification("压缩包正在扫描或移动", "info");
+    showNotification(t("toolbox.archiveManager.busy"), "info");
     return;
   }
   try {
@@ -82,7 +83,7 @@ export async function openArchiveManager() {
     archiveManagerSearchController = null;
     await scanArchiveDirectory(directory);
   } catch (error) {
-    showError("选择压缩包目录失败: " + formatError(error));
+    showError(t("toolbox.archiveManager.selectDirFailed", { error: formatError(error) }));
   }
 }
 
@@ -98,11 +99,11 @@ async function scanArchiveDirectory(directory) {
       Object.fromEntries(archivePasswordByPath),
     )) || [];
     renderArchiveManager();
-    showNotification(`扫描完成：找到 ${archiveManagerPackages.length} 个压缩包`, "success");
+    showNotification(t("toolbox.archiveManager.scanDone", { count: archiveManagerPackages.length }), "success");
   } catch (error) {
     archiveManagerSession?.close("error");
     archiveManagerSession = null;
-    showError("扫描压缩包失败: " + formatError(error));
+    showError(t("toolbox.archiveManager.scanFailed", { error: formatError(error) }));
   } finally {
     archiveManagerRunning = false;
   }
@@ -113,9 +114,9 @@ function showArchiveLoading(directory) {
   if (!session) return;
   archiveManagerSession = session;
   session.addClass(session.modal.querySelector(".modal-content"), "archive-manager-modal-content");
-  session.titleEl.textContent = "压缩包管理";
-  session.contentEl.textContent = `正在扫描：${directory}`;
-  session.confirmBtn.textContent = "取消";
+  session.titleEl.textContent = t("toolbox.archiveManager.title");
+  session.contentEl.textContent = t("toolbox.archiveManager.scanning", { directory });
+  session.confirmBtn.textContent = t("toolbox.common.cancel");
   session.confirmBtn.onclick = () => session.close("cancel");
   session.closeBtn.onclick = () => session.close("cancel");
   session.show();
@@ -128,9 +129,9 @@ function renderArchiveManager() {
   if (!session) return;
   archiveManagerSession = session;
   session.addClass(session.modal.querySelector(".modal-content"), "archive-manager-modal-content");
-  session.titleEl.textContent = `压缩包管理 (${archiveManagerPackages.length})`;
+  session.titleEl.textContent = t("toolbox.archiveManager.titleCount", { count: archiveManagerPackages.length });
   session.contentEl.replaceChildren(createArchiveContent());
-  session.confirmBtn.textContent = "关闭";
+  session.confirmBtn.textContent = t("toolbox.common.close");
   session.confirmBtn.onclick = () => session.close("close");
   session.closeBtn.onclick = () => session.close("close");
   session.show();
@@ -151,8 +152,11 @@ function createArchiveContent() {
     query: archiveManagerQuery,
     regexInvalid: archiveManagerSearchResult?.regexInvalid || "",
   });
-  summary.textContent =
-    `目录：${archiveManagerDirectory} · 显示 ${visiblePackages.length}/${archiveManagerPackages.length} 个压缩包 · 支持 ZIP / RAR / 7Z / TAR / TAR.GZ`;
+  summary.textContent = t("toolbox.archiveManager.summary", {
+    directory: archiveManagerDirectory,
+    visible: visiblePackages.length,
+    total: archiveManagerPackages.length,
+  });
   // 命中计数单独一个 span：键盘移动光标时只改这一处，不必整块重画（否则会丢焦点）。
   const searchCount = document.createElement("span");
   searchCount.className = "archive-manager-search-count";
@@ -161,9 +165,9 @@ function createArchiveContent() {
   const search = document.createElement("input");
   search.type = "search";
   search.className = "archive-manager-search";
-  search.placeholder = "搜索压缩包名、路径或 VPK 名称（支持 -排除 / re: 正则 / tag:状态）";
+  search.placeholder = t("toolbox.archiveManager.searchPlaceholder");
   search.value = archiveManagerQuery;
-  search.setAttribute("aria-label", "搜索压缩包");
+  search.setAttribute("aria-label", t("toolbox.archiveManager.searchAria"));
   // 悬停提示与 `?` 浮层都和 Mod 列表同源（search-help.mjs），只是字段与 tag: 的含义不同。
   search.title = buildSearchHelpTitle(ARCHIVE_SEARCH_HELP_VARIANT);
   const searchWrap = document.createElement("div");
@@ -173,8 +177,8 @@ function createArchiveContent() {
   helpBtn.id = "archive-search-help-btn";
   helpBtn.className = "search-help-btn";
   helpBtn.textContent = "?";
-  helpBtn.title = "搜索语法说明书";
-  helpBtn.setAttribute("aria-label", "搜索语法说明书");
+  helpBtn.title = t("toolbox.archiveManager.searchHelpTitle");
+  helpBtn.setAttribute("aria-label", t("toolbox.archiveManager.searchHelpAria"));
   helpBtn.setAttribute("aria-expanded", "false");
   const helpPopover = document.createElement("div");
   helpPopover.id = "archive-search-help-popover";
@@ -238,13 +242,13 @@ function createArchiveContent() {
   });
   const sort = document.createElement("select");
   sort.className = "archive-manager-sort";
-  sort.setAttribute("aria-label", "排序方式");
+  sort.setAttribute("aria-label", t("toolbox.archiveManager.sortAria"));
   [
-    ["name-asc", "名称 A-Z"],
-    ["name-desc", "名称 Z-A"],
-    ["status", "状态"],
-    ["size-desc", "大小从大到小"],
-    ["size-asc", "大小从小到大"],
+    ["name-asc", t("toolbox.archiveManager.sortNameAsc")],
+    ["name-desc", t("toolbox.archiveManager.sortNameDesc")],
+    ["status", t("toolbox.archiveManager.sortStatus")],
+    ["size-desc", t("toolbox.archiveManager.sortSizeDesc")],
+    ["size-asc", t("toolbox.archiveManager.sortSizeAsc")],
   ].forEach(([value, label]) => {
     const option = document.createElement("option");
     option.value = value;
@@ -258,13 +262,13 @@ function createArchiveContent() {
   };
   const stateFilter = document.createElement("select");
   stateFilter.className = "archive-manager-state-filter";
-  stateFilter.setAttribute("aria-label", "状态筛选");
+  stateFilter.setAttribute("aria-label", t("toolbox.archiveManager.stateFilterAria"));
   [
-    ["all", "全部状态"],
-    ["existing", "已有 Mod"],
-    ["new", "待导入"],
-    ["password", "需要密码"],
-    ["error", "读取失败"],
+    ["all", t("toolbox.archiveManager.filterAll")],
+    ["existing", t("toolbox.archiveManager.filterExisting")],
+    ["new", t("toolbox.archiveManager.filterNew")],
+    ["password", t("toolbox.archiveManager.filterPassword")],
+    ["error", t("toolbox.archiveManager.filterError")],
   ].forEach(([value, label]) => {
     const option = document.createElement("option");
     option.value = value;
@@ -279,8 +283,8 @@ function createArchiveContent() {
   const density = document.createElement("button");
   density.type = "button";
   density.className = "btn btn-secondary archive-manager-density";
-  density.textContent = archiveManagerDensity === "compact" ? "舒适显示" : "紧凑显示";
-  density.title = archiveManagerDensity === "compact" ? "增大卡片和文字，方便阅读" : "缩小卡片，显示更多压缩包";
+  density.textContent = archiveManagerDensity === "compact" ? t("toolbox.archiveManager.densityComfortable") : t("toolbox.archiveManager.densityCompact");
+  density.title = archiveManagerDensity === "compact" ? t("toolbox.archiveManager.densityComfortableTitle") : t("toolbox.archiveManager.densityCompactTitle");
   density.onclick = () => {
     archiveManagerDensity = archiveManagerDensity === "compact" ? "comfortable" : "compact";
     renderArchiveManager();
@@ -288,7 +292,7 @@ function createArchiveContent() {
   const selectAll = document.createElement("button");
   selectAll.type = "button";
   selectAll.className = "btn btn-secondary";
-  selectAll.textContent = "全选";
+  selectAll.textContent = t("toolbox.archiveManager.selectAll");
   selectAll.onclick = () => {
     archiveManagerPackages.forEach((item) => selectedArchivePaths.add(item.path));
     renderArchiveManager();
@@ -296,7 +300,7 @@ function createArchiveContent() {
   const clearAll = document.createElement("button");
   clearAll.type = "button";
   clearAll.className = "btn btn-secondary";
-  clearAll.textContent = "取消全选";
+  clearAll.textContent = t("toolbox.archiveManager.deselectAll");
   clearAll.onclick = () => {
     selectedArchivePaths.clear();
     renderArchiveManager();
@@ -304,14 +308,14 @@ function createArchiveContent() {
   const move = document.createElement("button");
   move.type = "button";
   move.className = "btn btn-primary archive-manager-move";
-  move.textContent = `移动已选 (${selectedArchivePaths.size})`;
+  move.textContent = t("toolbox.archiveManager.moveSelected", { count: selectedArchivePaths.size });
   move.disabled = selectedArchivePaths.size === 0;
   move.onclick = () => moveSelectedArchives();
   const refresh = document.createElement("button");
   refresh.type = "button";
   refresh.className = "btn btn-secondary";
-  refresh.textContent = "刷新全部";
-  refresh.title = "重新遍历当前目录下的压缩包；搜索和排序不会触发全量扫描";
+  refresh.textContent = t("toolbox.archiveManager.refresh");
+  refresh.title = t("toolbox.archiveManager.refreshTitle");
   refresh.onclick = () => scanArchiveDirectory(archiveManagerDirectory);
   toolbar.append(summary, searchCount, searchWrap, sort, stateFilter, density, refresh, selectAll, clearAll, move);
   wrapper.appendChild(toolbar);
@@ -321,7 +325,7 @@ function createArchiveContent() {
   if (archiveManagerPackages.length === 0) {
     const empty = document.createElement("div");
     empty.className = "archive-manager-empty";
-    empty.textContent = "没有找到支持的压缩包。";
+    empty.textContent = t("toolbox.archiveManager.empty");
     list.appendChild(empty);
   }
   visiblePackages.forEach((item) => list.appendChild(createArchivePackage(item)));
@@ -353,7 +357,7 @@ function updateArchiveSearchCountText() {
     document.querySelector(".archive-manager-list"),
     ".archive-manager-package[data-cursor-key]",
   );
-  const cursorText = describeResultCursor(keys, archiveCursorPath, "Enter 展开 / 收起");
+  const cursorText = describeResultCursor(keys, archiveCursorPath, t("toolbox.common.enterHint"));
   count.textContent = [base, cursorText].filter(Boolean).join(" · ");
 }
 
@@ -407,7 +411,7 @@ function createArchivePackage(item) {
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.checked = selectedArchivePaths.has(item.path);
-  checkbox.title = "选择此压缩包以批量移动";
+  checkbox.title = t("toolbox.archiveManager.checkboxTitle");
   checkbox.onchange = () => {
     if (checkbox.checked) selectedArchivePaths.add(item.path);
     else selectedArchivePaths.delete(item.path);
@@ -430,13 +434,26 @@ function createArchivePackage(item) {
   const existing = (item.vpks || []).filter((vpk) => vpk.matchState === "existing").length;
   const newer = (item.vpks || []).filter((vpk) => vpk.matchState === "new").length;
   stats.textContent = item.requiresPassword
-    ? "需要密码后读取"
-    : `${item.entries?.length || 0} 项 · VPK ${item.vpks?.length || 0} · 已有 ${existing} · 待导入 ${newer}`;
+    ? t("toolbox.archiveManager.statePassword")
+    : t("toolbox.archiveManager.statsLine", {
+        entries: item.entries?.length || 0,
+        vpks: item.vpks?.length || 0,
+        existing,
+        newer,
+      });
   const actions = document.createElement("div");
   actions.className = "archive-manager-package-actions";
   actions.append(
-    createArchiveActionButton("定位", "在文件夹中定位此压缩包", () => callApp("OpenFileLocation", item.path)),
-    createArchiveActionButton("打开", "用系统默认程序打开此压缩包", () => callApp("OpenArchivePackage", item.path)),
+    createArchiveActionButton(
+      t("toolbox.archiveManager.actionLocate"),
+      t("toolbox.archiveManager.actionLocateTitle"),
+      () => callApp("OpenFileLocation", item.path),
+    ),
+    createArchiveActionButton(
+      t("toolbox.archiveManager.actionOpen"),
+      t("toolbox.archiveManager.actionOpenTitle"),
+      () => callApp("OpenArchivePackage", item.path),
+    ),
   );
   header.append(checkbox, title, stats);
   // 用 tag: 搜索时把"命中的状态"贴出来（与 Mod 列表的「匹配：xxx」同一个样式与用意）。
@@ -448,8 +465,8 @@ function createArchivePackage(item) {
     if (hitTags.length > 0) {
       const chip = document.createElement("span");
       chip.className = "search-reason-chip";
-      chip.title = "这行是被这些状态标签匹配到的";
-      chip.textContent = `匹配：状态 ${hitTags.join(" · ")}`;
+      chip.title = t("toolbox.archiveManager.matchReasonTitle");
+      chip.textContent = t("toolbox.archiveManager.matchReasonChip", { tags: hitTags.join(" · ") });
       header.appendChild(chip);
     }
   }
@@ -473,7 +490,10 @@ function createArchivePackage(item) {
     section.classList.toggle("is-expanded", details.open);
   });
   const summary = document.createElement("summary");
-  summary.textContent = `查看文件树与 VPK 信息（${item.entries?.length || 0} 项 / ${item.vpks?.length || 0} 个 VPK）`;
+  summary.textContent = t("toolbox.archiveManager.detailsSummary", {
+    entries: item.entries?.length || 0,
+    vpks: item.vpks?.length || 0,
+  });
   details.appendChild(summary);
   const tree = document.createElement("div");
   tree.className = "archive-manager-tree";
@@ -484,7 +504,7 @@ function createArchivePackage(item) {
     const name = document.createElement("span");
     name.textContent = entry.isDir ? `📁 ${entry.name}` : entry.name;
     const size = document.createElement("span");
-    size.textContent = entry.isDir ? "目录" : formatBytes(entry.size);
+    size.textContent = entry.isDir ? t("toolbox.archiveManager.labelDir") : formatBytes(entry.size);
     row.append(name, size);
     tree.appendChild(row);
   });
@@ -495,7 +515,7 @@ function createArchivePackage(item) {
     const more = document.createElement("button");
     more.type = "button";
     more.className = "btn btn-secondary archive-manager-tree-more";
-    more.textContent = `显示全部条目（剩余 ${entries.length - initialEntries.length}）`;
+    more.textContent = t("toolbox.archiveManager.showAllEntries", { count: entries.length - initialEntries.length });
     more.onclick = () => {
       appendEntries(entries.slice(initialEntries.length));
       more.remove();
@@ -511,7 +531,7 @@ function createArchivePackage(item) {
 function updateArchiveSelectionToolbar() {
   const move = document.querySelector(".archive-manager-toolbar .archive-manager-move");
   if (!move) return;
-  move.textContent = `移动已选 (${selectedArchivePaths.size})`;
+  move.textContent = t("toolbox.archiveManager.moveSelected", { count: selectedArchivePaths.size });
   move.disabled = selectedArchivePaths.size === 0;
 }
 
@@ -538,7 +558,7 @@ function createArchiveActionButton(label, title, action) {
     try {
       await action();
     } catch (error) {
-      showError(`${label}压缩包失败: ${formatError(error)}`);
+      showError(t("toolbox.archiveManager.actionFailed", { label, error: formatError(error) }));
     } finally {
       button.disabled = false;
     }
@@ -552,17 +572,17 @@ function createArchivePasswordRetry(item) {
   const input = document.createElement("input");
   input.type = "password";
   input.autocomplete = "current-password";
-  input.placeholder = "输入此 7Z 的密码";
+  input.placeholder = t("toolbox.archiveManager.passwordPlaceholder");
   input.value = archivePasswordByPath.get(item.path) || "";
-  input.title = "密码仅用于当前窗口的本次扫描，不会保存到设置或磁盘";
+  input.title = t("toolbox.archiveManager.passwordHint");
   const retry = document.createElement("button");
   retry.type = "button";
   retry.className = "btn btn-primary";
-  retry.textContent = "使用密码重试";
+  retry.textContent = t("toolbox.archiveManager.passwordRetry");
   retry.onclick = async () => {
     const password = input.value;
     if (!password) {
-      showNotification("请输入 7Z 密码后再重试", "info");
+      showNotification(t("toolbox.archiveManager.passwordRequired"), "info");
       input.focus();
       return;
     }
@@ -597,25 +617,27 @@ function createVPKRow(vpk) {
     ? ` · ${vpk.existingLocations.join(" / ")}`
     : "";
   const gameStateText = vpk.existingGameState === "enabled"
-    ? " · 游戏内开启"
+    ? ` · ${t("mods.category.status.gameOn")}`
     : vpk.existingGameState === "disabled"
-      ? " · 游戏内关闭"
+      ? ` · ${t("mods.category.status.gameOff")}`
       : "";
   state.textContent = inspectionStatus === "limited"
-    ? "目录读取受限"
+    ? t("toolbox.archiveManager.stateLimited")
     : inspectionStatus === "unsupported"
-      ? "压缩算法不支持"
+      ? t("toolbox.archiveManager.stateUnsupported")
     : vpk.valid
-      ? (vpk.matchState === "existing" ? `已有 Mod${locationText}${gameStateText}` : "待导入 addons")
-      : "VPK 读取失败";
+      ? (vpk.matchState === "existing"
+        ? t("toolbox.archiveManager.stateExisting", { location: locationText, gameState: gameStateText })
+        : t("toolbox.archiveManager.stateNew"))
+      : t("toolbox.archiveManager.stateReadFailed");
   const meta = document.createElement("span");
   meta.textContent = vpk.valid
-    ? `${formatBytes(vpk.size)} · ${vpk.fileCount} 个内部文件`
-    : (vpk.error || "未知错误");
+    ? t("toolbox.archiveManager.vpkMeta", { size: formatBytes(vpk.size), count: vpk.fileCount })
+    : (vpk.error || t("toolbox.common.unknownError"));
   row.append(label, state, meta);
   if (vpk.valid && Array.isArray(vpk.internalFiles) && vpk.internalFiles.length) {
     const preview = document.createElement("small");
-    preview.textContent = `内部示例：${vpk.internalFiles.slice(0, 5).join("、")}${vpk.internalFiles.length > 5 ? " …" : ""}`;
+    preview.textContent = t("toolbox.archiveManager.internalSample", { list: vpk.internalFiles.slice(0, 5).join("、"), more: vpk.internalFiles.length > 5 ? " …" : "" });
     row.appendChild(preview);
   }
   return row;
@@ -635,14 +657,21 @@ async function moveSelectedArchives() {
     const failureText = formatMoveFailures(result);
     showNotification(
       failureText
-        ? `移动完成：成功 ${result.successCount || 0}，跳过 ${result.skippedCount || 0} — ${failureText}`
-        : `移动完成：成功 ${result.successCount || 0}，跳过 ${result.skippedCount || 0}`,
+        ? t("toolbox.archiveManager.moveDoneFailed", {
+            success: result.successCount || 0,
+            skipped: result.skippedCount || 0,
+            failure: failureText,
+          })
+        : t("toolbox.archiveManager.moveDone", {
+            success: result.successCount || 0,
+            skipped: result.skippedCount || 0,
+          }),
       result.failCount ? "info" : "success",
     );
     if (failureText) console.error("归档移动失败详情:", result.errors);
     await scanArchiveDirectory(archiveManagerDirectory);
   } catch (error) {
-    showError("移动压缩包失败: " + formatError(error));
+    showError(t("toolbox.archiveManager.moveFailed", { error: formatError(error) }));
   }
 }
 
@@ -651,15 +680,15 @@ function chooseConflictAction(conflicts) {
     const session = beginMessageModalSession();
     if (!session) return resolve(null);
     session.addClass(session.modal.querySelector(".modal-content"), "archive-manager-modal-content");
-    session.titleEl.textContent = `发现 ${conflicts.length} 个文件冲突`;
+    session.titleEl.textContent = t("toolbox.archiveManager.conflictTitle", { count: conflicts.length });
     const content = document.createElement("div");
     content.className = "archive-manager-conflict-choice";
     const message = document.createElement("p");
-    message.textContent = "目标位置已有同名压缩包，请选择本批次的处理方式：";
+    message.textContent = t("toolbox.archiveManager.conflictMessage");
     const list = document.createElement("ul");
     conflicts.slice(0, 8).forEach((conflict) => {
       const item = document.createElement("li");
-      item.textContent = conflict.targetPath || "目标文件";
+      item.textContent = conflict.targetPath || t("toolbox.archiveManager.conflictTargetFallback");
       list.appendChild(item);
     });
     content.append(message, list);
@@ -667,17 +696,17 @@ function chooseConflictAction(conflicts) {
     const replace = document.createElement("button");
     replace.type = "button";
     replace.className = "btn btn-danger";
-    replace.textContent = "替换";
+    replace.textContent = t("toolbox.archiveManager.conflictReplace");
     const skip = document.createElement("button");
     skip.type = "button";
     skip.className = "btn btn-secondary";
-    skip.textContent = "跳过";
+    skip.textContent = t("toolbox.archiveManager.conflictSkip");
     const finish = (value) => { session.close("choice"); resolve(value); };
     replace.onclick = () => finish("replace");
     skip.onclick = () => finish("skip");
     session.addActionButton(replace);
     session.addActionButton(skip);
-    session.confirmBtn.textContent = "取消";
+    session.confirmBtn.textContent = t("toolbox.common.cancel");
     session.confirmBtn.onclick = () => finish(null);
     session.closeBtn.onclick = () => finish(null);
     session.show();
@@ -694,10 +723,10 @@ function formatBytes(value) {
 
 function callApp(methodName, ...args) {
   const method = window?.go?.app?.App?.[methodName];
-  if (typeof method !== "function") return Promise.reject(new Error(`当前后端不支持 ${methodName}`));
+  if (typeof method !== "function") return Promise.reject(new Error(t("toolbox.common.backendUnsupported", { method: methodName })));
   return method(...args);
 }
 
 function formatError(error) {
-  return error?.message || String(error || "未知错误");
+  return error?.message || String(error || t("toolbox.common.unknownError"));
 }
