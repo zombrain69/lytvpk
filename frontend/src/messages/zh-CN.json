@@ -285,6 +285,13 @@
       "transferToRoot": "转移至根目录",
       "move": "移动文件",
       "delete": "批量删除"
+    },
+    "singletonConflict": {
+      "title": "同类的 Mod 已经在生效",
+      "desc": "游戏里同一角色/同一把武器只会生效一个替换（后加载覆盖或随机生效）。",
+      "cancel": "取消",
+      "coexist": "两者共存",
+      "replace": "关闭旧的并启用"
     }
   },
   "workshop": {
@@ -400,7 +407,12 @@
     "idJump": {
       "inputRequired": "请输入工坊 ID 或链接",
       "invalid": "无法识别工坊 ID",
-      "invalidWithError": "无法识别工坊 ID: {error}"
+      "invalidWithError": "无法识别工坊 ID: {error}",
+      "title": "工坊 ID 直达",
+      "inputLabel": "工坊 ID 或链接",
+      "placeholder": "例如: 3803082047 或工坊链接",
+      "cancel": "取消",
+      "confirm": "前往"
     },
     "translate": {
       "action": "翻译描述",
@@ -460,7 +472,9 @@
         "fileNotFound": "无法定位已下载的 VPK 文件，请刷新 Mod 列表后重试"
       },
       "autoRedownloadLabel": "失败后自动重下",
-      "autoRedownloadHint": "开启后，这个任务在下载失败时自动重试一次；用户主动取消的任务不会重试"
+      "autoRedownloadHint": "开启后，这个任务在下载失败时自动重试一次；用户主动取消的任务不会重试",
+      "queueTitle": "下载任务队列",
+      "clearCompleted": "清理已完成"
     },
     "modal": {
       "download": "下载",
@@ -504,13 +518,26 @@
         "ipCheckFailed": "优选线路状态检查失败: {error}",
         "downloadUrlRequired": "请输入或解析下载链接",
         "notFound": "未找到相关文件"
-      }
+      },
+      "urlLabel": "创意工坊链接",
+      "urlPlaceholder": "粘贴 Steam 创意工坊链接...",
+      "pasteUrlTooltip": "粘贴",
+      "historyTooltip": "最近解析记录",
+      "checkButton": "解析",
+      "openBrowserTooltip": "浏览工坊",
+      "openBrowserButton": "工坊",
+      "downloadLinkLabel": "下载链接",
+      "downloadLinkPasteTooltip": "粘贴",
+      "copyButton": "复制"
     },
     "history": {
       "clearTitle": "清空解析历史",
       "clearConfirm": "确定要清空所有解析历史记录吗？",
       "cleared": "解析历史已清空",
-      "clearFailed": "清空解析历史失败: {error}"
+      "clearFailed": "清空解析历史失败: {error}",
+      "dropdownTitle": "最近解析",
+      "clearAction": "清空",
+      "dropdownEmpty": "暂无解析记录"
     },
     "clipboard": {
       "confirmTitle": "检测到创意工坊链接",

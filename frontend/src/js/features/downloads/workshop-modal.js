@@ -228,7 +228,8 @@ function resetWorkshopParseState() {
   document.getElementById("download-url").placeholder = t("downloads.modal.downloadUrlPlaceholder");
   document.getElementById("workshop-result").classList.add("hidden");
   document.getElementById("workshop-result").innerHTML = "";
-  document.getElementById("download-workshop-btn").innerHTML = DOWNLOAD_ICON_SVG + `<span>${t("downloads.modal.download")}</span>`;
+  document.getElementById("download-workshop-btn").innerHTML =
+    DOWNLOAD_ICON_SVG + `<span data-i18n="downloads.modal.download">${t("downloads.modal.download")}</span>`;
   document.getElementById("optimized-ip-container").classList.add("hidden");
   document.getElementById("use-optimized-ip-global").checked = false;
   currentWorkshopResult = null;
@@ -722,7 +723,10 @@ export function applyWorkshopGroups(groups, { viewSession = workshopViewSession 
         ? t("downloads.modal.parsedWithFiles", { groups: safeGroups.length, files: downloadableItems.length, hint: truncatedHint })
         : t("downloads.modal.parsedNoFiles", { groups: safeGroups.length, hint: truncatedHint });
   }
-  if (downloadBtn) downloadBtn.innerHTML = DOWNLOAD_ICON_SVG + `<span>${t("downloads.modal.downloadAll")}</span>`;
+  if (downloadBtn)
+    downloadBtn.innerHTML =
+      DOWNLOAD_ICON_SVG +
+      `<span data-i18n="downloads.modal.downloadAll">${t("downloads.modal.downloadAll")}</span>`;
 
   const hasSteamCDN = downloadableItems.some((details) =>
     String(details?.file_url || "").includes("cdn.steamusercontent.com")

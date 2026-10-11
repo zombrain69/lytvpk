@@ -27,7 +27,7 @@ export async function refreshTaskList() {
     if (requestId !== taskListRequestId || !listContainer.isConnected) return;
 
     if (!tasks || tasks.length === 0) {
-      listContainer.innerHTML = `<div class="empty-tasks" style="text-align: center; color: #888; padding: 20px;">${t("downloads.task.empty")}</div>`;
+      listContainer.innerHTML = `<div class="empty-tasks" data-i18n="downloads.task.empty" style="text-align: center; color: #888; padding: 20px;">${t("downloads.task.empty")}</div>`;
       return;
     }
 

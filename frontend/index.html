@@ -1231,18 +1231,18 @@
                 否则任务一多，解析 / 工坊 / 下载 / 复制 就被滚出视野。 -->
             <div class="workshop-input-dock">
             <div class="input-group">
-              <label for="workshop-url" class="input-label">创意工坊链接</label>
+              <label for="workshop-url" class="input-label" data-i18n="downloads.modal.urlLabel">创意工坊链接</label>
               <div class="url-input-container">
                 <input
                   type="text"
                   id="workshop-url"
                   placeholder="粘贴 Steam 创意工坊链接..."
-                />
+                 data-i18n-placeholder="downloads.modal.urlPlaceholder"/>
                 <button
                   id="paste-workshop-url-btn"
                   class="btn btn-ghost btn-icon-only"
                   title="粘贴"
-                >
+                 data-i18n-title="downloads.modal.pasteUrlTooltip">
                   <span class="icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none">
                       <rect x="8" y="8" width="12" height="12" rx="2"></rect>
@@ -1257,7 +1257,7 @@
                     title="最近解析记录"
                     aria-haspopup="true"
                     aria-expanded="false"
-                  >
+                   data-i18n-title="downloads.modal.historyTooltip">
                     <span class="icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
@@ -1268,13 +1268,13 @@
                   </button>
                   <div id="workshop-history-menu" class="workshop-history-menu hidden">
                     <div class="workshop-history-header">
-                      <span>最近解析</span>
+                      <span data-i18n="downloads.history.dropdownTitle">最近解析</span>
                       <button id="workshop-history-clear" class="btn-text-small" type="button">
-                        清空
+                        <span data-i18n="downloads.history.clearAction">清空</span>
                       </button>
                     </div>
                     <div id="workshop-history-list" class="workshop-history-list"></div>
-                    <div id="workshop-history-empty" class="dropdown-empty hidden">暂无解析记录</div>
+                    <div id="workshop-history-empty" class="dropdown-empty hidden" data-i18n="downloads.history.dropdownEmpty">暂无解析记录</div>
                   </div>
                 </div>
                 <button id="check-workshop-btn" class="btn btn-primary">
@@ -1284,37 +1284,37 @@
                       <path d="m16 16 4 4"></path>
                     </svg>
                   </span>
-                  解析
+                  <span data-i18n="downloads.modal.checkButton">解析</span>
                 </button>
                 <button
                   id="open-browser-btn"
                   class="btn btn-success"
                   title="浏览工坊"
-                >
+                 data-i18n-title="downloads.modal.openBrowserTooltip">
                   <span class="icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="9"></circle>
                       <path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2z"></path>
                     </svg>
                   </span>
-                  工坊
+                  <span data-i18n="downloads.modal.openBrowserButton">工坊</span>
                 </button>
               </div>
             </div>
 
             <div class="input-group mt-15">
-              <label for="download-url" class="input-label">下载链接</label>
+              <label for="download-url" class="input-label" data-i18n="downloads.modal.downloadLinkLabel">下载链接</label>
               <div class="url-input-container">
                 <input
                   type="text"
                   id="download-url"
                   placeholder="解析后自动填充，或手动输入直链..."
-                />
+                 data-i18n-placeholder="downloads.modal.downloadUrlPlaceholder"/>
                 <button
                   id="paste-download-url-btn"
                   class="btn btn-ghost btn-icon-only"
                   title="粘贴"
-                >
+                 data-i18n-title="downloads.modal.downloadLinkPasteTooltip">
                   <span class="icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none">
                       <rect x="8" y="8" width="12" height="12" rx="2"></rect>
@@ -1345,7 +1345,7 @@
                       <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
                     </svg>
                   </span>
-                  复制
+                  <span data-i18n="downloads.modal.copyButton">复制</span>
                 </button>
               </div>
             </div>
@@ -1362,17 +1362,17 @@
 
             <div class="task-list-container mt-30 border-top-light pt-20">
               <div class="task-list-header">
-                <h3>下载任务队列</h3>
+                <h3 data-i18n="downloads.task.queueTitle">下载任务队列</h3>
                 <button
                   id="clear-completed-tasks-btn"
                   class="btn btn-sm btn-outline"
                 >
-                  清理已完成
+                  <span data-i18n="downloads.task.clearCompleted">清理已完成</span>
                 </button>
               </div>
               <div id="download-tasks-list" class="download-tasks-list">
                 <!-- 任务列表项将动态插入这里 -->
-                <div class="empty-tasks">暂无下载任务</div>
+                <div class="empty-tasks" data-i18n="downloads.task.empty">暂无下载任务</div>
               </div>
             </div>
             </div>
@@ -1386,20 +1386,20 @@
     <div id="singleton-conflict-modal" class="modal hidden">
       <div class="modal-content modal-small">
         <div class="modal-header">
-          <h3>同类的 Mod 已经在生效</h3>
+          <h3 data-i18n="mods.singletonConflict.title">同类的 Mod 已经在生效</h3>
           <button class="close-btn" id="singleton-conflict-close-btn">&times;</button>
         </div>
         <div class="modal-body">
           <p id="singleton-conflict-message" class="setting-row-desc"></p>
           <ul id="singleton-conflict-list" class="singleton-conflict-list"></ul>
-          <p class="setting-row-desc">
+          <p class="setting-row-desc" data-i18n="mods.singletonConflict.desc">
             游戏里同一角色/同一把武器只会生效一个替换（后加载覆盖或随机生效）。
           </p>
         </div>
         <div class="modal-footer singleton-conflict-footer">
-          <button type="button" id="singleton-conflict-cancel" class="btn btn-secondary">取消</button>
-          <button type="button" id="singleton-conflict-coexist" class="btn btn-outline">两者共存</button>
-          <button type="button" id="singleton-conflict-replace" class="btn btn-primary">关闭旧的并启用</button>
+          <button type="button" id="singleton-conflict-cancel" class="btn btn-secondary" data-i18n="mods.singletonConflict.cancel">取消</button>
+          <button type="button" id="singleton-conflict-coexist" class="btn btn-outline" data-i18n="mods.singletonConflict.coexist">两者共存</button>
+          <button type="button" id="singleton-conflict-replace" class="btn btn-primary" data-i18n="mods.singletonConflict.replace">关闭旧的并启用</button>
         </div>
       </div>
     </div>
@@ -1461,23 +1461,23 @@
     <div id="workshop-id-jump-modal" class="modal hidden">
       <div class="modal-content modal-small">
         <div class="modal-header">
-          <h3>工坊 ID 直达</h3>
+          <h3 data-i18n="workshop.idJump.title">工坊 ID 直达</h3>
           <button id="close-workshop-id-jump-btn" class="close-btn" type="button">&times;</button>
         </div>
         <div class="modal-body">
           <div class="mb-20">
-            <label for="workshop-id-jump-input" class="form-label">工坊 ID 或链接</label>
+            <label for="workshop-id-jump-input" class="form-label" data-i18n="workshop.idJump.inputLabel">工坊 ID 或链接</label>
             <input
               type="text"
               id="workshop-id-jump-input"
               class="form-input w-100"
               placeholder="例如: 3803082047 或工坊链接"
-            />
+             data-i18n-placeholder="workshop.idJump.placeholder"/>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="workshop-id-jump-cancel-btn" class="btn btn-outline" type="button">取消</button>
-          <button id="workshop-id-jump-confirm-btn" class="btn btn-primary" type="button">前往</button>
+          <button id="workshop-id-jump-cancel-btn" class="btn btn-outline" type="button" data-i18n="workshop.idJump.cancel">取消</button>
+          <button id="workshop-id-jump-confirm-btn" class="btn btn-primary" type="button" data-i18n="workshop.idJump.confirm">前往</button>
         </div>
       </div>
     </div>
