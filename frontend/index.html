@@ -3302,13 +3302,13 @@
         <div class="browser-body">
           <aside class="browser-sidebar">
             <div class="filter-group filter-group-sort">
-              <h4>排序</h4>
+              <h4 data-i18n="workshop.sort.title">排序</h4>
               <ul class="filter-list" id="browser-sort-list">
-                <li class="filter-item active" data-sort="trend">
+                <li class="filter-item active" data-sort="trend" data-i18n="workshop.sort.trend">
                   热门
                 </li>
-                <li class="filter-item" data-sort="recent">最新</li>
-                <li class="filter-item" data-sort="top">
+                <li class="filter-item" data-sort="recent" data-i18n="workshop.sort.recent">最新</li>
+                <li class="filter-item" data-sort="top" data-i18n="workshop.sort.top">
                   评分最高
                 </li>
               </ul>
@@ -3325,7 +3325,7 @@
                   data-active="item"
                   role="tablist"
                   aria-label="工坊类型"
-                >
+                 data-i18n-aria-label="workshop.typeToggle.ariaLabel">
                   <span class="workshop-type-toggle-indicator" aria-hidden="true"></span>
                   <button
                     type="button"
@@ -3333,7 +3333,7 @@
                     data-filetype="0"
                     role="tab"
                     aria-selected="true"
-                  >
+                   data-i18n="workshop.typeToggle.items">
                     物品
                   </button>
                   <button
@@ -3342,7 +3342,7 @@
                     data-filetype="1"
                     role="tab"
                     aria-selected="false"
-                  >
+                   data-i18n="workshop.typeToggle.collections">
                     合集
                   </button>
                 </div>
@@ -3353,7 +3353,7 @@
                     class="form-input"
                     placeholder="搜索工坊物品标题（由 Steam 搜索，不支持 tag: / re: 等本地语法）"
                     aria-label="搜索创意工坊（Steam 服务端搜索）"
-                  />
+                   data-i18n-placeholder="workshop.search.placeholder" data-i18n-aria-label="workshop.search.ariaLabel"/>
                 </div>
               </div>
               <button id="browser-search-btn" class="btn btn-primary">
@@ -3363,10 +3363,10 @@
                     <path d="m16 16 4 4"></path>
                   </svg>
                 </span>
-                查询
+                <span data-i18n="workshop.toolbar.search">查询</span>
               </button>
               <button id="browser-reset-btn" class="btn btn-outline">
-                <span class="icon">↺</span> 重置
+                <span class="icon">↺</span> <span data-i18n="workshop.toolbar.reset">重置</span>
               </button>
 <button id="browser-watch-later-btn" class="btn btn-outline browser-watch-later-btn">
   <span class="icon" aria-hidden="true">
@@ -3375,21 +3375,21 @@
       <circle cx="12" cy="12" r="9"></circle>
     </svg>
   </span>
-  <span>稍后再看</span>
+  <span data-i18n="workshop.watchLater.button">稍后再看</span>
   <span id="browser-watch-later-count" class="watch-later-count hidden">0</span>
 </button>
 <button
   id="browser-id-jump-btn"
   class="btn btn-outline"
   title="输入工坊 ID 或链接，直接打开详情（不用先搜索）"
->
+ data-i18n-title="workshop.idJump.tooltip">
   <span class="icon" aria-hidden="true">
     <svg class="icon-svg" viewBox="0 0 24 24" fill="none">
       <path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10.5 5.43"></path>
       <path d="M14 11a5 5 0 0 0-7.07 0L5.52 12.4a5 5 0 0 0 7.07 7.07l.9-.9"></path>
     </svg>
   </span>
-  <span>ID 直达</span>
+  <span data-i18n="workshop.idJump.button">ID 直达</span>
 </button>
             </div>
             <div class="browser-grid-container" id="browser-scroll-container">
@@ -3397,12 +3397,12 @@
                 <!-- Items rendered here -->
               </div>
               <div id="browser-loading" class="loading-placeholder hidden">
-                加载中...
+                <span data-i18n="workshop.list.loadingShort">加载中...</span>
               </div>
               <button
                 id="browser-load-more"
                 class="btn btn-outline load-more-btn hidden"
-              >
+               data-i18n="workshop.list.loadMore">
                 加载更多
               </button>
             </div>
@@ -3419,18 +3419,18 @@
               "
             >
               <!-- Rendered by JS -->
-              <div class="loading-placeholder" style="margin: auto">
+              <div class="loading-placeholder" style="margin: auto" data-i18n="workshop.detail.loadingPlaceholder">
                 加载详情中...
               </div>
             </div>
           </div>
           <div id="browser-watch-later-drawer-root" class="watch-later-drawer-root">
             <div id="browser-watch-later-backdrop" class="watch-later-backdrop"></div>
-            <aside class="watch-later-drawer" aria-label="稍后再看列表">
+            <aside class="watch-later-drawer" aria-label="稍后再看列表" data-i18n-aria-label="workshop.watchLater.drawerAriaLabel">
               <div class="watch-later-header">
                 <div>
-                  <h3>稍后再看</h3>
-                  <p><span id="browser-watch-later-title-count">0</span> 个物品</p>
+                  <h3 data-i18n="workshop.watchLater.drawerTitle">稍后再看</h3>
+                  <p><span id="browser-watch-later-title-count">0</span> <span data-i18n="workshop.watchLater.countSuffix">个物品</span></p>
                 </div>
                 <div class="watch-later-header-actions">
                   <button
@@ -3439,7 +3439,7 @@
                     type="button"
                     aria-label="清空稍后再看列表"
                     title="清空"
-                  >
+                   data-i18n-title="workshop.watchLater.clearTooltip" data-i18n-aria-label="workshop.watchLater.clearAriaLabel">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M3 6h18"></path>
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
@@ -3453,7 +3453,7 @@
                     class="close-btn watch-later-close"
                     type="button"
                     aria-label="关闭稍后再看列表"
-                  >
+                   data-i18n-aria-label="workshop.watchLater.closeAriaLabel">
                     &times;
                   </button>
                 </div>
@@ -3466,7 +3466,7 @@
                     <circle cx="12" cy="12" r="9"></circle>
                   </svg>
                 </div>
-                <p>暂无稍后再看的物品</p>
+                <p data-i18n="workshop.watchLater.empty">暂无稍后再看的物品</p>
               </div>
             </aside>
           </div>

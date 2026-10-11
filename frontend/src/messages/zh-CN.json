@@ -346,7 +346,8 @@
     },
     "search": {
       "placeholder": "搜索工坊物品标题（由 Steam 搜索，不支持 tag: / re: 等本地语法）",
-      "note": "工坊搜索由 Steam 服务端执行：只按关键词匹配（标题、作者等），会跟着分页一起返回；不支持 tag: / re: / -排除 这类本地语法。想用本地语法请到：Mod 列表、压缩包管理、模型统计、策略组管理、冲突检测、体检结果。"
+      "note": "工坊搜索由 Steam 服务端执行：只按关键词匹配（标题、作者等），会跟着分页一起返回；不支持 tag: / re: / -排除 这类本地语法。想用本地语法请到：Mod 列表、压缩包管理、模型统计、策略组管理、冲突检测、体检结果。",
+      "ariaLabel": "搜索创意工坊（Steam 服务端搜索）"
     },
     "list": {
       "loadFailedRetry": "加载失败，点击重试",
@@ -356,7 +357,8 @@
       "loadingFirst": "正在加载创意工坊列表...",
       "loadingMore": "正在加载更多内容...",
       "empty": "未找到相关结果",
-      "loadFailed": "加载失败: {error}"
+      "loadFailed": "加载失败: {error}",
+      "loadingShort": "加载中..."
     },
     "detail": {
       "back": "返回",
@@ -370,7 +372,8 @@
       "descriptionTitleCollection": "合集介绍",
       "noDescription": "暂无描述",
       "loading": "正在加载物品详情...",
-      "loadFailed": "加载详情失败: {error}"
+      "loadFailed": "加载详情失败: {error}",
+      "loadingPlaceholder": "加载详情中..."
     },
     "collection": {
       "itemsTitle": "合集物品",
@@ -394,7 +397,15 @@
       "remove": "移除",
       "clearTitle": "确认清空",
       "clearConfirm": "确定要清空稍后再看列表吗？列表中有 {count} 个物品，此操作不可撤销。",
-      "cleared": "已清空稍后再看列表"
+      "cleared": "已清空稍后再看列表",
+      "button": "稍后再看",
+      "drawerTitle": "稍后再看",
+      "countSuffix": "个物品",
+      "empty": "暂无稍后再看的物品",
+      "drawerAriaLabel": "稍后再看列表",
+      "clearTooltip": "清空",
+      "clearAriaLabel": "清空稍后再看列表",
+      "closeAriaLabel": "关闭稍后再看列表"
     },
     "protocol": {
       "parsing": "正在解析工坊ID: {id}",
@@ -412,7 +423,9 @@
       "inputLabel": "工坊 ID 或链接",
       "placeholder": "例如: 3803082047 或工坊链接",
       "cancel": "取消",
-      "confirm": "前往"
+      "confirm": "前往",
+      "tooltip": "输入工坊 ID 或链接，直接打开详情（不用先搜索）",
+      "button": "ID 直达"
     },
     "translate": {
       "action": "翻译描述",
@@ -422,6 +435,21 @@
       "alreadyChinese": "描述内容已是中文",
       "failed": "翻译失败: {error}",
       "paragraphFailed": "这一段翻译失败"
+    },
+    "typeToggle": {
+      "ariaLabel": "工坊类型",
+      "items": "物品",
+      "collections": "合集"
+    },
+    "sort": {
+      "title": "排序",
+      "trend": "热门",
+      "recent": "最新",
+      "top": "评分最高"
+    },
+    "toolbar": {
+      "search": "查询",
+      "reset": "重置"
     }
   },
   "downloads": {
