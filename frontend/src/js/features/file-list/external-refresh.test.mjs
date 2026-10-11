@@ -72,7 +72,11 @@ test("刷新失败只上报，不抛给调用点", async () => {
 test("filters.js 的静默刷新契约：silent 不弹错误、也不显示加载遮罩", () => {
   const source = readFileSync(path.resolve(here, "filters.js"), "utf8");
   assert.match(source, /export async function refreshFilesKeepFilter\(options = \{\}\)/);
-  assert.match(source, /if \(!silent\) showNotification\("请先选择目录", "info"\)/);
+  // 文案已 i18n 化（第 13 项第十三批）：源码接线 + 目录内容双查。
+  const catalog = JSON.parse(readFileSync(path.resolve(here, "../../../messages/zh-CN.json"), "utf8"));
+  assert.match(source, /if \(!silent\) showNotification\(t\("app\.startup\.chooseDirectoryFirst"\), "info"\)/);
+  assert.equal(catalog.app.startup.chooseDirectoryFirst, "请先选择目录");
   assert.match(source, /if \(!silent\) showRefreshLoadingOnce\(\)/);
-  assert.match(source, /if \(refreshFilesLoadingVisible\) showError\("刷新失败: " \+ error\)/);
+  assert.match(source, /if \(refreshFilesLoadingVisible\) showError\(t\("mods\.filters\.refreshFailed"/);
+  assert.equal(catalog.mods.filters.refreshFailed, "刷新失败: {error}");
 });

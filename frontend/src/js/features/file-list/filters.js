@@ -22,6 +22,7 @@ import {
 } from "./category-tree.mjs";
 import { GetPrimaryTags, GetSecondaryTags, GetSecondaryTagCounts, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
 import { compareSecondaryTagsByUsage } from "./secondary-tag-usage.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
 const GAME_STATE_FILTERS = ["enabled", "disabled", "unknown"];
@@ -46,11 +47,11 @@ let secondaryTagRenderId = 0;
 function getGameStateDisplayName(state) {
   switch (state) {
     case "enabled":
-      return "游戏内开启";
+      return t("mods.category.status.gameOn");
     case "disabled":
-      return "游戏内关闭";
+      return t("mods.category.status.gameOff");
     default:
-      return "未记录";
+      return t("mods.gameState.unrecorded");
   }
 }
 
@@ -97,14 +98,14 @@ function isCurrentSecondaryTagRender(secondaryGroup, renderId) {
 }
 
 function getSecondaryMatchModeLabel() {
-  return appState.secondaryMatchMode === "all" ? "全部匹配" : "任一匹配";
+  return appState.secondaryMatchMode === "all" ? t("mods.filters.matchModeAll") : t("mods.filters.matchModeAny");
 }
 
 function getSelectedSecondaryLabel() {
   const selected = appState.selectedSecondaryTags || [];
-  if (selected.length === 0) return "全部";
+  if (selected.length === 0) return t("mods.category.action.all");
   if (selected.length <= 2) return selected.join("、");
-  return `${selected.slice(0, 2).join("、")} 等 ${selected.length} 个`;
+  return `${selected.slice(0, 2).join("、")}${t("mods.common.summarizeMore", { count: selected.length })}`;
 }
 
 function uniqueSecondaryTags(tags) {
@@ -146,10 +147,10 @@ function syncSecondaryTagFilterUI() {
   document.querySelectorAll(".secondary-filter-dropdown .multi-select-trigger").forEach((trigger) => {
     trigger.textContent = getSelectedSecondaryLabel();
     trigger.classList.toggle("has-selection", selected.size > 0);
-    trigger.setAttribute("aria-label", selected.size > 0 ? `子标签筛选，已选 ${selected.size} 项` : "子标签筛选，未选择");
+    trigger.setAttribute("aria-label", selected.size > 0 ? t("mods.filters.secondaryAriaSelected", { count: selected.size }) : t("mods.filters.secondaryAriaNone"));
   });
   document.querySelectorAll(".secondary-match-mode-btn").forEach((button) => {
-    button.textContent = `匹配方式：${getSecondaryMatchModeLabel()}`;
+    button.textContent = t("mods.filters.matchMode", { mode: getSecondaryMatchModeLabel() });
   });
   renderActiveFilterSummary();
 }
@@ -197,7 +198,7 @@ function createActiveFilterChip(label, onClear) {
   const chip = document.createElement("button");
   chip.type = "button";
   chip.className = "active-filter-chip";
-  chip.title = `取消筛选：${label}`;
+  chip.title = t("mods.filters.chipRemoveTitle", { label });
 
   const text = document.createElement("span");
   text.className = "active-filter-chip-text";
@@ -250,7 +251,7 @@ function renderActiveFilterSummary() {
   if (searchText) {
     const displayText = searchText.length > 36 ? `${searchText.slice(0, 36)}…` : searchText;
     filterChips.push(
-      createActiveFilterChip(`搜索：${displayText}`, async () => {
+      createActiveFilterChip(t("mods.filters.chipSearch", { text: displayText }), async () => {
         const searchInput = document.getElementById("search-input");
         if (searchInput) searchInput.value = "";
         appState.searchQuery = "";
@@ -261,7 +262,7 @@ function renderActiveFilterSummary() {
 
   if (appState.selectedPrimaryTag) {
     filterChips.push(
-      createActiveFilterChip(`标签：${appState.selectedPrimaryTag}`, async () => {
+      createActiveFilterChip(t("mods.filters.chipPrimaryTag", { tag: appState.selectedPrimaryTag }), async () => {
         appState.selectedPrimaryTag = "";
         updatePrimaryTagDropdownUI();
         await renderSecondaryTags("");
@@ -271,9 +272,9 @@ function renderActiveFilterSummary() {
   }
 
   (appState.selectedSecondaryTags || []).forEach((tag) => {
-    const modePrefix = appState.secondaryMatchMode === "all" ? "子标签（全部）" : "子标签";
+    const modeKey = appState.secondaryMatchMode === "all" ? "mods.filters.chipSecondaryTagAll" : "mods.filters.chipSecondaryTag";
     filterChips.push(
-      createActiveFilterChip(`${modePrefix}：${tag}`, async () => {
+      createActiveFilterChip(t(modeKey, { tag }), async () => {
         setSelectedSecondaryTags(appState.selectedSecondaryTags.filter((item) => item !== tag));
         syncSecondaryTagFilterUI();
         await performSearch();
@@ -283,7 +284,7 @@ function renderActiveFilterSummary() {
 
   (appState.selectedLocations || []).forEach((location) => {
     filterChips.push(
-      createActiveFilterChip(`位置：${getLocationDisplayName(location)}`, async () => {
+      createActiveFilterChip(t("mods.filters.chipLocation", { name: getLocationDisplayName(location) }), async () => {
         appState.selectedLocations = appState.selectedLocations.filter((item) => item !== location);
         updateLocationFilterDropdownUI();
         await performSearch();
@@ -293,7 +294,7 @@ function renderActiveFilterSummary() {
 
   (appState.selectedGameStates || []).forEach((state) => {
     filterChips.push(
-      createActiveFilterChip(`游戏内：${getGameStateDisplayName(state)}`, async () => {
+      createActiveFilterChip(t("mods.filters.chipGameState", { name: getGameStateDisplayName(state) }), async () => {
         appState.selectedGameStates = appState.selectedGameStates.filter((item) => item !== state);
         updateGameStateFilterDropdownUI();
         await performSearch();
@@ -307,7 +308,7 @@ function renderActiveFilterSummary() {
 
   const title = document.createElement("span");
   title.className = "active-filter-summary-title";
-  title.textContent = `已筛选 ${filterChips.length} 项`;
+  title.textContent = t("mods.filters.summaryTitle", { count: filterChips.length });
 
   const chipList = document.createElement("div");
   chipList.className = "active-filter-chip-list";
@@ -316,7 +317,7 @@ function renderActiveFilterSummary() {
   const clearAllButton = document.createElement("button");
   clearAllButton.type = "button";
   clearAllButton.className = "active-filter-clear-all";
-  clearAllButton.textContent = "清空筛选";
+  clearAllButton.textContent = t("mods.filters.clearAll");
   clearAllButton.addEventListener("click", async () => {
     await clearAllActiveFilters();
   });
@@ -340,8 +341,8 @@ function addSecondaryMatchModeControl(container) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "secondary-match-mode-btn";
-  button.textContent = `匹配方式：${getSecondaryMatchModeLabel()}`;
-  button.title = "切换二级标签筛选：任一匹配 / 全部匹配";
+  button.textContent = t("mods.filters.matchMode", { mode: getSecondaryMatchModeLabel() });
+  button.title = t("mods.filters.matchModeTitle");
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     appState.secondaryMatchMode = appState.secondaryMatchMode === "all" ? "any" : "all";
@@ -382,7 +383,7 @@ function createPresetSubgroup(subgroup) {
   expandButton.type = "button";
   expandButton.className = "preset-subgroup-expand";
   expandButton.textContent = nodeLabel(subgroup);
-  expandButton.title = `展开 ${nodeLabel(subgroup)} 的具体项目`;
+  expandButton.title = t("mods.filters.presetExpandSubgroup", { label: nodeLabel(subgroup) });
   expandButton.setAttribute("aria-expanded", "false");
 
   const items = document.createElement("div");
@@ -406,8 +407,8 @@ function createPresetSubgroup(subgroup) {
     allButton.type = "button";
     allButton.className = "preset-subgroup-all";
     allButton.dataset.presetTag = subgroup.allTag;
-    allButton.textContent = "查看全部";
-    allButton.title = `只查看${nodeLabel(subgroup)}`;
+    allButton.textContent = t("mods.filters.presetViewAll");
+    allButton.title = t("mods.filters.presetViewSubgroup", { label: nodeLabel(subgroup) });
     allButton.addEventListener("click", (event) => {
       event.stopPropagation();
       selectPresetAggregate(subgroup.allTag);
@@ -432,13 +433,13 @@ function createPresetGroup(group) {
   expandButton.className = "preset-filter-group-expand";
   expandButton.textContent = nodeLabel(group);
   expandButton.title = nodeDescription(group)
-    ? `展开 ${nodeLabel(group)} 的分类与具体项目：${nodeDescription(group)}`
-    : `展开 ${nodeLabel(group)} 的分类与具体项目`;
+    ? t("mods.filters.presetExpandGroupDesc", { label: nodeLabel(group), description: nodeDescription(group) })
+    : t("mods.filters.presetExpandGroup", { label: nodeLabel(group) });
   expandButton.setAttribute("aria-expanded", "false");
 
   const selectedCount = document.createElement("span");
   selectedCount.className = "preset-group-selected-count";
-  selectedCount.textContent = "未选择";
+  selectedCount.textContent = t("mods.filters.presetNone");
   expandButton.appendChild(selectedCount);
 
   const content = document.createElement("div");
@@ -460,8 +461,8 @@ function createPresetGroup(group) {
     allButton.type = "button";
     allButton.className = "preset-group-all";
     allButton.dataset.presetTag = group.allTag;
-    allButton.textContent = "查看全部";
-    allButton.title = `一键只查看${nodeLabel(group)}`;
+    allButton.textContent = t("mods.filters.presetViewAll");
+    allButton.title = t("mods.filters.presetViewGroup", { label: nodeLabel(group) });
     allButton.addEventListener("click", (event) => {
       event.stopPropagation();
       selectPresetAggregate(group.allTag);
@@ -472,8 +473,8 @@ function createPresetGroup(group) {
   const clearButton = document.createElement("button");
   clearButton.type = "button";
   clearButton.className = "preset-group-clear";
-  clearButton.textContent = "清空本组";
-  clearButton.title = `清除已选择的${nodeLabel(group)}标签`;
+  clearButton.textContent = t("mods.filters.presetClearGroup");
+  clearButton.title = t("mods.filters.presetClearGroupTitle", { label: nodeLabel(group) });
   clearButton.addEventListener("click", (event) => {
     event.stopPropagation();
     clearPresetGroup(group);
@@ -546,7 +547,7 @@ export async function renderTagFilters() {
 function renderSelectBasedFilters(tagContainer, locationContainer, primaryTags) {
   const primaryGroup = document.createElement("div");
   primaryGroup.className = "filter-select-group primary-tag-group";
-  primaryGroup.innerHTML = '<span class="filter-label">标签</span>';
+  primaryGroup.innerHTML = `<span class="filter-label">${t("mods.filters.labelTag")}</span>`;
 
   const dropdown = document.createElement("div");
   dropdown.className = "single-select-dropdown primary-filter-dropdown";
@@ -557,7 +558,7 @@ function renderSelectBasedFilters(tagContainer, locationContainer, primaryTags) 
 
   const trigger = dropdown.querySelector("#primary-tag-filter-trigger");
   const menu = dropdown.querySelector("#primary-tag-filter-menu");
-  const options = [{ value: "", text: "全部" }, ...primaryTags.map((tag) => ({ value: tag, text: tag }))];
+  const options = [{ value: "", text: t("mods.category.action.all") }, ...primaryTags.map((tag) => ({ value: tag, text: tag }))];
 
   options.forEach((option) => {
     const button = document.createElement("button");
@@ -591,7 +592,7 @@ function renderSelectBasedFilters(tagContainer, locationContainer, primaryTags) 
   const secondaryGroup = document.createElement("div");
   secondaryGroup.className = "filter-select-group secondary-tag-group";
   secondaryGroup.id = "secondary-tag-group";
-  secondaryGroup.innerHTML = '<span class="filter-label">子标签</span>';
+  secondaryGroup.innerHTML = `<span class="filter-label">${t("mods.filters.labelSecondary")}</span>`;
   tagContainer.appendChild(secondaryGroup);
 
   renderLocationFilterDropdown(locationContainer);
@@ -604,7 +605,7 @@ function renderClassicFilters(tagContainer, locationContainer, primaryTags) {
 
   const locationGroup = document.createElement("div");
   locationGroup.className = "classic-filter-group classic-location-group";
-  locationGroup.innerHTML = '<span class="filter-label">位置</span>';
+  locationGroup.innerHTML = `<span class="filter-label">${t("mods.filters.labelLocation")}</span>`;
   const locationList = document.createElement("div");
   locationList.className = "classic-filter-chip-list";
   LOCATION_FILTERS.forEach((location) => {
@@ -614,7 +615,7 @@ function renderClassicFilters(tagContainer, locationContainer, primaryTags) {
 
   const gameStateGroup = document.createElement("div");
   gameStateGroup.className = "classic-filter-group classic-game-state-group";
-  gameStateGroup.innerHTML = '<span class="filter-label">游戏内</span>';
+  gameStateGroup.innerHTML = `<span class="filter-label">${t("mods.filters.labelGameState")}</span>`;
   const gameStateList = document.createElement("div");
   gameStateList.className = "classic-filter-chip-list";
   GAME_STATE_FILTERS.forEach((state) => {
@@ -624,10 +625,10 @@ function renderClassicFilters(tagContainer, locationContainer, primaryTags) {
 
   const primaryGroup = document.createElement("div");
   primaryGroup.className = "classic-filter-group classic-primary-group";
-  primaryGroup.innerHTML = '<span class="filter-label">标签</span>';
+  primaryGroup.innerHTML = `<span class="filter-label">${t("mods.filters.labelTag")}</span>`;
   const primaryList = document.createElement("div");
   primaryList.className = "classic-filter-chip-list";
-  [{ value: "", text: "全部" }, ...primaryTags.map((tag) => ({ value: tag, text: tag }))].forEach((option) => {
+  [{ value: "", text: t("mods.category.action.all") }, ...primaryTags.map((tag) => ({ value: tag, text: tag }))].forEach((option) => {
     primaryList.appendChild(createPrimaryTagButton(option.value, option.text));
   });
   primaryGroup.appendChild(primaryList);
@@ -640,8 +641,8 @@ function renderClassicFilters(tagContainer, locationContainer, primaryTags) {
       id="classic-secondary-filter-input"
       class="classic-secondary-filter-input"
       type="text"
-      placeholder="筛选子标签..."
-      aria-label="筛选子标签"
+      placeholder="${t("mods.filters.secondarySearchPlaceholder")}"
+      aria-label="${t("mods.filters.secondarySearchAria")}"
       autocomplete="off"
     >
   `;
@@ -654,7 +655,7 @@ function renderClassicFilters(tagContainer, locationContainer, primaryTags) {
   secondaryGroup.id = "secondary-tag-group";
   secondaryGroup.className = "classic-filter-line classic-secondary-row";
   secondaryGroup.innerHTML = `
-    <span class="filter-label">子标签</span>
+    <span class="filter-label">${t("mods.filters.labelSecondary")}</span>
     <div class="classic-secondary-tags-slot"></div>
     <div class="classic-secondary-action-slot"></div>
   `;
@@ -670,7 +671,7 @@ export function updatePrimaryTagDropdownUI() {
   const trigger = document.getElementById("primary-tag-filter-trigger");
   const menu = document.getElementById("primary-tag-filter-menu");
   if (trigger && menu) {
-    trigger.textContent = appState.selectedPrimaryTag || "全部";
+    trigger.textContent = appState.selectedPrimaryTag || t("mods.category.action.all");
     menu.querySelectorAll(".select-option").forEach((option) => {
       option.classList.toggle("active", option.dataset.value === appState.selectedPrimaryTag);
     });
@@ -757,7 +758,7 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId) {
 
       const emptyHint = document.createElement("span");
       emptyHint.className = "classic-secondary-empty-hint hidden";
-      emptyHint.textContent = "没有匹配的子标签";
+      emptyHint.textContent = t("mods.filters.secondaryEmptyMatch");
       tagsSlot.appendChild(emptyHint);
 
       addSecondaryMatchModeControl(actionSlot);
@@ -771,7 +772,7 @@ async function renderSecondaryTagButtons(secondaryGroup, primaryTag, renderId) {
       setClassicSecondarySearchVisible(false);
       const emptyHint = document.createElement("span");
       emptyHint.className = "classic-secondary-empty-hint";
-      emptyHint.textContent = "当前目录没有已识别的子标签，可使用右侧预设筛选。";
+      emptyHint.textContent = t("mods.filters.secondaryEmptyDir");
       tagsSlot.appendChild(emptyHint);
       addSecondaryMatchModeControl(actionSlot);
       syncSecondaryTagFilterUI();
@@ -901,8 +902,8 @@ function scheduleSecondaryTagsCollapse(container, actionSlot) {
 
 function syncExpandButton(button, isExpanded, count = 0) {
   button.innerHTML = isExpanded
-    ? '<span class="icon">▲</span> 收起'
-    : `<span class="icon">▼</span> 展开全部${count ? ` ${count} 项` : ""}`;
+    ? `<span class="icon">▲</span> ${t("mods.category.collapse")}`
+    : `<span class="icon">▼</span> ${count ? t("mods.filters.expandAllCount", { count }) : t("mods.filters.expandAll")}`;
 }
 
 async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) {
@@ -926,7 +927,7 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
       const emptyTrigger = document.createElement("button");
       emptyTrigger.type = "button";
       emptyTrigger.className = "select-trigger multi-select-trigger is-disabled";
-      emptyTrigger.textContent = "暂无已识别标签";
+      emptyTrigger.textContent = t("mods.filters.secondaryNoTags");
       emptyTrigger.disabled = true;
       secondaryGroup.appendChild(emptyTrigger);
       syncSecondaryTagFilterUI();
@@ -940,11 +941,11 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
     dropdown.className = "multi-select-dropdown secondary-filter-dropdown";
     dropdown.innerHTML = `
       <button type="button" class="select-trigger multi-select-trigger">${getSelectedSecondaryLabel()}</button>
-      <div class="select-menu multi-select-menu filter-flyout-menu secondary-tag-filter-menu hidden" role="dialog" aria-label="子标签筛选">
+      <div class="select-menu multi-select-menu filter-flyout-menu secondary-tag-filter-menu hidden" role="dialog" aria-label="${t("mods.filters.secondaryMenuTitle")}">
         <div class="multi-select-search-wrapper">
-          <input type="text" class="multi-select-search-input" placeholder="筛选子标签...">
+          <input type="text" class="multi-select-search-input" placeholder="${t("mods.filters.secondarySearchPlaceholder")}">
         </div>
-        <button type="button" class="secondary-match-mode-btn" title="切换二级标签筛选：任一匹配 / 全部匹配"></button>
+        <button type="button" class="secondary-match-mode-btn" title="${t("mods.filters.matchModeTitle")}"></button>
         <div class="multi-select-options"></div>
       </div>
     `;
@@ -954,8 +955,8 @@ async function renderSecondaryTagDropdown(secondaryGroup, primaryTag, renderId) 
     const searchInput = dropdown.querySelector(".multi-select-search-input");
     const optionsContainer = dropdown.querySelector(".multi-select-options");
     const matchModeButton = dropdown.querySelector(".secondary-match-mode-btn");
-    menu.prepend(createFilterFlyoutHeader("子标签筛选", "可搜索、多选，并切换任一 / 全部匹配"));
-    matchModeButton.textContent = `匹配方式：${getSecondaryMatchModeLabel()}`;
+    menu.prepend(createFilterFlyoutHeader(t("mods.filters.secondaryMenuTitle"), t("mods.filters.secondaryMenuDesc")));
+    matchModeButton.textContent = t("mods.filters.matchMode", { mode: getSecondaryMatchModeLabel() });
     matchModeButton.addEventListener("click", (event) => {
       event.stopPropagation();
       appState.secondaryMatchMode = appState.secondaryMatchMode === "all" ? "any" : "all";
@@ -1055,7 +1056,7 @@ function createSecondaryTagButton(tag, count = 0) {
     badge.className = "secondary-tag-count";
     badge.textContent = String(count);
     button.appendChild(badge);
-    button.title = `${tag}：${count} 个 Mod`;
+    button.title = t("mods.filters.tagCountTitle", { tag, count });
   } else {
     button.title = tag;
   }
@@ -1095,7 +1096,7 @@ function toggleSecondaryTag(tag) {
 export function renderLocationFilterDropdown(locationContainer) {
   const group = document.createElement("div");
   group.className = "filter-select-group location-filter-group";
-  group.innerHTML = '<span class="filter-label">位置</span>';
+  group.innerHTML = `<span class="filter-label">${t("mods.filters.labelLocation")}</span>`;
 
   const dropdown = document.createElement("div");
   dropdown.className = "multi-select-dropdown location-filter-dropdown";
@@ -1146,12 +1147,12 @@ export function updateLocationFilterDropdownUI() {
     .filter(Boolean);
   if (trigger && menu) {
     if (selectedNames.length === 0) {
-      trigger.textContent = "全部";
+      trigger.textContent = t("mods.category.action.all");
     } else if (selectedNames.length <= 2) {
       // 显示具体位置，避免“已选 1 个”掩盖了另一个同名 VPK 被筛掉的原因。
       trigger.textContent = selectedNames.join("、");
     } else {
-      trigger.textContent = `${selectedNames.slice(0, 2).join("、")} 等 ${selectedNames.length} 个`;
+      trigger.textContent = `${selectedNames.slice(0, 2).join("、")}${t("mods.common.summarizeMore", { count: selectedNames.length })}`;
     }
 
     menu.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
@@ -1167,7 +1168,7 @@ export function updateLocationFilterDropdownUI() {
 function renderGameStateFilterDropdown(locationContainer) {
   const group = document.createElement("div");
   group.className = "filter-select-group game-state-filter-group";
-  group.innerHTML = '<span class="filter-label">游戏内</span>';
+  group.innerHTML = `<span class="filter-label">${t("mods.filters.labelGameState")}</span>`;
 
   const dropdown = document.createElement("div");
   dropdown.className = "multi-select-dropdown game-state-filter-dropdown";
@@ -1217,8 +1218,8 @@ function updateGameStateFilterDropdownUI() {
     trigger.textContent = selectedNames.length
       ? selectedNames.length <= 2
         ? selectedNames.join("、")
-        : `${selectedNames.slice(0, 2).join("、")} 等 ${selectedNames.length} 个`
-      : "全部";
+        : `${selectedNames.slice(0, 2).join("、")}${t("mods.common.summarizeMore", { count: selectedNames.length })}`
+      : t("mods.category.action.all");
     menu.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
       checkbox.checked = appState.selectedGameStates.includes(checkbox.value);
     });
@@ -1268,7 +1269,7 @@ export async function resetFilters() {
   }
 
   appState.isLoading = true;
-  showFileListLoading("正在重置筛选...");
+  showFileListLoading(t("mods.filters.loadingReset"));
 
   try {
     document.getElementById("search-input").value = "";
@@ -1417,7 +1418,7 @@ export async function performSearch() {
   } catch (error) {
     if (requestId !== searchRequestId || !filterStateStillMatches(filters)) return;
     console.error("搜索失败:", error);
-    showError("搜索失败: " + error);
+    showError(t("mods.filters.searchFailed", { error: String(error) }));
   }
 }
 
@@ -1544,7 +1545,7 @@ export async function refreshFilesKeepFilter(options = {}) {
 
   if (!appState.currentDirectory) {
     // 没选目录时的提示只给用户手动刷新用；后台自动刷新弹这个只会莫名其妙。
-    if (!silent) showNotification("请先选择目录", "info");
+    if (!silent) showNotification(t("app.startup.chooseDirectoryFirst"), "info");
     return;
   }
 
@@ -1574,7 +1575,7 @@ export async function refreshFilesKeepFilter(options = {}) {
 function showRefreshLoadingOnce() {
   if (refreshFilesLoadingVisible) return;
   refreshFilesLoadingVisible = true;
-  showFileListLoading("正在刷新文件列表...");
+  showFileListLoading(t("mods.filters.loadingRefresh"));
 }
 
 async function runRefreshFilesKeepFilter({ silent = false } = {}) {
@@ -1676,7 +1677,7 @@ async function refreshFilesKeepFilterOnce() {
   } catch (error) {
     console.error("刷新文件列表失败:", error);
     // 静默刷新失败只进控制台：后台自动刷新弹错误框属于打扰（用户手动刷新时才提示）。
-    if (refreshFilesLoadingVisible) showError("刷新失败: " + error);
+    if (refreshFilesLoadingVisible) showError(t("mods.filters.refreshFailed", { error: String(error) }));
   } finally {
     appState.isLoading = false;
   }

@@ -47,7 +47,12 @@ test("子标签默认收起：一行 + 「展开全部 N 项」，展开时渲�
   assert.match(source, /function syncSecondaryTagsCollapse\(container, actionSlot\)/);
   // 布局没就绪要重试，而不是"量不到就整片铺开"
   assert.match(source, /if \(attempts < 12\) setTimeout\(run, 80\);/);
-  assert.match(source, /展开全部\$\{count \? ` \$\{count\} 项` : ""\}/);
+  // 文案已 i18n 化（第 13 项第十三批）：源码接线 + 目录内容双查。
+  const catalog = JSON.parse(read("src/messages/zh-CN.json"));
+  assert.match(source, /t\("mods\.filters\.expandAllCount", \{ count \}\)/);
+  assert.match(source, /t\("mods\.filters\.expandAll"\)/);
+  assert.equal(catalog.mods.filters.expandAll, "展开全部");
+  assert.equal(catalog.mods.filters.expandAllCount, "展开全部 {count} 项");
   // 渲染侧不截断：所有次级标签都进容器（完整集合）
   assert.match(source, /secondaryTags\.forEach\(\(tag\) => \{/);
   assert.doesNotMatch(source, /secondaryTags\.slice\(/);

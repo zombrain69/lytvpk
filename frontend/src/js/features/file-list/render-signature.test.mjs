@@ -87,9 +87,15 @@ test("卡片签名覆盖 XDR 动作生效角标", () => {
   for (const state of ["is-active", "is-random", "is-partial"]) {
     assert.ok(badge.includes(state), `角标必须覆盖状态 ${state}`);
   }
-  assert.ok(
-    badge.includes("同角色同槽只会随机生效一个"),
-    "随机生效的说明必须写清官方规则，并点明与加载顺序无关",
+  // 文案已 i18n 化（第 13 项第十三批）：源码接线 + 目录内容双查。
+  assert.ok(badge.includes('t("mods.card.xdrRandomTitle"'), "随机生效说明要走目录文案（源码接线）");
+  const catalog = JSON.parse(
+    readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"),
+  );
+  assert.match(
+    catalog.mods.card.xdrRandomTitle,
+    /同角色同槽只会随机生效一个/,
+    "随机生效的说明必须写清官方规则，并点明与加载顺序无关（目录侧）",
   );
 
   const card = functionBody("createFileCard");

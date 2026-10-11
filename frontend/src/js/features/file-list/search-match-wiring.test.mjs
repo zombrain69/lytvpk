@@ -29,7 +29,10 @@ test("命中字段以 chip 形式贴在标题旁边", () => {
   assert.match(renderSource, /describeMatchReasons\(file, cardSearchSyntax\.raw\)/, "卡片同样要算");
   assert.match(renderSource, /formatMatchReasonChip\(/, "要格式化成文案");
   assert.match(renderSource, /class="search-reason-chip"/, "要有 chip 元素");
-  assert.match(renderSource, /这行是被这些字段匹配到的/, "chip 要有 tooltip 说明");
+  // chip tooltip 文案已 i18n 化（第 13 项第十三批）：源码接线 + 目录内容双查。
+  const catalog = JSON.parse(readFileSync(new URL("../../../messages/zh-CN.json", import.meta.url), "utf8"));
+  assert.match(renderSource, /t\("mods\.card\.matchReasonTitle"\)/, "chip tooltip 要接线到目录文案");
+  assert.equal(catalog.mods.card.matchReasonTitle, "这行是被这些字段匹配到的", "目录文案须逐字保留");
   // chip 不能塞进 title 这种带省略号的元素里，否则会被裁掉（真机截图时发现）。
   assert.ok(
     !/class="file-title">[^<]*\$\{matchReasonChip\}/.test(renderSource),

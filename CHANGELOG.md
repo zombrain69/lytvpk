@@ -1,5 +1,39 @@
 # Changelog
 
+## 未发布 — i18n：file-list 筛选条与卡片/行渲染（filters.js / render.js）（第 13 项第十三批）（2026-10-12）
+
+- `filters.js`（筛选条全量动态文案）：游戏状态名（筛选芯片 / 下拉选项 / 经典布局按钮）、
+  二级标签匹配模式（全部匹配 / 任一匹配 + 切换 tooltip）、活动筛选摘要芯片（搜索 / 标签 / 子标签 /
+  子标签（全部）/ 位置 / 游戏内 + 取消筛选 tooltip + 已筛选计数 + 清空筛选）、子标签下拉
+  （菜单标题 / 说明 / 搜索占位与 aria / 空态两条 / 暂无标签 / 已选 aria 两条）、展开收起按钮、
+  预设菜单（查看全部 / 只查看 / 一键只查看 / 展开说明两条 / 清空本组 / 清除标题 / 未选择 /
+  标签计数 tooltip）、四条筛选项标签（标签 / 子标签 / 位置 / 游戏内）、重置与刷新加载提示、
+  搜索 / 刷新失败两条。
+- `render.js`（卡片与行渲染层）：游戏状态徽标标签与 tooltip 三条、加载顺序角标（优先级 #N +
+  两条 tooltip + 分层备注）、XDR 动作生效角标（三种状态标签 + 三条说明 + 「未指定角色」兜底）、
+  复检角标 tooltip、压缩包角标（默认名 / 说明 / 判定依据 / 两条模板）、「更多操作」菜单全部条目
+  （详情 / 跳转工坊 / 分享物品 / 设置标签 / 上传服务器 / 重命名 / 加载顺序 / 解包 / 打开位置 /
+  隐藏两态 / 删除）、命中字段 chip tooltip、待更新标签与 tooltip、启用 / 禁用两态（含点击 tooltip）、
+  详情按钮、未记录状态 aria、disabled 目录两条禁用说明。
+- **懒求值修正**：`MORE_ACTIONS_TRIGGER_HTML` 常量 → `buildMoreActionsTriggerHtml()` 函数
+  （模块求值期不能取文案，否则语言装配前被固化）；`updateSingleFileDisplay` 的状态徽标文案改为
+  复用 `getGameStateInfo`（单一来源、消除两份重复表），位置名改用既有 `getLocationDisplayName`。
+- **复用**：`mods.category.status.gameOn|gameOff`（游戏状态名，与分类树同一状态概念）、
+  `mods.category.action.all`（「全部」默认项）、`mods.category.collapse`（「收起」）、
+  `mods.batch.more|share|setTags|uploadServer`、`mods.contextMenu.detail|jumpToWorkshop|unpack|openLocation`、
+  `mods.ops.common.actionHide|actionUnhide|actionRename|actionDelete|copyToAddons|actionEnable|actionDisable`、
+  `mods.toolbar.loadOrder`、`app.startup.chooseDirectoryFirst`。
+- 目录新增 73 key（`mods.filters` 42 / `mods.card` 29 / `mods.common.summarizeMore` 1 /
+  `mods.gameState.unrecorded` 1）；既有条目零改动。**裸文本复查**发现并迁完 16 处扫描器盲区
+  （多行模板里的菜单项与按钮文字等，含「点击禁用 / 点击启用」）。
+- **已知豁免**：`render.js` 的「卡片预览已离开可视区域」（与 `shared/vpk-preview-cache.js` 的
+  抛出文本互为协议常量，同 `scoped-conflict-retry.mjs` 口径保留）。
+- 测试：`conflict-row-drag-static.test.mjs`（展开按钮）、`render-signature.test.mjs`（XDR 随机说明）、
+  `search-match-wiring.test.mjs`（chip tooltip）、`external-refresh.test.mjs`（请先选择目录 /
+  刷新失败）四条源级断言改「源码接线 + 目录内容」双查。
+- 验证：`node --test`（frontend，显式清单）574 项 0 失败；`npm run build` 通过；`go test ./...` /
+  `go vet ./...` 全 ok。
+
 ## 未发布 — i18n：file-list 排序家族（sorting.js）（第 13 项第十二批）（2026-10-12）
 
 - `sorting.js`（35 处）：优先级定位链（无效编号 / 未扫描到 / 被筛选隐藏 / 列表更新中 / 读取失败）、

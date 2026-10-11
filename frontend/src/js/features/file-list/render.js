@@ -40,6 +40,7 @@ import {
   formatGroupChipTitle,
   groupsForFile,
 } from "../mod-groups/group-view.mjs";
+import { t } from "../../core/i18n-runtime.js";
 
 let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
@@ -758,12 +759,24 @@ function hasPanelServers() {
 
 function getGameStateInfo(file) {
   if (!file.gameStateKnown) {
-    return { className: "game-state-unknown", label: "未记录", title: "addonlist.txt 中未记录此 Mod；点击选择游戏内关闭、游戏内启用或禁用" };
+    return {
+      className: "game-state-unknown",
+      label: t("mods.gameState.unrecorded"),
+      title: t("mods.card.gameTitleUnknown"),
+    };
   }
   if (file.gameEnabled) {
-    return { className: "game-state-enabled", label: "游戏内开启", title: "addonlist.txt：1；点击关闭游戏内 Mod" };
+    return {
+      className: "game-state-enabled",
+      label: t("mods.category.status.gameOn"),
+      title: t("mods.card.gameTitleOn"),
+    };
   }
-  return { className: "game-state-disabled", label: "游戏内关闭", title: "addonlist.txt：0；点击开启游戏内 Mod" };
+  return {
+    className: "game-state-disabled",
+    label: t("mods.category.status.gameOff"),
+    title: t("mods.card.gameTitleOff"),
+  };
 }
 
 function applySelectionGesture(filePath, event, selected) {
@@ -805,11 +818,11 @@ function getLoadOrderBadge(file, className = "load-order-badge") {
   const priority = getFilePriorityEntry(file);
   if (priority) {
     const label = formatPriorityLabel(priority);
-    const explanation = priority.source === "group" ? "（分层来自策略组权重）" : "";
-    return `<span class="${className}" title="编号来自 addonlist.txt 顺序；分层是显式设置的覆盖意图。数字越大表示越靠后加载，实际覆盖结果还取决于游戏资源与 Mod 规则${explanation}">${escapeHtml(label)}</span>`;
+    const explanation = priority.source === "group" ? t("mods.card.loadOrderGroupTierNote") : "";
+    return `<span class="${className}" title="${t("mods.card.loadOrderPriorityTitle", { explanation })}">${escapeHtml(label)}</span>`;
   }
   return Number.isInteger(order)
-    ? `<span class="${className}" title="编号来自 addonlist.txt 加载顺序；数字越大表示越靠后加载。实际覆盖结果还取决于游戏资源与 Mod 规则">优先级 #${order + 1}</span>`
+    ? `<span class="${className}" title="${t("mods.card.loadOrderOrderTitle")}">${t("mods.card.loadOrderPriorityBadge", { order: order + 1 })}</span>`
     : "";
 }
 
@@ -826,7 +839,7 @@ function buildXDRPriorityBadge(file) {
 
   const slots = Array.isArray(info.slots) ? info.slots : [];
   const describeSlot = (slot) =>
-    `${slot.character || "未指定角色"} slot ${slot.slotLabel || String(slot.slot ?? "?")}`;
+    `${slot.character || t("mods.card.xdrCharacterFallback")} slot ${slot.slotLabel || String(slot.slot ?? "?")}`;
   const randomSlots = slots.filter((slot) => slot.state === "random");
   const activeSlots = slots.filter((slot) => slot.state !== "random");
   const rivalLabels = [];
@@ -837,28 +850,34 @@ function buildXDRPriorityBadge(file) {
     });
   });
   const summarize = (values, limit = 4) =>
-    values.length > limit ? `${values.slice(0, limit).join("、")} 等 ${values.length} 个` : values.join("、");
+    values.length > limit
+      ? `${values.slice(0, limit).join("、")}${t("mods.common.summarizeMore", { count: values.length })}`
+      : values.join("、");
 
   if (info.state === "active") {
-    const title = `XDR 动作生效：${activeSlots.length} 个槽位都没有同槽竞争者（${summarize(
-      activeSlots.map(describeSlot),
-    )}），游戏里会按预期播放`;
-    return `<span class="card-badge xdr-priority-badge is-active" title="${escapeHtml(title)}">▶ 动作生效</span>`;
+    const title = t("mods.card.xdrActiveTitle", {
+      count: activeSlots.length,
+      slots: summarize(activeSlots.map(describeSlot)),
+    });
+    return `<span class="card-badge xdr-priority-badge is-active" title="${escapeHtml(title)}">${t("mods.card.xdrActiveLabel")}</span>`;
   }
 
   if (info.state === "random") {
-    const title = `XDR 同槽冲突：${summarize(randomSlots.map(describeSlot))} 被其它 Mod 同槽占用（${summarize(
-      rivalLabels,
-    )}）—— 官方规则是同角色同槽只会随机生效一个，与加载顺序无关；想确定播哪个就把其中一个改到空槽`;
-    return `<span class="card-badge xdr-priority-badge is-random" title="${escapeHtml(title)}">⚠ 动作随机生效</span>`;
+    const title = t("mods.card.xdrRandomTitle", {
+      slots: summarize(randomSlots.map(describeSlot)),
+      rivals: summarize(rivalLabels),
+    });
+    return `<span class="card-badge xdr-priority-badge is-random" title="${escapeHtml(title)}">${t("mods.card.xdrRandomLabel")}</span>`;
   }
 
-  const title = `XDR 动作部分生效：${activeSlots.length} 个槽位会播放（${summarize(
-    activeSlots.map(describeSlot),
-  )}）；${randomSlots.length} 个槽位与其它 Mod 同槽、游戏随机生效（${summarize(
-    randomSlots.map(describeSlot),
-  )}${rivalLabels.length ? `，同槽的：${summarize(rivalLabels)}` : ""}）`;
-  return `<span class="card-badge xdr-priority-badge is-partial" title="${escapeHtml(title)}">◐ 动作部分生效 ${activeSlots.length}/${slots.length}</span>`;
+  const title = t("mods.card.xdrPartialTitle", {
+    active: activeSlots.length,
+    activeSlots: summarize(activeSlots.map(describeSlot)),
+    random: randomSlots.length,
+    randomSlots: summarize(randomSlots.map(describeSlot)),
+    rivals: rivalLabels.length ? t("mods.card.xdrPartialRivals", { list: summarize(rivalLabels) }) : "",
+  });
+  return `<span class="card-badge xdr-priority-badge is-partial" title="${escapeHtml(title)}">${t("mods.card.xdrPartialLabel", { active: activeSlots.length, total: slots.length })}</span>`;
 }
 
 function getConflictRecheckBadge(file, className = "conflict-recheck-badge") {
@@ -867,7 +886,7 @@ function getConflictRecheckBadge(file, className = "conflict-recheck-badge") {
   const label = formatConflictBadgeLabel(badge);
   if (!label) return "";
   const level = conflictBadgeLevel(badge);
-  return `<span class="${className} ${level}" title="来自变更驱动的自动复检；打开“Mod 冲突检测”可查看详情与修复建议">${escapeHtml(label)}</span>`;
+  return `<span class="${className} ${level}" title="${t("mods.card.conflictRecheckTitle")}">${escapeHtml(label)}</span>`;
 }
 
 // findConflictRecheckBadge 先按完整路径命中，再按 addonlist 键命中。
@@ -1057,9 +1076,9 @@ function ensureCardPreviewObservation(card, file) {
 function getGameToggleButton(file) {
   const state = getGameStateInfo(file);
   const isFileDisabled = file.location === "disabled";
-  const label = isFileDisabled ? "游戏开关不可用" : state.label;
+  const label = isFileDisabled ? t("mods.card.gameToggleDisabled") : state.label;
   const title = isFileDisabled
-    ? "文件位于 disabled 目录，请先恢复文件后再编辑 addonlist.txt"
+    ? t("mods.card.gameToggleDisabledTitle")
     : state.title;
   return `
     <button class="btn-small action-btn game-toggle-btn ${state.className}"
@@ -1088,7 +1107,7 @@ export function getGameStateActionControls(file) {
     .map((option) => {
       const disabled = fileInDisabledDirectory || Boolean(option.disabled);
       const disabledReason = fileInDisabledDirectory
-        ? "文件位于 disabled 目录，请先恢复文件后再编辑 addonlist.txt"
+        ? t("mods.card.gameToggleDisabledTitle")
         : option.disabledReason;
       const title = disabled ? disabledReason : option.description;
       const disabledAttribute = disabled ? " disabled" : "";
@@ -1116,7 +1135,7 @@ export function getGameStateActionControls(file) {
     })
     .join("");
 
-  return '<div class="game-state-controls game-state-action-group" role="group" aria-label="未记录 Mod 游戏内状态">' + options + "</div>";
+  return '<div class="game-state-controls game-state-action-group" role="group" aria-label="' + t("mods.card.gameActionsAria") + '">' + options + "</div>";
 }
 
 // getScopedConflictBadgeModel 把「当前筛选 × 对比范围」的结果整理成角标模型。
@@ -1139,7 +1158,7 @@ function getScopedConflictBadgeModel(file) {
     title: buildScopedConflictTitle(summary, {
       matchedBaseline,
       analyzed,
-      scopeLabel: appState.conflictAnalysisScopeLabel || "游戏内开启",
+      scopeLabel: appState.conflictAnalysisScopeLabel || t("mods.category.status.gameOn"),
     }),
   };
 }
@@ -1353,13 +1372,14 @@ function scheduleCursorReveal(cursorPath) {
 function getArchivePackBadge(file, className = "archive-pack-tag") {
   const pack = file?.archivePack;
   if (!pack) return "";
-  const label = escapeHtml(pack.label || "压缩包");
-  const note = escapeHtml(pack.note || "游戏不会加载它，也不参与 addonlist.txt");
+  const label = escapeHtml(pack.label || t("mods.card.archivePackLabel"));
+  const note = escapeHtml(pack.note || t("mods.card.archivePackNote"));
   const format = escapeHtml(String(pack.format || "").toUpperCase());
-  const evidence = Array.isArray(pack.evidence) && pack.evidence.length > 0
-    ? `；判定依据：${escapeHtml(pack.evidence.slice(0, 3).join("、"))}`
-    : "";
-  return `<span class="${className}" title="${label}（${format}，不是 VPK）：${note}${evidence}">📦 ${label} · 非 VPK</span>`;
+  const evidence =
+    Array.isArray(pack.evidence) && pack.evidence.length > 0
+      ? t("mods.card.archivePackEvidence", { list: escapeHtml(pack.evidence.slice(0, 3).join("、")) })
+      : "";
+  return `<span class="${className}" title="${t("mods.card.archivePackTitle", { label, format, note, evidence })}">${t("mods.card.archivePackBadge", { label })}</span>`;
 }
 
 // 卡片/行右侧「⋮」菜单的内容改成**第一次点开时才生成**。
@@ -1368,9 +1388,10 @@ function getArchivePackBadge(file, className = "archive-pack-tag") {
 // 而绝大多数卡片的菜单从来没被打开过 —— 2904 张卡就是 12.5 万个白造的节点，
 // 它们还会拖慢每一次全文档样式重算 / querySelectorAll。触发器留在标记里（样式与
 // 事件委托都不变），内容交给 ensureMoreActionsMenu 在第一次展开前填。
-const MORE_ACTIONS_TRIGGER_HTML = `
+function buildMoreActionsTriggerHtml() {
+  return `
     <div class="more-actions-dropdown">
-      <button class="btn-small action-btn more-btn" title="更多操作">
+      <button class="btn-small action-btn more-btn" title="${t("mods.batch.more")}">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
           <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
         </svg>
@@ -1378,34 +1399,35 @@ const MORE_ACTIONS_TRIGGER_HTML = `
       <div class="dropdown-content hidden"></div>
     </div>
   `;
+}
 
 function buildMoreActionsMenuHtml(file) {
   const hideBtnIcon = file?.enabled ? iconSvg("eyeOff") : iconSvg("eye");
-  const hideBtnText = file?.enabled ? "隐藏" : "取消隐藏";
+  const hideBtnText = file?.enabled ? t("mods.ops.common.actionHide") : t("mods.ops.common.actionUnhide");
   return `
         <button class="dropdown-item detail-btn" data-file-path="${file.path}">
-          <span class="btn-icon">${iconSvg("info")}</span> 详情
+          <span class="btn-icon">${iconSvg("info")}</span> ${t("mods.contextMenu.detail")}
         </button>
         ${file.workshopId ? `
         <button class="dropdown-item workshop-btn" data-file-path="${file.path}" data-workshop-id="${file.workshopId}">
-          <span class="btn-icon">${iconSvg("external")}</span> 跳转工坊
+          <span class="btn-icon">${iconSvg("external")}</span> ${t("mods.contextMenu.jumpToWorkshop")}
         </button>
         <button class="dropdown-item share-workshop-btn" data-file-path="${file.path}" data-action="share-workshop">
-          <span class="btn-icon">${iconSvg("share")}</span> 分享物品
+          <span class="btn-icon">${iconSvg("share")}</span> ${t("mods.batch.share")}
         </button>
         ` : ""}
         <button class="dropdown-item set-tags-btn" data-file-path="${file.path}" data-action="set-tags">
-          <span class="btn-icon">${iconSvg("tag")}</span> 设置标签
+          <span class="btn-icon">${iconSvg("tag")}</span> ${t("mods.batch.setTags")}
         </button>
         ${hasPanelServers() ? `
         <button class="dropdown-item upload-server-btn" data-file-path="${file.path}" data-action="upload-server">
           <span class="btn-icon">${iconSvg("upload")}</span>
-          <span class="menu-item-text">上传服务器</span>
+          <span class="menu-item-text">${t("mods.batch.uploadServer")}</span>
           <span class="menu-item-arrow">${iconSvg("chevronRight")}</span>
         </button>
         ` : ""}
         <button class="dropdown-item rename-btn" data-file-path="${file.path}" data-action="rename">
-          <span class="btn-icon">${iconSvg("edit")}</span> 重命名
+          <span class="btn-icon">${iconSvg("edit")}</span> ${t("mods.ops.common.actionRename")}
         </button>
         <button class="dropdown-item load-order-btn" data-file-path="${file.path}" data-action="load-order">
           <span class="btn-icon">
@@ -1417,20 +1439,20 @@ function buildMoreActionsMenuHtml(file) {
               <path d="M4 10h2"></path>
               <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path>
             </svg>
-          </span> 加载顺序
+          </span> ${t("mods.toolbar.loadOrder")}
         </button>
         <button class="dropdown-item unpack-btn" data-file-path="${file.path}" data-action="unpack">
-          <span class="btn-icon">${iconSvg("package")}</span> 解包
+          <span class="btn-icon">${iconSvg("package")}</span> ${t("mods.contextMenu.unpack")}
         </button>
         <button class="dropdown-item open-location-btn" data-file-path="${file.path}" data-action="open-location">
-          <span class="btn-icon">${iconSvg("folderOpen")}</span> 打开位置
+          <span class="btn-icon">${iconSvg("folderOpen")}</span> ${t("mods.contextMenu.openLocation")}
         </button>
         <button class="dropdown-item hide-btn" data-file-path="${file.path}" data-action="hide">
           <span class="btn-icon">${hideBtnIcon}</span> ${hideBtnText}
         </button>
         <div class="dropdown-divider"></div>
         <button class="dropdown-item delete-btn" data-file-path="${file.path}" data-action="delete">
-          <span class="btn-icon">${iconSvg("trash")}</span> 删除
+          <span class="btn-icon">${iconSvg("trash")}</span> ${t("mods.ops.common.actionDelete")}
         </button>
       </div>
     `;
@@ -1475,21 +1497,21 @@ export function createFileItem(file) {
   const matchReasonChip = searchSyntax.raw
     ? (() => {
         const chip = formatMatchReasonChip(describeMatchReasons(file, searchSyntax.raw));
-        return chip ? `<span class="search-reason-chip" title="这行是被这些字段匹配到的">${escapeHtml(chip)}</span>` : "";
+        return chip ? `<span class="search-reason-chip" title="${t("mods.card.matchReasonTitle")}">${escapeHtml(chip)}</span>` : "";
       })()
     : "";
   const isHidden = file.name.startsWith("_");
-  const hideBtnText = isHidden ? "取消隐藏" : "隐藏";
+  const hideBtnText = isHidden ? t("mods.ops.common.actionUnhide") : t("mods.ops.common.actionHide");
   const hideBtnIcon = isHidden ? iconSvg("eye") : iconSvg("eyeOff");
   const locationBadgeClass = `location-${file.location || "unknown"}`;
   const hasUpdate = file.hasUpdate;
 
   const updateTagHtml = hasUpdate
-    ? `<span class="update-available-tag" data-workshop-id="${file.workshopId}" title="点击更新此Mod">待更新</span>`
+    ? `<span class="update-available-tag" data-workshop-id="${file.workshopId}" title="${t("mods.card.updateTooltip")}">${t("mods.card.updateAvailable")}</span>`
     : "";
 
   // 列表模式：更新标签放在文件名后面
-  const moreActionsHtml = MORE_ACTIONS_TRIGGER_HTML;
+  const moreActionsHtml = buildMoreActionsTriggerHtml();
 
   item.innerHTML = `
     <div class="file-checkbox-container"></div>
@@ -1513,7 +1535,7 @@ export function createFileItem(file) {
     <div class="file-actions">
       <button class="btn-small action-btn detail-btn" data-file-path="${file.path}">
         <span class="btn-icon">${iconSvg("info")}</span>
-        <span class="btn-text">详情</span>
+        <span class="btn-text">${t("mods.contextMenu.detail")}</span>
       </button>
       ${getGameStateActionControls(file)}
       ${getActionButton(file)}
@@ -1597,16 +1619,16 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
   const cardMatchReasonChip = cardSearchSyntax.raw
     ? (() => {
         const chip = formatMatchReasonChip(describeMatchReasons(file, cardSearchSyntax.raw));
-        return chip ? `<span class="search-reason-chip" title="这行是被这些字段匹配到的">${escapeHtml(chip)}</span>` : "";
+        return chip ? `<span class="search-reason-chip" title="${t("mods.card.matchReasonTitle")}">${escapeHtml(chip)}</span>` : "";
       })()
     : "";
   const isHidden = file.name.startsWith("_");
-  const hideBtnText = isHidden ? "取消隐藏" : "隐藏";
+  const hideBtnText = isHidden ? t("mods.ops.common.actionUnhide") : t("mods.ops.common.actionHide");
   const hideBtnIcon = isHidden ? iconSvg("eye") : iconSvg("eyeOff");
   const hasUpdate = file.hasUpdate;
 
   const updateBtnHtml = hasUpdate
-    ? `<button class="btn-small action-btn update-btn" data-workshop-id="${file.workshopId}" title="点击更新此Mod">
+    ? `<button class="btn-small action-btn update-btn" data-workshop-id="${file.workshopId}" title="${t("mods.card.updateTooltip")}">
         <span class="btn-icon">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -1614,7 +1636,7 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
         </span>
-        <span class="btn-text">待更新</span>
+        <span class="btn-text">${t("mods.card.updateAvailable")}</span>
       </button>`
     : "";
 
@@ -1660,23 +1682,23 @@ export function createFileCard(file, existingCard = null, panelServersAvailable 
   let actionBtn = "";
   if (file.location === "workshop") {
     actionBtn = `
-      <button class="btn-small action-btn move-btn" data-file-path="${file.path}" data-action="move" title="复制到 addons">
+      <button class="btn-small action-btn move-btn" data-file-path="${file.path}" data-action="move" title="${t("mods.ops.common.copyToAddons")}">
         <span class="btn-icon">${iconSvg("package")}</span>
-        <span class="btn-text">复制到 addons</span>
+        <span class="btn-text">${t("mods.ops.common.copyToAddons")}</span>
       </button>
     `;
   } else {
     actionBtn = `
       <button class="btn-small action-btn toggle-btn ${file.enabled ? "toggle-disable" : "toggle-enable"}"
               data-file-path="${file.path}" data-action="toggle"
-              title="${file.enabled ? "点击禁用" : "点击启用"}">
+              title="${file.enabled ? t("mods.card.toggleDisableTitle") : t("mods.card.toggleEnableTitle")}">
         <span class="btn-icon">${iconSvg("power")}</span>
-        <span class="btn-text">${file.enabled ? "禁用" : "启用"}</span>
+        <span class="btn-text">${file.enabled ? t("mods.ops.common.actionDisable") : t("mods.ops.common.actionEnable")}</span>
       </button>
     `;
   }
 
-  const moreActionsHtml = MORE_ACTIONS_TRIGGER_HTML;
+  const moreActionsHtml = buildMoreActionsTriggerHtml();
 
   card.innerHTML = `
     <div class="card-preview-container">
@@ -1879,29 +1901,20 @@ export function updateSingleFileDisplay(file) {
 
   const stateBadge = item.querySelector(".game-state-badge");
   if (stateBadge) {
-    const stateLabels = {
-      enabled: "游戏内开启",
-      disabled: "游戏内关闭",
-      unknown: "未记录",
-    };
-    const stateTitles = {
-      enabled: "addonlist.txt：1；点击关闭游戏内 Mod",
-      disabled: "addonlist.txt：0；点击开启游戏内 Mod",
-      unknown: "addonlist.txt 中未记录此 Mod；点击选择游戏内关闭、游戏内启用或禁用",
-    };
+    // 徽标文案与创建路径共用 getGameStateInfo（单一来源，勿重复维护）。
+    const stateInfo = getGameStateInfo(file);
     stateBadge.classList.remove("game-state-enabled", "game-state-disabled", "game-state-unknown");
     stateBadge.classList.add(`game-state-${stateClass}`);
-    stateBadge.textContent = stateLabels[stateClass];
-    stateBadge.title = stateTitles[stateClass];
+    stateBadge.textContent = stateInfo.label;
+    stateBadge.title = stateInfo.title;
   }
 
   const locationEl = item.querySelector(".file-location");
   if (locationEl) {
-    const locationNames = { root: "根目录", workshop: "创意工坊", disabled: "已禁用" };
     locationEl.innerHTML = `
       <span class="location-state-tag location-${file.location}">
         ${getLocationSvg(file.location)}
-        <span>${locationNames[file.location] || file.location}</span>
+        <span>${getLocationDisplayName(file.location)}</span>
       </span>
     `;
   }
@@ -1912,7 +1925,7 @@ export function updateSingleFileDisplay(file) {
       actionBtn.outerHTML = `
         <button class="btn-small action-btn move-btn" data-file-path="${file.path}" data-action="move">
           <span class="btn-icon">${iconSvg("package")}</span>
-          <span class="btn-text">复制到 addons</span>
+          <span class="btn-text">${t("mods.ops.common.copyToAddons")}</span>
         </button>
       `;
     } else {
@@ -1920,7 +1933,7 @@ export function updateSingleFileDisplay(file) {
         <button class="btn-small action-btn toggle-btn ${file.enabled ? "toggle-disable" : "toggle-enable"}"
                 data-file-path="${file.path}" data-action="toggle">
           <span class="btn-icon">${file.enabled ? iconSvg("x") : iconSvg("check")}</span>
-          <span class="btn-text">${file.enabled ? "禁用" : "启用"}</span>
+          <span class="btn-text">${file.enabled ? t("mods.ops.common.actionDisable") : t("mods.ops.common.actionEnable")}</span>
         </button>
       `;
     }
