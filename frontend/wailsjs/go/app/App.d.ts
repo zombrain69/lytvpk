@@ -186,9 +186,9 @@ export function GetAddonListInfo():Promise<app.AddonListInfo>;
 
 export function GetAddonListLoadOrderEntries():Promise<Array<app.AddonListLoadOrderEntry>>;
 
-export function GetAddonListRestoreCandidate():Promise<app.AddonListRestoreCandidate>;
-
 export function GetAddonListOrder():Promise<Array<string>>;
+
+export function GetAddonListRestoreCandidate():Promise<app.AddonListRestoreCandidate>;
 
 export function GetAppConfig():Promise<app.ConfigFile>;
 
@@ -390,8 +390,6 @@ export function MigrateLocalStorageConfig(arg1:app.LocalStorageMigrationPayload)
 
 export function MoveArchiveFiles(arg1:Array<string>,arg2:string,arg3:string):Promise<app.MoveResult>;
 
-export function MoveXDRModToSlot(arg1:string,arg2:string,arg3:number,arg4:number):Promise<app.XDRSlotMoveResult>;
-
 export function MoveModStrategyGroup(arg1:string,arg2:string):Promise<app.ModStrategyGroup>;
 
 export function MoveModStrategyGroupMembers(arg1:string,arg2:string,arg3:Array<string>):Promise<app.ModStrategyGroupMoveResult>;
@@ -405,6 +403,8 @@ export function MoveWorkshopFilesToAddons(arg1:Array<string>):Promise<app.Worksh
 export function MoveWorkshopToAddons(arg1:string):Promise<void>;
 
 export function MoveWorkshopToAddonsWithConflictAction(arg1:string,arg2:string):Promise<app.MoveResult>;
+
+export function MoveXDRModToSlot(arg1:string,arg2:string,arg3:number,arg4:number):Promise<app.XDRSlotMoveResult>;
 
 export function OpenArchivePackage(arg1:string):Promise<void>;
 
@@ -426,11 +426,11 @@ export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
 
 export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
 
-export function PreviewModPriorityLayers():Promise<app.AddonListLoadOrderPreview>;
-
 export function PreviewAddonListMerge(arg1:string):Promise<app.AddonListMergePreview>;
 
 export function PreviewCustomTagRules(arg1:string):Promise<app.CustomTagRulePreview>;
+
+export function PreviewModPriorityLayers():Promise<app.AddonListLoadOrderPreview>;
 
 export function PreviewModSnapshotRestore(arg1:string):Promise<app.ModSnapshotRestorePlan>;
 

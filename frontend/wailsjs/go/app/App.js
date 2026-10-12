@@ -362,12 +362,12 @@ export function GetAddonListLoadOrderEntries() {
   return window['go']['app']['App']['GetAddonListLoadOrderEntries']();
 }
 
-export function GetAddonListRestoreCandidate() {
-  return window['go']['app']['App']['GetAddonListRestoreCandidate']();
-}
-
 export function GetAddonListOrder() {
   return window['go']['app']['App']['GetAddonListOrder']();
+}
+
+export function GetAddonListRestoreCandidate() {
+  return window['go']['app']['App']['GetAddonListRestoreCandidate']();
 }
 
 export function GetAppConfig() {
@@ -770,10 +770,6 @@ export function MoveArchiveFiles(arg1, arg2, arg3) {
   return window['go']['app']['App']['MoveArchiveFiles'](arg1, arg2, arg3);
 }
 
-export function MoveXDRModToSlot(arg1, arg2, arg3, arg4) {
-  return window['go']['app']['App']['MoveXDRModToSlot'](arg1, arg2, arg3, arg4);
-}
-
 export function MoveModStrategyGroup(arg1, arg2) {
   return window['go']['app']['App']['MoveModStrategyGroup'](arg1, arg2);
 }
@@ -800,6 +796,10 @@ export function MoveWorkshopToAddons(arg1) {
 
 export function MoveWorkshopToAddonsWithConflictAction(arg1, arg2) {
   return window['go']['app']['App']['MoveWorkshopToAddonsWithConflictAction'](arg1, arg2);
+}
+
+export function MoveXDRModToSlot(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['MoveXDRModToSlot'](arg1, arg2, arg3, arg4);
 }
 
 export function OpenArchivePackage(arg1) {
@@ -842,16 +842,16 @@ export function PreviewAddonListLoadOrderPolicy(arg1) {
   return window['go']['app']['App']['PreviewAddonListLoadOrderPolicy'](arg1);
 }
 
-export function PreviewModPriorityLayers() {
-  return window['go']['app']['App']['PreviewModPriorityLayers']();
-}
-
 export function PreviewAddonListMerge(arg1) {
   return window['go']['app']['App']['PreviewAddonListMerge'](arg1);
 }
 
 export function PreviewCustomTagRules(arg1) {
   return window['go']['app']['App']['PreviewCustomTagRules'](arg1);
+}
+
+export function PreviewModPriorityLayers() {
+  return window['go']['app']['App']['PreviewModPriorityLayers']();
 }
 
 export function PreviewModSnapshotRestore(arg1) {

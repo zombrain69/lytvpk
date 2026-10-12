@@ -132,6 +132,66 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class AddonListMovedEntry {
+	    key: string;
+	    oldOrder: number;
+	    newOrder: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AddonListMovedEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.oldOrder = source["oldOrder"];
+	        this.newOrder = source["newOrder"];
+	    }
+	}
+	export class AddonListWriteDiff {
+	    countBefore: number;
+	    countAfter: number;
+	    added?: string[];
+	    removed?: string[];
+	    movedTotal: number;
+	    moved?: AddonListMovedEntry[];
+	    unchanged: number;
+	    duplicatesFolded?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AddonListWriteDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.countBefore = source["countBefore"];
+	        this.countAfter = source["countAfter"];
+	        this.added = source["added"];
+	        this.removed = source["removed"];
+	        this.movedTotal = source["movedTotal"];
+	        this.moved = this.convertValues(source["moved"], AddonListMovedEntry);
+	        this.unchanged = source["unchanged"];
+	        this.duplicatesFolded = source["duplicatesFolded"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class AddonListLoadOrderPreview {
 	    entries: AddonListLoadOrderEntry[];
 	    removedStale?: string[];
@@ -146,108 +206,6 @@ export namespace app {
 	        this.entries = this.convertValues(source["entries"], AddonListLoadOrderEntry);
 	        this.removedStale = source["removedStale"];
 	        this.diff = this.convertValues(source["diff"], AddonListWriteDiff);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class AddonListMovedEntry {
-	    key: string;
-	    newOrder: number;
-	    oldOrder: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new AddonListMovedEntry(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.key = source["key"];
-	        this.newOrder = source["newOrder"];
-	        this.oldOrder = source["oldOrder"];
-	    }
-	}
-	export class AddonListWriteDiff {
-	    added?: string[];
-	    countAfter: number;
-	    countBefore: number;
-	    duplicatesFolded?: number;
-	    moved?: AddonListMovedEntry[];
-	    movedTotal: number;
-	    removed?: string[];
-	    unchanged: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new AddonListWriteDiff(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.added = source["added"];
-	        this.countAfter = source["countAfter"];
-	        this.countBefore = source["countBefore"];
-	        this.duplicatesFolded = source["duplicatesFolded"];
-	        this.moved = this.convertValues(source["moved"], AddonListMovedEntry);
-	        this.movedTotal = source["movedTotal"];
-	        this.removed = source["removed"];
-	        this.unchanged = source["unchanged"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class AddonListRestoreCandidate {
-	    createdAt: string;
-	    diff?: AddonListWriteDiff;
-	    found: boolean;
-	    kind: string;
-	    name?: string;
-	    size: number;
-	    source: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new AddonListRestoreCandidate(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.createdAt = source["createdAt"];
-	        this.diff = this.convertValues(source["diff"], AddonListWriteDiff);
-	        this.found = source["found"];
-	        this.kind = source["kind"];
-	        this.name = source["name"];
-	        this.size = source["size"];
-	        this.source = source["source"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -324,6 +282,50 @@ export namespace app {
 		    return a;
 		}
 	}
+	
+	export class AddonListRestoreCandidate {
+	    found: boolean;
+	    source: string;
+	    name?: string;
+	    kind: string;
+	    createdAt: string;
+	    size: number;
+	    diff?: AddonListWriteDiff;
+	
+	    static createFrom(source: any = {}) {
+	        return new AddonListRestoreCandidate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.found = source["found"];
+	        this.source = source["source"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.createdAt = source["createdAt"];
+	        this.size = source["size"];
+	        this.diff = this.convertValues(source["diff"], AddonListWriteDiff);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ArchiveVPKInfo {
 	    entryPath: string;
 	    name: string;
@@ -3936,60 +3938,6 @@ export namespace app {
 		    return a;
 		}
 	}
-	export class WorkshopShortcutResult {
-	    requested: number;
-	    created: number;
-	    updated: number;
-	    unchanged: number;
-	    skipped?: WorkshopShortcutSkip[];
-	    errors?: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new WorkshopShortcutResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.requested = source["requested"];
-	        this.created = source["created"];
-	        this.updated = source["updated"];
-	        this.unchanged = source["unchanged"];
-	        this.skipped = this.convertValues(source["skipped"], WorkshopShortcutSkip);
-	        this.errors = source["errors"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class WorkshopShortcutSkip {
-	    path: string;
-	    reason: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new WorkshopShortcutSkip(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.path = source["path"];
-	        this.reason = source["reason"];
-	    }
-	}
 	export class WorkshopPreviewItem {
 	    publishedfileid: string;
 	    title: string;
@@ -4176,6 +4124,61 @@ export namespace app {
 	        this.filetype = source["filetype"];
 	    }
 	}
+	export class WorkshopShortcutSkip {
+	    path: string;
+	    reason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkshopShortcutSkip(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.reason = source["reason"];
+	    }
+	}
+	export class WorkshopShortcutResult {
+	    requested: number;
+	    created: number;
+	    updated: number;
+	    unchanged: number;
+	    skipped?: WorkshopShortcutSkip[];
+	    errors?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkshopShortcutResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.requested = source["requested"];
+	        this.created = source["created"];
+	        this.updated = source["updated"];
+	        this.unchanged = source["unchanged"];
+	        this.skipped = this.convertValues(source["skipped"], WorkshopShortcutSkip);
+	        this.errors = source["errors"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class WorkshopTransferItemResult {
 	    sourcePath: string;
 	    targetPath: string;
@@ -4292,6 +4295,146 @@ export namespace app {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.items = this.convertValues(source["items"], WorkshopWatchLaterItem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class XDRSlotMoveFile {
+	    from: string;
+	    to: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.from = source["from"];
+	        this.to = source["to"];
+	    }
+	}
+	export class XDRSlotMoveFileResult {
+	    path: string;
+	    renamedCount: number;
+	    skipped?: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveFileResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.renamedCount = source["renamedCount"];
+	        this.skipped = source["skipped"];
+	        this.error = source["error"];
+	    }
+	}
+	export class XDRSlotMoveOption {
+	    slot: number;
+	    slotLabel: string;
+	    slotName: string;
+	    slotGroup: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveOption(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.slot = source["slot"];
+	        this.slotLabel = source["slotLabel"];
+	        this.slotName = source["slotName"];
+	        this.slotGroup = source["slotGroup"];
+	    }
+	}
+	export class XDRSlotMovePreview {
+	    sourcePath: string;
+	    character: string;
+	    fromSlot: number;
+	    fromSlotLabel: string;
+	    toSlot: number;
+	    toSlotLabel: string;
+	    defaultSlot: number;
+	    availableSlots: XDRSlotMoveOption[];
+	    files: XDRSlotMoveFile[];
+	    siblingPaths: string[];
+	    rivals: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMovePreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourcePath = source["sourcePath"];
+	        this.character = source["character"];
+	        this.fromSlot = source["fromSlot"];
+	        this.fromSlotLabel = source["fromSlotLabel"];
+	        this.toSlot = source["toSlot"];
+	        this.toSlotLabel = source["toSlotLabel"];
+	        this.defaultSlot = source["defaultSlot"];
+	        this.availableSlots = this.convertValues(source["availableSlots"], XDRSlotMoveOption);
+	        this.files = this.convertValues(source["files"], XDRSlotMoveFile);
+	        this.siblingPaths = source["siblingPaths"];
+	        this.rivals = source["rivals"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class XDRSlotMoveResult {
+	    sourcePath: string;
+	    character: string;
+	    fromSlot: number;
+	    toSlot: number;
+	    renamedFiles: number;
+	    processedFiles: XDRSlotMoveFileResult[];
+	
+	    static createFrom(source: any = {}) {
+	        return new XDRSlotMoveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourcePath = source["sourcePath"];
+	        this.character = source["character"];
+	        this.fromSlot = source["fromSlot"];
+	        this.toSlot = source["toSlot"];
+	        this.renamedFiles = source["renamedFiles"];
+	        this.processedFiles = this.convertValues(source["processedFiles"], XDRSlotMoveFileResult);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -5538,146 +5681,6 @@ export namespace parser {
 	        this.evidence = source["evidence"];
 	        this.confidence = source["confidence"];
 	    }
-	}
-	export class XDRSlotMoveFile {
-	    from: string;
-	    to: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new XDRSlotMoveFile(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.from = source["from"];
-	        this.to = source["to"];
-	    }
-	}
-	export class XDRSlotMoveFileResult {
-	    path: string;
-	    renamedCount: number;
-	    skipped?: boolean;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new XDRSlotMoveFileResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.path = source["path"];
-	        this.renamedCount = source["renamedCount"];
-	        this.skipped = source["skipped"];
-	        this.error = source["error"];
-	    }
-	}
-	export class XDRSlotMoveOption {
-	    slot: number;
-	    slotLabel: string;
-	    slotName: string;
-	    slotGroup: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new XDRSlotMoveOption(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.slot = source["slot"];
-	        this.slotLabel = source["slotLabel"];
-	        this.slotName = source["slotName"];
-	        this.slotGroup = source["slotGroup"];
-	    }
-	}
-	export class XDRSlotMovePreview {
-	    sourcePath: string;
-	    character: string;
-	    fromSlot: number;
-	    fromSlotLabel: string;
-	    toSlot: number;
-	    toSlotLabel: string;
-	    defaultSlot: number;
-	    availableSlots: XDRSlotMoveOption[];
-	    files: XDRSlotMoveFile[];
-	    siblingPaths: string[];
-	    rivals: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new XDRSlotMovePreview(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sourcePath = source["sourcePath"];
-	        this.character = source["character"];
-	        this.fromSlot = source["fromSlot"];
-	        this.fromSlotLabel = source["fromSlotLabel"];
-	        this.toSlot = source["toSlot"];
-	        this.toSlotLabel = source["toSlotLabel"];
-	        this.defaultSlot = source["defaultSlot"];
-	        this.availableSlots = this.convertValues(source["availableSlots"], XDRSlotMoveOption);
-	        this.files = this.convertValues(source["files"], XDRSlotMoveFile);
-	        this.siblingPaths = source["siblingPaths"];
-	        this.rivals = source["rivals"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class XDRSlotMoveResult {
-	    sourcePath: string;
-	    character: string;
-	    fromSlot: number;
-	    toSlot: number;
-	    renamedFiles: number;
-	    processedFiles: XDRSlotMoveFileResult[];
-	
-	    static createFrom(source: any = {}) {
-	        return new XDRSlotMoveResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sourcePath = source["sourcePath"];
-	        this.character = source["character"];
-	        this.fromSlot = source["fromSlot"];
-	        this.toSlot = source["toSlot"];
-	        this.renamedFiles = source["renamedFiles"];
-	        this.processedFiles = this.convertValues(source["processedFiles"], XDRSlotMoveFileResult);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 	export class VPKFile {
 	    name: string;
