@@ -143,3 +143,44 @@ runtime.WindowExecJS 存在（仅注入、无返回通道）
 - 实现与测试落点：`internal/app/workshop_shortcut.go` + `workshop_shortcut_test.go`（12 项）、
   `frontend/src/js/features/file-list/workshop-shortcut.mjs` + 测试（7 项）；
   真机验证项见 manual-verification §20。
+
+## 5. 补充调研（2026-10-12 晚）：Steam API 路线的重新评估
+
+> 背景：用户要求评估"涉及 Steam API"的实现方式——要便捷、且尽量少 Steam 接口问题。
+
+**结论 1：官方 Web API 没有订阅 / 退订能力。**
+公开 Web API（developer.valvesoftware.com / partner.steamgames.com/doc/webapi）只有只读查询
+（GetDetails / GetCollectionDetails 等）；订阅 / 退订只存在于本机 **Steamworks SDK** 接口里。
+
+**结论 2：官方本机接口存在且语义正好——ISteamUGC（Steamworks SDK）**
+- `GetNumSubscribedItems` / `GetSubscribedItems` / `SubscribeItem` / `UnsubscribeItem`
+  （官方文档确认：这正是游戏内订阅管理 UI 用的同一套接口）。
+- 调用条件：**Steam 客户端运行中** + `steam_api64.dll` + steam_appid 上下文
+  （`steam_appid.txt` 或 `SteamAppId` 环境变量 = 550）。
+- 社区先例：`geekhostuk/SteamWorkshopManager`（C++ CLI：任意 appid 的批量退订 / 备份 / 恢复）；
+  Go 侧有 `hajimehoshi/go-steamworks`，但该库现版本**未暴露 UGC 接口**（需扩展或自写 purego 绑定，量不大）。
+- **硬约束（Valve SDK Access Agreement）**：`redistributable_bin` 内的 `steam_api64.dll`
+  仅允许"随 Licensee 自己的软件（Steamworks 伙伴发行物）"分发 —— **第三方工具不能随包分发**。
+  实践路径 = 用户自备或从本机其它 64 位 Steam 游戏目录借用（本机实测：多个已安装的 64 位
+  Steam 游戏各自携带一份可用 DLL；L4D2 自带的是 32 位 `steam_api.dll`，64 位进程无法加载）。
+- 待实测项：非 Steamworks 进程以 550 init 的接受度；`UnsubscribeItem` 的 EResult 与回执；
+  副作用观察（期间 Steam 好友列表可能短暂显示"正在运行 L4D2"）。
+
+**结论 3：网页会话端点仍是可行备选（原路径 A）。**
+`POST steamcommunity.com/sharedfiles/unsubscribe {id, appid, sessionid}`（逐项）与
+`sharedfiles/unsubscribeall`（按游戏批量）—— 非官方文档化端点，但被社区 userscript 使用十余年，
+间接证明长期稳定；风险点集中在 session 获取与批量限流。参考项目（sHartet/l4d2-addons）走此路。
+
+**推荐实施顺序（待用户确认）**：
+1. **P0 引导模式**（原路径 C，零接口）：订阅清单视图（只读本机 `550_subscriptions.vdf`）
+   ＋ 智能筛选（失效 / 冗余订阅）＋ 一键打开 Steam 官方退订页 —— 信息层先行，零风险。
+2. **P1 官方接口 spike**：只读验证（init 550 + GetSubscribedItems 与 VDF 逐条对照），
+   通过后再评估 DLL 自备 UX 与单条写验证。
+3. **P2 网页会话**：若 P1 不通过再启动（工程最大、涉信任模型）。
+
+**只读 spike 预案**（可执行清单）：
+- 从本机任一 64 位游戏复制一份 `steam_api64.dll` 到隔离目录（仅验证用，不入库、不随包）。
+- 最小 Go 程序：purego（或扩展 go-steamworks）→ `SteamAPI_Init`（SteamAppId=550）
+  → SteamUGC → `GetSubscribedItems` → 打印数量与 ID 片段 → `Shutdown`。
+- 与 `550_subscriptions.vdf`（本机实测 957 条）核对一致性与差异。
+- 零写操作、零账号影响；结果记录后再决定是否进入写验证。
