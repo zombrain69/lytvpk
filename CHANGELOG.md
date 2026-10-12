@@ -1,5 +1,33 @@
 # Changelog
 
+## 未发布 — 命名规范化 P2 完成：批量规范化弹窗（计划预览 + 勾选执行 + 撤销清单）（路线图第 20 项）（2026-10-13）
+
+- **批量计划器**（`internal/app/naming_batch.go`）：`PlanNamingNormalization` 只读生成
+  「旧名 → 新名」对照与逐项跳过明细（工坊 / 未变化 / 前缀放不进 63B / 目标冲突（含同批项
+  重名）/ 超长 / 非受管文件）；幂等（规范库重跑 0 可执行）；目标冲突计划阶段就拦截。
+- **执行器**：`ApplyNamingNormalization` —— 执行前先把「撤销清单」写入配置目录
+  （`naming_rename_backup_<时间戳>.json`，写不出去整体中止、不碰任何文件），再逐项走
+  `RenameVPKFile` 全链路（标签保留 / 侧车联动 / addonlist 键迁移 / 缓存更新 / 冲突复检失效）；
+  执行前二次校验（文件已变化 / 目标已存在 / 重复路径整组拒绝）；忙互斥 + `naming_batch_progress`
+  进度事件；结果逐项汇报；`parser.ComposeNormalizedFilename` 与重命名链路同口径（预览即写入）。
+- **弹窗 UI**（右键批量菜单 + 工具栏「更多操作」入口）：汇总行 + 「将改名 / 待复核 / 跳过」分组、
+  旧名→新名 + 判定阶段徽标 + 待复核/已截断旗标 + 本地化依据说明；全选、复制计划（含对照）、
+  复制撤销清单（成功项 新路径 → 原路径）；低置信项默认不勾选，含低置信勾选时先确认；执行后
+  逐项状态 + 汇总 + 撤销清单路径回显。
+- **依据说明 i18n 化**：`NamingSuggestion` 增 `reasonKey/reasonArgs/alreadyNormalized`（中文
+  `reason` 保留兜底）；前端 `naming-display.mjs` 映射 stage/domain/kind 词表；重命名弹窗
+  「按分类建议填充」备注同步走本地化（en 界面不再出现中文依据）。
+- **文案**：新增 71 键（zh 逐字 + en 全量）：`mods.batch.normalizeNames`、
+  `modals.batchNaming.*`（含 skip 8 码）、`modals.naming.*`（reason 11 / stage 6 / domain 10 / kind 6）。
+- **验证**：`go vet ./...` / `go test ./...` 全过（Go 新增 9 项：计划分类与跳过、冲突拦截、
+  往返 + 撤销清单 + 幂等、过期/冲突/重复拒绝、只读闸门、备份失败中止、忙互斥、侧车联动）；
+  前端显式清单 133 文件 677 项 0 失败 / `npm run build`；CUA 只读沙箱冒烟（批量菜单 → 计划
+  弹窗 → 全选开关 → 执行被只读闸门拒绝 → 取消；截图 1 张）并核验真库零改动；
+  `wails build` 重生成绑定（两个方法 + 5 个模型类）。
+- **真机回归修复**（`5cf9b7c`）：`buildApplyRequests` 只认数组、把 UI 的 Set 当空集 → 按钮
+  计数恒 0 且执行静默失效；修复为 Set/Array 双输入 + 回归测试。
+- 未做（记入 manual-verification.md）：镜像沙箱写盘成功路径复验、en 界面目视、大选择滚动体感。
+
 ## 未发布 — 语言切换入口开放 + en 审校迭代完成（路线图第 19 项）（2026-10-13）
 
 - **入口开放（第 19 项收口）**：`LANGUAGE_SWITCH_ENABLED`（`core/locale.mjs`）翻 `true`——

@@ -147,7 +147,23 @@
   - v1 已知差异（有意保守，留待 P2/P3 或用户反馈迭代）：① 横切行不单独建行（落 S3/S4/S5
     保守处理）；② 行名用本应用标签词汇，未做 20 前缀的全名映射；③ 固定机关枪归主武器
     （与应用的「枪械」分类树一致）。
-- **P2 剩余**：批量改名计划器；**P3**：规则对齐与例外表（横切行 / 全名映射可配置化）。
+- **P2 已完成（2026-10-13，自动轮次 · 提交 `2eccf8e` / `501ab60` / `5cf9b7c`）**：批量规范化（弹窗计划 → 勾选 → 执行 → 撤销清单）：
+  - `internal/app/naming_batch.go`：`PlanNamingNormalization`（只读；逐项跳过明细：工坊 / 未变化 /
+    前缀放不进 63B / 目标冲突（含同批项重名）/ 超长 / 非受管文件；幂等：规范库重跑 0 可执行）
+    + `ApplyNamingNormalization`（执行前「撤销清单」写入配置目录、写不出即整体中止；逐项复用
+    `RenameVPKFile` 全链路（标签保留 / 侧车联动 / addonlist 键迁移 / 缓存更新 / 冲突复检失效）；
+    执行前二次校验只做拒绝（文件已变化 / 目标已存在 / 重复路径整组拒绝）；忙互斥 +
+    `naming_batch_progress` 进度事件）；`parser.ComposeNormalizedFilename`（[标签]/隐藏 `_`
+    保留，与 `RenameVPKFile` 同口径，预览即写入）；
+  - 弹窗（右键批量菜单 + 工具栏「更多操作」）：汇总 + 「将改名 / 待复核 / 跳过」分组 + 判定徽标 +
+    待复核/已截断旗标 + 全选 / 复制计划 / 复制撤销清单（成功项 新路径→原路径）；低置信默认不勾选、
+    勾选后先确认；执行后逐项状态 + 汇总 + 撤销清单路径回显；
+  - 依据说明 i18n 化：`NamingSuggestion` 增 `reasonKey/reasonArgs/alreadyNormalized`；前端
+    `naming-display.mjs` 映射 stage/domain/kind 词表（重命名弹窗备注同步受益）；
+  - 验证：Go 新增 9 项 + parser 2 项；前端新增 15 项（133 文件 677 项 0 失败）；CUA 只读沙箱
+    冒烟（批量菜单 → 计划弹窗 → 全选开关 → 执行被只读闸门拒绝 → 取消；真库零改动核验通过）；
+  - 已知差异：写盘成功路径的镜像沙箱复验与 en 界面目视留给人工会话（见 manual-verification.md）。
+- **P3 剩余**：规则对齐与例外表（横切行 / 全名映射可配置化；默认词表 + 例外表 UI）。
 
 参考索引（`sHartet/l4d2-addons`）：`reference/naming-rules.md`（v1.2 全文）、
 `scripts/plan_v4.py`（cap_name/幂等判定）、`scripts/rename_batch.ps1`（批次执行/三件套）、
