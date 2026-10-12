@@ -22,6 +22,7 @@ import {
   searchConflictGroups,
 } from "./conflict-search.mjs";
 import { buildScopedConflictSummary } from "./scoped-conflict-summary.mjs";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 import { attachConflictRowDrag } from "./conflict-row-drag.mjs";
 import {
   conflictScopeSummaryLabel,
@@ -116,6 +117,10 @@ function getConflictPriority(vpk) {
   return conflictOrderKeys(vpk, file).map((key) => conflictOrderByKey.get(key)).find((value) => Number.isInteger(value)) || null;
 }
 
+// 本地化排序（第 19 项 P3）：排序跟随当前界面语言（core/locale-collator.mjs）。
+const TITLE_COLLATOR = createLocaleCollator({ numeric: true });
+const TEXT_COLLATOR = createLocaleCollator();
+
 function sortConflictVPKs(vpkFiles) {
   return [...vpkFiles].sort((a, b) => {
     const orderA = getConflictPriority(a);
@@ -123,7 +128,7 @@ function sortConflictVPKs(vpkFiles) {
     if (orderA !== null && orderB !== null && orderA !== orderB) return orderA - orderB;
     if (orderA !== null && orderB === null) return -1;
     if (orderA === null && orderB !== null) return 1;
-    return String(a.title || a.name || "").localeCompare(String(b.title || b.name || ""), "zh-CN", { numeric: true });
+    return TITLE_COLLATOR.compare(String(a.title || a.name || ""), String(b.title || b.name || ""));
   });
 }
 
@@ -233,7 +238,7 @@ function getAvailableConflictTags() {
       if (tag) tags.add(String(tag));
     }
   }
-  return [...tags].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  return [...tags].sort((a, b) => TEXT_COLLATOR.compare(a, b));
 }
 
 function syncConflictScopeDialog() {
@@ -1451,7 +1456,7 @@ function buildTree(paths) {
 function renderTree(nodes) {
   nodes.sort((a, b) => {
     if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
+    return TEXT_COLLATOR.compare(a.name, b.name);
   });
 
   return nodes

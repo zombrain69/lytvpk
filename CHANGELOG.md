@@ -1,5 +1,26 @@
 # Changelog
 
+## 未发布 — 语言切换 P3：本地化排序 + 窗口标题 + en 溢出扫描（路线图第 19 项）（2026-10-12）
+
+- **本地化排序**：新增 `core/locale-collator.mjs`——排序比较器跟随当前界面语言（经
+  `core/locale.mjs` 白名单归一化，未知回落 zh-CN；底层 `Intl.Collator` 按 locale 缓存重建，
+  不破坏「复用 collator」的既有性能约定）。此前散落在 14 个模块的 13 处
+  `localeCompare` + 1 处 `Intl.Collator` 的 zh-CN 硬编码全部收敛到该模块
+  （mods 列表/路径兜底、冲突、分组视图与选择器、分类树、标签建议与常用度、诊断表格、
+  归档、下载任务等）。测试：`core/locale-collator.test.mjs`（zh 拼音 vs en 码点判别断言、
+  语言切换自动重建、numeric 选项、未知 locale 回落 + **全量源码扫描**：非测试代码不得再
+  出现硬编码中文 collation）。
+- **主窗口标题跟随界面语言**：目录新增 `app.windowTitle`（zh「LytVPK Community Fork — MOD管理器」/
+  en「… — Mod Manager」）；`app-runtime.js` 在启动应用持久化语言后与 `app:locale-change` 时
+  经 `WindowSetTitle` 推送到原生窗口（此前由 main.go 写死、不随语言）。
+- **排序按钮方向后缀走目录**：`mods.sort.buttonSuffix`（zh 全角「（{direction}）」/ en 半角
+  「({direction})」）——修复 en 下「Sort by file name （A-Z）」的全角括号硬编码（CUA 冒烟发现）。
+- **en 长文本溢出扫描（CUA 镜像沙箱）**：7 页 + 4 个设置分区 + 排序下拉/搜索说明书/快捷键
+  浮层全量扫描 + 截图目视复核；无硬裁切、无破版——分类树标签 7 处截断均为设计内 ellipsis
+  且全部带 title 提示。
+- 验证：`go vet ./...` / `go test ./...` / 前端显式清单 130 文件 657 项 0 失败 / `npm run build`；
+  CUA 记录见 `docs/development/manual-verification.md`「语言切换 P3」。
+
 ## 未发布 — 语言切换 P2：en 全量机翻产出 + 切换收尾（路线图第 19 项）（2026-10-12）
 
 - **en 目录全量产出（3750/3750 键）**：3625 条待翻文案按组分块机翻（10 个并行批次 + `search` 组

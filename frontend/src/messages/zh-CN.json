@@ -1,6 +1,7 @@
 {
   "app": {
     "name": "LytVPK",
+    "windowTitle": "LytVPK Community Fork — MOD管理器",
     "shell": {
       "window": {
         "minimize": "最小化",
@@ -1459,6 +1460,7 @@
         "loadOrder": "优先级排序",
         "xdrSlot": "动作槽排序"
       },
+      "buttonSuffix": "（{direction}）",
       "locate": {
         "invalidPriority": "请输入大于 0 的优先级编号",
         "notFound": "优先级 #{priority} 当前没有扫描到对应的 Mod",

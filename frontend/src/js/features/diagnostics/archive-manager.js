@@ -1,4 +1,5 @@
 import { showError, showNotification } from "../../core/toast.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 import { createImeAwareSearchController } from "./archive-search-controller.mjs";
@@ -16,6 +17,8 @@ import {
   describeArchiveSearchResult,
   searchArchivePackages,
 } from "./archive-search.mjs";
+// 本地化排序（第 19 项 P3）：归档包名跟随界面语言（数字感知）。
+const ARCHIVE_NAME_COLLATOR = createLocaleCollator({ numeric: true, sensitivity: "base" });
 
 let archiveManagerRunning = false;
 let archiveManagerSession = null;
@@ -390,7 +393,7 @@ function getVisibleArchivePackages() {
     }
     const leftName = String(left.name || "").toLocaleLowerCase();
     const rightName = String(right.name || "").toLocaleLowerCase();
-    const delta = leftName.localeCompare(rightName, undefined, { numeric: true, sensitivity: "base" });
+    const delta = ARCHIVE_NAME_COLLATOR.compare(leftName, rightName);
     return archiveManagerSort === "name-desc" ? -delta : delta;
   });
 }

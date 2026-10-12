@@ -6,6 +6,7 @@
 //   * 树只负责"选什么"，具体怎么筛仍然由 filters.js 处理（见 applyCategoryFilterSelection）。
 
 import { t } from "../../core/i18n-runtime.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 
 // 分类定义（唯一事实源）：筛选预设菜单与左侧分类树都读这一份。
 // 文案走目录（mods.category.*）：静态表只存 key（labelKey / descriptionKey / tagLabelKeys），
@@ -288,6 +289,9 @@ export function presetTagLabel(subgroup, tag) {
   return key ? t(key) : String(tag ?? "");
 }
 
+// 本地化排序（第 19 项 P3）：兜底分支标签跟随界面语言。
+const TAG_COLLATOR = createLocaleCollator();
+
 /**
  * buildOtherTagsBranch 把「扫描到、但没有任何树节点用到」的标签收进兜底分支。
  * 标签可达性因此天然是 100%：宁可多一个分支，也不让某个标签在树里搜不到。
@@ -296,7 +300,7 @@ export function buildOtherTagsBranch(allTags = [], usedTags = new Set(), limit =
   const used = usedTags instanceof Set ? usedTags : new Set(usedTags);
   const rest = [...new Set(allTags)]
     .filter((tag) => tag && !used.has(tag))
-    .sort((a, b) => a.localeCompare(b, "zh"));
+    .sort((a, b) => TAG_COLLATOR.compare(a, b));
   if (rest.length === 0) return null;
   return {
     id: "other-tags",

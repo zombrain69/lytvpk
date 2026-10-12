@@ -1,5 +1,6 @@
 import { showError, showNotification } from "../../core/toast.js";
 import { t } from "../../core/i18n-runtime.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 import { showConfirmModal } from "../modals/confirm.js";
 import { appState } from "../state.js";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
@@ -14,6 +15,8 @@ import {
   SetDownloadTaskAutoRedownload,
   ClearCompletedTasks,
 } from "../../../../wailsjs/go/app/App";
+// 本地化排序（第 19 项 P3）：任务列表文本跟随界面语言。
+const TASK_COLLATOR = createLocaleCollator();
 
 let taskListRequestId = 0;
 
@@ -44,7 +47,7 @@ export async function refreshTaskList() {
       if (statusOrder[a.status] !== statusOrder[b.status]) {
         return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
       }
-      return b.id.localeCompare(a.id);
+      return TASK_COLLATOR.compare(b.id, a.id);
     });
 
     listContainer.innerHTML = "";

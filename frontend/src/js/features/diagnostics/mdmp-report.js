@@ -1,5 +1,8 @@
 import { showError, showNotification } from "../../core/toast.js";
 import { t } from "../../core/i18n-runtime.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
+// 本地化排序（第 19 项 P3）：寄存器名跟随界面语言。
+const REGISTER_COLLATOR = createLocaleCollator();
 
 const TABS = [
   { id: "overview", labelKey: "toolbox.mdmpReport.tab.overview" },
@@ -389,7 +392,7 @@ function createListSection(title, values) {
 }
 
 function createRegisterSection(title, context = {}) {
-  const rows = Object.entries(context.registers || {}).sort(([a], [b]) => a.localeCompare(b));
+  const rows = Object.entries(context.registers || {}).sort(([a], [b]) => REGISTER_COLLATOR.compare(a, b));
   const section = createSection(title, [
     ["Architecture", context.architecture],
     ["Context RVA", context.rva],

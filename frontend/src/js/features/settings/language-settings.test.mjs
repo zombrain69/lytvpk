@@ -50,3 +50,26 @@ test("双端白名单同套取值：core/locale.mjs ↔ internal/app/config.go",
   assert.match(go, /"zh-cn":\s+"zh-CN"/);
   assert.match(go, /"en":\s+"en"/);
 });
+
+test("窗口标题跟随界面语言：app-runtime 推送到原生窗口 + 双目录有 app.windowTitle", () => {
+  const runtime = read("../app-runtime.js");
+  assert.match(runtime, /WindowSetTitle\(t\("app\.windowTitle"\)\)/, "标题取目录文案并推送原生窗口");
+  assert.ok(
+    (runtime.match(/applyWindowTitle\(\)/g) || []).length >= 3,
+    "定义 1 处 + 启动后 1 处 + 语言切换监听 1 处"
+  );
+  const zh = readJson("../../../messages/zh-CN.json").app.windowTitle;
+  const en = readJson("../../../messages/en.json").app.windowTitle;
+  assert.ok(zh?.trim(), "zh 缺 app.windowTitle");
+  assert.ok(en?.trim(), "en 缺 app.windowTitle");
+});
+
+test("排序按钮方向后缀走目录：zh 全角括号 / en 半角括号（第 19 项 P3）", () => {
+  const sorting = read("../file-list/sorting.js");
+  assert.match(sorting, /mods\.sort\.buttonSuffix/, "按钮方向后缀必须走目录 key");
+  assert.ok(!sorting.includes("（${arrow}）"), "不得在代码里写死全角括号拼接");
+  const zh = readJson("../../../messages/zh-CN.json").mods.sort.buttonSuffix;
+  const en = readJson("../../../messages/en.json").mods.sort.buttonSuffix;
+  assert.equal(zh, "（{direction}）");
+  assert.equal(en, "({direction})");
+});

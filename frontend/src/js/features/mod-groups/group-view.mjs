@@ -4,6 +4,7 @@
 // 这里把它转成列表徽标与筛选需要的索引，并集中实现筛选判定与文案。
 
 import { t } from "../../core/i18n-runtime.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 
 export function normalizeGroupKey(key) {
@@ -214,12 +215,15 @@ function groupOptionTierSortValue(option) {
     : Number(tier);
 }
 
+// 本地化排序（第 19 项 P3）：组名/ID 跟随界面语言。
+const GROUP_COLLATOR = createLocaleCollator();
+
 function compareGroupOptions(left, right) {
   const tierDiff = groupOptionTierSortValue(left) - groupOptionTierSortValue(right);
   if (tierDiff !== 0) return tierDiff;
-  const byName = String(left?.name || "").localeCompare(String(right?.name || ""), "zh-CN");
+  const byName = GROUP_COLLATOR.compare(String(left?.name || ""), String(right?.name || ""));
   if (byName !== 0) return byName;
-  return String(left?.id || "").localeCompare(String(right?.id || ""));
+  return GROUP_COLLATOR.compare(String(left?.id || ""), String(right?.id || ""));
 }
 
 /**

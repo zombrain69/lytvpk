@@ -8,8 +8,12 @@ import { applySortOrder, compareByPriority, compareNames, nextSortState } from "
 import { compareByXDRSlot, minXDRSlot } from "./xdr-slot-sort.mjs";
 import { modelMetricScanTargets } from "./model-metric-targets.mjs";
 import { t } from "../../core/i18n-runtime.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 
 let loadOrderHighlightTimer = null;
+
+// 名称/日期平局时按路径兜底，保证顺序确定（跟随界面语言，第 19 项 P3）。
+const PATH_COLLATOR = createLocaleCollator();
 
 // saveSortPreference 把当前排序写进 config.json（对齐上游 7b0818c）。
 // 排序是"用户习惯"：不持久化的话每次重启都回到默认排序，用户得重新点一遍。
@@ -476,7 +480,8 @@ export function updateSortButtonUI() {
   else if (appState.sortType === "xdrSlot") text = t("mods.sort.short.xdrSlot");
 
   const arrow = sortDirectionLabel(appState.sortType, appState.sortOrder);
-  if (btnText) btnText.textContent = arrow ? `${text} （${arrow}）` : text;
+  // 方向后缀走目录（第 19 项 P3）：zh 用全角括号、en 用半角，别在代码里写死。
+  if (btnText) btnText.textContent = arrow ? `${text} ${t("mods.sort.buttonSuffix", { direction: arrow })}` : text;
 
   applySortMenuItem(document.getElementById("sort-name-btn"), "name");
   applySortMenuItem(document.getElementById("sort-date-btn"), "date");
@@ -533,7 +538,7 @@ export function applySort(files) {
       if (result !== 0) return result;
       // 平局：日期相同按名称（与原实现一致），名称相同按路径，保证顺序确定。
       if (appState.sortType === "date") return compareNames(left, right);
-      return String(left.file?.path || "").localeCompare(String(right.file?.path || ""));
+      return PATH_COLLATOR.compare(String(left.file?.path || ""), String(right.file?.path || ""));
     });
     return writeBack(decorated);
   }
@@ -552,7 +557,7 @@ export function applySort(files) {
     result = applySortOrder(result, appState.sortOrder);
 
     if (result === 0) {
-      return a.path.localeCompare(b.path);
+      return PATH_COLLATOR.compare(a.path, b.path);
     }
 
     return result;

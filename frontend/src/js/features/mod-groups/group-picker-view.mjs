@@ -9,6 +9,7 @@
 
 import { t } from "../../core/i18n-runtime.js";
 import { formatGroupStrategy, normalizeGroupKey } from "./group-view.mjs";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 
 export const GROUP_PICKER_MODES = {
   add: "add",
@@ -218,9 +219,12 @@ export function groupPickerRowDetail(row) {
   return parts.join(" · ");
 }
 
+// 本地化排序（第 19 项 P3）：行名比较跟随界面语言。
+const ROW_NAME_COLLATOR = createLocaleCollator();
+
 /**
  * sortGroupPickerRows 让最可能被点的组排在最前：
- * 可点优先 → 含选中项的优先 → 名称（中文按拼音）→ 原顺序兜底。
+ * 可点优先 → 含选中项的优先 → 名称（按界面语言 collation）→ 原顺序兜底。
  */
 export function sortGroupPickerRows(rows = []) {
   const list = Array.isArray(rows) ? rows : [];
@@ -231,7 +235,7 @@ export function sortGroupPickerRows(rows = []) {
       const leftHit = left.row.selectedInGroup > 0 ? 1 : 0;
       const rightHit = right.row.selectedInGroup > 0 ? 1 : 0;
       if (leftHit !== rightHit) return rightHit - leftHit;
-      const byName = String(left.row.name || "").localeCompare(String(right.row.name || ""), "zh-Hans-CN");
+      const byName = ROW_NAME_COLLATOR.compare(String(left.row.name || ""), String(right.row.name || ""));
       if (byName !== 0) return byName;
       return left.index - right.index;
     })

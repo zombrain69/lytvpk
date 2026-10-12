@@ -4,6 +4,9 @@
 // 设计目标：234 条建议时也能"先扫一遍、再决定看哪条"，而不是一屏只能看两条。
 
 import { t } from "../../core/i18n-runtime.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
+// 本地化排序（第 19 项 P3）：建议标签跟随界面语言。
+const LABEL_COLLATOR = createLocaleCollator();
 
 /** 折叠后每页渲染的建议条数（点「显示更多」继续加载）。 */
 export const SUGGESTION_PAGE_SIZE = 24;
@@ -156,7 +159,7 @@ export function sortSuggestions(suggestions, mode = "recommended") {
 
   if (normalized === "name") {
     return list.sort((left, right) =>
-      String(left?.label || "").localeCompare(String(right?.label || ""), "zh-CN"),
+      LABEL_COLLATOR.compare(String(left?.label || ""), String(right?.label || "")),
     );
   }
 

@@ -1,6 +1,7 @@
 {
   "app": {
     "name": "LytVPK",
+    "windowTitle": "LytVPK Community Fork — Mod Manager",
     "shell": {
       "window": {
         "minimize": "Minimize",
@@ -1459,6 +1460,7 @@
         "loadOrder": "Sort by priority",
         "xdrSlot": "Sort by action slot"
       },
+      "buttonSuffix": "({direction})",
       "locate": {
         "invalidPriority": "Enter a priority number greater than 0",
         "notFound": "No Mod with priority #{priority} has been scanned yet",

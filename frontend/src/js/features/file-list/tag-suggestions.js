@@ -1,5 +1,8 @@
 import { appState } from "../state.js";
 import { GetSecondaryTags } from "../../../../wailsjs/go/app/App";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
+// 本地化排序（第 19 项 P3）：标签建议跟随界面语言排序。
+const TAG_COLLATOR = createLocaleCollator();
 
 function normalizeTag(tag) {
   return String(tag || "").trim();
@@ -26,7 +29,7 @@ async function getExistingSecondaryTags(primaryTag = "") {
     });
   }
 
-  return Array.from(tagSet).sort((a, b) => a.localeCompare(b, "zh-CN"));
+  return Array.from(tagSet).sort((a, b) => TAG_COLLATOR.compare(a, b));
 }
 
 function createSuggestionButton(tag, onChoose) {
@@ -86,7 +89,7 @@ export function createSecondaryTagPicker({
         const aStarts = a.toLowerCase().startsWith(query);
         const bStarts = b.toLowerCase().startsWith(query);
         if (aStarts !== bStarts) return aStarts ? -1 : 1;
-        return a.localeCompare(b, "zh-CN");
+        return TAG_COLLATOR.compare(a, b);
       });
   };
 

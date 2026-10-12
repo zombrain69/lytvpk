@@ -352,6 +352,7 @@ import {
   WindowUnmaximise,
   ScreenGetAll,
   Quit,
+  WindowSetTitle,
 } from "../../../wailsjs/runtime/runtime";
 import {
   pickPrimaryScreen,
@@ -871,6 +872,15 @@ function trackMainWindowGeometry() {
   }
 }
 
+/** 主窗口标题跟随界面语言（第 19 项 P3）：启动与语言切换时推送到原生窗口。 */
+function applyWindowTitle() {
+  try {
+    WindowSetTitle(t("app.windowTitle"));
+  } catch (error) {
+    console.warn("设置窗口标题失败:", error);
+  }
+}
+
 async function initializeApp() {
   let migratedLegacyConfig = false;
   try {
@@ -884,6 +894,8 @@ async function initializeApp() {
   // 静态节点由下方 applyTranslations() 统一点亮，动态页面按各自渲染时的当前语言取文案。
   // `notify: false`：此刻页面还没渲染，不需要广播 app:locale-change（P1 的事件只服务运行中切换）。
   setLocale(normalizeLocale(getConfig().locale), { notify: false });
+  // 主窗口标题同样在首帧前应用；语言切换时的更新在下方 locale-change 监听里（第 19 项 P3）。
+  applyWindowTitle();
   // 先定"文字大小 / 阅读舒适度"，再应用整体缩放：根字号是两者相乘的结果。
   applyReadingComfort({
     textSize: getConfig().textSize,
@@ -1085,6 +1097,8 @@ function setupSettingsAndAboutListeners() {
     if (localeShortcutsBtn) localeShortcutsBtn.title = buildShortcutsTitle();
     const localeShortcutsPopover = document.getElementById("shortcuts-help-popover");
     if (localeShortcutsPopover) localeShortcutsPopover.innerHTML = buildShortcutsHtml();
+    // 主窗口标题同步到新语言（第 19 项 P3）。
+    applyWindowTitle();
     const activePanel = document.querySelector(
       "#settings-page-content .settings-nav-item.active"
     )?.dataset.panel;

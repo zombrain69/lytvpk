@@ -9,16 +9,20 @@
 //   1. 两者都有 layer：按 layer 升序（越小越靠前，即越先加载）；
 //   2. layer 相同且都有 order：按 order 升序（同层内保持游戏的真实相对顺序）；
 //   3. 只有一方有 layer：有 layer 的排在前面（分层是显式意图；未写入 addonlist 的 Mod 排末尾）；
-//   4. 都没有 layer：按文件名排序（中文按 zh-CN + 数字感知）；
+//   4. 都没有 layer：按文件名排序（跟随界面语言 collation + 数字感知）；
 //   5. 完全相等返回 0，交由调用方的稳定排序保持原有相对顺序。
+
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
 
 function hasLayer(entry) {
   return Number.isInteger(entry?.layer);
 }
 
-// 复用一个 Intl.Collator：String.prototype.localeCompare 带 options 每次调用都会
-// 新建一个 collator，真机 2298 条排序 ≈ 25k 次比较 → 84ms 长任务；复用后只做比较本身。
-const NAME_COLLATOR = new Intl.Collator("zh-CN", {
+// 复用一个 collator（core/locale-collator.mjs，跟随界面语言——第 19 项 P3）：
+// String.prototype.localeCompare 带 options 每次调用都会新建一个 collator，
+// 真机 2298 条排序 ≈ 25k 次比较 → 84ms 长任务；复用后只做比较本身；
+// 语言切换时内部自动按新 locale 重建。
+const NAME_COLLATOR = createLocaleCollator({
   numeric: true,
   sensitivity: "accent",
 });

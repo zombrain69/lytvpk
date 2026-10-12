@@ -4374,4 +4374,29 @@ DLL 管理路径（只写沙箱配置，真实配置零改动）
 
 1. en 文案人工审校（机翻初稿）：术语一致性（tier / override / …）、搜索说明书示例值的可读性。
 2. 后端生成文案（Go 侧中文串 ≈904 条：体检消息、「主体：未识别…」等）的本地化决策与实施。
-3. 语言切换入口 `LANGUAGE_SWITCH_ENABLED` 翻 true 前的最终走查（P3 排序 / 溢出完成后）。
+3. 语言切换入口 `LANGUAGE_SWITCH_ENABLED` 翻 true —— P3（排序 / 标题 / 溢出扫描）已完成（见下节），
+   剩 en 文案人工审校归档后翻 true（唯一改动点，1 行）。
+
+### 语言切换 P3 · 本地化排序 / 窗口标题 / en 溢出扫描（2026-10-12 · 自动轮次）
+
+环境：CUA 调试 EXE（冒烟构建临时置 `LANGUAGE_SWITCH_ENABLED=true` 以点真实入口，构建后还原；
+收尾已用干净源码重建）+ 镜像库沙箱（`.tmp-cua/zz-real-sandbox`）。
+探针与截图：`.tmp-cua/smoke-2026-10-12-p3/`（`probe-p3-*.js`、`shots/en-*.png`）。
+
+```text
+主窗口标题（PowerShell 读原生 MainWindowTitle，非 document.title）：
+  en 运行中点 English →「LytVPK Community Fork — Mod Manager」（locale-change 路径）
+  en 持久化重启（沙箱 config locale=en）→ 启动即「… — Mod Manager」（启动路径）
+  切回 zh →「LytVPK Community Fork — MOD管理器」
+排序按钮方向后缀（冒烟发现，随轮修复）：
+  修复前 en「Sort by file name （A-Z）」全角括号硬编码 → 后缀走目录 mods.sort.buttonSuffix；
+  修复后 en=「Sort by priority (Order)」半角、zh=「优先级排序 （顺序）」全角保留
+排序冒烟：en 下点「Sort by file name」真实重排 3023 条无异常；恢复 priority 正常
+en 溢出扫描（7 页 + 4 设置分区 + 排序下拉 / 搜索说明书 / 快捷键总览）：
+  仅 8 项设计内命中——分类树标签 7 处截断（全部带 ellipsis + title；16 个标签全有 title）、
+  工坊 Search 按钮 2px 亚像素；body 无横向滚动；截图目视复核无破版 / 无硬裁切
+真库 / 真配置核验
+  %APPDATA%\LytVPK\config.json：sha256 前后一致（`38641a55…92cd`）
+  真库 addonlist.txt：sha256 前后一致（`241df1b4…c45e`）；addons 目录 mtime 无新改动
+  本会话写盘只落沙箱；零账号写操作；收尾沙箱进程已停止、临时 flag 已还原
+```

@@ -14,6 +14,9 @@ import {
   searchModelStatsItems,
 } from "./model-stats-search.mjs";
 import { refreshFilesKeepFilter } from "../file-list/filters.js";
+import { createLocaleCollator } from "../../core/locale-collator.mjs";
+// 本地化排序（第 19 项 P3）：诊断表格文本跟随界面语言。
+const MODEL_TEXT_COLLATOR = createLocaleCollator();
 
 let EventsOn;
 let showError;
@@ -872,7 +875,7 @@ function getCurrentViewRows(items) {
     if ((b.totalTriangles || 0) !== (a.totalTriangles || 0)) {
       return (b.totalTriangles || 0) - (a.totalTriangles || 0);
     }
-    return String(a.name || "").localeCompare(String(b.name || ""), "zh-CN");
+    return MODEL_TEXT_COLLATOR.compare(String(a.name || ""), String(b.name || ""));
   });
 }
 
@@ -888,7 +891,7 @@ function createModelRankRows(items) {
     if ((b.model.vertices || 0) !== (a.model.vertices || 0)) {
       return (b.model.vertices || 0) - (a.model.vertices || 0);
     }
-    return String(a.model.path || "").localeCompare(String(b.model.path || ""), "zh-CN");
+    return MODEL_TEXT_COLLATOR.compare(String(a.model.path || ""), String(b.model.path || ""));
   });
   return rows;
 }
@@ -910,7 +913,7 @@ function createStripGroupRankRows(items) {
     if ((b.group.triangles || 0) !== (a.group.triangles || 0)) {
       return (b.group.triangles || 0) - (a.group.triangles || 0);
     }
-    return String(a.model.path || "").localeCompare(String(b.model.path || ""), "zh-CN");
+    return MODEL_TEXT_COLLATOR.compare(String(a.model.path || ""), String(b.model.path || ""));
   });
   return rows;
 }
@@ -955,7 +958,7 @@ function getSortedModels(item) {
   return [...(item?.models || [])].sort((a, b) => {
     if ((b.vertices || 0) !== (a.vertices || 0)) return (b.vertices || 0) - (a.vertices || 0);
     if ((b.triangles || 0) !== (a.triangles || 0)) return (b.triangles || 0) - (a.triangles || 0);
-    return String(a.path || "").localeCompare(String(b.path || ""), "zh-CN");
+    return MODEL_TEXT_COLLATOR.compare(String(a.path || ""), String(b.path || ""));
   });
 }
 
