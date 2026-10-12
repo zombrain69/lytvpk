@@ -224,6 +224,8 @@ func (a *App) loadConfig() {
 	}
 	a.openWithProgram = strings.TrimSpace(config.OpenWithProgram)
 	a.openWithArguments = strings.TrimSpace(config.OpenWithArguments)
+	// 「一键退订」的 DLL 路径：由 SetSteamAPIDllPath 独占维护，这里只负责恢复。
+	a.steamAPIDllPath = strings.TrimSpace(config.SteamAPIDllPath)
 	// 主窗口几何：只接受合理范围，避免手改配置把窗口变成 0×0 或超大。
 	if config.MainWindowWidth != nil && config.MainWindowHeight != nil {
 		width := sanitizeMainWindowDimension(*config.MainWindowWidth, mainWindowMinWidth)
@@ -370,6 +372,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		CategorySidebarVisible:          categorySidebarVisible,
 		OpenWithProgram:                 a.openWithProgram,
 		OpenWithArguments:               a.openWithArguments,
+		SteamAPIDllPath:                 strings.TrimSpace(a.steamAPIDllPath),
 		MainWindowWidth:                 mainWindowWidth,
 		MainWindowHeight:                mainWindowHeight,
 		MainWindowMaximised:             mainWindowMaximised,

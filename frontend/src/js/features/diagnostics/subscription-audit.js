@@ -1,28 +1,47 @@
-// 工坊订阅清单（退订引导 · 只读）：打开模态框展示订阅、分类筛选、批量打开工坊页、
-// 直达 Steam 官方退订页。
+// 工坊订阅清单（退订引导 + 一键退订）：打开模态框展示订阅、分类筛选、批量打开工坊页、
+// 直达 Steam 官方退订页；配置好自备的 steam_api64.dll 后，可用 Steam 官方本机接口
+// （ISteamUGC）直接「退订所选」/「重新订阅所选」。
 //
-// 纪律：本模块**不执行任何退订或写入**。所有退订动作都在 Steam 官方页面上由用户完成。
-// 数据来自后端 GetWorkshopSubscriptions（只读解析 550_subscriptions.vdf + 本地文件对照）。
+// 纪律：
+//  - 一键退订只在用户当次点击确认后执行（授权不跨会话）；后端在真正写之前会先导出回滚清单；
+//  - 确认弹窗展示 ID + 标题 + 总数 + 不可逆说明 + 回退方式（「重新订阅所选」）；
+//  - 未配置 DLL 时退订按钮不出现，只保留官方页面引导（零风险路径）；
+//  - 批量执行期间界面只读进度事件，第二次执行会被后端互斥闸门拒绝。
+// 数据来自后端 GetWorkshopSubscriptions / GetSteamUGCStatus（只读解析 550_subscriptions.vdf + 本地文件对照）。
 // 安全：列表用 innerHTML/insertAdjacentHTML 渲染，所有动态字段都经 escapeHtmlText 转义
 // 或来自本地 i18n 目录（t()，编译期固定文案）；不渲染任何未转义的远端数据（标题字段已转义）。
 import { showNotification } from "../../core/toast.js";
 import { t } from "../../core/i18n-runtime.js";
-import { confirmInApp } from "../modals/confirm.js";
-import { GetWorkshopSubscriptions, OpenURLInSteam } from "../../../../wailsjs/go/app/App";
-import { BrowserOpenURL } from "../../../../wailsjs/runtime/runtime";
+import { confirmInApp, confirmHtmlInApp } from "../modals/confirm.js";
+import {
+	DetectSteamAPIDllCandidates,
+	GetSteamUGCStatus,
+	GetWorkshopSubscriptions,
+	OpenURLInSteam,
+	PickSteamAPIDllFile,
+	SetSteamAPIDllPath,
+	SubscribeSteamWorkshopItems,
+	UnsubscribeSteamWorkshopItems,
+} from "../../../../wailsjs/go/app/App";
+import { BrowserOpenURL, EventsOn } from "../../../../wailsjs/runtime/runtime";
 import {
 	SUBSCRIPTION_BADGE_KEYS,
 	SUBSCRIPTION_FILTERS,
 	UNSUBSCRIBE_GUIDE_URL,
+	buildResubscribeConfirmHtml,
+	buildUnsubscribeConfirmHtml,
 	countSubscriptions,
 	filterSubscriptions,
 	formatSubscribedDate,
 	subscriptionBadges,
+	summarizeBatchResult,
 	summarizeSubscriptionCounts,
 	workshopItemURL,
 } from "./subscription-audit-view.mjs";
 
 const RENDER_CHUNK = 200;
+// 批量结果面板最多逐条列出的条数（超出折叠为一行说明）。
+const BATCH_RESULT_LIMIT = 60;
 
 let modalSessionId = 0;
 let summary = null;
@@ -30,6 +49,13 @@ let activeFilter = "all";
 let selectedIDs = new Set();
 let renderedCount = 0;
 let bound = false;
+// 一键退订状态：DLL 可用性 / 执行中 / 最近一次执行结果（跨弹窗开关保留，便于回看）。
+let ugcStatus = null;
+let ugcBusy = false;
+let batchProgress = null; // { action, done, total }
+let lastBatch = null; // 后端 SteamUGCBatchResult
+let lastBatchTitles = null; // Map<id, title>：退订后订阅快照里标题会消失，结果区仍要显示
+let progressBound = false;
 
 function escapeHtmlText(value) {
 	return String(value ?? "")
@@ -63,18 +89,22 @@ export async function openSubscriptionAuditModal() {
 	selectedIDs = new Set();
 	renderedCount = 0;
 	summary = null;
+	ugcStatus = null;
 	renderLoading();
 
-	let result = null;
-	try {
-		result = await GetWorkshopSubscriptions();
-	} catch (error) {
-		if (session !== modalSessionId) return;
-		renderError(String(error));
+	// 订阅清单与退订状态并行拉取；退订状态拿不到时界面退化为「无一键退订」（引导路径仍可用）。
+	const [subscriptionsResult, statusResult] = await Promise.allSettled([
+		GetWorkshopSubscriptions(),
+		GetSteamUGCStatus(),
+	]);
+	if (session !== modalSessionId || modal.classList.contains("hidden")) return;
+
+	if (subscriptionsResult.status !== "fulfilled") {
+		renderError(String(subscriptionsResult.reason));
 		return;
 	}
-	if (session !== modalSessionId || modal.classList.contains("hidden")) return;
-	summary = result || null;
+	summary = subscriptionsResult.value || null;
+	ugcStatus = statusResult.status === "fulfilled" ? statusResult.value || null : null;
 	renderAll();
 }
 
@@ -142,6 +172,7 @@ function renderAll() {
 			)}</div>
 			${accountLine}
 		</div>
+		${ugcPanelHtml()}
 		<div class="subscription-audit-guide">
 			<div class="subscription-audit-guide-title">${escapeHtmlText(t("toolbox.subscriptionAudit.guide.title"))}</div>
 			<ul>
@@ -162,10 +193,12 @@ function renderAll() {
 			<button type="button" class="btn btn-small btn-primary" id="subscription-audit-open-selected" disabled>
 				${escapeHtmlText(t("toolbox.subscriptionAudit.batch.openSelected"))}
 			</button>
+			${ugcActionButtonsHtml()}
 			<button type="button" class="btn btn-small btn-outline" id="subscription-audit-clear-selected" disabled>
 				${escapeHtmlText(t("toolbox.subscriptionAudit.batch.clear"))}
 			</button>
 		</div>
+		<div id="subscription-audit-batch-result" class="subscription-batch-result"></div>
 		<div id="subscription-audit-rows" class="subscription-audit-rows"></div>
 		<div id="subscription-audit-more" class="subscription-audit-more"></div>
 	`;
@@ -173,7 +206,62 @@ function renderAll() {
 	renderFilters();
 	renderRows(true);
 	renderFooter();
+	renderBatchResult();
 	updateBatchBar();
+}
+
+// ugcPanelHtml 渲染「一键退订」设置区（DLL 状态 + 检测/指定/恢复按钮 + 许可说明）。
+function ugcPanelHtml() {
+	if (!ugcStatus) return "";
+	const ready = Boolean(ugcStatus.available);
+	const statusLine = ready
+		? t(
+				ugcStatus.source === "user"
+					? "toolbox.subscriptionAudit.ugc.statusReadyUser"
+					: "toolbox.subscriptionAudit.ugc.statusReadyAuto",
+				{ path: ugcStatus.path || "" },
+			)
+		: ugcStatus.source === "user" && ugcStatus.hint === "path-missing"
+			? t("toolbox.subscriptionAudit.ugc.statusPathMissing", { path: ugcStatus.path || "" })
+			: t("toolbox.subscriptionAudit.ugc.statusMissing");
+	const buttons = [
+		`<button type="button" class="btn btn-small btn-outline" id="subscription-ugc-detect">${escapeHtmlText(
+			t("toolbox.subscriptionAudit.ugc.btnDetect"),
+		)}</button>`,
+		`<button type="button" class="btn btn-small btn-outline" id="subscription-ugc-pick">${escapeHtmlText(
+			t("toolbox.subscriptionAudit.ugc.btnPick"),
+		)}</button>`,
+	];
+	if (ugcStatus.source === "user") {
+		buttons.push(
+			`<button type="button" class="btn btn-small btn-outline" id="subscription-ugc-reset">${escapeHtmlText(
+				t("toolbox.subscriptionAudit.ugc.btnReset"),
+			)}</button>`,
+		);
+	}
+	return `
+		<div class="subscription-ugc-panel${ready ? " is-ready" : ""}">
+			<div class="subscription-ugc-head">
+				<span class="subscription-ugc-title">${escapeHtmlText(t("toolbox.subscriptionAudit.ugc.title"))}</span>
+				<span class="subscription-ugc-status${ready ? " is-ready" : ""}" title="${escapeHtmlText(
+					ugcStatus.path || "",
+				)}">${escapeHtmlText(statusLine)}</span>
+			</div>
+			<div class="subscription-ugc-actions">${buttons.join("")}</div>
+			<div class="subscription-ugc-note">${escapeHtmlText(t("toolbox.subscriptionAudit.ugc.licenseNote"))}</div>
+		</div>`;
+}
+
+// ugcActionButtonsHtml 渲染批量条里的「退订所选 / 重新订阅所选」（仅 DLL 可用时出现）。
+function ugcActionButtonsHtml() {
+	if (!ugcStatus?.available) return "";
+	return `
+			<button type="button" class="btn btn-small btn-danger" id="subscription-ugc-unsub" disabled>
+				${escapeHtmlText(t("toolbox.subscriptionAudit.batch.unsubscribe"))}
+			</button>
+			<button type="button" class="btn btn-small btn-outline" id="subscription-ugc-resub" disabled>
+				${escapeHtmlText(t("toolbox.subscriptionAudit.batch.resubscribe"))}
+			</button>`;
 }
 
 function renderFilters() {
@@ -279,13 +367,20 @@ function updateBatchBar() {
 	const openBtn = document.getElementById("subscription-audit-open-selected");
 	const clearBtn = document.getElementById("subscription-audit-clear-selected");
 	const selectAll = document.getElementById("subscription-audit-select-all");
+	const unsubBtn = document.getElementById("subscription-ugc-unsub");
+	const resubBtn = document.getElementById("subscription-ugc-resub");
 	const size = selectedIDs.size;
 	if (countEl) {
-		countEl.textContent = t("toolbox.subscriptionAudit.batch.selected", { count: size });
+		countEl.textContent = batchProgress
+			? t("toolbox.subscriptionAudit.batch.executing", { done: batchProgress.done, total: batchProgress.total })
+			: t("toolbox.subscriptionAudit.batch.selected", { count: size });
 	}
-	if (openBtn) openBtn.disabled = size === 0;
-	if (clearBtn) clearBtn.disabled = size === 0;
+	if (openBtn) openBtn.disabled = size === 0 || ugcBusy;
+	if (clearBtn) clearBtn.disabled = size === 0 || ugcBusy;
+	if (unsubBtn) unsubBtn.disabled = size === 0 || ugcBusy;
+	if (resubBtn) resubBtn.disabled = size === 0 || ugcBusy;
 	if (selectAll) {
+		selectAll.disabled = ugcBusy;
 		const rows = filteredRows();
 		const selectedInFilter = rows.filter((entry) => selectedIDs.has(String(entry.publishedFileId || ""))).length;
 		selectAll.checked = rows.length > 0 && selectedInFilter === rows.length;
@@ -306,6 +401,195 @@ async function openSelectedItems() {
 		BrowserOpenURL(workshopItemURL(id));
 	}
 	showNotification(t("toolbox.subscriptionAudit.batch.opened", { count: ids.length }), "success");
+}
+
+// selectedEntries 按订阅清单顺序返回当前所选的条目（选择可跨筛选）。
+function selectedEntries() {
+	const map = new Map((summary?.entries || []).map((entry) => [String(entry.publishedFileId || ""), entry]));
+	const entries = [];
+	for (const id of selectedIDs) {
+		const entry = map.get(id);
+		if (entry) entries.push(entry);
+	}
+	return entries;
+}
+
+// unsubscribeSelected 一键退订入口：先弹清单确认（ID + 标题 + 总数 + 不可逆说明），
+// 用户当次确认后才执行；授权不跨会话（每次都要重新确认）。
+async function unsubscribeSelected() {
+	const entries = selectedEntries();
+	if (entries.length === 0) return;
+	const confirmed = await confirmHtmlInApp(
+		t("toolbox.subscriptionAudit.ugc.unsubConfirmTitle", { count: entries.length }),
+		buildUnsubscribeConfirmHtml(entries),
+		"subscription-unsub-confirm",
+	);
+	if (!confirmed) return;
+	await runBatch("unsubscribe", entries);
+}
+
+// resubscribeSelected 回滚入口：重新订阅所选（对已订阅的条目后端会自动跳过）。
+async function resubscribeSelected() {
+	const entries = selectedEntries();
+	if (entries.length === 0) return;
+	const confirmed = await confirmHtmlInApp(
+		t("toolbox.subscriptionAudit.ugc.resubConfirmTitle", { count: entries.length }),
+		buildResubscribeConfirmHtml(entries),
+		"subscription-unsub-confirm",
+	);
+	if (!confirmed) return;
+	await runBatch("subscribe", entries);
+}
+
+// runBatch 执行一轮批量操作：置忙（禁用按钮）→ 调后端 → 刷新清单 → 渲染逐条结果。
+// 进度来自后端事件 steam_ugc_progress（done/total）。
+async function runBatch(action, entries) {
+	if (ugcBusy) return;
+	ugcBusy = true;
+	batchProgress = { action, done: 0, total: entries.length };
+	lastBatch = null;
+	lastBatchTitles = new Map(entries.map((entry) => [String(entry.publishedFileId || ""), String(entry.title || "")]));
+	updateBatchBar();
+	try {
+		const ids = entries.map((entry) => String(entry.publishedFileId || ""));
+		const result =
+			action === "unsubscribe"
+				? await UnsubscribeSteamWorkshopItems(ids)
+				: await SubscribeSteamWorkshopItems(ids);
+		lastBatch = result || null;
+		const counts = summarizeBatchResult(result);
+		showNotification(
+			t("toolbox.subscriptionAudit.ugc.batchDone", {
+				ok: counts.succeeded,
+				skipped: counts.skipped,
+				failed: counts.failed,
+			}),
+			counts.failed > 0 ? "warning" : "success",
+		);
+		selectedIDs = new Set();
+		await refreshSummary();
+	} catch (error) {
+		showNotification(String(error), "error");
+	} finally {
+		ugcBusy = false;
+		batchProgress = null;
+		renderAll();
+	}
+}
+
+// refreshSummary 批量执行后重新拉取订阅清单（VDF 快照会很快同步；失败则保留旧数据）。
+async function refreshSummary() {
+	const session = modalSessionId;
+	try {
+		const result = await GetWorkshopSubscriptions();
+		if (session !== modalSessionId) return;
+		summary = result || summary;
+	} catch (error) {
+		// 刷新失败不阻塞结果展示：旧清单 + 结果区已经能说明发生了什么。
+	}
+}
+
+// renderBatchResult 渲染「最近一次执行结果」面板（含逐条结果与回滚清单路径）。
+function renderBatchResult() {
+	const panel = document.getElementById("subscription-audit-batch-result");
+	if (!panel) return;
+	if (!lastBatch) {
+		panel.innerHTML = "";
+		return;
+	}
+	const counts = summarizeBatchResult(lastBatch);
+	const results = Array.isArray(lastBatch.results) ? lastBatch.results : [];
+	const shown = results.slice(0, BATCH_RESULT_LIMIT);
+	const rows = shown
+		.map((item) => {
+			const id = String(item?.publishedFileId || "");
+			const title = String(item?.title || "").trim() || lastBatchTitles?.get(id) || "";
+			const stateClass = !item?.ok ? "is-fail" : item?.skipped ? "is-skip" : "is-ok";
+			const stateText = !item?.ok
+				? t("toolbox.subscriptionAudit.ugc.itemFailed")
+				: item?.skipped
+					? t("toolbox.subscriptionAudit.ugc.itemSkipped")
+					: t("toolbox.subscriptionAudit.ugc.itemOk");
+			return `<div class="subscription-batch-row ${stateClass}">
+				<span class="subscription-batch-state">${escapeHtmlText(stateText)}</span>
+				<code>${escapeHtmlText(id)}</code>
+				<span class="subscription-batch-title">${escapeHtmlText(title)}</span>
+				<span class="subscription-batch-detail">${escapeHtmlText(item?.detail || "")}</span>
+			</div>`;
+		})
+		.join("");
+	const more =
+		results.length > shown.length
+			? `<div class="subscription-batch-more">${escapeHtmlText(
+					t("toolbox.subscriptionAudit.ugc.resultMore", { count: results.length - shown.length }),
+				)}</div>`
+			: "";
+	const backupLine = lastBatch.backupPath
+		? `<div class="subscription-batch-backup">${escapeHtmlText(
+				t("toolbox.subscriptionAudit.ugc.backupLine", { path: lastBatch.backupPath }),
+			)}</div>`
+		: "";
+	panel.innerHTML = `
+		<div class="subscription-batch-head">
+			<span class="subscription-batch-title-main">${escapeHtmlText(t("toolbox.subscriptionAudit.ugc.resultTitle"))}</span>
+			<button type="button" class="btn btn-small btn-outline" id="subscription-batch-result-close">
+				${escapeHtmlText(t("toolbox.subscriptionAudit.ugc.resultClose"))}
+			</button>
+		</div>
+		<div class="subscription-batch-summary">${escapeHtmlText(
+			t("toolbox.subscriptionAudit.ugc.batchDone", {
+				ok: counts.succeeded,
+				skipped: counts.skipped,
+				failed: counts.failed,
+			}),
+		)}</div>
+		${backupLine}
+		<div class="subscription-batch-rows">${rows}</div>
+		${more}`;
+}
+
+// detectDll 检测本机 Steam 游戏目录里的 steam_api64.dll；找到首个后设为自定义路径。
+async function detectDll() {
+	try {
+		const candidates = await DetectSteamAPIDllCandidates();
+		const first = String(candidates?.[0]?.path || "");
+		if (!first) return;
+		const status = await SetSteamAPIDllPath(first);
+		ugcStatus = status || ugcStatus;
+		showNotification(
+			t("toolbox.subscriptionAudit.ugc.detected", { count: candidates.length, path: first }),
+			"success",
+		);
+		renderAll();
+	} catch (error) {
+		showNotification(String(error), "warning");
+	}
+}
+
+// pickDll 手动指定一份 steam_api64.dll（系统文件选择器）。
+async function pickDll() {
+	try {
+		const path = await PickSteamAPIDllFile();
+		if (!path) return; // 用户取消
+		const status = await SetSteamAPIDllPath(path);
+		ugcStatus = status || ugcStatus;
+		showNotification(t("toolbox.subscriptionAudit.ugc.manualSet", { path }), "success");
+		renderAll();
+	} catch (error) {
+		showNotification(String(error), "error");
+	}
+}
+
+// resetDll 清除自定义路径，恢复本机自动检测。
+async function resetDll() {
+	try {
+		const status = await SetSteamAPIDllPath("");
+		ugcStatus = status || ugcStatus;
+		showNotification(t("toolbox.subscriptionAudit.ugc.cleared"), "info");
+		renderAll();
+	} catch (error) {
+		showNotification(String(error), "error");
+	}
 }
 
 function onBodyClick(event) {
@@ -331,6 +615,31 @@ function onBodyClick(event) {
 	}
 	if (target.closest("#subscription-audit-open-selected")) {
 		void openSelectedItems();
+		return;
+	}
+	if (target.closest("#subscription-ugc-detect")) {
+		void detectDll();
+		return;
+	}
+	if (target.closest("#subscription-ugc-pick")) {
+		void pickDll();
+		return;
+	}
+	if (target.closest("#subscription-ugc-reset")) {
+		void resetDll();
+		return;
+	}
+	if (target.closest("#subscription-ugc-unsub")) {
+		void unsubscribeSelected();
+		return;
+	}
+	if (target.closest("#subscription-ugc-resub")) {
+		void resubscribeSelected();
+		return;
+	}
+	if (target.closest("#subscription-batch-result-close")) {
+		lastBatch = null;
+		renderBatchResult();
 		return;
 	}
 	if (target.closest("#subscription-audit-clear-selected")) {
@@ -376,4 +685,21 @@ function bindOnce() {
 	});
 	bodyEl()?.addEventListener("click", onBodyClick);
 	bodyEl()?.addEventListener("change", onBodyChange);
+	bindProgressOnce();
+}
+
+// bindProgressOnce 订阅后端的批量进度事件（steam_ugc_progress：done/total/item），
+// 执行中刷新计数文案；只有执行中才响应，避免事件穿透到未打开的弹窗。
+function bindProgressOnce() {
+	if (progressBound) return;
+	progressBound = true;
+	EventsOn("steam_ugc_progress", (payload) => {
+		if (!ugcBusy || !payload) return;
+		batchProgress = {
+			action: String(payload.action || ""),
+			done: Number(payload.done) || 0,
+			total: Number(payload.total) || 0,
+		};
+		updateBatchBar();
+	});
 }

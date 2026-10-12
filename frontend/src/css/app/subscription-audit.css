@@ -258,3 +258,190 @@
     margin-left: auto;
   }
 }
+
+/* 一键退订设置区（自备 steam_api64.dll；未配置时面板提示引导方式）。 */
+.subscription-ugc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+}
+
+.subscription-ugc-panel.is-ready {
+  border-color: var(--primary-100);
+}
+
+.subscription-ugc-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.subscription-ugc-title {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.84rem;
+}
+
+.subscription-ugc-status {
+  color: var(--warning);
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.subscription-ugc-status.is-ready {
+  color: var(--success-dark);
+}
+
+.subscription-ugc-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.subscription-ugc-note {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+}
+
+/* 批量执行结果面板（最近一次退订/重订的逐条结果）。 */
+.subscription-batch-result:empty {
+  display: none;
+}
+
+.subscription-batch-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+}
+
+.subscription-batch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.subscription-batch-title-main {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.84rem;
+}
+
+.subscription-batch-summary {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.subscription-batch-backup {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  word-break: break-all;
+}
+
+.subscription-batch-rows {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.subscription-batch-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.78rem;
+  padding: 2px 0;
+}
+
+.subscription-batch-state {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  border: 1px solid transparent;
+}
+
+.subscription-batch-row.is-ok .subscription-batch-state {
+  color: var(--success-dark);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.subscription-batch-row.is-skip .subscription-batch-state {
+  color: var(--text-tertiary);
+  background: var(--bg-active);
+}
+
+.subscription-batch-row.is-fail .subscription-batch-state {
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.subscription-batch-row code {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.subscription-batch-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.subscription-batch-detail {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.subscription-batch-more {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+}
+
+/* 退订确认弹窗：长清单限高滚动（条目全部转义后渲染）。 */
+.subscription-unsub-confirm .confirm-message {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.subscription-confirm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 8px;
+}
+
+.subscription-confirm-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.subscription-confirm-row code {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.subscription-confirm-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subscription-confirm-more {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+}

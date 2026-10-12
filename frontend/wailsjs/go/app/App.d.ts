@@ -120,6 +120,8 @@ export function DeleteVPKFiles(arg1:Array<string>):Promise<void>;
 
 export function DeleteWorkshopCollection(arg1:string):Promise<void>;
 
+export function DetectSteamAPIDllCandidates():Promise<Array<app.SteamAPIDllCandidate>>;
+
 export function DoUpdate(arg1:string):Promise<string>;
 
 export function DownloadWorkshopCollection(arg1:string):Promise<Array<string>>;
@@ -269,6 +271,8 @@ export function GetSecondaryTagCounts(arg1:string):Promise<Record<string, number
 export function GetSecondaryTags(arg1:string):Promise<Array<string>>;
 
 export function GetServerStorage():Promise<app.ServerStorage>;
+
+export function GetSteamUGCStatus():Promise<app.SteamUGCStatus>;
 
 export function GetStockIndexStatus():Promise<app.StockIndexStatus>;
 
@@ -426,6 +430,8 @@ export function ParseWorkshopID(arg1:string):Promise<string>;
 
 export function PauseDownloadTask(arg1:string):Promise<void>;
 
+export function PickSteamAPIDllFile():Promise<string>;
+
 export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
 
 export function PreviewAddonListLoadOrderPolicy(arg1:app.AddonListLoadOrderPolicy):Promise<app.AddonListLoadOrderPreview>;
@@ -574,6 +580,8 @@ export function SetOpenWithSettings(arg1:string,arg2:string):Promise<app.OpenWit
 
 export function SetRootDirectory(arg1:string):Promise<void>;
 
+export function SetSteamAPIDllPath(arg1:string):Promise<app.SteamUGCStatus>;
+
 export function SetVPKGameEnabled(arg1:string,arg2:boolean):Promise<number>;
 
 export function SetVPKGameEnabledBatch(arg1:Array<string>,arg2:boolean):Promise<app.BatchGameStateResult>;
@@ -616,6 +624,8 @@ export function StartProblemModScan():Promise<app.ProblemModScanSession>;
 
 export function SubmitProblemModScanResult(arg1:string):Promise<app.ProblemModScanSession>;
 
+export function SubscribeSteamWorkshopItems(arg1:Array<string>):Promise<app.SteamUGCBatchResult>;
+
 export function SuggestModGroups():Promise<Array<app.ModGroupSuggestion>>;
 
 export function TestMirrorsLatency(arg1:boolean):Promise<void>;
@@ -627,6 +637,8 @@ export function ToggleVPKVisibility(arg1:string):Promise<string>;
 export function TranslateWorkshopDescription(arg1:string):Promise<app.WorkshopTranslationResult>;
 
 export function UnpackVPKFile(arg1:string,arg2:string):Promise<app.VPKUnpackResult>;
+
+export function UnsubscribeSteamWorkshopItems(arg1:Array<string>):Promise<app.SteamUGCBatchResult>;
 
 export function ValidateCustomTagRules(arg1:string):Promise<app.CustomTagRulePreview>;
 

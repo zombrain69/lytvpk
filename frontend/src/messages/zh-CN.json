@@ -346,8 +346,8 @@
       },
       "subscriptionAudit": {
         "title": "工坊订阅清单",
-        "description": "只读清点你在该游戏的工坊订阅，标出「已转存 addons」「无本地文件」的订阅，并直达 Steam 官方退订页。",
-        "status": "只读引导",
+        "description": "清点你在该游戏的工坊订阅，标出「已转存 addons」「无本地文件」的订阅；可直达 Steam 官方退订页，自备 steam_api64.dll 后还能一键退订。",
+        "status": "引导 + 一键退订",
         "action": "打开清单"
       },
       "autoexec": {
@@ -640,7 +640,7 @@
       "deleteFailed": "删除快照失败: {error}"
     },
     "subscriptionAudit": {
-      "subtitle": "只读对照你的工坊订阅与本地文件，并直达 Steam 官方退订页",
+      "subtitle": "对照你的工坊订阅与本地文件；可直达 Steam 官方退订页，或（自备 DLL 后）一键退订",
       "loading": "正在读取工坊订阅…",
       "loadFailed": "读取工坊订阅失败：{error}",
       "retry": "重新加载",
@@ -674,12 +674,15 @@
         "openSelected": "打开所选工坊页",
         "clear": "清空选择",
         "confirmOpen": "将打开 {count} 个工坊页面。浏览器会开不少标签，确定继续吗？",
-        "opened": "已打开 {count} 个工坊页面"
+        "opened": "已打开 {count} 个工坊页面",
+        "unsubscribe": "退订所选",
+        "resubscribe": "重新订阅所选",
+        "executing": "执行中… {done}/{total}"
       },
       "more": "显示更多（还有 {count} 条）",
       "emptyFiltered": "当前筛选下没有条目",
       "guide": {
-        "title": "怎么退订（LytVPK 不会执行任何退订）",
+        "title": "手动退订（在 Steam 官方页面完成）",
         "step1": "点「在 Steam 中打开退订页」→ 在 Steam 官方页面里勾选要取消的作品 → 取消订阅；页面上也有「取消全部订阅」（不可逆，请谨慎）。",
         "step2": "「已转存 addons」和「无本地文件」通常是最值得清理的两类；「本地停用」是你在 Steam 里停用过的订阅。",
         "step3": "退订只影响 Steam 的订阅与下载；本工具里的 Mod 文件不受影响。"
@@ -688,6 +691,35 @@
         "openSteam": "在 Steam 中打开退订页",
         "openBrowser": "在系统浏览器中打开",
         "close": "关闭"
+      },
+      "ugc": {
+        "title": "一键退订（Steam 官方本机接口）",
+        "statusReadyAuto": "已就绪（自动检测）：{path}",
+        "statusReadyUser": "已就绪（自定义路径）：{path}",
+        "statusPathMissing": "自定义路径已失效（文件不存在）：{path}",
+        "statusMissing": "未找到 steam_api64.dll——一键退订不可用。可先「检测本机 DLL」，或「手动指定…」。",
+        "btnDetect": "检测本机 DLL",
+        "btnPick": "手动指定…",
+        "btnReset": "恢复自动检测",
+        "licenseNote": "steam_api64.dll 来自 Steamworks SDK：Valve 许可不允许第三方软件随包分发，请使用本机已安装 Steam 游戏自带的副本（任意 64 位游戏的安装目录里都有）。",
+        "detected": "已找到 {count} 个候选，已选用：{path}",
+        "manualSet": "已设置自定义路径：{path}",
+        "cleared": "已恢复自动检测",
+        "unsubConfirmTitle": "确认退订 {count} 项？",
+        "unsubSummary": "将通过 Steam 官方接口退订 {count} 项——此操作无法撤销。",
+        "unsubNote": "执行前会自动导出所选 ID 的回滚清单；之后可用「重新订阅所选」恢复。",
+        "resubConfirmTitle": "确认重新订阅 {count} 项？",
+        "resubSummary": "将通过 Steam 官方接口重新订阅 {count} 项（已在订阅列表中的会自动跳过）。",
+        "resubNote": "重新订阅没有风险，之后随时可以再退订。",
+        "confirmListMore": "另有 {count} 项未展开",
+        "batchDone": "执行完成：成功 {ok} · 跳过 {skipped} · 失败 {failed}",
+        "resultTitle": "最近一次执行结果",
+        "resultClose": "关闭结果",
+        "resultMore": "另有 {count} 条未显示",
+        "backupLine": "回滚清单：{path}",
+        "itemOk": "成功",
+        "itemSkipped": "跳过",
+        "itemFailed": "失败"
       }
     },
     "modelStats": {

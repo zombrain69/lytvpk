@@ -190,18 +190,18 @@ type App struct {
 	// workshopDNSConfig 是工坊数据请求的 DNS 设置（系统 / 自定义），对齐上游 5ce7ef5。
 	workshopDNSConfig network.WorkshopDNSConfig
 	// customTagRules 是用户导入的自定义标签规则（只增不减地补标签）。
-	customTagRules []CustomTagRule
-	migrationVersion               int
-	defaultDirectory               string
-	savedDirectories               []SavedDirectory
-	lastActiveDirectory            string
-	displayMode                    string
-	sortType                       string
-	sortOrder                      string
-	filterLayoutMode               string
-	boxSelectionEnabled            bool
-	ctrlClickSelectionEnabled      bool
-	uiScale                        float64
+	customTagRules            []CustomTagRule
+	migrationVersion          int
+	defaultDirectory          string
+	savedDirectories          []SavedDirectory
+	lastActiveDirectory       string
+	displayMode               string
+	sortType                  string
+	sortOrder                 string
+	filterLayoutMode          string
+	boxSelectionEnabled       bool
+	ctrlClickSelectionEnabled bool
+	uiScale                   float64
 	// textSize / readingComfort 是「阅读舒适度」的两个档位（前端 core/reading-comfort.mjs 定义取值）。
 	textSize                        string
 	readingComfort                  string
@@ -218,6 +218,13 @@ type App struct {
 	// openWithProgram / openWithArguments 是「打开文件方式」的自定义外部程序（空 = 系统默认）。
 	openWithProgram   string
 	openWithArguments string
+	// steamAPIDllPath 是「一键退订」使用的 steam_api64.dll 路径（空 = 自动检测本机副本）。
+	// steamUGCAutoPath / steamUGCAutoChecked 缓存自动检测结果（会话内一次）。
+	// steamUGCBusy 保证同一时间只有一个批量退订/重订在执行。
+	steamAPIDllPath     string
+	steamUGCAutoPath    string
+	steamUGCAutoChecked bool
+	steamUGCBusy        bool
 	// mainWindowWidth / mainWindowHeight / mainWindowMaximised 记住主窗口几何（nil 表示没记录过）。
 	mainWindowWidth        *int
 	mainWindowHeight       *int
@@ -295,31 +302,31 @@ func (a *App) workshopOptionsSnapshot() (metaEnabled, updateCheckEnabled bool) {
 
 // ConfigFile 定义配置文件结构
 type ConfigFile struct {
-	ModRotationConfig              RotationConfig   `json:"modRotationConfig"`
-	WorkshopPreferredIP            *bool            `json:"workshopPreferredIP,omitempty"`
-	WorkshopFixedIP                *string          `json:"workshopFixedIP,omitempty"`
-	WorkshopMetaEnabled            *bool            `json:"workshopMetaEnabled,omitempty"`
-	WorkshopUpdateCheckEnabled     *bool            `json:"workshopUpdateCheckEnabled,omitempty"`
-	WorkshopAutoRedownload         *bool            `json:"workshopAutoRedownload,omitempty"`
-	WorkshopBrowserTarget          *string          `json:"workshopBrowserTarget,omitempty"`
-	WorkshopTranslateProvider      *string          `json:"workshopTranslateProvider,omitempty"`
-	WorkshopTranslateCustomBaseURL string           `json:"workshopTranslateCustomBaseURL,omitempty"`
-	WorkshopTranslateCustomAPIKey  string           `json:"workshopTranslateCustomAPIKey,omitempty"`
-	WorkshopTranslateCustomModelId string           `json:"workshopTranslateCustomModelId,omitempty"`
+	ModRotationConfig              RotationConfig `json:"modRotationConfig"`
+	WorkshopPreferredIP            *bool          `json:"workshopPreferredIP,omitempty"`
+	WorkshopFixedIP                *string        `json:"workshopFixedIP,omitempty"`
+	WorkshopMetaEnabled            *bool          `json:"workshopMetaEnabled,omitempty"`
+	WorkshopUpdateCheckEnabled     *bool          `json:"workshopUpdateCheckEnabled,omitempty"`
+	WorkshopAutoRedownload         *bool          `json:"workshopAutoRedownload,omitempty"`
+	WorkshopBrowserTarget          *string        `json:"workshopBrowserTarget,omitempty"`
+	WorkshopTranslateProvider      *string        `json:"workshopTranslateProvider,omitempty"`
+	WorkshopTranslateCustomBaseURL string         `json:"workshopTranslateCustomBaseURL,omitempty"`
+	WorkshopTranslateCustomAPIKey  string         `json:"workshopTranslateCustomAPIKey,omitempty"`
+	WorkshopTranslateCustomModelId string         `json:"workshopTranslateCustomModelId,omitempty"`
 	// WorkshopDNS：工坊列表/详情/链接解析使用的 DNS（nil = 没设置过 → 系统 DNS）。
-	WorkshopDNS *network.WorkshopDNSConfig `json:"workshopDNS,omitempty"`
-	DefaultDirectory               string           `json:"defaultDirectory"`
-	SavedDirectories               []SavedDirectory `json:"savedDirectories"`
-	LastActiveDirectory            string           `json:"lastActiveDirectory"`
-	DisplayMode                    string           `json:"displayMode"`
+	WorkshopDNS         *network.WorkshopDNSConfig `json:"workshopDNS,omitempty"`
+	DefaultDirectory    string                     `json:"defaultDirectory"`
+	SavedDirectories    []SavedDirectory           `json:"savedDirectories"`
+	LastActiveDirectory string                     `json:"lastActiveDirectory"`
+	DisplayMode         string                     `json:"displayMode"`
 	// SortType / SortOrder：VPK 列表排序设置（对齐上游 7b0818c）。
 	// 取值由 normalizeFileSort 归一化，frontend 的排序菜单直接读写这两个字段。
-	SortType                       string           `json:"sortType"`
-	SortOrder                      string           `json:"sortOrder"`
-	FilterLayoutMode               string           `json:"filterLayoutMode"`
-	BoxSelectionEnabled            *bool            `json:"boxSelectionEnabled,omitempty"`
-	CtrlClickSelectionEnabled      *bool            `json:"ctrlClickSelectionEnabled,omitempty"`
-	UIScale                        float64          `json:"uiScale,omitempty"`
+	SortType                  string  `json:"sortType"`
+	SortOrder                 string  `json:"sortOrder"`
+	FilterLayoutMode          string  `json:"filterLayoutMode"`
+	BoxSelectionEnabled       *bool   `json:"boxSelectionEnabled,omitempty"`
+	CtrlClickSelectionEnabled *bool   `json:"ctrlClickSelectionEnabled,omitempty"`
+	UIScale                   float64 `json:"uiScale,omitempty"`
 	// TextSize：文字大小档位（compact / standard / large / xlarge），与整体缩放相乘。
 	TextSize string `json:"textSize,omitempty"`
 	// ReadingComfort：阅读舒适度（soft / standard / contrast），控制行距与文字对比度。
@@ -345,6 +352,10 @@ type ConfigFile struct {
 	// process file customization）。两个都为空表示用系统默认（explorer /select 等）。
 	OpenWithProgram   string `json:"openWithProgram,omitempty"`
 	OpenWithArguments string `json:"openWithArguments,omitempty"`
+	// SteamAPIDllPath 是「一键退订」使用的 steam_api64.dll 路径（空 = 本机自动检测）。
+	// Valve 许可不允许随包分发该 DLL，只能运行时加载用户自备的副本；
+	// 该字段由 SetSteamAPIDllPath 独占维护（前端整份配置保存不会碰它）。
+	SteamAPIDllPath string `json:"steamApiDllPath,omitempty"`
 	// MainWindowWidth / MainWindowHeight / MainWindowMaximised 记住主窗口的几何状态
 	// （对齐 FireAxe v0.7.3 的"保存主窗口宽高与最大化状态"）。
 	// 都用指针：nil 表示"没记录过"，此时保持 Wails 配置里的默认尺寸。
@@ -461,29 +472,29 @@ func NewApp() *App {
 	downloadTasksPath := filepath.Join(appConfigDir, downloadTaskSnapshotFileName)
 
 	app := &App{
-		goroutinePool:                   pool,
-		restyClient:                     client,
-		proxyServer:                     proxy,
-		configDir:                       appConfigDir,
-		configPath:                      configPath,
-		serversPath:                     serversPath,
-		workshopWatchLaterPath:          workshopWatchLaterPath,
-		problemScanPath:                 problemScanPath,
-		workshopHistoryPath:             workshopHistoryPath,
-		profilesPath:                    profilesPath,
-		groupsPath:                      groupsPath,
-		dependenciesPath:                dependenciesPath,
-		priorityPath:                    priorityPath,
-		ignorePath:                      ignorePath,
-		collectionsPath:                 collectionsPath,
-		downloadTasksPath:               downloadTasksPath,
-		workshopPreferredIP:             true,     // 默认开启优选IP
-		workshopMetaEnabled:             true,     // 默认开启工坊meta信息存储
-		workshopBrowserTarget:           "mirror", // 默认使用镜像站
-		workshopTranslateProvider:       workshopTranslateProviderMicrosoft,
+		goroutinePool:             pool,
+		restyClient:               client,
+		proxyServer:               proxy,
+		configDir:                 appConfigDir,
+		configPath:                configPath,
+		serversPath:               serversPath,
+		workshopWatchLaterPath:    workshopWatchLaterPath,
+		problemScanPath:           problemScanPath,
+		workshopHistoryPath:       workshopHistoryPath,
+		profilesPath:              profilesPath,
+		groupsPath:                groupsPath,
+		dependenciesPath:          dependenciesPath,
+		priorityPath:              priorityPath,
+		ignorePath:                ignorePath,
+		collectionsPath:           collectionsPath,
+		downloadTasksPath:         downloadTasksPath,
+		workshopPreferredIP:       true,     // 默认开启优选IP
+		workshopMetaEnabled:       true,     // 默认开启工坊meta信息存储
+		workshopBrowserTarget:     "mirror", // 默认使用镜像站
+		workshopTranslateProvider: workshopTranslateProviderMicrosoft,
 		// 工坊 DNS 默认跟随系统（不改任何现有行为）。
-		workshopDNSConfig:               network.DefaultWorkshopDNSConfig(),
-		displayMode:                     "list",
+		workshopDNSConfig: network.DefaultWorkshopDNSConfig(),
+		displayMode:       "list",
 		// 默认按优先级排序（与前端 sortType 默认值一致）：改过排序的用户会在 config.json 里记住。
 		sortType:                        fileSortTypeLoadOrder,
 		sortOrder:                       fileSortOrderAsc,

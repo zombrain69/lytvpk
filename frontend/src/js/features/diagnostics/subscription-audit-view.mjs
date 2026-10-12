@@ -1,8 +1,12 @@
 // 工坊订阅清单的纯逻辑层（Node 单测直接跑，不碰 DOM）：
-// 筛选分类 / 徽标 / 日期格式化 / 计数汇总 / 链接拼装。
+// 筛选分类 / 徽标 / 日期格式化 / 计数汇总 / 链接拼装 / 一键退订的确认单内容。
 //
 // 与后端 WorkshopSubscriptionsSummary 的字段一一对应：
 //   publishedFileId / timeSubscribed / disabledLocally / hasWorkshopFile / hasRootCopy / hasDisabledCopy / title
+// 与后端 SteamUGCBatchResult 的字段一一对应：
+//   action / total / succeeded / skipped / failed / backupPath / results[]
+
+import { t } from "../../core/i18n-runtime.js";
 
 export const SUBSCRIPTION_FILTERS = [
 	{ id: "all", labelKey: "toolbox.subscriptionAudit.filter.all" },
@@ -22,6 +26,18 @@ export const SUBSCRIPTION_BADGE_KEYS = {
 /** Steam 官方「我的工坊订阅」页（页面上有单项取消订阅与「取消全部订阅」）。 */
 export const UNSUBSCRIBE_GUIDE_URL =
 	"https://steamcommunity.com/my/myworkshopfiles/?appid=550&browsefilter=mysubscriptions";
+
+/** 确认弹窗里最多列出的条目数（超出折叠为"另有 N 项"）。 */
+export const CONFIRM_LIST_LIMIT = 50;
+
+function escapeHtmlText(value) {
+	return String(value ?? "")
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+}
 
 /** workshopItemURL 拼工坊作品页链接。 */
 export function workshopItemURL(publishedFileId) {
@@ -86,4 +102,61 @@ export function summarizeSubscriptionCounts(entries) {
 		missing: list.filter(isMissingLocally).length,
 		disabled: list.filter((entry) => entry?.disabledLocally).length,
 	};
+}
+
+/** summarizeBatchResult 汇总一次批量退订/重订的结果计数。 */
+export function summarizeBatchResult(result) {
+	return {
+		total: Number(result?.total) || 0,
+		succeeded: Number(result?.succeeded) || 0,
+		skipped: Number(result?.skipped) || 0,
+		failed: Number(result?.failed) || 0,
+	};
+}
+
+/** buildConfirmListHtml 把所选项列成确认弹窗里的清单（全部转义，超限折叠）。 */
+function buildConfirmListHtml(entries) {
+	const list = Array.isArray(entries) ? entries : [];
+	const shown = list.slice(0, CONFIRM_LIST_LIMIT);
+	const rows = shown
+		.map((entry) => {
+			const id = String(entry?.publishedFileId ?? "");
+			const title = String(entry?.title ?? "").trim();
+			return `<div class="subscription-confirm-row"><code>${escapeHtmlText(id)}</code><span>${escapeHtmlText(
+				title || t("toolbox.subscriptionAudit.untitled"),
+			)}</span></div>`;
+		})
+		.join("");
+	const rest = list.length - shown.length;
+	const more =
+		rest > 0
+			? `<div class="subscription-confirm-more">${escapeHtmlText(
+					t("toolbox.subscriptionAudit.ugc.confirmListMore", { count: rest }),
+				)}</div>`
+			: "";
+	return `<div class="subscription-confirm-list">${rows}${more}</div>`;
+}
+
+/** buildUnsubscribeConfirmHtml 生成退订确认弹窗正文（调用方负责标题与弹窗骨架）。 */
+export function buildUnsubscribeConfirmHtml(entries) {
+	const list = Array.isArray(entries) ? entries : [];
+	const lines = [
+		t("toolbox.subscriptionAudit.ugc.unsubSummary", { count: list.length }),
+		t("toolbox.subscriptionAudit.ugc.unsubNote"),
+	];
+	return `<div class="write-diff-summary">${lines
+		.map((line) => `<p>${escapeHtmlText(line)}</p>`)
+		.join("")}</div>${buildConfirmListHtml(list)}`;
+}
+
+/** buildResubscribeConfirmHtml 生成「重新订阅所选」确认弹窗正文。 */
+export function buildResubscribeConfirmHtml(entries) {
+	const list = Array.isArray(entries) ? entries : [];
+	const lines = [
+		t("toolbox.subscriptionAudit.ugc.resubSummary", { count: list.length }),
+		t("toolbox.subscriptionAudit.ugc.resubNote"),
+	];
+	return `<div class="write-diff-summary">${lines
+		.map((line) => `<p>${escapeHtmlText(line)}</p>`)
+		.join("")}</div>${buildConfirmListHtml(list)}`;
 }

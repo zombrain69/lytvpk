@@ -230,6 +230,10 @@ export function DeleteWorkshopCollection(arg1) {
   return window['go']['app']['App']['DeleteWorkshopCollection'](arg1);
 }
 
+export function DetectSteamAPIDllCandidates() {
+  return window['go']['app']['App']['DetectSteamAPIDllCandidates']();
+}
+
 export function DoUpdate(arg1) {
   return window['go']['app']['App']['DoUpdate'](arg1);
 }
@@ -528,6 +532,10 @@ export function GetSecondaryTags(arg1) {
 
 export function GetServerStorage() {
   return window['go']['app']['App']['GetServerStorage']();
+}
+
+export function GetSteamUGCStatus() {
+  return window['go']['app']['App']['GetSteamUGCStatus']();
 }
 
 export function GetStockIndexStatus() {
@@ -842,6 +850,10 @@ export function PauseDownloadTask(arg1) {
   return window['go']['app']['App']['PauseDownloadTask'](arg1);
 }
 
+export function PickSteamAPIDllFile() {
+  return window['go']['app']['App']['PickSteamAPIDllFile']();
+}
+
 export function PrepareGroupingWorkspace() {
   return window['go']['app']['App']['PrepareGroupingWorkspace']();
 }
@@ -1138,6 +1150,10 @@ export function SetRootDirectory(arg1) {
   return window['go']['app']['App']['SetRootDirectory'](arg1);
 }
 
+export function SetSteamAPIDllPath(arg1) {
+  return window['go']['app']['App']['SetSteamAPIDllPath'](arg1);
+}
+
 export function SetVPKGameEnabled(arg1, arg2) {
   return window['go']['app']['App']['SetVPKGameEnabled'](arg1, arg2);
 }
@@ -1222,6 +1238,10 @@ export function SubmitProblemModScanResult(arg1) {
   return window['go']['app']['App']['SubmitProblemModScanResult'](arg1);
 }
 
+export function SubscribeSteamWorkshopItems(arg1) {
+  return window['go']['app']['App']['SubscribeSteamWorkshopItems'](arg1);
+}
+
 export function SuggestModGroups() {
   return window['go']['app']['App']['SuggestModGroups']();
 }
@@ -1244,6 +1264,10 @@ export function TranslateWorkshopDescription(arg1) {
 
 export function UnpackVPKFile(arg1, arg2) {
   return window['go']['app']['App']['UnpackVPKFile'](arg1, arg2);
+}
+
+export function UnsubscribeSteamWorkshopItems(arg1) {
+  return window['go']['app']['App']['UnsubscribeSteamWorkshopItems'](arg1);
 }
 
 export function ValidateCustomTagRules(arg1) {

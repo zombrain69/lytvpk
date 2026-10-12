@@ -598,6 +598,7 @@ export namespace app {
 	    categorySidebarVisible?: boolean;
 	    openWithProgram?: string;
 	    openWithArguments?: string;
+	    steamApiDllPath?: string;
 	    mainWindowWidth?: number;
 	    mainWindowHeight?: number;
 	    mainWindowMaximised?: boolean;
@@ -645,6 +646,7 @@ export namespace app {
 	        this.categorySidebarVisible = source["categorySidebarVisible"];
 	        this.openWithProgram = source["openWithProgram"];
 	        this.openWithArguments = source["openWithArguments"];
+	        this.steamApiDllPath = source["steamApiDllPath"];
 	        this.mainWindowWidth = source["mainWindowWidth"];
 	        this.mainWindowHeight = source["mainWindowHeight"];
 	        this.mainWindowMaximised = source["mainWindowMaximised"];
@@ -3180,6 +3182,102 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.vtfBase64 = source["vtfBase64"];
+	    }
+	}
+	export class SteamAPIDllCandidate {
+	    path: string;
+	    game?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SteamAPIDllCandidate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.game = source["game"];
+	    }
+	}
+	export class SteamUGCBatchItemResult {
+	    publishedFileId: string;
+	    title?: string;
+	    ok: boolean;
+	    skipped?: boolean;
+	    detail?: string;
+	    durationMs?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SteamUGCBatchItemResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.publishedFileId = source["publishedFileId"];
+	        this.title = source["title"];
+	        this.ok = source["ok"];
+	        this.skipped = source["skipped"];
+	        this.detail = source["detail"];
+	        this.durationMs = source["durationMs"];
+	    }
+	}
+	export class SteamUGCBatchResult {
+	    action: string;
+	    total: number;
+	    succeeded: number;
+	    skipped: number;
+	    failed: number;
+	    backupPath?: string;
+	    results: SteamUGCBatchItemResult[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SteamUGCBatchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.action = source["action"];
+	        this.total = source["total"];
+	        this.succeeded = source["succeeded"];
+	        this.skipped = source["skipped"];
+	        this.failed = source["failed"];
+	        this.backupPath = source["backupPath"];
+	        this.results = this.convertValues(source["results"], SteamUGCBatchItemResult);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SteamUGCStatus {
+	    available: boolean;
+	    path?: string;
+	    source: string;
+	    hint?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SteamUGCStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.path = source["path"];
+	        this.source = source["source"];
+	        this.hint = source["hint"];
 	    }
 	}
 	export class StockIndexQueryResult {
