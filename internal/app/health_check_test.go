@@ -389,24 +389,6 @@ func TestRunModHealthCheckFlagsOverlongAddonNames(t *testing.T) {
 	}
 }
 
-func TestAnsiByteLengthCountsGBKBytes(t *testing.T) {
-	cases := []struct {
-		input string
-		want  int
-	}{
-		{"abc", 3},
-		{"中文", 4},
-		{"a中b", 4},
-		{"【撬棍】", 8},
-		{"a🙂", 2}, // GBK 表示不了的表情按 1 字节近似（引擎侧退化成 '?'）
-	}
-	for _, tc := range cases {
-		if got := ansiByteLength(tc.input); got != tc.want {
-			t.Errorf("ansiByteLength(%q) = %d, want %d", tc.input, got, tc.want)
-		}
-	}
-}
-
 func TestSaveModHealthReportWritesMarkdownFile(t *testing.T) {
 	a := &App{configDir: t.TempDir()}
 	markdown := "# LytVPK Mod 体检报告\n\n- 问题总数：0\n"

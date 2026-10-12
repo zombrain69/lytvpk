@@ -1,5 +1,19 @@
 # Changelog
 
+## 未发布 — 命名规范化 P1 首块：引擎 63B 名字截断器（路线图第 20 项）（2026-10-12）
+
+- 新增 `internal/parser/naming_cap.go`（参考 sHartet/l4d2-addons naming-rules v1.2 的 cap_name，
+  与体检 `filename_too_long` 同一硬约束——主干超过 63 个 ANSI 字节的包引擎静默不挂载）：
+  - `ANSIByteLength`：引擎定长名字缓冲同口径的字节计量（ASCII 1 / GBK 汉字 2；emoji 近似 1）。
+    实现收敛自 `internal/app/health_check.go`（该处现引用 parser 版本，单一事实源）；
+  - `CapAddonStemToANSIBytes`：把文本截断进字节预算——先按空格断词（不切半词）、再按字符断、
+    去掉尾部 ` - .`；幂等（结果重跑不再变化）；
+  - `ComposeAddonStem`：组装「前缀-替换对象-标题」，前缀段逐字节不动（=「63B 截断保护只动
+    标题段」）；前缀段本身超限时原样返回并报告 fits=false（上层提示「无法压缩」）。
+- 测试：`naming_cap_test.go` 6 项（GBK 计量、63B 整边界、中文 31 字截断、断词/断字、
+  尾部清理、幂等、前缀保护与超限报告）；体检既有计量用例迁至 parser 层。
+- 验证：`go vet ./...` / `go test ./...` 全过；docs 构建 48 页 2146 链接 0 失效。
+
 ## 未发布 — 语言切换 P3：本地化排序 + 窗口标题 + en 溢出扫描（路线图第 19 项）（2026-10-12）
 
 - **本地化排序**：新增 `core/locale-collator.mjs`——排序比较器跟随当前界面语言（经

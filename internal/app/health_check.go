@@ -11,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/transform"
+	"vpk-manager/internal/parser"
 )
 
 const (
@@ -303,25 +302,7 @@ func checkSubfolderVPKs(rootDir string, report *ModHealthReport) {
 // 把同一份字节复制成 41B 的名字后立刻生效；58B / 61B 一直正常。
 // 本机库只读抽样复核（2026-10-11）：3008 个受管 VPK 仅 1 个主干 101B（且从未写进 addonlist.txt），
 // 其余全部 ≤ 58B —— 与"63B 安全区"一致，未发现反例。
-const modHealthAddonNameMaxANSIBytes = 63
-
-// ansiByteLength 返回字符串按 Windows ANSI（中文环境即 GBK/CP936）编码后的字节数，
-// 与引擎定长名字缓冲的计量口径一致：ASCII 1 字节、汉字 2 字节。
-// GBK 表示不了的字符（emoji 等）按 1 字节近似 —— 引擎把这些字转成 '?'，同样只占 1 字节。
-func ansiByteLength(value string) int {
-	if encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(value)); err == nil {
-		return len(encoded)
-	}
-	total := 0
-	for _, r := range value {
-		if encoded, _, err := transform.Bytes(simplifiedchinese.GBK.NewEncoder(), []byte(string(r))); err == nil {
-			total += len(encoded)
-			continue
-		}
-		total++ // 引擎侧会退化成 '?' 这类单字节占位
-	}
-	return total
-}
+const modHealthAddonNameMaxANSIBytes = parser.AddonStemMaxANSIBytes
 
 // checkLongAddonFilenames 报出"主干名超过引擎上限、会被静默忽略"的 VPK。
 // 只查游戏真正会加载的两个位置（addons 根目录与 workshop）；disabled 里的文件本就不参与加载，
@@ -344,7 +325,7 @@ func checkLongAddonFilenames(rootDir string, report *ModHealthReport) {
 			}
 			name := entry.Name()
 			stem := strings.TrimSuffix(name, filepath.Ext(name))
-			length := ansiByteLength(stem)
+			length := parser.ANSIByteLength(stem)
 			if length <= modHealthAddonNameMaxANSIBytes {
 				continue
 			}

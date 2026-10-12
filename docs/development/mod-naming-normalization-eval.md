@@ -119,6 +119,21 @@
 2. **范围与节奏**：先做单文件「建议预填」（P1，立即可用），还是一步到批量规范化全库（P2+）？
 3. **规则来源**：把参考规则全文移植为内置默认，还是做成可配置（含例外表 UI、待复核清单）？
 
+## 实施进展
+
+- **P0 已完成（b4f932f）**：重命名弹窗 `[标签]` 预填回归修复 + `rename-edit.mjs`（22 项测试，
+  含往返幂等与接线断言）。
+- **P1 首块已完成（2026-10-12，自动轮次）**：`internal/parser/naming_cap.go` —— 引擎 63B 定长
+  名字缓冲的计量与标题截断器：
+  - `ANSIByteLength`（与体检 `filename_too_long` 同口径；原实现收敛自
+    `internal/app/health_check.go`，该处现引用 parser 版本，单一事实源）；
+  - `CapAddonStemToANSIBytes`（先按空格断词 → 再按字符断 → 去掉尾部 ` - .`；幂等）；
+  - `ComposeAddonStem`（前缀段逐字节不动 = 「63B 截断保护只动标题段」；前缀段超限原样返回
+    并报 fits=false）。
+  测试 `naming_cap_test.go`（63B 整边界 / 中文 31 字 / 断词断字 / 尾部清理 / 幂等 / 前缀保护）。
+  **P1 剩余**：词表映射（S1–S5）与替换对象提取层 + 重命名弹窗「按分类建议填充」入口接线
+  （含单文件建议的后端导出与前端弹窗集成）。
+
 参考索引（`sHartet/l4d2-addons`）：`reference/naming-rules.md`（v1.2 全文）、
 `scripts/plan_v4.py`（cap_name/幂等判定）、`scripts/rename_batch.ps1`（批次执行/三件套）、
 `name_exempt.json`（例外表）、`scripts/verify_overlaps.py`（冲突核对）。
