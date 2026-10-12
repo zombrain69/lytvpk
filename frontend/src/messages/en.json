@@ -214,7 +214,7 @@
       "cmd": {
         "focusModSearch": {
           "title": "Search Mods (jump to the search box)",
-          "keywords": "find query filter search mod search"
+          "keywords": "find query filter mod search"
         },
         "pageMods": {
           "keywords": "home list mods main page"
@@ -242,16 +242,16 @@
           "keywords": "interface font size text size contrast line spacing comfort zoom"
         },
         "strategyGroupManager": {
-          "title": "Strategy group manager (apply / weight / tier / drag and drop)",
-          "keywords": "strategy group grouping weight tier group"
+          "title": "Strategy group manager (apply / weight / level / drag and drop)",
+          "keywords": "strategy group grouping weight level"
         },
         "groupSuggest": {
           "title": "Group suggestions (infer Mods that may belong together)",
-          "keywords": "suggest infer same group identify suggest"
+          "keywords": "suggest infer same group identify"
         },
         "loadOrder": {
           "title": "Load order optimization",
-          "keywords": "load order priority override load order"
+          "keywords": "load order priority override"
         },
         "conflictAnalysis": {
           "title": "Conflict analysis (toggle)",
@@ -315,7 +315,7 @@
         "description": "For troubleshooting Mod issues, conflicts, and asset status."
       },
       "gameConfig": {
-        "title": "Game config",
+        "title": "Game configuration",
         "description": "Check and maintain the config files the game reads at launch."
       },
       "generalTools": {
@@ -325,13 +325,13 @@
     },
     "card": {
       "problemScan": {
-        "title": "Problem Mod finder",
+        "title": "Problem Mod search",
         "description": "Keep the current test half by bisection, narrowing down the single problem Mod round by round.",
         "roundStatus": "Round {round}, {count} candidates left",
         "statusActive": "Searching",
         "statusIdle": "Not started",
         "actionActive": "Continue search",
-        "actionIdle": "Open finder"
+        "actionIdle": "Open search tool"
       },
       "conflictCheck": {
         "title": "Mod conflict check",
@@ -340,14 +340,14 @@
         "action": "Start check"
       },
       "modelStats": {
-        "title": "Mod model poly count check",
+        "title": "Mod model face count check",
         "description": "Read LOD0 vertex and triangle counts for models in enabled and Steam Workshop Mods to quickly find high-poly assets.",
         "status": "Ready to check",
         "action": "Open checker"
       },
       "subscriptionAudit": {
         "title": "Workshop subscription list",
-        "description": "Take inventory of your Workshop subscriptions for this game and flag the ones that are \"already copied to addons\" or \"no local files\"; jump straight to the official Steam unsubscribe page, and with your own steam_api64.dll you can also unsubscribe in one click.",
+        "description": "Take inventory of your Workshop subscriptions for this game and flag the ones that are \"Copied to addons\" or \"No local files\"; jump straight to the official Steam unsubscribe page, and with your own steam_api64.dll you can also unsubscribe in one click.",
         "status": "Guided + one-click unsubscribe",
         "action": "Open list"
       },
@@ -453,7 +453,7 @@
       "labelRepairFile": "Repaired file",
       "badgeFailed": "Check failed",
       "badgePass": "Passed",
-      "badgeManual": "Manual handling needed",
+      "badgeManual": "Needs manual handling",
       "batchSummary": "Checked {total} VPKs: {valid} passed, {repairable} repairable.",
       "repairSummary": "Successfully created {success} repaired files{failedPart}. No original files were overwritten.",
       "repairSummaryFailed": ", {count} could not be repaired",
@@ -670,7 +670,7 @@
         "open": "Open Workshop page"
       },
       "batch": {
-        "selectAll": "Select all in current filter",
+        "selectAll": "Select all in the current filter",
         "selected": "{count} selected",
         "openSelected": "Open selected Workshop pages",
         "clear": "Clear selection",
@@ -795,15 +795,15 @@
       "analysisSummary": "{known} documented commands and {unknown} unknown commands identified{high}{medium}",
       "analysisHighRisk": "; {count} high risk",
       "analysisMediumRisk": "; {count} medium risk",
-      "analysisFailed": "Command identification failed: {error}",
+      "analysisFailed": "Failed to recognize commands: {error}",
       "searchHelpFailed": "Failed to search the command reference: {error}",
       "openFailed": "Failed to open the autoexec.cfg location: {error}",
-      "saved": "Saved autoexec.cfg (encoding and line-ending format preserved)",
+      "saved": "Saved autoexec.cfg (encoding and line endings preserved)",
       "saveFailed": "Failed to save autoexec.cfg: {error}",
       "helpEmpty": "No matching commands found",
       "matchLine": "Line {line} · {command}{unknown}",
       "matchUnknownTag": " (unknown command)",
-      "matchHint": "It may come from a plugin or Mod; check the source before saving."
+      "matchHint": "It may come from a plugin or Mod; confirm the source before saving."
     },
     "mdmpReport": {
       "subtitle": "Parses objective fields from .mdmp / .dmp files without judging the cause.",
@@ -1142,7 +1142,7 @@
       "groupSuggestTooltip": "Infers Mods that may belong to the same group from Workshop collections, file name prefixes, shared tags, the same author, or the same subject",
       "groupCapture": "Create a group from selected Mods",
       "groupManager": "Strategy group manager…",
-      "groupManagerTooltip": "Open the Strategy group manager window: apply strategies, group weights and parent groups, multi-select batch delete / auto-linked toggles — the whole lifecycle lives in this window",
+      "groupManagerTooltip": "Open the Strategy group manager window: apply strategies, group weights and parent groups, multi-select batch delete / toggle auto-linking — the whole lifecycle lives in this window",
       "priorityTooltip": "Enter the priority number shown in addonlist.txt to locate the matching Mod under any current sort order",
       "priorityPlaceholder": "Priority #",
       "priorityAriaLabel": "Locate Mod by priority number",
@@ -1170,7 +1170,7 @@
       "count": "Matched {matched} / {total} Mods",
       "xdrState": {
         "active": "Animation active",
-        "random": "Animation random-active, same-slot conflict",
+        "random": "Animation applies at random, same-slot conflict",
         "partial": "Animation partially active"
       },
       "matchField": {
@@ -1214,7 +1214,7 @@
         "disabled": "Disabled (disabled directory)",
         "gameOn": "In-game on",
         "gameOff": "In-game off",
-        "gameUnknown": "Toggle not recorded"
+        "gameUnknown": "Toggle state not recorded"
       },
       "collapse": "Collapse",
       "expand": "Expand",
@@ -1644,7 +1644,7 @@
       },
       "rename": {
         "done": "Renamed successfully",
-        "failed": "Rename failed: {error}",
+        "failed": "Failed to rename: {error}",
         "missing": "Could not find the file to rename; refresh the list and try again"
       },
       "batchTags": {
@@ -1688,7 +1688,7 @@
     },
     "tags": {
       "none": "None",
-      "remove": "Remove",
+      "remove": "Delete",
       "updated": "Tags updated",
       "updateFailed": "Failed to update tags: {error}"
     },
@@ -1799,8 +1799,8 @@
       "xdrCharacterFallback": "No character specified",
       "xdrActiveTitle": "XDR animation active: none of the {count} slots have same-slot rivals ({slots}); they will play as expected in-game",
       "xdrActiveLabel": "▶ Animation active",
-      "xdrRandomTitle": "XDR same-slot conflict: {slots} is occupied by another Mod in the same slot ({rivals}) — under the official rule, the same character and slot only ever applies one Mod, chosen at random, regardless of load order; to control which one plays, move one of them to an empty slot",
-      "xdrRandomLabel": "⚠ Animation random-active",
+      "xdrRandomTitle": "XDR same-slot conflict: {slots} is occupied by another Mod in the same slot ({rivals}) — the official rule is that for the same character and slot, only one takes effect, at random, regardless of load order; to control which one plays, move one of them to an empty slot",
+      "xdrRandomLabel": "⚠ Animation applies at random",
       "xdrPartialTitle": "XDR animation partially active: {active} slots will play ({activeSlots}); {random} slots share a slot with another Mod and apply at random in-game ({randomSlots}{rivals})",
       "xdrPartialRivals": ", same-slot: {list}",
       "xdrPartialLabel": "◐ Animations partially active {active}/{total}",
@@ -1817,7 +1817,7 @@
       "toggleEnableTitle": "Click to enable"
     },
     "common": {
-      "summarizeMore": " and {count} more"
+      "summarizeMore": " and {count} in total"
     },
     "location": {
       "root": "Root directory",
@@ -1877,7 +1877,7 @@
     },
     "search": {
       "placeholder": "Search Workshop item titles (searched by Steam; local syntax such as tag: / re: is not supported)",
-      "note": "Workshop search runs on Steam's servers: it matches keywords only (title, author, etc.) and comes back page by page; local syntax such as tag: / re: / -exclusion is not supported. For local syntax, go to: Mod list, Archive manager, Model stats, Strategy group manager, Conflict detection, Health check results.",
+      "note": "Workshop search runs on Steam's servers: it matches keywords only (title, author, etc.) and comes back page by page; local syntax such as tag: / re: / -exclude is not supported. For local syntax, go to: Mod list, Archive manager, Model stats, Strategy group manager, Conflict detection, Health check results.",
       "ariaLabel": "Search Steam Workshop (Steam server-side search)"
     },
     "list": {
@@ -2048,7 +2048,7 @@
       "creatorLabel": "Author:",
       "fileNameLabel": "File name:",
       "sizeLabel": "Size:",
-      "checking": "Resolving...",
+      "checking": "Parsing...",
       "optimizing": "Selecting the best route...",
       "downloadUrlPlaceholder": "Filled in automatically after parsing, or enter a direct link manually...",
       "groupEmpty": "No files to show in this collection",
@@ -2697,7 +2697,7 @@
       },
       "textSize": {
         "label": "Text size",
-        "desc": "Changes text size only, not the layout; multiplied with the UI scale above — handy for keeping text sharp on 2K / 4K screens",
+        "desc": "Changes text size only, not the layout; multiplied with the interface scale above — handy for keeping text sharp on 2K / 4K screens",
         "option": {
           "compact": "Compact",
           "compactDesc": "More content on screen",
@@ -2832,7 +2832,7 @@
           "done": "Official Workshop data fetch complete: {parts}",
           "failure": "Failed to fetch official Workshop data: {error}",
           "descBeforeMeta": "Fetch the Workshop's built-in category tags (such as Survivors / Sounds / Single Player), along with subscriber, favorite and view counts, from the official Steam API, and write them into the identically named ",
-          "descAfterMeta": ". After fetching, the \"Prepare agent material\" checklist will include additional ",
+          "descAfterMeta": ". After fetching, the \"Prepare material for the agent\" checklist will include additional ",
           "descTail": ", making the grouping suggestions more accurate. It only reads remote data and does not modify Mod files or addonlist."
         }
       },
@@ -2909,7 +2909,7 @@
       "openLocation": "Open file location",
       "targetFile": "Target file",
       "saveSnapshot": "Save the current configuration as a protected version",
-      "createBackup": "Create history backup",
+      "createBackup": "Create historical backup",
       "autoexec": {
         "cardTitle": "autoexec.cfg editor and console command tips",
         "desc": "Saving after editing preserves the game file's original encoding, BOM and line endings; the content is written to the file only and is never executed by this app. Unknown commands may come from plugins or Mods.",
@@ -2921,7 +2921,7 @@
         "riskMedium": "; {count} medium risk",
         "analysisFailed": "Failed to recognize commands: {error}",
         "savedReloadFailed": "autoexec.cfg saved, but refreshing the file status failed: {error}",
-        "saved": "autoexec.cfg saved (encoding and line endings preserved)",
+        "saved": "Saved autoexec.cfg (encoding and line endings preserved)",
         "saveFailed": "Failed to save autoexec.cfg: {error}",
         "reloaded": "autoexec.cfg reloaded",
         "reloadFailed": "Failed to reload autoexec.cfg: {error}",
@@ -2929,12 +2929,12 @@
         "searchFailed": "Failed to search the command reference: {error}",
         "help": {
           "title": "Common command reference",
-          "searchPlaceholder": "Search command or meaning",
+          "searchPlaceholder": "Search commands or meanings",
           "empty": "No matching commands found"
         },
         "matchLine": "Line {line} · {command}{unknown}",
         "matchUnknownSuffix": " (unknown command)",
-        "matchAdvice": "May come from a plugin or Mod; confirm the source before saving."
+        "matchAdvice": "It may come from a plugin or Mod; confirm the source before saving."
       },
       "lifecycle": {
         "cardTitle": "addonlist.txt lifecycle management",
@@ -2963,7 +2963,7 @@
         "ariaLabel": "Load order position of an unrecorded Mod on first enable",
         "optionEnd": "End of the list (default; existing Mods are not reordered)",
         "optionStart": "Top of the list (priority #1)",
-        "optionAfterEnabled": "Right after the last Mod that is on in-game",
+        "optionAfterEnabled": "Right after the last Mod enabled in-game",
         "updated": "Updated the load order position for unrecorded Mods on first enable",
         "failed": "Failed to save the unrecorded Mod insert position: {error}"
       },
@@ -3113,7 +3113,7 @@
       },
       "strategyGroups": {
         "cardTitle": "Strategy groups",
-        "desc": "Strategy groups have moved to a separate window: open the \"Groups\" menu on the Mod management page and click \"Strategy group management…\" to create groups, apply by strategy, adjust group weights and parent groups, and manage multiple selections in batch. This page no longer duplicates them.",
+        "desc": "Strategy groups have moved to a separate window: open the \"Groups\" menu on the Mod management page and click \"Strategy group manager…\" to create groups, apply by strategy, adjust group weights and parent groups, and manage multiple selections in batch. This page no longer duplicates them.",
         "open": "Open strategy group management window…"
       },
       "dependencies": {
@@ -3146,7 +3146,7 @@
         "fixDependencies": "Enable missing dependencies",
         "copyReport": "Copy report",
         "saveReport": "Save report",
-        "searchPlaceholder": "Search issues (object name / path / hint text; supports - exclude / re: regex / tag: severity or type)",
+        "searchPlaceholder": "Search issues (object name / path / hint text; supports -exclude / re: regex / tag: severity or type)",
         "searchAria": "Search health check issues",
         "searchHelpTitle": "Search syntax guide",
         "searchHelpAria": "Health check search syntax guide",
@@ -3244,7 +3244,7 @@
       "title": "Problem Mod search",
       "intro": {
         "heading": "Narrow down the problem Mod using binary search",
-        "body": "The tool records the current enabled list and keeps only the half currently under test in the root directory each round, so you can verify in-game whether the problem still exists, then keeps narrowing the candidates.",
+        "body": "The tool records the current enabled list, keeps only the half currently under test in the root directory each round, lets you verify in-game whether the problem still exists, and then continues narrowing the candidates.",
         "suitable": {
           "title": "When to use it",
           "body": "A single root-directory Mod causes client crashes, texture glitches, data corruption, or another reproducible problem."
@@ -3350,11 +3350,11 @@
       "confirm": {
         "delete": "Delete the selected {count} strategy groups ({members} members in total): only the records in groups.json are removed; addonlist.txt is not modified and no Mod files are deleted; tiers already written for group members (priority.json) are kept; subgroups of deleted groups return to the top level.",
         "enforceOn": "Enable auto-linking for the selected {count} strategy groups: from then on, manually toggling a member also links the other members of the same group per the strategy. {list}",
-        "enforceOff": "Disable auto-linking for the selected {count} strategy groups: you can still use \"Apply strategy\" manually; the groups just no longer link automatically. {list}",
+        "enforceOff": "Disable auto-linking for the selected {count} strategy groups: you can still use \"Apply by strategy\" manually; the groups just no longer link automatically. {list}",
         "setTier": "Set the same group weight for the selected {count} strategy groups ({members} members affected in total). {list}",
         "clearTier": "Clear the group weight of the selected {count} strategy groups (the groups themselves and their members are kept). {list}",
         "default": "Run a batch operation on the selected {count} strategy groups. {list}",
-        "more": " and {count} more"
+        "more": " and {count} in total"
       },
       "result": {
         "skipped": "; {count} no longer exist and were skipped",
@@ -3377,7 +3377,7 @@
     },
     "filter": {
       "all": "Current filter: all groups",
-      "more": " and {count} more groups",
+      "more": " ({count} groups in total)",
       "state": "Current filter: {shown}{more}",
       "tags": {
         "all": "All on",
@@ -3409,13 +3409,13 @@
     },
     "window": {
       "title": "Strategy group manager",
-      "hint": "Strategy groups only write groups.json: they do not modify any Mod files and do not change the on/off state or order in addonlist.txt. \"Apply strategy / Random single-select / All off\" only toggles the group members on and off; \"group weight\" is a local tier, and the in-game priority is rearranged only after you click \"Apply by tier\" in the \"Load order\" window. After expanding members you can check multiple rows and use the row of batch buttons at the bottom of the window to handle them all at once (enable / disable / in-game toggle / copy to addons / remove from this group) — no need to click the button on the right of each row one by one.",
-      "blockLabel": "New strategy group: fill in a name, choose a strategy, then use \"Create group from the selected N Mods\" (Mods are checked on the Mod manager page)",
+      "hint": "Strategy groups only write groups.json: they do not modify any Mod files and do not change the on/off state or order in addonlist.txt. \"Apply by strategy / Pick one at random / Turn all off\" only toggles the group members on and off; \"group weight\" is a local tier, and the in-game priority is rearranged only after you click \"Apply by tier\" in the \"Load order\" window. After expanding members you can check multiple rows and use the row of batch buttons at the bottom of the window to handle them all at once (enable / disable / in-game toggle / copy to addons / remove from this group) — no need to click the button on the right of each row one by one.",
+      "blockLabel": "New strategy group: fill in a name, choose a strategy, then use \"Create a group from the N selected Mods\" (Mods are checked on the Mod manager page)",
       "namePlaceholder": "Name of the new strategy group, e.g. Character replacement pack",
       "nameTitle": "This is the name input for the new group, not a search box; the search box is on the row below",
       "strategyAria": "Strategy type",
       "strategySingle": "Mutually exclusive single-select (keep the currently enabled one)",
-      "searchPlaceholder": "Search strategy groups (group name / member name / description; supports -exclude / re: regex / tag:state)…",
+      "searchPlaceholder": "Search strategy groups (group name / member name / description; supports -exclude / re: regex / tag:status)…",
       "searchAria": "Search strategy groups",
       "helpTooltip": "Search syntax guide",
       "helpDialogLabel": "Strategy group search syntax guide",
@@ -3461,7 +3461,7 @@
       "searchAria": "Search group suggestions",
       "confidenceAria": "Filter by confidence",
       "sourceAria": "Filter by source",
-      "sortAria": "Sort order",
+      "sortAria": "Sort by",
       "tagCoveredAria": "Suggestions already covered by tags",
       "tagCoveredTitle": "When a tag matches exactly this batch of Mods, just filter by the tag; there is no need to create a group",
       "confidenceAll": "All confidence levels",
@@ -3543,7 +3543,7 @@
       "useTagFilter": "Filter by tag",
       "useTagFilterTitle": "Close the dialog and select \"{tag}\" in the tag filter",
       "importTagBadge": "Imported tag: {tag}",
-      "importTagBadgeMore": "Imported tags: {tag} and {count} more",
+      "importTagBadgeMore": "Imported tags: {tag} ({count} in total)",
       "importTagOrigin": "From tag / memberTags in the suggestion file",
       "applyTags": "Apply tags",
       "applyTagsTitle": "Tag the members of this suggestion: {summary}",
@@ -3651,7 +3651,7 @@
       "defaultDescription": "Checked on the Mod manager page and added here",
       "error": {
         "noKeys": "Check the Mods to work on first (there are no usable addonlist keys right now)",
-        "noGroups": "No strategy groups yet: create one with \"Group suggestions\" or \"Create group from the selected Mods\" first",
+        "noGroups": "No strategy groups yet: create one with \"Group suggestions\" or \"Create a group from the selected Mods\" first",
         "nameRequired": "Enter a name for the new strategy group first",
         "addFailed": "Failed to add to the strategy group: {error}",
         "removeFailed": "Failed to remove from the strategy group: {error}",
@@ -3724,7 +3724,7 @@
       "selectionNone": "First check Mods on the left of the member rows",
       "selectionCount": "{count} members selected",
       "selectionHidden": "{count} members selected ({hidden} of them are in collapsed groups)",
-      "gameToggleBlocked": "None of the selected members can have their in-game switch changed (all of them are in the disabled directory){note}",
+      "gameToggleBlocked": "None of the selected members can have their in-game toggle changed (all of them are in the disabled directory){note}",
       "gameOn": "Turn these members on in addonlist.txt{skipped}{note}",
       "gameOff": "Turn these members off in addonlist.txt{skipped}{note}",
       "gameSkipped": "; {count} in the disabled directory will be skipped",
@@ -3765,7 +3765,7 @@
       },
       "optionName": "{name} ({count})",
       "optionMissing": "with {count} missing",
-      "missingMore": " and {count} more",
+      "missingMore": " and {count} in total",
       "missingNotice": "Missing files: {count} — {shown}{extra} (put the same-named files back and they will return to the group automatically)",
       "subtreeScope": "({count} subgroups involved)",
       "subtreeMissing": "Subgroups contain {count} missing files{scope}: expand a subgroup to see them",
@@ -3787,14 +3787,14 @@
         "unknown": "Unknown location"
       },
       "gameState": {
-        "on": "In-game switch: on",
-        "off": "In-game switch: off",
-        "unrecorded": "In-game switch: unrecorded"
+        "on": "In-game toggle: on",
+        "off": "In-game toggle: off",
+        "unrecorded": "In-game toggle: unrecorded"
       },
       "gameStateButton": {
-        "on": "In-game switch on",
-        "off": "In-game switch off",
-        "unrecorded": "In-game switch unrecorded"
+        "on": "In-game toggle on",
+        "off": "In-game toggle off",
+        "unrecorded": "In-game toggle unrecorded"
       },
       "fileAction": {
         "disable": "Disable",
@@ -3808,13 +3808,13 @@
     "memberRow": {
       "priorityTitle": "The number comes from the addonlist.txt order; larger numbers load later",
       "error": {
-        "actionFailed": "Action failed: {error}"
+        "actionFailed": "Operation failed: {error}"
       },
       "detail": "Details",
       "detailTitle": "View details for this Mod",
       "detailMissingTitle": "This Mod is not in the current list, so details cannot be shown",
-      "gameEditTitle": "Edit this Mod's in-game switch in addonlist.txt",
-      "gameDisabledTitle": "This Mod is in the disabled directory, so its in-game switch cannot be edited directly",
+      "gameEditTitle": "Edit this Mod's in-game toggle in addonlist.txt",
+      "gameDisabledTitle": "This Mod is in the disabled directory, so its in-game toggle cannot be edited directly",
       "transferTitle": "Copy to the addons directory and turn off the Workshop original",
       "enableTitle": "Enable this Mod",
       "disableTitle": "Disable this Mod"
@@ -3902,7 +3902,7 @@
       "pickTitle": "Select this strategy group (for batch management)",
       "missingTitle": "Group members are not removed when their files are deleted; a same-named file in addons / workshop / disabled returns to the group automatically",
       "subtreeMissingTitle": "This group's own members are all present, but its descendant subgroups have missing files; expand the subgroups to see which ones",
-      "expandTitle": "After expanding members you can view details, edit the in-game switch, enable/disable, copy to addons, and remove a single Mod from this group",
+      "expandTitle": "After expanding members you can view details, edit the in-game toggle, enable/disable, copy to addons, and remove a single Mod from this group",
       "collapseMembers": "Collapse members",
       "expandMembers": "Expand members ({count})",
       "addChild": "+ Subgroup",
@@ -3926,7 +3926,7 @@
       "pickAllTitle": "Check/uncheck only \"{name}\" and its {count} members, without affecting other groups",
       "pickAll": "Select all in this group",
       "membersCount": "{count} members in this group",
-      "memberPickTitle": "Check this Mod to handle several at once with the member batch buttons at the bottom of the window (in-game switch / enable/disable / copy to addons / remove from this group)",
+      "memberPickTitle": "Check this Mod to handle several at once with the member batch buttons at the bottom of the window (in-game toggle / enable/disable / copy to addons / remove from this group)",
       "memberRemoveTitle": "Remove this Mod from the current strategy group (writes groups.json only; a group must keep at least 1 member)",
       "applyBlocked": "This strategy cannot be applied right now",
       "applyFailed": "Failed to apply the strategy group: {error}",
@@ -3935,10 +3935,10 @@
       "batchNoSelection": "Please check the strategy groups for the batch action first",
       "batchTitle": "Batch manage strategy groups",
       "batchFailed": "Batch action failed: {error}",
-      "gameStateBlocked": "None of the checked members can have their in-game switch changed (they are all in the disabled directory)",
+      "gameStateBlocked": "None of the checked members can have their in-game toggle changed (they are all in the disabled directory)",
       "batchGameOnTitle": "Batch enable in-game",
       "batchGameOffTitle": "Batch disable in-game",
-      "batchGameFailed": "Failed to batch-set the in-game switches: {error}",
+      "batchGameFailed": "Failed to batch set in-game toggles: {error}",
       "enableNone": "No members can be enabled: only Mods in the disabled directory need to be moved back to addons",
       "disableNone": "No members can be disabled: only Mods in the addons root directory can be moved into disabled",
       "batchWarningTitle": "Batch {label} strategy group members",
@@ -3971,7 +3971,7 @@
       "enforceOff": "Strategy group auto-link disabled",
       "enforceFailed": "Failed to save the auto-link setting: {error}",
       "tierInvalid": "Group weight must be an integer (can be negative; smaller values load earlier)",
-      "tierCleared": "Strategy group weight cleared (the original order is not restored automatically; to restore it, use the addonlist.txt backup under \"History backups\")",
+      "tierCleared": "Strategy group weight cleared (the original order is not restored automatically; to restore it, use the addonlist.txt backup under \"Historical backups\")",
       "tierSaved": "Saved strategy group weight {tier} (the order re-sorts only after \"Apply by tier\")",
       "tierFailed": "Failed to save the strategy group weight: {error}",
       "parentSet": "Parent group set",
@@ -4151,9 +4151,9 @@
       "clearFailed": "Failed to clear the ignore list: {error}"
     },
     "detail": {
-      "xdrActive": "▶ Action active: none of the {count} slots has a rival in the same slot; they will play as expected in game",
+      "xdrActive": "▶ Action active: none of the {count} slots has a rival in the same slot; they will play as expected in-game",
       "xdrRandom": "⚠ Action randomized: {count} slots are occupied by other Mods in the same slot — the official rule is that for the same character and slot only one takes effect, at random (regardless of load order); to make sure which one plays, move one of them to an empty slot",
-      "xdrPartial": "◐ Action partially in effect: {active} slots will play; {random} slots share their slot with other Mods and take effect at random in game",
+      "xdrPartial": "◐ Action partially in effect: {active} slots will play; {random} slots share their slot with other Mods and take effect at random in-game",
       "slotActions": " · Action: {actions}",
       "slotDesignation": " · Official suggestion: {name}{group}",
       "slotDesignationGroup": " ({group})",
@@ -4357,7 +4357,7 @@
     },
     "badgeNew": "New",
     "badgeNewTitle": "Scanned but not written to addonlist.txt yet; enabling it in the Mod list writes it to the configured position",
-    "badgeDisabledFile": "File in disabled",
+    "badgeDisabledFile": "File in disabled directory",
     "badgeMissingFile": "File missing",
     "badgeDisabledTitle": "This entry exists in addonlist.txt, but the file is currently in the disabled directory and will not be loaded",
     "badgeMissingTitle": "This entry exists in addonlist.txt, but no matching file was found on disk (stale entry)",
@@ -4425,7 +4425,7 @@
       "apply": "Apply and analyze",
       "matchAll": "Match all",
       "matchAny": "Match any",
-      "prioritySuffix": ", with overrides determined by load order",
+      "prioritySuffix": "with overrides determined by load order",
       "previewSuffix": " (click \"Apply and analyze\" to take effect)",
       "prefixCurrent": "Current ",
       "prefixWillApply": "Will apply ",

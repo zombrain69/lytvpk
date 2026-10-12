@@ -4422,3 +4422,26 @@ en 溢出扫描（7 页 + 4 设置分区 + 排序下拉 / 搜索说明书 / 快�
 真机幂等复核：6 个真实包「建议→副本改名→重跑」保持 0 改动。
 未做：真实保存动作的写盘验证（保存复用既有 RenameVPKFile 链路、回归已覆盖；批量写属 P2）。
 ```
+
+### 语言切换入口收口 · 翻 true + en 审校迭代（第 19 项，2026-10-13 · 自动轮次）
+
+环境：仓库源码变更（`LANGUAGE_SWITCH_ENABLED` false→true + 注释/断言同步）；本轮**未重跑**
+桌面冒烟——入口行的真实点击与重绘此前已两轮 CUA 核验（本文件「语言切换动态重绘 P1」
+「语言切换 P3」两节，均以临时翻 true 的冒烟构建完成；机制未变，仅改常量默认值）。
+
+```text
+en 审校迭代（工作区 i18n-en机翻工具/，记录在 review-out/）：
+  首扫（批次1）：keywords 相邻重复 3 处；
+  术语/一致性统一（批次2/2b）：26 处（finder→search、switch→toggle、Game configuration、
+    in-game toggle 全库统一、autoexec 双命名空间对齐等）；
+  全量复核（批次3/3b，9 批并行子代理逐条对照 zh/en）：39 处（计数语义误译 and N more×5、
+    in-game 用词、引用名与真实控件对齐、-exclude 等）；
+  终态：review-check.py v2（增「同文异译」+ 裁定放行）→ 0 待处理 + 141 条裁定放行。
+入口翻 true（唯一改动点，1 行）：
+  core/locale.mjs LANGUAGE_SWITCH_ENABLED = true（+注释）；locale.test.mjs 断言当前值为 true；
+  settings-page.js / language-settings.test.mjs 注释同步。
+静态验证：前端显式清单全量测试 / npm run build / go vet / go test 全过（见 CHANGELOG 同日条目）。
+未做（可选人工项）：翻 true 后默认构建的真机目视（设置页「界面」可见语言行 + 切换即时生效）；
+en 文案的母语者风格润色（扫描/复核已归零，风格级微调可后续迭代）。
+真机/真配置：未触碰（纯源码 + 文档提交）。
+```

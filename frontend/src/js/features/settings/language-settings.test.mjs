@@ -1,5 +1,5 @@
 // 界面语言设置（路线图第 19 项 P0）的接线测试，沿用「源码接线 + 目录内容」双查模式：
-//   - 设置页：语言行渲染受 LANGUAGE_SWITCH_ENABLED 控制（P0 保持隐藏）、
+//   - 设置页：语言行渲染受 LANGUAGE_SWITCH_ENABLED 控制（第 19 项收口后为 true：入口开放）、
 //     变更处理走 normalizeLocale + setLocale + saveConfig；
 //   - 启动接线：app-runtime 在 initConfig 之后应用持久化 locale；i18n-setup 一次装齐目录；
 //   - 目录内容：zh-CN 与 en 都有 settings.interface.language.* 文案；
@@ -13,7 +13,7 @@ const readJson = (rel) => JSON.parse(read(rel));
 
 test("设置页：语言行由 LANGUAGE_SWITCH_ENABLED 控制，切换走 setLocale + 落盘", () => {
   const source = read("./settings-page.js");
-  assert.match(source, /LANGUAGE_SWITCH_ENABLED \? `/, "语言行必须受开关控制（P0 隐藏）");
+  assert.match(source, /LANGUAGE_SWITCH_ENABLED \? `/, "语言行必须受开关控制（机制保留；第 19 项收口后为 true）");
   assert.match(source, /id="settings-language"/);
   assert.match(source, /setLocale\(next\)/, "切换要即时生效");
   assert.match(source, /config\.locale = next/, "locale 要写回配置");

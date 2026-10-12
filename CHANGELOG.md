@@ -1,5 +1,21 @@
 # Changelog
 
+## 未发布 — 语言切换入口开放 + en 审校迭代完成（路线图第 19 项）（2026-10-13）
+
+- **入口开放（第 19 项收口）**：`LANGUAGE_SWITCH_ENABLED`（`core/locale.mjs`）翻 `true`——
+  设置页「界面」panel 出现「界面语言」行（简体中文 / English），切换即时生效并写回 `config.json`；
+  回退 = 改回 `false`（`locale.test.mjs` 有当前值断言）。
+- **en 审校迭代（首扫 → 术语统一 → 全量复核）**：
+  - 术语/一致性统一（批次 2/2b，26 处）：`finder→search`、`switch→toggle`（游戏开关全库统一）、
+    `Game config→Game configuration`、`Action failed→Operation failed`、`Sort order→Sort by`、
+    autoexec 双命名空间（toolbox ↔ settings）对齐等；
+  - 全量复核（9 批并行子代理逐条对照 zh/en，39 处）：计数语义误译（`{count}` 为总数却译
+    "and N more" ×5）、`in-game` 用词统一、引用的按钮/徽标名与真实控件对齐、`-exclusion→-exclude`、
+    `random-active` 机翻腔等；
+  - 扫描器升级：`review-check.py`（工作区）新增「同文异译」检查与裁定放行机制（指纹失配自动
+    重新入队）；终态 0 待处理 + 141 条裁定放行（逐条附理由）。
+- 验证：`go vet ./...` / `go test ./...` / 前端显式清单全量测试 / `npm run build` 全过。
+
 ## 未发布 — 命名规范化 P1 完成：S1–S5 引擎 + 重命名弹窗「按分类建议填充」（路线图第 20 项）（2026-10-13）
 
 - **命名规范引擎**（`internal/parser/naming_rules.go`，参考 sHartet/l4d2-addons naming-rules v1.2）：

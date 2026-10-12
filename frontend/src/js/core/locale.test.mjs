@@ -43,6 +43,6 @@ test("SUPPORTED_LOCALES 与随包目录一一对应（files == locale ids）", (
   assert.deepEqual([...ids].sort(), ["en", "zh-CN"]);
 });
 
-test("LANGUAGE_SWITCH_ENABLED 是布尔（P0 阶段语义为隐藏，翻转在 P1/P2 收口时进行）", () => {
-  assert.equal(typeof LANGUAGE_SWITCH_ENABLED, "boolean");
+test("LANGUAGE_SWITCH_ENABLED 为 true——第 19 项已收口，入口开放（回退 = 改回 false 并更新本断言）", () => {
+  assert.equal(LANGUAGE_SWITCH_ENABLED, true);
 });

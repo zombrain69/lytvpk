@@ -2122,8 +2122,8 @@ function bindSettingsPage(deps) {
     });
   });
 
-  // 界面语言（core/locale.mjs；入口由 LANGUAGE_SWITCH_ENABLED 控制，P0/P1 阶段保持隐藏——
-  // 待 P2 en 全量产出后翻 true）。切换即时生效并写回 config.json；动态页面按「重开生效」约定，
+  // 界面语言（core/locale.mjs；入口由 LANGUAGE_SWITCH_ENABLED 控制，第 19 项收口后为 true：
+  // 入口已开放）。切换即时生效并写回 config.json；动态页面按「重开生效」约定，
   // 未迁的动态面（mods 列表/标签条/目录下拉、工坊卡片、设置页自身）由 app:locale-change 重绘（P1）。
   const applyAndSaveLanguage = async (rawLocale) => {
     const next = normalizeLocale(rawLocale);

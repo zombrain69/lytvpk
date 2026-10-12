@@ -2,8 +2,8 @@
 //
 // 背景与拆包见 `docs/development/i18n-language-switch-eval.md`：
 //   - P0（本批）：多目录装载 + `locale` 持久化 + 启动时应用；切换入口在全部就绪前保持隐藏
-//     （`LANGUAGE_SWITCH_ENABLED = false`）——P1（动态界面重绘）与 P2（en 文案全量产出）
-//     完成后翻 true，用户才看得到设置行。
+//     （`LANGUAGE_SWITCH_ENABLED = false`）——P1（动态界面重绘）/ P2（en 全量产出）/ P3 与
+//     en 审校迭代（2026-10-13）完成后已翻 true，用户可见设置行。
 //   - locale id 与 `frontend/src/messages/*.json` 文件名一致；语言名称用各自语言书写
 //     （endonym，如「简体中文 / English」）——这是界面语言选择的通行做法，不进翻译目录。
 //   - `normalizeLocale` 与后端 `normalizeLocaleKey`（internal/app/config.go）保持同一套白名单：
@@ -18,8 +18,8 @@ export const SUPPORTED_LOCALES = [
 ];
 
 /** LANGUAGE_SWITCH_ENABLED 控制设置页「界面语言」入口的可见性。
- *  P0 保持 false（路线图第 19 项：语言切换入口在全部就绪前保持隐藏）；P1/P2 完成后翻 true。 */
-export const LANGUAGE_SWITCH_ENABLED = false;
+ *  P0–P3 与 en 审校迭代（2026-10-13）完成后第 19 项收口：已翻 true（入口开放；回退即改回 false）。 */
+export const LANGUAGE_SWITCH_ENABLED = true;
 
 /** normalizeLocale 把任意输入归一化成受支持的 locale id（未知值回落 zh-CN）。 */
 export function normalizeLocale(value) {
