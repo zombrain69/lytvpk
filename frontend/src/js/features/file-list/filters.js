@@ -506,6 +506,16 @@ document.addEventListener("app:page-change", (event) => {
   }
 });
 
+// 语言切换（第 19 项 P1）：mods 默认页没有「重进自愈」路径（page-change 的 mods 分支
+// 只重算折叠态），列表/命中计数、标签条与排序按钮文案在这里主动重画；全部是纯内存态
+// 渲染（performSearch 至多读到只读的后端搜索缓存），幂等、不触发扫描。
+document.addEventListener("app:locale-change", () => {
+  void renderTagFilters();
+  void performSearch();
+  updateSortButtonUI();
+  requestAnimationFrame(updateClassicSecondaryTagsCollapse);
+});
+
 window.addEventListener("resize", () => {
   requestAnimationFrame(updateClassicSecondaryTagsCollapse);
   requestAnimationFrame(repositionOpenFilterFlyoutMenus);

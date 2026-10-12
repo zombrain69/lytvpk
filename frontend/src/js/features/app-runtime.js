@@ -882,7 +882,8 @@ async function initializeApp() {
   await initConfig();
   // 界面语言（第 19 项 P0）：配置里持久化的 locale 在首帧渲染前应用——
   // 静态节点由下方 applyTranslations() 统一点亮，动态页面按各自渲染时的当前语言取文案。
-  setLocale(normalizeLocale(getConfig().locale));
+  // `notify: false`：此刻页面还没渲染，不需要广播 app:locale-change（P1 的事件只服务运行中切换）。
+  setLocale(normalizeLocale(getConfig().locale), { notify: false });
   // 先定"文字大小 / 阅读舒适度"，再应用整体缩放：根字号是两者相乘的结果。
   applyReadingComfort({
     textSize: getConfig().textSize,
@@ -1067,6 +1068,21 @@ function setupSettingsAndAboutListeners() {
         OpenFileLocation,
       });
     }
+  });
+
+  // 语言切换（第 19 项 P1）：切换操作只发生在设置页（「界面」分区），而设置页是
+  // JS 整页渲染——需要在原地重画，并保持用户当时所在的分区（否则会跳回第一个分区）。
+  // 其余页面的动态内容每次进入都由 page-change 整页重建，不会以旧语言被看到，不在这里接。
+  document.addEventListener("app:locale-change", () => {
+    const activePanel = document.querySelector(
+      "#settings-page-content .settings-nav-item.active"
+    )?.dataset.panel;
+    void renderSettingsPageWithDeps().then(() => {
+      if (!activePanel) return;
+      document
+        .querySelector(`#settings-page-content .settings-nav-item[data-panel="${activePanel}"]`)
+        ?.click();
+    });
   });
 }
 

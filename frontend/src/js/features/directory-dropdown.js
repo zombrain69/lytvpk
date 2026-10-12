@@ -165,6 +165,12 @@ export function updateTriggerDisplay() {
   textEl.textContent = truncatePath(path);
 }
 
+// 语言切换（第 19 项 P1）：目录下拉由 JS 渲染、也不在 page-change 的重绘路径上
+// （只有 mods 页首次加载时渲染一次），在这里原地重画（含删除按钮 title 等文案）。
+document.addEventListener("app:locale-change", () => {
+  renderDirectoryList();
+});
+
 // 添加新目录到保存列表
 export function addDirectory(path) {
   const config = getConfig();

@@ -54,13 +54,25 @@ export function availableLocales() {
   return i18n.availableLocales();
 }
 
-export function setLocale(locale) {
+export function setLocale(locale, options = {}) {
+  const previous = i18n.getLocale();
   const next = i18n.setLocale(locale);
   if (typeof document !== "undefined") {
     document.documentElement?.setAttribute("lang", next);
     // 语言切换后立即把全部静态节点按新语言回填 —— 与启动时回填走同一条
     // `applyTranslations()` 路径，页面/弹窗都不需要各自处理。
     applyTranslations();
+    // 动态界面重绘（路线图第 19 项 P1）：语言真正变化时广播 `app:locale-change`，
+    // 各页面模块按自己的入口重画（mods 列表/标签条/目录下拉、工坊缓存卡片、设置页整页）。
+    // 启动时应用持久化语言要传 `{ notify: false }`：此刻页面还没渲染，各页面随后
+    // 按当前语言首次渲染，不需要广播。
+    if (options.notify !== false && next !== previous) {
+      document.dispatchEvent(
+        new CustomEvent("app:locale-change", {
+          detail: { locale: next, previous },
+        })
+      );
+    }
   }
   return next;
 }

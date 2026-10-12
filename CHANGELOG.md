@@ -1,5 +1,28 @@
 # Changelog
 
+## 未发布 — 语言切换 P1：动态界面重绘（app:locale-change · 路线图第 19 项）（2026-10-12）
+
+- i18n 运行时：`setLocale(locale, { notify })` 在语言**真正变化**时派发 `app:locale-change`
+  （detail 带新旧 locale）；启动时应用持久化语言传 `{ notify: false }`——首帧渲染前各页
+  按当前语言首渲染，不需要广播。静态节点仍由 `applyTranslations()` 统一回放。
+- 逐页重绘接线（只接「没有重进自愈路径、可能以旧语言被看到」的面，语言切换不触发网络请求）：
+  - mods 默认页（`file-list/filters.js`）：列表/命中计数（`performSearch`）、标签条
+    （`renderTagFilters`）、排序按钮文案（`updateSortButtonUI`）；目录下拉
+    （`directory-dropdown.js`）同步重画。
+  - 工坊页（`app-init.js`）：侧边分类（`renderWorkshopSidebar`）+ 从缓存重画卡片
+    （新增 `rerenderWorkshopBrowserFromCache`：合集徽标 / load-more 按钮 / 搜索框悬停说明，
+    不触发网络；loading 中或空缓存不动）。
+  - 设置页（`app-runtime.js`）：整页重画并**保持当前分区**（切换动作就发生在这一页的
+    「界面」分区）；`applyAndSaveLanguage` 改为**先写内存配置再广播**，避免重绘读到旧选择态。
+  - 其余页（下载/服务器/工具箱/关于）不额外接：每次进入都由 `app:page-change` 整页重建，
+    不会以旧语言被看到。
+- 打开中的弹窗 / toast 维持「重开生效」语义（用户决策记录）；语言切换入口
+  `LANGUAGE_SWITCH_ENABLED` 仍为 false，待 P2（en 文案全量产出）收口后翻转。
+- 测试：新增 `features/locale-change-wiring.test.mjs`（4 项接线契约）+ `i18n-runtime.test.mjs`
+  派发行为测试；`language-settings.test.mjs` 跟进启动静默调用。
+- 验证：`go vet ./...` / `go test ./...` / 前端显式清单 129 文件 649 项 0 失败 /
+  `npm run build` 全过。
+
 ## 未发布 — 语言切换 P0：多目录装载 + en 占位 + locale 持久化（路线图第 19 项）（2026-10-12）
 
 - i18n 运行时新增 `installCatalogs`（一次装多份目录）；启动时随包装载 zh-CN + en。

@@ -167,8 +167,15 @@ Mod 标签（主标签 + 子标签）是**后端规则产出的封闭词汇表**
   zh-CN/en）+ `en.json` 起步目录（缺翻回退）+ `locale` 双端持久化（`normalizeLocaleKey` ↔
   `core/locale.mjs`）+ 启动应用 + 设置页语言行（受 `LANGUAGE_SWITCH_ENABLED` 控制，保持隐藏）
   + en 一致性测试（key 对齐 / 占位符一致 / 无中文残渣 / 规模下限）。
-- **剩余**：P1（`app:locale-change` + 逐页重绘接线 + 沙箱核对）→ P2（en 文案机翻产出与抽查；
-  不做标签值映射层）→ P3（本地化排序与长文本溢出收尾）。入口开关在 P1/P2 收口后翻 true。
+- **P1 已完成（2026-10-12）**：`setLocale` 在语言变化时派发 `app:locale-change`（启动应用持久化
+  语言传 `{ notify: false }` 静默）；逐页重绘接线只接「没有重进自愈路径」的面 —— mods 页
+  （列表/命中计数、标签条、目录下拉、排序按钮）、工坊页（侧边分类 + 缓存卡片
+  `rerenderWorkshopBrowserFromCache`，不触发网络请求）、设置页（整页重画 + 保持当前分区）；
+  其余页（下载/服务器/工具箱/关于）每次进入都由 `app:page-change` 整页重建，不额外接
+  （避免语言切换触发后端/网络查询）。契约测试 `features/locale-change-wiring.test.mjs`；
+  真机逐页效果走 CUA 沙箱（记录见 `manual-verification.md`）。**入口开关仍保持 false，
+  P2 收口后翻转。**
+- **剩余**：P2（en 文案机翻产出与抽查；不做标签值映射层）→ P3（本地化排序与长文本溢出收尾）。
 
 ## 8. 附录：本轮核查命令（均可复跑）
 

@@ -301,6 +301,24 @@ function renderWorkshopGrid(items) {
   });
 }
 
+/** rerenderWorkshopBrowserFromCache 语言切换（app:locale-change）时从缓存重画浏览器的
+ *  语言相关面：卡片列表（合集徽标）、load-more 按钮与搜索框悬停说明；不触发网络请求。
+ *  正在取数（loading）或还没有缓存数据时不动作——下一次 load 会按当前语言渲染。
+ *  （搜索框占位符本身挂了 data-i18n-placeholder，由 applyTranslations 统一回填。） */
+export function rerenderWorkshopBrowserFromCache() {
+  if (browserState.loading || browserState.data.length === 0) return;
+  const grid = document.getElementById("browser-grid");
+  if (grid) {
+    grid.innerHTML = "";
+    renderWorkshopGrid(browserState.data);
+  }
+  updateWorkshopLoadMoreButton();
+  const searchInput = document.getElementById("browser-search-input");
+  if (searchInput) {
+    searchInput.title = describeWorkshopSearchMode();
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   // 工坊搜索是服务端搜索：占位与悬停提示都明说"不收本地语法"，并指出去哪里用本地语法。
   const workshopSearchInput = document.getElementById("browser-search-input");

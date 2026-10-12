@@ -50,3 +50,37 @@ test("installCatalog 兼容单目录调用（旧入口），语义 = 只装一�
   assert.equal(t("greeting.hello", { name: "Lyt" }), "你好 Lyt");
   assert.equal(installCatalog(null), false);
 });
+
+test("setLocale：语言变化派发 app:locale-change；同语言与 notify:false 不派发", () => {
+  const previousDocument = globalThis.document;
+  const dispatched = [];
+  globalThis.document = {
+    documentElement: { setAttribute() {} },
+    querySelectorAll: () => [],
+    dispatchEvent: (event) => {
+      dispatched.push(event);
+      return true;
+    },
+  };
+  try {
+    installCatalogs({ "zh-CN": zh, en }, "zh-CN");
+
+    setLocale("zh-CN"); // 同语言：不派发
+    assert.equal(dispatched.length, 0);
+
+    setLocale("en"); // 变化：派发一次，detail 带新旧语言
+    assert.equal(dispatched.length, 1);
+    assert.equal(dispatched[0].type, "app:locale-change");
+    assert.equal(dispatched[0].detail.locale, "en");
+    assert.equal(dispatched[0].detail.previous, "zh-CN");
+
+    setLocale("en"); // 再设同一语言：不派发
+    assert.equal(dispatched.length, 1);
+
+    setLocale("zh-CN", { notify: false }); // 显式静默（启动应用路径）：不派发
+    assert.equal(dispatched.length, 1);
+  } finally {
+    globalThis.document = previousDocument;
+    installCatalogs({ "zh-CN": zh }, "zh-CN");
+  }
+});

@@ -21,7 +21,7 @@ import { renderTagFilters, performSearch } from "./file-list/filters.js";
 import { applySort, refreshLoadOrderMap } from "./file-list/sorting.js";
 import { refreshTaskList } from "./downloads/task-list.js";
 import { renderServers, refreshAllServers } from "./servers/servers.js";
-import { renderWorkshopSidebar, browserState, loadWorkshopList } from "./workshop/workshop-browser.js";
+import { renderWorkshopSidebar, browserState, loadWorkshopList, rerenderWorkshopBrowserFromCache } from "./workshop/workshop-browser.js";
 import { handleDropImportPaths } from "./drop-import.js";
 import {
   GetRootDirectory,
@@ -235,6 +235,14 @@ export function setupPageChangeListeners() {
       renderServers();
       refreshAllServers();
     }
+  });
+
+  // 语言切换（第 19 项 P1）：工坊页只有「侧边分类」在重进时重建，缓存的卡片列表
+  // 不会自愈——在这里从缓存重画（不触发网络请求）；其余页（下载/服务器/工具箱/关于）
+  // 每次进入都由 page-change 整页重建，不会以旧语言被看到。
+  document.addEventListener("app:locale-change", () => {
+    renderWorkshopSidebar();
+    rerenderWorkshopBrowserFromCache();
   });
 }
 

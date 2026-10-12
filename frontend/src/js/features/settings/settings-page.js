@@ -2122,14 +2122,17 @@ function bindSettingsPage(deps) {
     });
   });
 
-  // 界面语言（core/locale.mjs；P0 阶段入口隐藏——LANGUAGE_SWITCH_ENABLED=false，
-  // P1/P2 收口时翻 true）。切换即时生效并写回 config.json；动态页面按「重开生效」约定。
+  // 界面语言（core/locale.mjs；入口由 LANGUAGE_SWITCH_ENABLED 控制，P0/P1 阶段保持隐藏——
+  // 待 P2 en 全量产出后翻 true）。切换即时生效并写回 config.json；动态页面按「重开生效」约定，
+  // 未迁的动态面（mods 列表/标签条/目录下拉、工坊卡片、设置页自身）由 app:locale-change 重绘（P1）。
   const applyAndSaveLanguage = async (rawLocale) => {
     const next = normalizeLocale(rawLocale);
     const config = deps.getConfig();
     if (next === normalizeLocale(config.locale)) return;
-    setLocale(next);
+    // 先写内存配置再广播：setLocale 会派发 app:locale-change，设置页整页重绘读的是
+    // config.locale（语言单选态），顺序颠倒会重画出旧的选中态。
     config.locale = next;
+    setLocale(next);
     try {
       await deps.saveConfig(config);
       deps.showNotification(

@@ -22,7 +22,11 @@ test("设置页：语言行由 LANGUAGE_SWITCH_ENABLED 控制，切换走 setLoc
 
 test("启动接线：initConfig 之后应用持久化 locale，setup 一次装齐目录", () => {
   const runtime = read("../app-runtime.js");
-  assert.match(runtime, /setLocale\(normalizeLocale\(getConfig\(\)\.locale\)\)/);
+  assert.match(
+    runtime,
+    /setLocale\(normalizeLocale\(getConfig\(\)\.locale\), \{ notify: false \}\)/,
+    "启动应用持久化 locale；P1 起要为运行中切换保留广播，所以启动路径显式静默"
+  );
   const setup = read("../../core/i18n-setup.js");
   assert.match(setup, /installCatalogs\(\{ "zh-CN": zhCN, en \}, "zh-CN"\)/, "启动要一次装齐目录");
 });
