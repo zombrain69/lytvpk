@@ -4312,3 +4312,37 @@ DLL 管理路径（只写沙箱配置，真实配置零改动）
 1. 单条退订闭环：选 1 条 → 确认 → 观察逐条结果与回滚清单落盘；再「重新订阅所选」回滚确认。
 2. 大批量（多选 / 全选筛选）下的进度文案与结果面板可读性。
 3. 移除自定义 DLL（恢复自动检测）与本机无 DLL 环境下的降级显示复核。
+
+### 语言切换动态重绘 P1 · CUA 镜像沙箱核对（2026-10-12 · 自动轮次，真实点击路径）
+
+环境：CUA 调试 EXE（`build/bin/LytVPK-Community-Fork-cua.exe`，含 P1 代码；冒烟构建临时置
+`LANGUAGE_SWITCH_ENABLED=true` 以便点真实入口——临时改动未提交、构建后立即还原，工作区干净）
++ 硬链接镜像库沙箱（`.tmp-cua/zz-real-sandbox`，.vpk 1767 个；写盘只落副本）。
+探针：`.tmp-cua/smoke-2026-10-12-locale/probe-*.js`；截图：同目录 `shots/`。
+
+```text
+设置 →「界面」→ 界面语言点击 English（真实点击，非脚本注入）
+  document lang → en；侧边导航 → Mod Manager / Settings / Toolbox …（app.* 目录命中）
+  设置页原地重画且保持「界面」分区：Language / Reading comfort / Text size 变英文，
+    语言行单选态 = English（先写配置再广播的顺序修正生效）
+  toast（en）：Language switched to English. Some already-open windows apply the change after reopening.
+  切换瞬间的逐面重绘（旧节点断连检测 + file-list:materialized 事件计数）：
+    mods 列表重画管道执行（事件 ≥1；大列表为回收式窗口 + signature 复用，节点按设计复用）；
+    标签条重建；目录下拉重建；工坊卡片从缓存重画（不触发网络）；侧边分类重建
+逐页（en 下）核对：mods / 工坊 / 下载 / 服务器 / 工具箱 / 设置 / 关于 均正常激活渲染；
+  关于页出现英文条目（Open GitHub repository）；en 未覆盖文案按设计回退中文（P2 机翻补齐）
+点击 简体中文 切回：
+  lang → zh-CN；导航 → MOD 管理；toast（zh）界面语言已切换为 简体中文（…）；
+  设置页重画 + 分区保持；mods 管道再次执行（materialized ≥1）；工坊卡片再次重建
+对称终验（en→zh 各一轮均带计数）：en 切换 materialized=1；zh 切换 materialized=1
+
+真库 / 真配置核验
+  %APPDATA%\LytVPK\config.json：冒烟前后 sha256 完全一致（`38641a55…92cd`；未写入）
+  真库 addonlist.txt：sha256 完全一致（`241df1b4…c45e`；全程零写入）
+  语言落盘位置 = 沙箱配置（.tmp-cua/zz-refresh-appdata/LytVPK/config.json：
+    locale 字段 en → 切回后 zh-CN，两层确认持久化生效）
+  收尾：沙箱进程已停止；临时 flag 已还原（git status 干净）
+```
+
+备注：本项只读真机数据 + 只写沙箱配置；「打开中的弹窗 / toast 重开生效」为既定语义
+（用户决策记录）；语言入口将在 P2（en 文案全量机翻）收口后翻 true 面向用户。

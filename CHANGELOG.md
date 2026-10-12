@@ -22,6 +22,9 @@
   派发行为测试；`language-settings.test.mjs` 跟进启动静默调用。
 - 验证：`go vet ./...` / `go test ./...` / 前端显式清单 129 文件 649 项 0 失败 /
   `npm run build` 全过。
+- CUA 镜像沙箱逐页核对通过（真实点击 English ⇄ 简体中文 双向切换）：切换瞬间 mods / 工坊 /
+  设置即时重绘、其余页跨页自愈、toast 与配置落盘全部核验；真配置与真库逐字节未动。
+  记录见 `docs/development/manual-verification.md`「语言切换动态重绘 P1」。
 
 ## 未发布 — 语言切换 P0：多目录装载 + en 占位 + locale 持久化（路线图第 19 项）（2026-10-12）
 
