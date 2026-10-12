@@ -1,6 +1,7 @@
 // Mod 体检结果的展示文案。
 
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 // kind → 文案 key（调用时再取，模块求值期不依赖已安装目录）。
 const HEALTH_ISSUE_KIND_KEYS = {
@@ -144,7 +145,7 @@ export function formatHealthReportSummary(report) {
   if (counts.warning > 0) parts.push(t("settings.health.summary.warning", { count: counts.warning }));
   if (counts.info > 0) parts.push(t("settings.health.summary.info", { count: counts.info }));
   return parts.length > 0
-    ? t("settings.health.summary.issues", { total, parts: parts.join("、") })
+    ? t("settings.health.summary.issues", { total, parts: parts.join(listSeparator()) })
     : t("settings.health.summary.issuesPlain", { total });
 }
 

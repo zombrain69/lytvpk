@@ -4,6 +4,7 @@
 // 差异的权威计算在后端（预览与写入共用同一份计划），这里不做任何过滤或推断。
 
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 function escapeHtmlText(value) {
   return String(value ?? "")
@@ -50,7 +51,7 @@ function renderKeyList(label, keys) {
   const shown = keys
     .slice(0, WRITE_DIFF_LIST_LIMIT)
     .map((key) => `<code>${escapeHtmlText(key)}</code>`)
-    .join("、");
+    .join(listSeparator());
   const rest = keys.length > WRITE_DIFF_LIST_LIMIT ? t("loadOrder.writeDiff.moreCount", { count: keys.length - WRITE_DIFF_LIST_LIMIT }) : "";
   return `<div class="write-diff-row"><span class="write-diff-label">${escapeHtmlText(label)}</span><span class="write-diff-values">${shown}${rest}</span></div>`;
 }

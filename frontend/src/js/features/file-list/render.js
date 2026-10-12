@@ -41,6 +41,7 @@ import {
   groupsForFile,
 } from "../mod-groups/group-view.mjs";
 import { getLocale, t } from "../../core/i18n-runtime.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
@@ -851,8 +852,8 @@ function buildXDRPriorityBadge(file) {
   });
   const summarize = (values, limit = 4) =>
     values.length > limit
-      ? `${values.slice(0, limit).join("、")}${t("mods.common.summarizeMore", { count: values.length })}`
-      : values.join("、");
+      ? `${values.slice(0, limit).join(listSeparator())}${t("mods.common.summarizeMore", { count: values.length })}`
+      : values.join(listSeparator());
 
   if (info.state === "active") {
     const title = t("mods.card.xdrActiveTitle", {
@@ -1380,7 +1381,7 @@ function getArchivePackBadge(file, className = "archive-pack-tag") {
   const format = escapeHtml(String(pack.format || "").toUpperCase());
   const evidence =
     Array.isArray(pack.evidence) && pack.evidence.length > 0
-      ? t("mods.card.archivePackEvidence", { list: escapeHtml(pack.evidence.slice(0, 3).join("、")) })
+      ? t("mods.card.archivePackEvidence", { list: escapeHtml(pack.evidence.slice(0, 3).join(listSeparator())) })
       : "";
   return `<span class="${className}" title="${t("mods.card.archivePackTitle", { label, format, note, evidence })}">${t("mods.card.archivePackBadge", { label })}</span>`;
 }

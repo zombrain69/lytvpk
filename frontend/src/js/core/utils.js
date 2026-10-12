@@ -1,5 +1,6 @@
 import { escapeHtmlText } from "./escape-html.mjs";
 import { t } from "./i18n-runtime.js";
+import { listSeparator } from "./format-list.mjs";
 
 const LOCATION_DISPLAY_KEYS = {
   root: "mods.location.root",
@@ -79,7 +80,7 @@ export function formatTags(primaryTag, secondaryTags = [], voiceCharacters = [],
 	}
 
   if (voiceLabels.length > 0) {
-    const voiceText = t("modals.detail.voiceReplacement", { characters: voiceLabels.join("、") });
+    const voiceText = t("modals.detail.voiceReplacement", { characters: voiceLabels.join(listSeparator()) });
     tags.push(
       `<span class="tag voice-replacement-tag" title="${escapeHtml(voiceText)}">${escapeHtml(voiceText)}</span>`,
     );

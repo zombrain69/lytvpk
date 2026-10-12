@@ -1,6 +1,7 @@
 // 启用方案应用结果的提示文案。
 
 import { t } from "../../core/i18n-runtime.js";
+import { commaSeparator, labelSeparator } from "../../core/format-list.mjs";
 
 export function formatProfileApplySummary(result) {
   const name = String(result?.profileName || "").trim();
@@ -19,5 +20,5 @@ export function formatProfileApplySummary(result) {
   if (dependencies > 0) parts.push(t("settings.profiles.apply.dependencies", { count: dependencies }));
 
   const head = name ? t("settings.profiles.apply.titled", { name }) : t("settings.profiles.apply.untitled");
-  return `${head}：${parts.join("，")}`;
+  return `${head}${labelSeparator()}${parts.join(commaSeparator())}`;
 }

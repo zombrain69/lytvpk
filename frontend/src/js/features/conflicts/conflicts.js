@@ -35,6 +35,7 @@ import {
   scopedConflictRetryDelay,
   shouldRetryScopedConflict,
 } from "./scoped-conflict-retry.mjs";
+import { listSeparator } from "../../core/format-list.mjs";
 
 let EventsOn;
 let showError;
@@ -628,7 +629,7 @@ async function executeScopedConflictAnalysis({ silent = false, retry = false } =
       if (overrides > 0) findings.push(t("conflicts.findingOverrides", { count: overrides }));
       showNotification?.(
         findings.length
-          ? t("conflicts.analysisDone", { count: files.length, scope: scopeLabel, findings: findings.join("、") })
+          ? t("conflicts.analysisDone", { count: files.length, scope: scopeLabel, findings: findings.join(listSeparator()) })
           : t("conflicts.analysisClean", { count: files.length, scope: scopeLabel }),
         conflicts > 0 ? "warning" : overrides > 0 ? "info" : "success",
       );
@@ -1101,7 +1102,7 @@ function renderConflictModIgnoreSection(result) {
     owners.textContent = (annotation?.vpk_files || [])
       .map((vpk) => vpk?.name || vpk?.path || "")
       .filter(Boolean)
-      .join("、");
+      .join(listSeparator());
     item.append(path, owners);
     list.appendChild(item);
   });

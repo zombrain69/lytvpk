@@ -6,6 +6,7 @@
 import { t } from "../../core/i18n-runtime.js";
 import { createLocaleCollator } from "../../core/locale-collator.mjs";
 import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
+import { listSeparator } from "../../core/format-list.mjs";
 
 export function normalizeGroupKey(key) {
   return String(key ?? "")
@@ -333,7 +334,7 @@ export function formatGroupMissingNotice(missingNames, limit = 4) {
     .map((name) => String(name || "").trim())
     .filter(Boolean);
   if (names.length === 0) return "";
-  const shown = names.slice(0, limit).join("、");
+  const shown = names.slice(0, limit).join(listSeparator());
   const extra = names.length > limit ? t("strategyGroups.view.missingMore", { count: names.length }) : "";
   return t("strategyGroups.view.missingNotice", { count: names.length, shown, extra });
 }
@@ -361,7 +362,7 @@ export function formatFileGroupImpact(groupNames) {
     .map((name) => String(name || "").trim())
     .filter(Boolean);
   if (names.length === 0) return "";
-  return t("strategyGroups.view.deleteImpact", { count: names.length, names: names.join("、") });
+  return t("strategyGroups.view.deleteImpact", { count: names.length, names: names.join(listSeparator()) });
 }
 
 /** fileMatchesGroupFilter：没有勾选任何组时视为不过滤。 */

@@ -16,6 +16,7 @@ import {
 import { initDetailIgnoreControls, syncDetailIgnoreEditor } from "./detail-ignore.js";
 import { buildTagEvidenceRows } from "./tag-evidence-view.mjs";
 import { openXDRSlotMoveDialog } from "./xdr-slot-move.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 let currentDetailFile = null;
 let detailPreviousFocus = null;
@@ -214,7 +215,7 @@ export function showFileDetail(filePath) {
     const xdrRows = xdrSlots
       .map((slot) => {
         const actions = Array.isArray(slot.actions) && slot.actions.length > 0
-          ? t("modals.detail.slotActions", { actions: slot.actions.join("、") })
+          ? t("modals.detail.slotActions", { actions: slot.actions.join(listSeparator()) })
           : "";
         // 槽位用途只是官方建议（作者可以自选别的槽），所以写成"官方建议"而不是断言。
         const designation = slot.slotName
@@ -229,7 +230,7 @@ export function showFileDetail(filePath) {
             .map((rival) => String(rival.title || rival.name || "").trim())
             .filter(Boolean)
             .slice(0, 3)
-            .join("、");
+            .join(listSeparator());
           stateHtml = `<span class="detail-xdr-state is-random" title="${t("modals.detail.slotStateRandomTitle")}">${t("modals.detail.slotStateRandom")}${rivals ? t("modals.detail.slotStateRandomRivals", { rivals: escapeHtml(rivals) }) : ""}</span>`;
         }
         // 同槽冲突（随机生效）的行给一个「移到空槽」入口：
@@ -248,7 +249,7 @@ export function showFileDetail(filePath) {
   const detailTagsContainer = document.getElementById("detail-detail-tags");
   const voiceCharacters = [...new Set((file.voiceCharacters || []).map((tag) => String(tag || "").trim()).filter(Boolean))];
   const voiceTagsHtml = voiceCharacters.length > 0
-    ? `<span class="tag voice-replacement-tag" title="${t("modals.detail.voiceReplacementTitle")}">${t("modals.detail.voiceReplacement", { characters: voiceCharacters.map(escapeHtml).join("、") })}</span>`
+    ? `<span class="tag voice-replacement-tag" title="${t("modals.detail.voiceReplacementTitle")}">${t("modals.detail.voiceReplacement", { characters: voiceCharacters.map(escapeHtml).join(listSeparator()) })}</span>`
     : "";
   const secondaryTagsHtml =
     file.secondaryTags && file.secondaryTags.length > 0

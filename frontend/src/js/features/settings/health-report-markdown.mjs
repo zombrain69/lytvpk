@@ -5,6 +5,7 @@ import {
   formatHealthSeverity,
 } from "./health-report-format.mjs";
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator, formatParenthetical } from "../../core/format-list.mjs";
 
 const SEVERITY_ORDER = ["critical", "warning", "info"];
 
@@ -35,7 +36,7 @@ export function buildHealthReportMarkdown(report, options = {}) {
   const countParts = SEVERITY_ORDER.filter((severity) => counts[severity] > 0).map(
     (severity) => `${formatHealthSeverity(severity)} ${counts[severity]}`,
   );
-  const countText = countParts.length > 0 ? `（${countParts.join("、")}）` : "";
+  const countText = countParts.length > 0 ? `${formatParenthetical(countParts.join(listSeparator()))}` : "";
 
   const lines = [
     t("settings.health.markdown.title"),

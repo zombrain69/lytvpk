@@ -17,6 +17,7 @@ import {
   describeArchiveSearchResult,
   searchArchivePackages,
 } from "./archive-search.mjs";
+import { listSeparator } from "../../core/format-list.mjs";
 // 本地化排序（第 19 项 P3）：归档包名跟随界面语言（数字感知）。
 const ARCHIVE_NAME_COLLATOR = createLocaleCollator({ numeric: true, sensitivity: "base" });
 
@@ -640,7 +641,7 @@ function createVPKRow(vpk) {
   row.append(label, state, meta);
   if (vpk.valid && Array.isArray(vpk.internalFiles) && vpk.internalFiles.length) {
     const preview = document.createElement("small");
-    preview.textContent = t("toolbox.archiveManager.internalSample", { list: vpk.internalFiles.slice(0, 5).join("、"), more: vpk.internalFiles.length > 5 ? " …" : "" });
+    preview.textContent = t("toolbox.archiveManager.internalSample", { list: vpk.internalFiles.slice(0, 5).join(listSeparator()), more: vpk.internalFiles.length > 5 ? " …" : "" });
     row.appendChild(preview);
   }
   return row;

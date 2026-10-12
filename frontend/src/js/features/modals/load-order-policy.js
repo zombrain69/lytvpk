@@ -29,6 +29,7 @@ import {
 } from "../../../../wailsjs/go/app/App";
 import { confirmHtmlInApp } from "./confirm.js";
 import { buildRestoreConfirmHtml, buildWriteDiffHtml, hasWriteDiffChanges } from "./load-order-write-diff.mjs";
+import { listSeparator } from "../../core/format-list.mjs";
 
 let currentLoadOrderFile = null;
 let currentOrder = -1;
@@ -475,7 +476,7 @@ async function applyLoadOrderPolicy(options = {}) {
     // 清理前已自动留一份历史备份；这里把结果说清楚，避免用户以为条目"凭空消失"。
     const removedStale = Array.isArray(result.removedStale) ? result.removedStale : [];
     const staleNote = removedStale.length > 0
-      ? t("loadOrder.staleNote", { count: removedStale.length, list: removedStale.slice(0, 3).join("、"), more: removedStale.length > 3 ? t("loadOrder.staleMore") : "" })
+      ? t("loadOrder.staleNote", { count: removedStale.length, list: removedStale.slice(0, 3).join(listSeparator()), more: removedStale.length > 3 ? t("loadOrder.staleMore") : "" })
       : "";
     renderPreview(currentEntries, staleNote || t("loadOrder.written"));
     currentOrder = order;
@@ -828,7 +829,7 @@ function preselectContextEntries() {
     });
   if (unmatchedNames.length > 0) {
     const contextNote = document.getElementById("load-order-context-note");
-    if (contextNote) contextNote.textContent += t("loadOrder.unmatchedSuffix", { names: unmatchedNames.join("、") });
+    if (contextNote) contextNote.textContent += t("loadOrder.unmatchedSuffix", { names: unmatchedNames.join(listSeparator()) });
   }
 }
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## 未发布 — en 代码层标点残留清理（阶段 A：列表分隔符 + 句读）（路线图第 21 项）（2026-10-13）
+
+- **新模块 `core/format-list.mjs`**：`listSeparator()` / `clauseSeparator()` / `commaSeparator()` /
+  `labelSeparator()` / `sentenceEnd()` / `formatParenthetical()` —— 随 `getLocale()` **实时取值**；
+  zh-CN 与替换前**逐字节一致**（、；，：。（x）），en 用 `", "` / `"; "` / `": "` / `"."` / `(x)`。
+- **调用点替换（30 个文件、66 项）**：代码层硬编码的 `join("、")` / `join("；")` / `join("，")`
+  （筛选与分组摘要、冲突徽标与范围、体检报告与 Markdown 导出、移动/删除结果、设置页状态与
+  依赖/方案摘要、工坊合集摘要、详情面板、加载顺序 diff……）与 `` `：${detail}` `` 前缀
+  （批量启用/禁用/标签的失败原因、读取错误行等）全部改走工具；`+ "。"` 句末与体检 Markdown 的
+  全角括号一并收敛。en 界面不再渲染「A、B」「失败：原因」这类全角混排。
+- **回归守卫**：`core/format-list.test.mjs` —— 行为测试（zh/en 双态 + 切换实时性）+ 源码扫描
+  （非测试源码不得再出现 `join("、")` / `join("；")` / `join("，")` / `+ "。"`）。
+- **验证**：前端 695 项 0 失败（新增 4 项 + 更新 1 项源级断言）；`npm run build` / `go vet` /
+  `go test` 全过。
+- 未做（记入路线图第 21 项备注，阶段 B）：由 zh 标签值拼成的参数（批量禁用 `{scope}` 如
+  「人物mod」）与后端中文错误串经 `{error}/{reason}` 暴露给 en 界面。
+
 ## 未发布 — 命名规范化 P3 完成：规则配置（词表替换 + 例外表）（路线图第 20 项）（2026-10-13）
 
 - **规则文件**（配置目录 `naming_rules.json`，`internal/app/naming_rules_config.go`）：

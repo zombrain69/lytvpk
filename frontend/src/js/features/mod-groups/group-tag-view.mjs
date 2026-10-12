@@ -1,6 +1,7 @@
 // 「给这组打标签」的纯文案层（与 DOM 无关，node --test 覆盖）。
 
 import { t } from "../../core/i18n-runtime.js";
+import { clauseSeparator } from "../../core/format-list.mjs";
 
 /** formatTagApplySummary 汇总一次打标签的结果。 */
 export function formatTagApplySummary(result) {
@@ -16,7 +17,7 @@ export function formatTagApplySummary(result) {
   if (skipped > 0) parts.push(t("strategyGroups.tag.summary.skipped", { count: skipped }));
   if (missing > 0) parts.push(t("strategyGroups.tag.summary.missing", { count: missing }));
   if (failed > 0) parts.push(t("strategyGroups.tag.summary.failed", { count: failed }));
-  return parts.join("；");
+  return parts.join(clauseSeparator());
 }
 
 /** formatTagOrigin 说明标签是怎么推导出来的。 */

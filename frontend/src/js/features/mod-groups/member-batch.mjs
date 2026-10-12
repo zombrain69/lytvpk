@@ -10,6 +10,7 @@
 
 import { t } from "../../core/i18n-runtime.js";
 import { normalizeGroupKey } from "./group-view.mjs";
+import { clauseSeparator } from "../../core/format-list.mjs";
 
 /**
  * collectMemberBatchTargets 把勾选的成员键按可执行的动作分流。
@@ -257,7 +258,7 @@ export function formatMemberBatchResult({
   const parts = [t("strategyGroups.memberBatch.result.done", { label, count: succeeded })];
   if (skipped > 0) parts.push(t("strategyGroups.memberBatch.result.skipped", { count: skipped }));
   if (failed > 0) parts.push(t("strategyGroups.memberBatch.result.failed", { count: failed }));
-  const summary = parts.join("；");
+  const summary = parts.join(clauseSeparator());
   const reason = String(firstError || "").trim();
   return reason ? t("strategyGroups.memberBatch.result.reason", { summary, reason }) : summary;
 }

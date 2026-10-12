@@ -8,6 +8,7 @@
 // 并暴露 usesCombination 供界面决定是否禁用组合开关。
 
 import { t } from "../../core/i18n-runtime.js";
+import { labelSeparator } from "../../core/format-list.mjs";
 
 export const CONFLICT_SCOPE_DEFAULT_RULES = Object.freeze([{ type: "enabled", value: "" }]);
 
@@ -54,7 +55,7 @@ export function describeConflictScope(options = {}) {
   const joined =
     matchMode === "and" ? ruleLabels.join(" + ") : ruleLabels.join(" / ");
   const prefix = matchMode === "and" ? t("conflicts.scope.matchAll") : t("conflicts.scope.matchAny");
-  return { label: `${prefix}：${joined}`, usesCombination: true, ruleLabels, matchMode };
+  return { label: `${prefix}${labelSeparator()}${joined}`, usesCombination: true, ruleLabels, matchMode };
 }
 
 /**
@@ -73,7 +74,7 @@ export function conflictScopeSummaryLabel(options = {}) {
  */
 export function formatConflictScopeText(options = {}, prefix = "") {
   const effectivePrefix = prefix || t("conflicts.scope.prefixCurrent");
-  return `${effectivePrefix}：${conflictScopeSummaryLabel(options)}`;
+  return `${effectivePrefix}${labelSeparator()}${conflictScopeSummaryLabel(options)}`;
 }
 
 /**

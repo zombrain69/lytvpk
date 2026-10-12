@@ -31,6 +31,7 @@ import {
   canApplyBatchGameStateLocally,
   batchGameStateActionLabel,
 } from "./batch-game-state-format.mjs";
+import { labelSeparator } from "../../core/format-list.mjs";
 
 /**
  * setSelectedGameEnabled 批量设置"游戏内开关"（addonlist.txt 的 0/1）。
@@ -179,7 +180,7 @@ export async function enableSelected() {
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
-      const reason = failures[0] ? `：${failures[0]}` : "";
+      const reason = failures[0] ? `${labelSeparator()}${failures[0]}` : "";
       showNotification(t("mods.ops.enable.failed", { count: failedCount, reason }), "error");
     }
   } catch (error) {
@@ -232,7 +233,7 @@ export async function disableSelected() {
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
-      const reason = failures[0] ? `：${failures[0]}` : "";
+      const reason = failures[0] ? `${labelSeparator()}${failures[0]}` : "";
       showNotification(t("mods.ops.disable.failed", { count: failedCount, reason }), "error");
     }
   } catch (error) {
@@ -287,7 +288,7 @@ export async function disableAllMods(primaryTag = "") {
         }
 
         if (failedCount > 0) {
-          const reason = failures[0] ? `：${failures[0]}` : "";
+          const reason = failures[0] ? `${labelSeparator()}${failures[0]}` : "";
           showNotification(t("mods.ops.disableAll.failed", { count: failedCount, scope: scopeLabel, reason }), "error");
         }
       } catch (error) {
@@ -597,7 +598,7 @@ export async function batchToggleVisibility(hide) {
       if (failCount > 0 || skippedCount > 0) {
         const skippedText = skippedCount > 0 ? t("mods.ops.visibility.skipped", { count: skippedCount }) : "";
         // 同批量启用/禁用：失败时把第一个原因一起说出来，否则用户只知道"有失败"。
-        const reason = failCount > 0 && failures[0] ? `：${failures[0]}` : "";
+        const reason = failCount > 0 && failures[0] ? `${labelSeparator()}${failures[0]}` : "";
         showNotification(
           t("mods.ops.visibility.done", { success: successCount, fail: failCount, reason, skipped: skippedText }),
           "warning",

@@ -55,7 +55,12 @@ test("批量设置标签失败时带上第一个失败原因", () => {
   const batchTags = readFileSync(new URL("./batch-tags.js", import.meta.url), "utf8");
   assert.match(
     batchTags,
-    /const reason = errors\[0\] \? `：\$\{errors\[0\]\}` : "";/,
+    /import \{ labelSeparator \} from "\.\.\/\.\.\/core\/format-list\.mjs";/,
+    "分隔符要走 locale 感知工具（第 21 项）",
+  );
+  assert.match(
+    batchTags,
+    /const reason = errors\[0\] \? `\$\{labelSeparator\(\)\}\$\{errors\[0\]\}` : "";/,
     "失败原因要取自真实错误",
   );
   assert.match(

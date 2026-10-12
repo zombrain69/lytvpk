@@ -6,6 +6,7 @@
 
 import { shortcutRowsByIds } from "../../core/shortcuts.mjs";
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 function escapeHtmlText(value) {
   return String(value ?? "")
@@ -226,5 +227,5 @@ export function buildSearchHelpTitle(variant = MOD_SEARCH_HELP_VARIANT) {
   const fields = resolveVariantFields(variant);
   const syntaxRows = (variant?.syntaxRows || SEARCH_SYNTAX_ROWS).map(resolveSyntaxRow);
   const syntax = syntaxRows.map((row) => row.syntax).join(" / ");
-  return t("search.titleTooltip", { fields: fields.join("、"), syntax });
+  return t("search.titleTooltip", { fields: fields.join(listSeparator()), syntax });
 }

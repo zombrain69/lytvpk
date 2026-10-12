@@ -23,6 +23,7 @@ import {
 import { GetPrimaryTags, GetSecondaryTags, GetSecondaryTagCounts, SearchVPKFiles, ScanVPKFiles, GetVPKFiles } from "../../../../wailsjs/go/app/App";
 import { compareSecondaryTagsByUsage } from "./secondary-tag-usage.mjs";
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 const LOCATION_FILTERS = ["root", "workshop", "disabled"];
 const GAME_STATE_FILTERS = ["enabled", "disabled", "unknown"];
@@ -104,8 +105,8 @@ function getSecondaryMatchModeLabel() {
 function getSelectedSecondaryLabel() {
   const selected = appState.selectedSecondaryTags || [];
   if (selected.length === 0) return t("mods.category.action.all");
-  if (selected.length <= 2) return selected.join("、");
-  return `${selected.slice(0, 2).join("、")}${t("mods.common.summarizeMore", { count: selected.length })}`;
+  if (selected.length <= 2) return selected.join(listSeparator());
+  return `${selected.slice(0, 2).join(listSeparator())}${t("mods.common.summarizeMore", { count: selected.length })}`;
 }
 
 function uniqueSecondaryTags(tags) {
@@ -1162,9 +1163,9 @@ export function updateLocationFilterDropdownUI() {
       trigger.textContent = t("mods.category.action.all");
     } else if (selectedNames.length <= 2) {
       // 显示具体位置，避免“已选 1 个”掩盖了另一个同名 VPK 被筛掉的原因。
-      trigger.textContent = selectedNames.join("、");
+      trigger.textContent = selectedNames.join(listSeparator());
     } else {
-      trigger.textContent = `${selectedNames.slice(0, 2).join("、")}${t("mods.common.summarizeMore", { count: selectedNames.length })}`;
+      trigger.textContent = `${selectedNames.slice(0, 2).join(listSeparator())}${t("mods.common.summarizeMore", { count: selectedNames.length })}`;
     }
 
     menu.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
@@ -1229,8 +1230,8 @@ function updateGameStateFilterDropdownUI() {
   if (trigger && menu) {
     trigger.textContent = selectedNames.length
       ? selectedNames.length <= 2
-        ? selectedNames.join("、")
-        : `${selectedNames.slice(0, 2).join("、")}${t("mods.common.summarizeMore", { count: selectedNames.length })}`
+        ? selectedNames.join(listSeparator())
+        : `${selectedNames.slice(0, 2).join(listSeparator())}${t("mods.common.summarizeMore", { count: selectedNames.length })}`
       : t("mods.category.action.all");
     menu.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
       checkbox.checked = appState.selectedGameStates.includes(checkbox.value);

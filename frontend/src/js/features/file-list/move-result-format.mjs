@@ -7,6 +7,7 @@
 
 import { explainOperationError, formatExplanation } from "../../core/action-explanation.mjs";
 import { t } from "../../core/i18n-runtime.js";
+import { clauseSeparator, labelSeparator } from "../../core/format-list.mjs";
 
 const DEFAULT_FAILURE_LIMIT = 3;
 
@@ -27,14 +28,14 @@ export function formatMoveFailures(result, limit = DEFAULT_FAILURE_LIMIT) {
     if (!explained.matched) return message;
     const line = formatExplanation(explained);
     // 保留"哪个文件"：解释层替换的是原因描述，不该把对象名一起吞掉。
-    return explained.subject && !line.startsWith(explained.subject) ? `${explained.subject}：${line}` : line;
+    return explained.subject && !line.startsWith(explained.subject) ? `${explained.subject}${labelSeparator()}${line}` : line;
   });
   const head = t("mods.move.failureHead", { count: total });
   if (shown.length === 0) return head;
 
   const rest = total - shown.length;
   const tail = rest > 0 ? t("mods.move.failureMore", { count: rest }) : "";
-  return `${head}：${shown.join("；")}${tail}`;
+  return `${head}${labelSeparator()}${shown.join(clauseSeparator())}${tail}`;
 }
 
 /** formatMoveSummary 生成成功 / 跳过 / 取消的一行汇总（失败部分由上面那个函数负责）。 */

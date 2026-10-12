@@ -33,6 +33,7 @@ import { confirmVPKIntegrityWarning } from "./vpk-risk-warning.js";
 import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 import { formatFileGroupImpact, normalizeGroupKey } from "../mod-groups/group-view.mjs";
 import { promptSingletonConflict } from "../conflicts/singleton-conflict.js";
+import { labelSeparator } from "../../core/format-list.mjs";
 
 // checkSingletonConflict 调后端判定"同类已启用"，失败时按"没有冲突"处理：
 // 这只是体验增强，不能因为它把启用流程整个挡住。
@@ -368,7 +369,7 @@ export async function moveWorkshopFilesToAddons(filePaths) {
     const name = String(progress?.name || "").trim();
     const message = String(progress?.message || t("mods.ops.transfer.progressFallback"));
     const suffix = total > 0 ? ` (${current}/${total})` : "";
-    updateLoadingMessage(`${message}${name ? `：${name}` : ""}${suffix}`);
+    updateLoadingMessage(`${message}${name ? `${labelSeparator()}${name}` : ""}${suffix}`);
   });
 
   showLoadingScreen();

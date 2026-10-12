@@ -2,6 +2,7 @@ import { showWarning } from "../../core/toast.js";
 import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 import { openVPKIntegrityForPaths } from "../diagnostics/vpk-integrity.js";
+import { clauseSeparator, labelSeparator } from "../../core/format-list.mjs";
 
 /**
  * Normalize paths while preserving their first-seen order.
@@ -73,7 +74,7 @@ export function formatVPKRiskWarning(operationLabel = null, items = []) {
   const safeItems = Array.isArray(items) ? items : [];
   const details = safeItems
     .map((item) => {
-      const issueText = Array.isArray(item?.issues) ? item.issues.filter(Boolean).join("；") : "";
+      const issueText = Array.isArray(item?.issues) ? item.issues.filter(Boolean).join(clauseSeparator()) : "";
       const detail = issueText || item?.detail || item?.error || t("modals.vpkRisk.issueFallback");
       return t("modals.vpkRisk.bullet", {
         name: item?.name || basename(item?.path || t("modals.vpkRisk.unknownVpk")),
@@ -187,7 +188,7 @@ function createRiskContent(items, operationLabel) {
     name.textContent = item.name;
     listItem.appendChild(name);
     const details = document.createElement("span");
-    details.textContent = `：${item.issues.join("；") || t("modals.vpkRisk.issueFallback")}`;
+    details.textContent = `${labelSeparator()}${item.issues.join(clauseSeparator()) || t("modals.vpkRisk.issueFallback")}`;
     listItem.appendChild(details);
     if (item.repairable) {
       const badge = document.createElement("small");

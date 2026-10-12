@@ -66,6 +66,7 @@ import {
 import { openGroupTagDialog } from "./group-tag.js";
 import { buildTagApplyPlan } from "./group-tag-view.mjs";
 import { openAgentPromptEditor } from "./agent-prompt.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 let controlsBound = false;
 const suggestionSelections = new Map();
@@ -988,7 +989,7 @@ function renderSuggestionList(suggestions) {
               count: entry.keys.length,
             }),
           )
-          .join("、"),
+          .join(listSeparator()),
       });
       applyTagButton.addEventListener("click", () => {
         void applyImportedTags(suggestion, importedTagPlan);
@@ -1137,7 +1138,7 @@ async function applyImportedTags(suggestion, plan) {
     .map((entry) =>
       t("strategyGroups.suggest.tagPlanEntry", { tag: entry.tag, count: entry.keys.length }),
     )
-    .join("、");
+    .join(listSeparator());
   showConfirmModal(
     t("strategyGroups.suggest.applyImportedTitle"),
     t("strategyGroups.suggest.applyImportedMessage", {

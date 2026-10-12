@@ -1,6 +1,7 @@
 // 工坊合集实体化的文案层（与 DOM 无关，node --test 覆盖）。
 
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator, clauseSeparator, labelSeparator } from "../../core/format-list.mjs";
 
 export function countMissingCollectionMembers(link) {
   if (!link || !Array.isArray(link.members)) return 0;
@@ -22,12 +23,12 @@ export function formatCollectionRefreshSummary(result) {
   if (!result) return "";
   const parts = [];
   if (Number(result.addedCount || 0) > 0) {
-    const titles = (result.addedTitles || []).filter(Boolean).slice(0, 3).join("、");
+    const titles = (result.addedTitles || []).filter(Boolean).slice(0, 3).join(listSeparator());
     const titlesPart = titles ? t("settings.collections.refresh.titlesPart", { titles }) : "";
     parts.push(t("settings.collections.refresh.added", { count: result.addedCount, titles: titlesPart }));
   }
   if (Number(result.removedCount || 0) > 0) {
-    const titles = (result.removedTitles || []).filter(Boolean).slice(0, 3).join("、");
+    const titles = (result.removedTitles || []).filter(Boolean).slice(0, 3).join(listSeparator());
     const titlesPart = titles ? t("settings.collections.refresh.titlesPart", { titles }) : "";
     parts.push(t("settings.collections.refresh.removed", { count: result.removedCount, titles: titlesPart }));
   }
@@ -35,7 +36,7 @@ export function formatCollectionRefreshSummary(result) {
     parts.push(t("settings.collections.refresh.missing", { count: result.missingCount }));
   }
   if (parts.length === 0) return t("settings.collections.refresh.noChange");
-  return parts.join("；");
+  return parts.join(clauseSeparator());
 }
 
 export function formatCollectionQueueSummary(queuedIds) {
@@ -72,7 +73,7 @@ export function formatCollectionCheckAllSummary(results) {
     );
   } else {
     parts.push(
-      changed.map((item) => `${item.title || item.collectionId}：${formatCollectionRefreshSummary(item)}`).join("；"),
+      changed.map((item) => `${item.title || item.collectionId}${labelSeparator()}${formatCollectionRefreshSummary(item)}`).join(clauseSeparator()),
     );
   }
   if (failed.length > 0) {
@@ -85,5 +86,5 @@ export function formatCollectionCheckAllSummary(results) {
       }),
     );
   }
-  return parts.join("；");
+  return parts.join(clauseSeparator());
 }

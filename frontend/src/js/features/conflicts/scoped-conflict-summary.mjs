@@ -9,6 +9,7 @@
 // （复现见 scoped-conflict-summary 的测试与真机快照）。
 
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator, clauseSeparator } from "../../core/format-list.mjs";
 
 export function conflictSeverityRank(severity) {
   if (severity === "critical") return 3;
@@ -136,14 +137,14 @@ export function buildScopedConflictTitle(summary, options = {}) {
   if (overrides > 0) {
     const winners = Array.isArray(summary.winners) ? summary.winners.filter(Boolean) : [];
     const winnerText = winners.length
-      ? t("conflicts.badgeWinnersSuffix", { names: winners.join("、") })
+      ? t("conflicts.badgeWinnersSuffix", { names: winners.join(listSeparator()) })
       : "";
     parts.push(t("conflicts.badgeTitleOverride", { groups: overrides, files: overrideFiles, winners: winnerText }));
   }
   if (parts.length === 0) {
     return t("conflicts.badgeTitleNoOverlap", { scope: scopeLabel });
   }
-  return t("conflicts.badgeTitleSummary", { scope: scopeLabel, parts: parts.join("；") });
+  return t("conflicts.badgeTitleSummary", { scope: scopeLabel, parts: parts.join(clauseSeparator()) });
 }
 
 function conflictFileHasTag(file, wanted) {

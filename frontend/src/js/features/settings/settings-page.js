@@ -59,6 +59,7 @@ import {
   mutationCounts,
   validateAliasInput,
 } from "./naming-rules-view.mjs";
+import { listSeparator, clauseSeparator, commaSeparator, labelSeparator } from "../../core/format-list.mjs";
 
 const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
@@ -196,7 +197,7 @@ export async function renderSettingsPage(deps) {
       }
       return await reader();
     } catch (error) {
-      settingsReadErrors.push(`${label}：${String(error?.message || error || t("settings.page.readFailed"))}`);
+      settingsReadErrors.push(`${label}${labelSeparator()}${String(error?.message || error || t("settings.page.readFailed"))}`);
       return fallback;
     }
   };
@@ -328,7 +329,7 @@ export async function renderSettingsPage(deps) {
     ${settingsReadErrors.length ? `
       <div class="settings-read-warning" role="status">
         <strong>${t("settings.page.readWarningTitle")}</strong>
-        <span>${escapeHtml(settingsReadErrors.join("；"))}</span>
+        <span>${escapeHtml(settingsReadErrors.join(clauseSeparator()))}</span>
       </div>
     ` : ""}
     <div class="settings-layout embedded-settings">
@@ -886,7 +887,7 @@ export async function renderSettingsPage(deps) {
                   <div class="settings-profile-item">
                     <div class="settings-profile-main">
                       <strong>${escapeHtml(record.name)}</strong>
-                      <span>${t("settings.addonlist.dependencies.itemPrefix", { list: escapeHtml((record.dependencies || []).map((item) => item.name).join("、") || t("settings.addonlist.dependencies.none")) })}</span>
+                      <span>${t("settings.addonlist.dependencies.itemPrefix", { list: escapeHtml((record.dependencies || []).map((item) => item.name).join(listSeparator()) || t("settings.addonlist.dependencies.none")) })}</span>
                     </div>
                     <div class="settings-profile-actions">
                       <button type="button" class="settings-dependency-enable" data-dependency-key="${escapeAttr(record.key)}" data-dependency-name="${escapeAttr(record.name)}">${t("settings.addonlist.dependencies.enable")}</button>
@@ -1132,7 +1133,7 @@ function renderModHealthIssues(container, report) {
       total: autoFix.total,
       actions: autoFix.actions
         .map((item) => t("settings.addonlist.health.autofixEntry", { label: item.shortLabel, count: item.count }))
-        .join("、"),
+        .join(listSeparator()),
     });
     container.appendChild(bar);
   }
@@ -1777,7 +1778,7 @@ function bindConflictAnalysisSettings(deps) {
       button.disabled = true;
       try {
         const result = await deps.RefreshWorkshopCollection(button.dataset.collectionId);
-        setCollectionStatus(`${result.title || result.collectionId}：${formatCollectionRefreshSummary(result)}`);
+        setCollectionStatus(`${result.title || result.collectionId}${labelSeparator()}${formatCollectionRefreshSummary(result)}`);
         void refreshCollections();
       } catch (error) {
         setCollectionStatus(t("settings.workshop.collections.checkFailed", { error: String(error?.message || error) }));
@@ -2004,7 +2005,7 @@ function bindSettingsPage(deps) {
     (preview?.items || []).forEach((item) => {
       const row = document.createElement("div");
       row.className = "setting-row-desc";
-      const samples = (item.samples || []).slice(0, 3).join("、");
+      const samples = (item.samples || []).slice(0, 3).join(listSeparator());
       const samplesPart = samples
         ? t("settings.addonlist.maintenance.customTags.ruleHitSamples", { samples })
         : "";
@@ -2642,7 +2643,7 @@ function bindSettingsPage(deps) {
       if (result?.unchanged) parts.push(t("settings.workshop.data.enrich.unchanged", { count: result.unchanged }));
       if (result?.missing?.length) parts.push(t("settings.workshop.data.enrich.missing", { count: result.missing.length }));
       if (result?.failed?.length) parts.push(t("settings.workshop.data.enrich.failed", { count: result.failed.length }));
-      deps.showNotification(t("settings.workshop.data.enrich.done", { parts: parts.join("，") }), "success");
+      deps.showNotification(t("settings.workshop.data.enrich.done", { parts: parts.join(commaSeparator()) }), "success");
     } catch (error) {
       deps.showNotification(t("settings.workshop.data.enrich.failure", { error }), "error");
     } finally {

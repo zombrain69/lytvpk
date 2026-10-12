@@ -18,6 +18,7 @@ import {
   formatMoveNotice,
   splitMoveFiles,
 } from "./xdr-slot-move-view.mjs";
+import { listSeparator, clauseSeparator } from "../../core/format-list.mjs";
 
 function errorText(error) {
   return String(error?.message || error || "");
@@ -127,12 +128,12 @@ export async function openXDRSlotMoveDialog({ filePath, character, fromSlot, onF
   });
   const rivals = Array.isArray(preview.rivals) ? preview.rivals.slice(0, 4) : [];
   rivalsLine.textContent = rivals.length > 0
-    ? t("modals.xdrMove.rivals", { rivals: rivals.join("、") })
+    ? t("modals.xdrMove.rivals", { rivals: rivals.join(listSeparator()) })
     : "";
   rivalsLine.classList.toggle("hidden", rivals.length === 0);
   const siblings = Array.isArray(preview.siblingPaths) ? preview.siblingPaths : [];
   siblingsLine.textContent = siblings.length > 0
-    ? t("modals.xdrMove.siblings", { count: siblings.length, paths: siblings.join("；") })
+    ? t("modals.xdrMove.siblings", { count: siblings.length, paths: siblings.join(clauseSeparator()) })
     : "";
   siblingsLine.classList.toggle("hidden", siblings.length === 0);
 

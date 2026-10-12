@@ -1,6 +1,7 @@
 // Mod 依赖相关操作的提示文案。
 
 import { t } from "../../core/i18n-runtime.js";
+import { commaSeparator, labelSeparator } from "../../core/format-list.mjs";
 
 function bucketCount(value) {
   return Array.isArray(value) ? value.length : 0;
@@ -17,8 +18,8 @@ export function formatDependencyEnableSummary(name, result) {
   if (alreadyEnabled > 0) parts.push(t("settings.dependencies.summary.alreadyEnabled", { count: alreadyEnabled }));
   if (missing > 0) parts.push(t("settings.dependencies.summary.missing", { count: missing }));
 
-  const body = parts.join("，") || t("settings.dependencies.summary.none");
-  return label ? `${label}：${body}` : body;
+  const body = parts.join(commaSeparator()) || t("settings.dependencies.summary.none");
+  return label ? `${label}${labelSeparator()}${body}` : body;
 }
 
 export function formatDependencyBatchEnableSummary(result) {

@@ -5,6 +5,7 @@
 // 文案走目录（mods.batch.gameState*；动作名复用 mods.batch.gameEnable|gameDisable）。
 
 import { t } from "../../core/i18n-runtime.js";
+import { clauseSeparator } from "../../core/format-list.mjs";
 
 export function batchGameStateActionLabel(enabled) {
   return enabled ? t("mods.batch.gameEnable") : t("mods.batch.gameDisable");
@@ -61,5 +62,5 @@ export function formatBatchGameStateSummary(result, enabled) {
   if (unchanged > 0) parts.push(t("mods.batch.gameStateSummaryUnchanged", { count: unchanged }));
   if (skipped > 0) parts.push(t("mods.batch.gameStateSummarySkipped", { count: skipped }));
   if (enforced > 0) parts.push(t("mods.batch.gameStateSummaryEnforced", { count: enforced }));
-  return parts.join("；");
+  return parts.join(clauseSeparator());
 }

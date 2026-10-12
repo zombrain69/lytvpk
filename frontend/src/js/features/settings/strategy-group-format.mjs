@@ -1,6 +1,7 @@
 // 策略组在「策略组管理」窗口（features/mod-groups/strategy-group-manager.js）里的展示文案。
 
 import { t } from "../../core/i18n-runtime.js";
+import { listSeparator } from "../../core/format-list.mjs";
 
 const STRATEGY_KEYS = {
   single: "strategyGroups.strategy.single",
@@ -64,7 +65,7 @@ export function summarizeStrategyGroupSelection(ids, groups, missingByGroupId) {
 export function formatStrategyGroupBatchConfirm(action, summary) {
   const count = Number(summary?.count || 0);
   const members = Number(summary?.memberCount || 0);
-  const names = (summary?.names || []).slice(0, 5).join("、");
+  const names = (summary?.names || []).slice(0, 5).join(listSeparator());
   const more = (summary?.names || []).length > 5 ? t("strategyGroups.batch.confirm.more", { count: summary.names.length }) : "";
   const list = names ? `\n\n${names}${more}` : "";
   switch (String(action || "")) {
@@ -139,7 +140,7 @@ export function formatStrategyGroupFilterState(ids, groups, limit = 3) {
     (Array.isArray(groups) ? groups : []).map((group) => [String(group?.id), String(group?.name || "")]),
   );
   const names = list.map((id) => nameById.get(id) || id);
-  const shown = names.slice(0, Math.max(1, limit)).join("、");
+  const shown = names.slice(0, Math.max(1, limit)).join(listSeparator());
   const more = names.length > limit ? t("strategyGroups.filter.more", { count: names.length }) : "";
   return t("strategyGroups.filter.state", { shown, more });
 }

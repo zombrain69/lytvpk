@@ -1,6 +1,7 @@
 import { showError, showNotification } from "../../core/toast.js";
 import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
+import { listSeparator, clauseSeparator, sentenceEnd } from "../../core/format-list.mjs";
 
 let integrityRunning = false;
 
@@ -320,11 +321,11 @@ function createRepairMetadataSummary(summary = {}) {
   const parts = [];
   if (preserved.length > 0) {
     parts.push(t("toolbox.vpkIntegrity.metaPreserved", { count: preserved.length }));
-    note.title = t("toolbox.vpkIntegrity.metaPreservedList", { list: preserved.join("、") });
+    note.title = t("toolbox.vpkIntegrity.metaPreservedList", { list: preserved.join(listSeparator()) });
   }
-  if (derived.length > 0) parts.push(t("toolbox.vpkIntegrity.metaDerivedList", { list: derived.join("、") }));
+  if (derived.length > 0) parts.push(t("toolbox.vpkIntegrity.metaDerivedList", { list: derived.join(listSeparator()) }));
   if (recovered) parts.push(t("toolbox.vpkIntegrity.metaRecovered"));
-  note.textContent = parts.join("；") + "。";
+  note.textContent = parts.join(clauseSeparator()) + sentenceEnd();
   return note;
 }
 
