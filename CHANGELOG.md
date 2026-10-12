@@ -1,5 +1,18 @@
 # Changelog
 
+## 未发布 — en 审校辅助首扫：自动扫描工具链 + keywords 去重修正（路线图第 19 项）（2026-10-13）
+
+- **审校辅助工具链**（工作区 `i18n-en机翻工具/`，非仓库）：新增 `review-check.py`——术语一致性
+  （对照 RULES.md 术语表的机械化子集）+ 机械瑕疵（全角标点 / 双空格 / 标点前置空格 / 占位符
+  顺序 / 相邻叠词 / keywords 重复）+ 抽查类（拼接片段空格奇偶、长度比 > 4.5）；新增
+  `apply-corrections.py`——审校修正 JSON 经全套校验（key / 非空 / 无 CJK / 占位符序 / 换行数，
+  口径同 `merge-all-en.py`）后应用。产出 `review-out/审校报告.md` 与全量对照表
+  `review-out/review-sheet.md`（3750 键逐组中英对照，flagged 条目带 ⚠）。
+- **首扫结果与修正**：术语 / 标点 / 空格 / 占位符 0 命中；修正 `app.commandPalette` 三处
+  keywords 相邻重复词（healthCheck / showShortcuts / resetWindowGeometry——机翻把中文词与
+  原有英文词译重）；余 36 条为抽查类，留待人工审校迭代时结合上下文判断。
+- 验证：前端显式清单 130 文件 658 项 0 失败；`npm run build` 通过。
+
 ## 未发布 — 命名规范化 P1 首块：引擎 63B 名字截断器（路线图第 20 项）（2026-10-12）
 
 - 新增 `internal/parser/naming_cap.go`（参考 sHartet/l4d2-addons naming-rules v1.2 的 cap_name，

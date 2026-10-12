@@ -259,7 +259,7 @@
         },
         "healthCheck": {
           "title": "Run health check",
-          "keywords": "health check check health health fix"
+          "keywords": "health check fix"
         },
         "workshopEnrich": {
           "title": "Fetch official Workshop tags and stats",
@@ -271,11 +271,11 @@
         },
         "showShortcuts": {
           "title": "View keyboard shortcuts",
-          "keywords": "shortcuts keys keyboard shortcut help help question mark"
+          "keywords": "shortcuts keys keyboard shortcut help question mark"
         },
         "resetWindowGeometry": {
           "title": "Reset the position and size of all windows",
-          "keywords": "window floating position size reset reset off-screen"
+          "keywords": "window floating position size reset off-screen"
         }
       },
       "state": {
