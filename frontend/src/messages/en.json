@@ -1,0 +1,189 @@
+{
+  "app": {
+    "shell": {
+      "window": {
+        "minimize": "Minimize",
+        "maximize": "Maximize / Restore",
+        "close": "Close"
+      },
+      "commandPalette": {
+        "tooltip": "Command palette (Ctrl+K): jump to a page or run common actions",
+        "ariaLabel": "Command palette",
+        "inputPlaceholder": "Type a command or page name (e.g. conflicts / health check / workshop / text size)",
+        "notImplemented": "This command is not implemented yet"
+      },
+      "shortcuts": {
+        "dialogLabel": "Keyboard shortcuts overview",
+        "tooltip": "Keyboard shortcuts",
+        "tooltipLine": "Shortcuts: {keys} (click for the full list)"
+      },
+      "navAriaLabel": "Main menu",
+      "nav": {
+        "mods": "Mod Manager",
+        "workshop": "Steam Workshop",
+        "downloads": "Downloads & Parsing",
+        "servers": "Favorite Servers",
+        "diagnostics": "Toolbox",
+        "settings": "Settings",
+        "docs": "Docs",
+        "about": "About"
+      },
+      "launch": {
+        "label": "Launch L4D2",
+        "recentServers": "Recent servers"
+      },
+      "theme": {
+        "ariaLabel": "Toggle theme",
+        "toLight": "Switch to light mode",
+        "toDark": "Switch to dark mode"
+      },
+      "title": "LytVPK - L4D2 Mod Manager"
+    }
+  },
+  "about": {
+    "hero": {
+      "kicker": "Left 4 Dead 2 MOD Manager",
+      "title": "LytVPK Community Fork",
+      "description": "An unofficial fork of LaoYutang/lytvpk. Updates, source and feedback are maintained by this fork; the upstream link is kept for attribution only."
+    },
+    "info": {
+      "ariaLabel": "Application information",
+      "title": "Project info",
+      "item": {
+        "upstreamAuthor": "Upstream author",
+        "forkMaintainer": "Fork maintainer",
+        "license": "License",
+        "repo": "Updates & source",
+        "issues": "Feedback",
+        "version": "Current version"
+      }
+    },
+    "version": {
+      "detecting": "Detecting...",
+      "unknown": "Unknown",
+      "fetchFailed": "Failed to fetch"
+    },
+    "action": {
+      "title": "Actions",
+      "openRepo": "Open GitHub repository",
+      "openUpstream": "View upstream project",
+      "openLicense": "View license",
+      "feedback": "Feedback",
+      "checkUpdate": "Check for updates",
+      "checking": "Checking..."
+    },
+    "update": {
+      "failed": "Check failed: {error}",
+      "discovered": "New version available: v{version}",
+      "upToDate": "You are on the latest version v{version}",
+      "error": "An error occurred: {error}"
+    },
+    "crash": {
+      "title": "Crash reports",
+      "description": "This app captures its own panics and unhandled frontend exceptions as local-only reports (version, stack, log tail). Nothing is uploaded. Native crash dumps from the game or system are still opened via “Toolbox → Crash dump viewer”.",
+      "openDirectory": "Open crash report folder",
+      "empty": "No crash reports on this machine yet",
+      "count": "{count} crash report(s) on this machine (latest: {latest})",
+      "unknownTime": "Unknown time",
+      "bindingsMissing": "Crash report API unavailable: frontend bindings missing (please update to the latest version)",
+      "readFailed": "Failed to read crash report: {error}",
+      "openFailed": "Failed to open crash report folder: {error}",
+      "noConfigDir": "No config directory configured; no crash report folder to open"
+    }
+  },
+  "update": {
+    "category": {
+      "feat": "New features",
+      "refactor": "Changes",
+      "fix": "Fixes",
+      "other": "Other",
+      "count": "{count} items"
+    },
+    "releaseNote": {
+      "empty": "No changelog available",
+      "unclassified": "No categorized changes"
+    },
+    "check": {
+      "checking": "Checking...",
+      "failed": "Check failed: {error}",
+      "discovered": "New version available:",
+      "upToDate": "You are on the latest version (v{version})",
+      "error": "An error occurred: {error}",
+      "action": "Check for updates"
+    },
+    "modal": {
+      "titleAvailable": "New version available",
+      "titleUpToDate": "You are on the latest version",
+      "notesTitle": "What's new:",
+      "viewCategory": "By category",
+      "viewVersion": "By version",
+      "mirrorLabel": "Download source:",
+      "refreshMirrorsTitle": "Re-check latency",
+      "customMirrorPlaceholder": "Enter a mirror URL (e.g. https://mirror.example.com/)",
+      "downloading": "Downloading update...",
+      "currentPrefix": "Current: v",
+      "ignore": "Don't remind me again",
+      "remindLater": "Remind me later",
+      "updateNow": "Update now",
+      "close": "Close"
+    },
+    "mirror": {
+      "direct": "GitHub direct",
+      "custom": "Custom mirror...",
+      "detecting": "Detecting...",
+      "testing": "Testing",
+      "timeout": "Timeout",
+      "unknown": "Unknown"
+    },
+    "button": {
+      "updating": "Updating...",
+      "downloading": "Downloading...",
+      "refresh": "Refresh"
+    },
+    "dialog": {
+      "hintTitle": "Notice",
+      "customMirrorRequired": "Please enter a custom mirror URL",
+      "successTitle": "Update successful",
+      "successMessage": "The app will restart automatically to apply the update.",
+      "failureTitle": "Update failed"
+    }
+  },
+  "settings": {
+    "interface": {
+      "language": {
+        "label": "Language",
+        "desc": "Interface language. Some already-open windows apply the change after reopening.",
+        "saved": "Language switched to {language}. Some already-open windows apply the change after reopening.",
+        "failed": "Failed to save language settings: {error}"
+      },
+      "textSize": {
+        "label": "Text size",
+        "desc": "Changes text size only, not the layout; multiplied with the UI scale above — handy for keeping text sharp on 2K / 4K screens",
+        "option": {
+          "compact": "Compact",
+          "compactDesc": "More content on screen",
+          "standard": "Standard",
+          "standardDesc": "Default size",
+          "large": "Large",
+          "largeDesc": "Clearer text",
+          "xlarge": "Extra large",
+          "xlargeDesc": "Most comfortable, fewer items on screen"
+        }
+      },
+      "readingComfort": {
+        "label": "Reading comfort",
+        "desc": "Adjusts line spacing and text contrast: currently “{current}” — Soft = looser lines and softer contrast (easy on the eyes over long sessions); High contrast = darker text, better in bright light or with low vision",
+        "saved": "Text size: {textSize} · Reading comfort: {comfort}",
+        "failed": "Failed to save reading settings: {error}",
+        "option": {
+          "soft": "Soft",
+          "softDesc": "Looser line spacing and softer contrast — easier on the eyes",
+          "standard": "Standard",
+          "standardDesc": "Default contrast and line spacing",
+          "contrast": "High contrast",
+          "contrastDesc": "Darker text with tighter spacing; clearer in bright light or with low vision"
+        }
+      }
+    }
+  }
+}

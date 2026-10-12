@@ -1,5 +1,11 @@
 import { attachLineNumberGutter } from "../../core/line-number-editor.js";
-import { t } from "../../core/i18n-runtime.js";
+import { setLocale, t } from "../../core/i18n-runtime.js";
+import {
+  LANGUAGE_SWITCH_ENABLED,
+  SUPPORTED_LOCALES,
+  localeLabel,
+  normalizeLocale,
+} from "../../core/locale.mjs";
 import { applyUIScale, MAX_UI_SCALE, MIN_UI_SCALE, normalizeUIScale, UI_SCALE_STEP } from "../../core/ui-scale.js";
 import {
   READING_COMFORT_OPTIONS,
@@ -421,6 +427,20 @@ export async function renderSettingsPage(deps) {
                   </label>`).join("")}
               </div>
             </div>
+            ${LANGUAGE_SWITCH_ENABLED ? `
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">${t("settings.interface.language.label")}</div>
+                <div class="setting-row-desc">${t("settings.interface.language.desc")}</div>
+              </div>
+              <div class="mode-toggle-group" id="settings-language" role="radiogroup" aria-label="${t("settings.interface.language.label")}">
+                ${SUPPORTED_LOCALES.map((locale) => `
+                  <label class="mode-option ${normalizeLocale(getConfig().locale) === locale.id ? "active" : ""}">
+                    <input type="radio" name="settings-language" value="${locale.id}" ${normalizeLocale(getConfig().locale) === locale.id ? "checked" : ""}>
+                    <span class="mode-text">${escapeHtml(locale.label)}</span>
+                  </label>`).join("")}
+              </div>
+            </div>` : ""}
             <div class="setting-row">
               <div class="setting-row-info">
                 <div class="setting-row-label">${t("settings.interface.ctrlClick.label")}</div>
@@ -2099,6 +2119,35 @@ function bindSettingsPage(deps) {
         label.classList.toggle("active", label.contains(input));
       });
       void applyAndSaveReadingComfort({ comfort: input.value });
+    });
+  });
+
+  // 界面语言（core/locale.mjs；P0 阶段入口隐藏——LANGUAGE_SWITCH_ENABLED=false，
+  // P1/P2 收口时翻 true）。切换即时生效并写回 config.json；动态页面按「重开生效」约定。
+  const applyAndSaveLanguage = async (rawLocale) => {
+    const next = normalizeLocale(rawLocale);
+    const config = deps.getConfig();
+    if (next === normalizeLocale(config.locale)) return;
+    setLocale(next);
+    config.locale = next;
+    try {
+      await deps.saveConfig(config);
+      deps.showNotification(
+        t("settings.interface.language.saved", { language: localeLabel(next) }),
+        "success",
+      );
+    } catch (error) {
+      deps.showNotification(t("settings.interface.language.failed", { error }), "error");
+    }
+  };
+
+  document.querySelectorAll("#settings-language input[name='settings-language']").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      document.querySelectorAll("#settings-language .mode-option").forEach((label) => {
+        label.classList.toggle("active", label.contains(input));
+      });
+      void applyAndSaveLanguage(input.value);
     });
   });
   document.getElementById("settings-ui-scale-decrease")?.addEventListener("click", () => {

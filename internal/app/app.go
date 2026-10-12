@@ -203,8 +203,10 @@ type App struct {
 	ctrlClickSelectionEnabled bool
 	uiScale                   float64
 	// textSize / readingComfort 是「阅读舒适度」的两个档位（前端 core/reading-comfort.mjs 定义取值）。
-	textSize                        string
-	readingComfort                  string
+	textSize       string
+	readingComfort string
+	// locale 是界面语言（zh-CN / en；前端 core/locale.mjs 定义白名单，未知值归一化回 zh-CN）。
+	locale                          string
 	unrecordedModLoadOrderPlacement string
 	conflictPriorityAware           bool
 	conflictIgnoreFiles             []string
@@ -330,7 +332,9 @@ type ConfigFile struct {
 	// TextSize：文字大小档位（compact / standard / large / xlarge），与整体缩放相乘。
 	TextSize string `json:"textSize,omitempty"`
 	// ReadingComfort：阅读舒适度（soft / standard / contrast），控制行距与文字对比度。
-	ReadingComfort                  string  `json:"readingComfort,omitempty"`
+	ReadingComfort string `json:"readingComfort,omitempty"`
+	// Locale：界面语言（zh-CN / en；未知值归一化回默认）。白名单与前端 core/locale.mjs 同套。
+	Locale                          string  `json:"locale,omitempty"`
 	AddonListGuardEnabled           *bool   `json:"addonListGuardEnabled,omitempty"`
 	UnrecordedModLoadOrderPlacement *string `json:"unrecordedModLoadOrderPlacement,omitempty"`
 	Theme                           string  `json:"theme"`

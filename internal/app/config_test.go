@@ -1030,3 +1030,54 @@ func TestSaveAppConfigPersistsCategorySidebarVisible(t *testing.T) {
 		t.Fatalf("重启后应读回 false: %#v", got)
 	}
 }
+
+// 界面语言（locale）：白名单归一化（与前端 core/locale.mjs 同套取值）。
+func TestNormalizeLocaleKey(t *testing.T) {
+	cases := map[string]string{
+		"":        "zh-CN",
+		"   ":     "zh-CN",
+		"zh-CN":   "zh-CN",
+		"zh-cn":   "zh-CN",
+		"ZH":      "zh-CN",
+		"zh-TW":   "zh-CN",
+		"en":      "en",
+		"EN":      "en",
+		"en-US":   "en",
+		"en_US":   "en",
+		"ja":      "zh-CN",
+		"klingon": "zh-CN",
+	}
+	for input, want := range cases {
+		if got := normalizeLocaleKey(input); got != want {
+			t.Fatalf("normalizeLocaleKey(%q) = %q，期望 %q", input, got, want)
+		}
+	}
+}
+
+// 界面语言持久化：保存 → 重启读回；非法值保存时归一化回默认。
+func TestLocaleRoundTripPersists(t *testing.T) {
+	app := configTestAppAtDir(t.TempDir())
+
+	// 没设置过时默认 zh-CN（旧配置没有该字段）。
+	if got := app.GetAppConfig().Locale; got != "zh-CN" {
+		t.Fatalf("默认 locale 应为 zh-CN，实际 %q", got)
+	}
+
+	// 保存 en → 清内存 → 重新载入仍是 en。
+	if err := app.SaveAppConfig(ConfigFile{Locale: "en"}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	app.locale = ""
+	app.loadConfig()
+	if got := app.GetAppConfig().Locale; got != "en" {
+		t.Fatalf("重启后应读回 en，实际 %q", got)
+	}
+
+	// 非法取值在保存时归一化回 zh-CN，不会把怪值透传到前端。
+	if err := app.SaveAppConfig(ConfigFile{Locale: "xx-YY"}); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if got := app.GetAppConfig().Locale; got != "zh-CN" {
+		t.Fatalf("非法 locale 应归一化回 zh-CN，实际 %q", got)
+	}
+}

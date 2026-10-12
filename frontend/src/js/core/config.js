@@ -6,6 +6,7 @@ import {
 } from "../../../wailsjs/go/app/App";
 import { DEFAULT_UI_SCALE, normalizeUIScale } from "./ui-scale.js";
 import { normalizeWorkshopDNSConfig } from "../features/settings/workshop-dns.mjs";
+import { normalizeLocale } from "./locale.mjs";
 
 const LEGACY_STORAGE_KEYS = {
   config: "vpk-manager-config",
@@ -66,6 +67,8 @@ const DEFAULT_CONFIG = {
   ignoredVersion: "",
   lastUpdateCheckTime: "",
   migrationVersion: 0,
+  // 界面语言（zh-CN / en）：白名单与 core/locale.mjs 一致；未知值归一化回 zh-CN。
+  locale: "zh-CN",
 };
 
 // 最大保存目录数量
@@ -191,6 +194,8 @@ function normalizeConfig(config = {}) {
   next.conflictIgnoreFiles = Array.isArray(next.conflictIgnoreFiles)
     ? next.conflictIgnoreFiles.filter((entry) => typeof entry === "string" && entry.trim() !== "")
     : [];
+  // 界面语言：只接受白名单取值（zh-CN / en），其余回落默认 —— 与后端 normalizeLocaleKey 同套规则。
+  next.locale = normalizeLocale(next.locale);
 
   return cloneConfig(next);
 }

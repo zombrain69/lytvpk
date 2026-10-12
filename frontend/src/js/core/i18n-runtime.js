@@ -17,14 +17,29 @@ import { createI18n, DEFAULT_LOCALE } from "./i18n.mjs";
 
 let i18n = createI18n({ catalogs: {}, locale: DEFAULT_LOCALE });
 
-/** installCatalog 把一份文案目录装到运行时（应用启动时调用；测试也用它）。 */
-export function installCatalog(messages, locale = DEFAULT_LOCALE) {
-  if (!messages || typeof messages !== "object") return false;
-  i18n = createI18n({ catalogs: { [String(locale)]: messages }, locale: String(locale) });
+/**
+ * installCatalogs 把**全部随包目录**一次性装到运行时（应用启动时调用；测试也用它）。
+ * 传 `{ "zh-CN": zhMessages, en: enMessages }`；缺翻的 key 由运行时回退链兜底
+ * （当前语言 → zh-CN → key 本身），所以第二语言的目录可以渐进补齐。
+ */
+export function installCatalogs(catalogs, locale = DEFAULT_LOCALE) {
+  const normalized = {};
+  if (catalogs && typeof catalogs === "object") {
+    for (const [key, value] of Object.entries(catalogs)) {
+      if (value && typeof value === "object") normalized[String(key)] = value;
+    }
+  }
+  i18n = createI18n({ catalogs: normalized, locale: String(locale) });
   if (typeof document !== "undefined") {
     document.documentElement?.setAttribute("lang", String(locale));
   }
   return true;
+}
+
+/** installCatalog 单目录入口（兼容旧调用；等价于 installCatalogs 只装一份）。 */
+export function installCatalog(messages, locale = DEFAULT_LOCALE) {
+  if (!messages || typeof messages !== "object") return false;
+  return installCatalogs({ [String(locale)]: messages }, String(locale));
 }
 
 export function t(key, params) {
@@ -48,6 +63,11 @@ export function setLocale(locale) {
     applyTranslations();
   }
   return next;
+}
+
+/** hasLocale 判断某个语言的目录是否已装载（设置页据此决定下拉里有哪些选项可切）。 */
+export function hasLocale(locale) {
+  return i18n.hasLocale(locale);
 }
 
 // 属性回填绑定：data-i18n-* 属性名 → 要写入的目标属性。

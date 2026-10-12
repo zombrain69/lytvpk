@@ -2721,6 +2721,12 @@
           "contrastDesc": "文字更黑、行距更紧，弱视或强光下更清楚"
         }
       },
+      "language": {
+        "label": "界面语言",
+        "desc": "界面显示语言；部分已打开的窗口在重新打开后生效",
+        "saved": "界面语言已切换为 {language}（部分已打开的窗口重新打开后生效）",
+        "failed": "保存语言设置失败: {error}"
+      },
       "ctrlClick": {
         "label": "Ctrl+单击选择",
         "desc": "按住 Ctrl 键并单击 Mod，可快速选中或取消选中；Shift+单击可按当前排序选择连续范围",

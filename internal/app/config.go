@@ -198,6 +198,8 @@ func (a *App) loadConfig() {
 	a.uiScale = normalizeUIScale(config.UIScale)
 	a.textSize = normalizeTextSizeKey(config.TextSize)
 	a.readingComfort = normalizeReadingComfortKey(config.ReadingComfort)
+	// 界面语言：与前端 core/locale.mjs 同套白名单，未知值回落 zh-CN。
+	a.locale = normalizeLocaleKey(config.Locale)
 	if config.AddonListGuardEnabled != nil {
 		a.addonListGuardEnabled = *config.AddonListGuardEnabled
 	}
@@ -363,6 +365,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		UIScale:                         normalizeUIScale(a.uiScale),
 		TextSize:                        normalizeTextSizeKey(a.textSize),
 		ReadingComfort:                  normalizeReadingComfortKey(a.readingComfort),
+		Locale:                          normalizeLocaleKey(a.locale),
 		AddonListGuardEnabled:           &addonListGuardEnabled,
 		UnrecordedModLoadOrderPlacement: &unrecordedModLoadOrderPlacement,
 		ConflictPriorityAware:           &conflictPriorityAware,
@@ -503,6 +506,7 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	a.uiScale = normalizeUIScale(config.UIScale)
 	a.textSize = normalizeTextSizeKey(config.TextSize)
 	a.readingComfort = normalizeReadingComfortKey(config.ReadingComfort)
+	a.locale = normalizeLocaleKey(config.Locale)
 	a.theme = config.Theme
 	a.ignoredVersion = config.IgnoredVersion
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
@@ -569,6 +573,32 @@ func normalizeReadingComfortKey(value string) string {
 		return key
 	}
 	return "standard"
+}
+
+// 界面语言白名单：取反大小写归一化后的值 → 规范 locale id。
+// 与前端 core/locale.mjs 的 SUPPORTED_LOCALES 保持一致（两边同时改）。
+var localeKeys = map[string]string{
+	"zh-cn": "zh-CN",
+	"en":    "en",
+}
+
+// normalizeLocaleKey 归一化界面语言；未知值与空值一律回落默认 zh-CN。
+func normalizeLocaleKey(value string) string {
+	key := strings.ToLower(strings.TrimSpace(value))
+	if key == "" {
+		return "zh-CN"
+	}
+	if locale, ok := localeKeys[key]; ok {
+		return locale
+	}
+	// 宽松别名：zh / zh-TW → zh-CN（当前只随包 zh-CN 一份中文目录）；en-US → en。
+	if key == "zh" || strings.HasPrefix(key, "zh-") || strings.HasPrefix(key, "zh_") {
+		return "zh-CN"
+	}
+	if strings.HasPrefix(key, "en-") || strings.HasPrefix(key, "en_") {
+		return "en"
+	}
+	return "zh-CN"
 }
 
 func (a *App) MigrateLocalStorageConfig(payload LocalStorageMigrationPayload) error {

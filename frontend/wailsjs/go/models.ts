@@ -585,6 +585,7 @@ export namespace app {
 	    uiScale?: number;
 	    textSize?: string;
 	    readingComfort?: string;
+	    locale?: string;
 	    addonListGuardEnabled?: boolean;
 	    unrecordedModLoadOrderPlacement?: string;
 	    theme: string;
@@ -633,6 +634,7 @@ export namespace app {
 	        this.uiScale = source["uiScale"];
 	        this.textSize = source["textSize"];
 	        this.readingComfort = source["readingComfort"];
+	        this.locale = source["locale"];
 	        this.addonListGuardEnabled = source["addonListGuardEnabled"];
 	        this.unrecordedModLoadOrderPlacement = source["unrecordedModLoadOrderPlacement"];
 	        this.theme = source["theme"];

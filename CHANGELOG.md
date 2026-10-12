@@ -1,5 +1,21 @@
 # Changelog
 
+## 未发布 — 语言切换 P0：多目录装载 + en 占位 + locale 持久化（路线图第 19 项）（2026-10-12）
+
+- i18n 运行时新增 `installCatalogs`（一次装多份目录）；启动时随包装载 zh-CN + en。
+- 新增 `frontend/src/messages/en.json` 起步目录（应用外壳 / 关于页 / 更新 / 界面设置约 130 key
+  的人工首译）；策略 = **缺翻回退中文**（只放已翻译 key，其余走运行时回退链）。
+- `locale` 持久化：config.json 新增 `locale` 字段（`zh-CN` / `en`）；双端白名单
+  （`internal/app/config.go` 的 `normalizeLocaleKey` ↔ `frontend/src/js/core/locale.mjs`）同套取值，
+  未知值一律回落 `zh-CN`；启动时在首帧渲染前应用。
+- 设置页「界面」panel 新增「界面语言」行（即时切换 + 写回配置 + 「重开生效」提示）——
+  **P0 阶段入口保持隐藏**（`LANGUAGE_SWITCH_ENABLED=false`），P1（动态界面重绘）与
+  P2（en 文案全量机翻产出）收口后开放。
+- 测试：Go +2（白名单归一化 / 落盘读回）；前端 +12（多目录装载与回退 / locale 归一化 /
+  en 一致性（key 对齐、占位符一致、无中文残渣、规模下限）/ 设置页与启动接线 + 双端白名单对齐）。
+- 验证：`go vet ./...` / `go test ./...` 全过；前端显式清单 128 文件 644 项 0 失败；
+  `npm run build` 与 `wails build -nopackage`（绑定重生成：models.ts 增 `locale`）通过。
+
 ## 未发布 — 一键退订实装（Steam 官方本机接口 · 路线图第 18 项）（2026-10-12）
 
 - 新能力：「工坊订阅清单」弹窗新增**一键退订**——配置自备的 `steam_api64.dll` 后，

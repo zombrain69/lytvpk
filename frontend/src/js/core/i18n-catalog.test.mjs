@@ -89,3 +89,45 @@ test("index.html 静态节点 data-i18n* 引用的 key 都在目录里", () => {
   const missing = referenced.filter((key) => !catalogKeys.has(key));
   assert.deepEqual(missing, [], `index.html 里以下 data-i18n key 没有对应的中文文案：\n${missing.join("\n")}`);
 });
+
+// en 目录一致性（第 19 项 P0：「缺翻回退中文」的渐进目录）：
+//   - 每个 en key 必须在 zh-CN 里存在（防拼写漂移 / 陈旧 key 一路留在目录里）；
+//   - 每个 en 值的 {placeholder} 集合必须与该 key 的 zh 值一致（漏翻占位符 = 运行时少显示数据）；
+//   - en 值不允许中文残渣（CJK）、不允许空值；
+//   - 规模下限兜底：防误删把占位目录变成空文件（P2 机翻会继续往上加）。
+test("messages/en.json 与 zh-CN 对齐：key 在 zh 内、占位符一致、无中文残渣", () => {
+  const zh = JSON.parse(readFileSync(catalogPath, "utf8"));
+  const enPath = join(srcRoot, "..", "messages", "en.json");
+  const en = JSON.parse(readFileSync(enPath, "utf8"));
+
+  const flatten = (node, prefix = "", out = new Map()) => {
+    for (const [name, value] of Object.entries(node)) {
+      const key = prefix ? `${prefix}.${name}` : name;
+      if (typeof value === "string") out.set(key, value);
+      else if (value && typeof value === "object") flatten(value, key, out);
+    }
+    return out;
+  };
+  const zhMap = flatten(zh);
+  const enMap = flatten(en);
+
+  assert.ok(enMap.size >= 100, `en 目录规模异常（${enMap.size} keys）——检查是否被误删`);
+
+  const placeholders = (value) =>
+    [...String(value).matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
+  const issues = [];
+  for (const [key, value] of enMap) {
+    if (!zhMap.has(key)) {
+      issues.push(`${key}: zh-CN 里不存在该 key`);
+      continue;
+    }
+    if (!value.trim()) issues.push(`${key}: 空值`);
+    if (/[\u4e00-\u9fff]/.test(value)) issues.push(`${key}: 含中文残渣`);
+    const zhPlaceholders = placeholders(zhMap.get(key));
+    const enPlaceholders = placeholders(value);
+    if (zhPlaceholders.join(",") !== enPlaceholders.join(",")) {
+      issues.push(`${key}: 占位符不一致 zh=[${zhPlaceholders}] en=[${enPlaceholders}]`);
+    }
+  }
+  assert.deepEqual(issues, [], `en.json 存在问题：\n${issues.join("\n")}`);
+});

@@ -11,7 +11,8 @@ import {
 } from "../core/config.js";
 import { applyUIScale, setupUIScaleShortcuts } from "../core/ui-scale.js";
 import { applyReadingComfort } from "../core/reading-comfort.mjs";
-import { applyTranslations, t } from "../core/i18n-runtime.js";
+import { applyTranslations, setLocale, t } from "../core/i18n-runtime.js";
+import { normalizeLocale } from "../core/locale.mjs";
 import { setupModalResizers } from "../core/modal-resizer.js";
 import { setupFloatingModal } from "../core/floating-modal.js";
 import { initTheme, setupThemeToggle } from "../core/theme.js";
@@ -879,6 +880,9 @@ async function initializeApp() {
   }
 
   await initConfig();
+  // 界面语言（第 19 项 P0）：配置里持久化的 locale 在首帧渲染前应用——
+  // 静态节点由下方 applyTranslations() 统一点亮，动态页面按各自渲染时的当前语言取文案。
+  setLocale(normalizeLocale(getConfig().locale));
   // 先定"文字大小 / 阅读舒适度"，再应用整体缩放：根字号是两者相乘的结果。
   applyReadingComfort({
     textSize: getConfig().textSize,
