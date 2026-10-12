@@ -163,7 +163,7 @@ Mod 标签（主标签 + 子标签）是**后端规则产出的封闭词汇表**
 
 ## 实施进度
 
-- **P0 已完成（2026-10-12，commit `c6c4fd5`）**：多目录装载（`installCatalogs` + 启动一次装
+- **P0 已完成（2026-10-12，commit `b537b3a`）**：多目录装载（`installCatalogs` + 启动一次装
   zh-CN/en）+ `en.json` 起步目录（缺翻回退）+ `locale` 双端持久化（`normalizeLocaleKey` ↔
   `core/locale.mjs`）+ 启动应用 + 设置页语言行（受 `LANGUAGE_SWITCH_ENABLED` 控制，保持隐藏）
   + en 一致性测试（key 对齐 / 占位符一致 / 无中文残渣 / 规模下限）。
