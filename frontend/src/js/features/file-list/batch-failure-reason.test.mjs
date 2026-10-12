@@ -34,6 +34,16 @@ test("批量禁用失败时带上第一个失败原因", () => {
 test("批量启用与「全部禁用」同样带上原因", () => {
   assert.match(
     actions,
+    /import \{ formatBackendErrorDetail \} from "\.\.\/\.\.\/core\/backend-error\.mjs";/,
+    "失败明细要走 en 展示桥（第 21 项阶段 B ④）",
+  );
+  assert.match(
+    actions,
+    /const reason = failures\[0\] \? `\$\{labelSeparator\(\)\}\$\{formatBackendErrorDetail\(failures\[0\]\)\}` : "";/,
+    "失败原因在展示前过桥",
+  );
+  assert.match(
+    actions,
     /showNotification\(t\("mods\.ops\.enable\.failed", \{ count: failedCount, reason \}\), "error"\)/,
   );
   assert.match(
@@ -60,8 +70,8 @@ test("批量设置标签失败时带上第一个失败原因", () => {
   );
   assert.match(
     batchTags,
-    /const reason = errors\[0\] \? `\$\{labelSeparator\(\)\}\$\{errors\[0\]\}` : "";/,
-    "失败原因要取自真实错误",
+    /const reason = errors\[0\] \? `\$\{labelSeparator\(\)\}\$\{formatBackendErrorDetail\(errors\[0\]\)\}` : "";/,
+    "失败原因要取自真实错误、并过 en 展示桥（第 21 项阶段 B ④）",
   );
   assert.match(
     batchTags,

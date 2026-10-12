@@ -11,6 +11,7 @@ import { refreshFilesKeepFilter } from "./filters.js";
 import { deselectAll } from "./actions.js";
 import { createSecondaryTagPicker } from "./tag-suggestions.js";
 import { labelSeparator } from "../../core/format-list.mjs";
+import { formatBackendErrorDetail } from "../../core/backend-error.mjs";
 
 let primaryMode = "keep";
 let secondaryMode = "keep";
@@ -275,7 +276,7 @@ async function saveBatchTags() {
       success++;
     } catch (e) {
       fail++;
-      errors.push(`${file.name}: ${e}`);
+      errors.push(`${file.name}: ${formatBackendErrorDetail(e)}`);
     }
   }
 
@@ -288,7 +289,7 @@ async function saveBatchTags() {
   if (fail > 0) {
     // 只说"失败 N 个"没法排查：把第一个原因（文件名 + 后端的中文提示）带出来。
     // 真机复现：三个文件里有一个被别的进程占用时，通知只写「成功 2 个, 失败 1 个」。
-    const reason = errors[0] ? `${labelSeparator()}${errors[0]}` : "";
+    const reason = errors[0] ? `${labelSeparator()}${formatBackendErrorDetail(errors[0])}` : "";
     showNotification(
       t("mods.ops.batchTags.done", { success, fail, reason }),
       "warning",
@@ -421,7 +422,7 @@ export function setupBatchTagsModalListeners() {
       try {
         await saveBatchTags();
       } catch (err) {
-        showError(t("mods.ops.batchTags.failed", { error: String(err) }));
+        showError(t("mods.ops.batchTags.failed", { error: formatBackendErrorDetail(err) }));
       }
     });
   }

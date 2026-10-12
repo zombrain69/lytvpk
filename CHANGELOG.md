@@ -1,5 +1,24 @@
 # Changelog
 
+## 未发布 — en 代码层残留清理（阶段 B：{scope} 范围词 + 后端错误展示桥）（路线图第 21 项）（2026-10-13）
+
+- **「禁用所有 X」范围词走目录（③）**：`disableAllMods` 不再用 `${primaryTag}mod` 手拼
+  （en 界面渲染出「人物mod」混排）；范围词改查 `mods.ops.disableAll.scope.*` —— zh 逐字保留
+  「mod / 人物mod / 武器mod」既有写法，en = "all Mods" / "character Mods" / "weapon Mods"，
+  未知标签回退 `scope.tag` 模板。
+- **后端错误展示桥（④，新模块 `core/backend-error.mjs`）**：`formatBackendErrorDetail(raw)`
+  在 en 界面把已知的后端文件操作错误翻成英文；zh 原样直通（逐字节不变）、认不出回退原文
+  （不吞原因）。词表覆盖 `internal/app/file_operation_errors.go` 的「{动作} {文件名} 失败：
+  {原因}」句子族（全部动作词 + 六条规范原因）与文件操作链路上的高频整句（文件不存在 /
+  工坊文件需先转移 / addonlist 同步失败 / 操作闸门 / 路径守卫等）；接入 `actions.js` /
+  `operations.js` / `batch-tags.js` / `file-move-conflicts.js` 共 27 处 `{reason}` /
+  `{error}` 显示点。
+- **回归守卫**：`core/backend-error.test.mjs`（zh 直通 / en 映射 / 回退 + **Go 源保鲜扫描**：
+  动作词与规范原因缺英文映射即失败）；`features/file-list/disable-scope-label.test.mjs`
+  （源码接线 + zh 逐字 + en 无中文 + 插值实测）。
+- **验证**：前端 704 项 0 失败（+9 新增，1 项源级断言更新）；`npm run build` / `go vet ./...` /
+  `go test ./...` / docs 构建全过。
+
 ## 未发布 — en 代码层标点残留清理（阶段 A：列表分隔符 + 句读）（路线图第 21 项）（2026-10-13）
 
 - **新模块 `core/format-list.mjs`**：`listSeparator()` / `clauseSeparator()` / `commaSeparator()` /

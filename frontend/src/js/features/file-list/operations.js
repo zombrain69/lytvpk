@@ -34,6 +34,7 @@ import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 import { formatFileGroupImpact, normalizeGroupKey } from "../mod-groups/group-view.mjs";
 import { promptSingletonConflict } from "../conflicts/singleton-conflict.js";
 import { labelSeparator } from "../../core/format-list.mjs";
+import { formatBackendErrorDetail } from "../../core/backend-error.mjs";
 
 // checkSingletonConflict 调后端判定"同类已启用"，失败时按"没有冲突"处理：
 // 这只是体验增强，不能因为它把启用流程整个挡住。
@@ -212,7 +213,7 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
     }
   } catch (error) {
     console.error("切换游戏内开关失败:", error);
-    showError(t("mods.ops.gameState.writeFailed", { error: String(error) }));
+    showError(t("mods.ops.gameState.writeFailed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -226,7 +227,7 @@ async function disableUnrecordedFile(filePath) {
     showNotification(t("mods.ops.disable.disabledMoved"), "success");
   } catch (error) {
     console.error("禁用未记录 Mod 失败:", error);
-    showError(t("mods.ops.disable.singleFailed", { error: String(error) }));
+    showError(t("mods.ops.disable.singleFailed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -319,7 +320,7 @@ export async function toggleFile(filePath) {
     showNotification(t("mods.ops.toggle.statusUpdated"), "success");
   } catch (error) {
     console.error("切换文件状态失败:", error);
-    showError(t("mods.ops.toggle.operationFailed", { error: String(error) }));
+    showError(t("mods.ops.toggle.operationFailed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -339,11 +340,11 @@ export async function moveFileToAddons(filePath) {
       showNotification(t("mods.ops.copy.cancelled"), "info");
     }
     if (result.failCount > 0) {
-      showError(t("mods.ops.copy.failed", { error: result.errors[0] || t("mods.ops.common.unknownError") }));
+      showError(t("mods.ops.copy.failed", { error: formatBackendErrorDetail(result.errors[0]) || t("mods.ops.common.unknownError") }));
     }
   } catch (error) {
     console.error("复制文件失败:", error);
-    showError(t("mods.ops.copy.failed", { error: String(error) }));
+    showError(t("mods.ops.copy.failed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -398,7 +399,7 @@ export async function moveWorkshopFilesToAddons(filePaths) {
     return result;
   } catch (error) {
     console.error("批量转移创意工坊文件失败:", error);
-    showError(t("mods.ops.transfer.failed", { error: String(error) }));
+    showError(t("mods.ops.transfer.failed", { error: formatBackendErrorDetail(error) }));
     return null;
   } finally {
     if (typeof cleanupProgress === "function") cleanupProgress();
@@ -453,7 +454,7 @@ export function deleteFile(filePath) {
       showNotification(t("mods.ops.delete.trashed"), "success");
     } catch (error) {
       console.error("删除文件失败:", error);
-      showError(t("mods.ops.delete.failed", { error: String(error) }));
+      showError(t("mods.ops.delete.failed", { error: formatBackendErrorDetail(error) }));
     }
   });
 }
@@ -465,7 +466,7 @@ export async function openFileLocation(filePath) {
     showNotification(t("mods.ops.openLocation.done"), "success");
   } catch (error) {
     console.error("打开文件位置失败:", error);
-    showError(t("mods.ops.openLocation.failed", { error: String(error) }));
+    showError(t("mods.ops.openLocation.failed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -482,7 +483,7 @@ export async function toggleFileVisibility(filePath) {
     showNotification(t("mods.ops.visibility.updated"), "success");
   } catch (error) {
     console.error("切换隐藏状态失败:", error);
-    showError(t("mods.ops.toggle.operationFailed", { error: String(error) }));
+    showError(t("mods.ops.toggle.operationFailed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -641,7 +642,7 @@ export async function renameFile(filePath) {
       await refreshFilesKeepFilter();
     } catch (error) {
       console.error("重命名失败:", error);
-      showError(t("mods.ops.rename.failed", { error: String(error) }));
+      showError(t("mods.ops.rename.failed", { error: formatBackendErrorDetail(error) }));
     }
   };
 
@@ -670,7 +671,7 @@ export async function renameFile(filePath) {
       input.setSelectionRange(input.value.length, input.value.length);
     } catch (error) {
       console.error("生成命名建议失败:", error);
-      showError(t("modals.rename.suggestFailed", { error: String(error) }));
+      showError(t("modals.rename.suggestFailed", { error: formatBackendErrorDetail(error) }));
     } finally {
       fillFromCategoryBtn.disabled = false;
     }

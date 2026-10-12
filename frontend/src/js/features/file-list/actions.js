@@ -32,6 +32,7 @@ import {
   batchGameStateActionLabel,
 } from "./batch-game-state-format.mjs";
 import { labelSeparator } from "../../core/format-list.mjs";
+import { formatBackendErrorDetail } from "../../core/backend-error.mjs";
 
 /**
  * setSelectedGameEnabled 批量设置"游戏内开关"（addonlist.txt 的 0/1）。
@@ -180,12 +181,12 @@ export async function enableSelected() {
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
-      const reason = failures[0] ? `${labelSeparator()}${failures[0]}` : "";
+      const reason = failures[0] ? `${labelSeparator()}${formatBackendErrorDetail(failures[0])}` : "";
       showNotification(t("mods.ops.enable.failed", { count: failedCount, reason }), "error");
     }
   } catch (error) {
     console.error("批量启用失败:", error);
-    showError(t("mods.ops.enable.batchFailed", { error: String(error) }));
+    showError(t("mods.ops.enable.batchFailed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -233,17 +234,27 @@ export async function disableSelected() {
 
     if (successFiles.length < filesToToggle.length) {
       const failedCount = filesToToggle.length - successFiles.length;
-      const reason = failures[0] ? `${labelSeparator()}${failures[0]}` : "";
+      const reason = failures[0] ? `${labelSeparator()}${formatBackendErrorDetail(failures[0])}` : "";
       showNotification(t("mods.ops.disable.failed", { count: failedCount, reason }), "error");
     }
   } catch (error) {
     console.error("批量禁用失败:", error);
-    showError(t("mods.ops.disable.batchFailed", { error: String(error) }));
+    showError(t("mods.ops.disable.batchFailed", { error: formatBackendErrorDetail(error) }));
   }
 }
 
+// 「禁用所有 X」的范围词（第 21 项阶段 B ③）：数据标签 → 目录 key。
+// zh 保留「人物mod / 武器mod」的既有写法；en 走独立文案（character Mods 等），
+// 不再把中文标签拼进英文句子。未知标签回退 scope.tag（"{tag}mod" / "{tag} Mods"）。
+const DISABLE_SCOPE_LABEL_KEYS = {
+  "人物": "mods.ops.disableAll.scope.characters",
+  "武器": "mods.ops.disableAll.scope.weapons",
+};
+
 export async function disableAllMods(primaryTag = "") {
-  const scopeLabel = primaryTag ? `${primaryTag}mod` : "mod";
+  const scopeLabel = primaryTag
+    ? t(DISABLE_SCOPE_LABEL_KEYS[primaryTag] || "mods.ops.disableAll.scope.tag", { tag: primaryTag })
+    : t("mods.ops.disableAll.scope.all");
   const filesToToggle = appState.allVpkFiles
     .filter((file) => {
       if (!file || !file.enabled || file.location !== "root") return false;
@@ -288,12 +299,12 @@ export async function disableAllMods(primaryTag = "") {
         }
 
         if (failedCount > 0) {
-          const reason = failures[0] ? `${labelSeparator()}${failures[0]}` : "";
+          const reason = failures[0] ? `${labelSeparator()}${formatBackendErrorDetail(failures[0])}` : "";
           showNotification(t("mods.ops.disableAll.failed", { count: failedCount, scope: scopeLabel, reason }), "error");
         }
       } catch (error) {
         console.error(`批量禁用${scopeLabel}失败:`, error);
-        showError(t("mods.ops.disableAll.batchFailed", { scope: scopeLabel, error: String(error) }));
+        showError(t("mods.ops.disableAll.batchFailed", { scope: scopeLabel, error: formatBackendErrorDetail(error) }));
       } finally {
         showMainScreen();
       }
@@ -348,7 +359,7 @@ export async function exportZipSelected() {
         showSuccess(result);
       } catch (error) {
         console.error("导出ZIP失败:", error);
-        showError(t("mods.ops.export.failed", { error: String(error) }));
+        showError(t("mods.ops.export.failed", { error: formatBackendErrorDetail(error) }));
       } finally {
         showMainScreen();
         if (typeof cleanup === "function") cleanup();
@@ -380,7 +391,7 @@ export async function deleteSelected() {
         showNotification(t("mods.ops.delete.success", { count: filesToDelete.length }), "success");
       } catch (error) {
         console.error("批量删除失败:", error);
-        showError(t("mods.ops.delete.batchFailed", { error: String(error) }));
+        showError(t("mods.ops.delete.batchFailed", { error: formatBackendErrorDetail(error) }));
       }
     }
   );
@@ -436,7 +447,7 @@ export async function movePathsToDestination(filesToMove) {
     updateStatusBar();
   } catch (error) {
     console.error("移动文件出错:", error);
-    showError(t("mods.ops.move.error", { error: String(error) }));
+    showError(t("mods.ops.move.error", { error: formatBackendErrorDetail(error) }));
   }
 }
 
@@ -548,7 +559,7 @@ export async function generateWorkshopShortcutsForPaths(filePaths) {
     }
   } catch (err) {
     console.error("生成工坊快捷方式失败:", err);
-    showError(t("mods.ops.shortcut.failed", { error: String(err) }));
+    showError(t("mods.ops.shortcut.failed", { error: formatBackendErrorDetail(err) }));
   }
 }
 
@@ -598,7 +609,7 @@ export async function batchToggleVisibility(hide) {
       if (failCount > 0 || skippedCount > 0) {
         const skippedText = skippedCount > 0 ? t("mods.ops.visibility.skipped", { count: skippedCount }) : "";
         // 同批量启用/禁用：失败时把第一个原因一起说出来，否则用户只知道"有失败"。
-        const reason = failCount > 0 && failures[0] ? `${labelSeparator()}${failures[0]}` : "";
+        const reason = failCount > 0 && failures[0] ? `${labelSeparator()}${formatBackendErrorDetail(failures[0])}` : "";
         showNotification(
           t("mods.ops.visibility.done", { success: successCount, fail: failCount, reason, skipped: skippedText }),
           "warning",

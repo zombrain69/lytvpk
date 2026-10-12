@@ -1579,6 +1579,12 @@
         "failed": "{count} 个{scope}禁用失败{reason}",
         "noTargets": "没有需要禁用的{scope}（只会禁用root目录中已启用的文件）",
         "progress": "正在禁用{scope}...",
+        "scope": {
+          "all": "mod",
+          "characters": "人物mod",
+          "tag": "{tag}mod",
+          "weapons": "武器mod"
+        },
         "success": "成功禁用 {count} 个{scope}"
       },
       "export": {

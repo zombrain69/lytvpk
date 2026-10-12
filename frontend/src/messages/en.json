@@ -1579,6 +1579,12 @@
         "failed": "Failed to disable {count} items from {scope}{reason}",
         "noTargets": "Nothing to disable for {scope} (only enabled files in the root directory are disabled)",
         "progress": "Disabling {scope}...",
+        "scope": {
+          "all": "all Mods",
+          "characters": "character Mods",
+          "tag": "{tag} Mods",
+          "weapons": "weapon Mods"
+        },
         "success": "Disabled {count} items from {scope}"
       },
       "export": {

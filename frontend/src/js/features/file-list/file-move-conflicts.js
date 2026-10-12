@@ -1,4 +1,5 @@
 import { t } from "../../core/i18n-runtime.js";
+import { formatBackendErrorDetail } from "../../core/backend-error.mjs";
 
 import {
   CheckFileMoveConflicts,
@@ -145,7 +146,7 @@ async function moveWithConflictResolution(filePaths, destDir, executor) {
       conflicts = await CheckFileMoveConflicts([filePath], destDir);
     } catch (error) {
       total.failCount += 1;
-      total.errors.push(t("modals.fileConflict.checkFailed", { path: filePath, error: String(error) }));
+      total.errors.push(t("modals.fileConflict.checkFailed", { path: filePath, error: formatBackendErrorDetail(error) }));
       continue;
     }
 
@@ -167,7 +168,7 @@ async function moveWithConflictResolution(filePaths, destDir, executor) {
       if (total.cancelled) break;
     } catch (error) {
       total.failCount += 1;
-      total.errors.push(t("modals.fileConflict.moveFailed", { path: filePath, error: String(error) }));
+      total.errors.push(t("modals.fileConflict.moveFailed", { path: filePath, error: formatBackendErrorDetail(error) }));
     }
   }
   return total;
