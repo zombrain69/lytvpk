@@ -4179,6 +4179,78 @@ export namespace app {
 		}
 	}
 	
+	export class WorkshopSubscription {
+	    publishedFileId: string;
+	    timeSubscribed: number;
+	    disabledLocally: boolean;
+	    hasWorkshopFile: boolean;
+	    hasRootCopy: boolean;
+	    hasDisabledCopy: boolean;
+	    title?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkshopSubscription(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.publishedFileId = source["publishedFileId"];
+	        this.timeSubscribed = source["timeSubscribed"];
+	        this.disabledLocally = source["disabledLocally"];
+	        this.hasWorkshopFile = source["hasWorkshopFile"];
+	        this.hasRootCopy = source["hasRootCopy"];
+	        this.hasDisabledCopy = source["hasDisabledCopy"];
+	        this.title = source["title"];
+	    }
+	}
+	export class WorkshopSubscriptionsSummary {
+	    found: boolean;
+	    reason?: string;
+	    accountId?: string;
+	    timeLastUpdated: number;
+	    total: number;
+	    downloaded: number;
+	    rootCopies: number;
+	    missing: number;
+	    locallyDisabled: number;
+	    entries: WorkshopSubscription[];
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkshopSubscriptionsSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.found = source["found"];
+	        this.reason = source["reason"];
+	        this.accountId = source["accountId"];
+	        this.timeLastUpdated = source["timeLastUpdated"];
+	        this.total = source["total"];
+	        this.downloaded = source["downloaded"];
+	        this.rootCopies = source["rootCopies"];
+	        this.missing = source["missing"];
+	        this.locallyDisabled = source["locallyDisabled"];
+	        this.entries = this.convertValues(source["entries"], WorkshopSubscription);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class WorkshopTransferItemResult {
 	    sourcePath: string;
 	    targetPath: string;

@@ -602,6 +602,10 @@ export function GetWorkshopPreferredIP() {
   return window['go']['app']['App']['GetWorkshopPreferredIP']();
 }
 
+export function GetWorkshopSubscriptions() {
+  return window['go']['app']['App']['GetWorkshopSubscriptions']();
+}
+
 export function GetWorkshopTranslateCustomBaseURL() {
   return window['go']['app']['App']['GetWorkshopTranslateCustomBaseURL']();
 }
@@ -812,6 +816,10 @@ export function OpenFileLocation(arg1) {
 
 export function OpenModSnapshotsFolder() {
   return window['go']['app']['App']['OpenModSnapshotsFolder']();
+}
+
+export function OpenURLInSteam(arg1) {
+  return window['go']['app']['App']['OpenURLInSteam'](arg1);
 }
 
 export function OpenVPKPreviewInExplorer(arg1) {

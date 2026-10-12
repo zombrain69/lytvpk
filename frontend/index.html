@@ -3499,6 +3499,23 @@
         <div id="model-stats-footer" class="modal-footer"></div>
       </div>
     </div>
+
+    <!-- 工坊订阅清单（退订引导，只读；LytVPK 不执行任何退订） -->
+    <div id="subscription-audit-modal" class="modal hidden" style="z-index: 20012">
+      <div class="modal-content subscription-audit-modal-content">
+        <div class="modal-header subscription-audit-modal-header">
+          <div>
+            <h2 data-i18n="toolbox.card.subscriptionAudit.title">工坊订阅清单</h2>
+            <p data-i18n="toolbox.subscriptionAudit.subtitle">只读对照你的工坊订阅与本地文件，并直达 Steam 官方退订页</p>
+          </div>
+          <button id="close-subscription-audit-btn" class="close-btn" type="button">
+            &times;
+          </button>
+        </div>
+        <div id="subscription-audit-body" class="modal-body"></div>
+        <div id="subscription-audit-footer" class="modal-footer"></div>
+      </div>
+    </div>
     <!-- 确认对话框 -->
     <!-- 命令面板（Ctrl+K）：一栏检索所有页面与常用动作 -->
     <div id="command-palette-modal" class="modal hidden" style="z-index: 21000">

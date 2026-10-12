@@ -1,5 +1,22 @@
 # Changelog
 
+## 未发布 — 工坊订阅清单（退订引导 · 路线图第 17 项 P0）（2026-10-12）
+
+- 新能力（引导模式，零风险、零写入）：工具箱新增「工坊订阅清单」——只读解析本机
+  `550_subscriptions.vdf`（Steam userdata），对照当前 addons 目录把每条订阅分成
+  **已下载 / 已转存 addons / 无本地文件 / Steam 本地停用** 四类，一眼看清哪些订阅冗余或失效。
+- 界面：分类筛选（带计数）＋多选框＋「打开所选工坊页」（>10 项先确认）；「在 Steam 中打开退订页」
+  （`steam://openurl/`，走 Steam 内置浏览器里已登录的会话）/「在系统浏览器中打开」两条退订入口。
+  **LytVPK 不执行任何退订、不写任何文件**——所有退订动作都在 Steam 官方页面完成。
+- 后端 `internal/app/workshop_subscriptions.go`（VDF 词法解析 / 多账号取最近 / 本地分类 / 标题复用扫描缓存）
+  + `internal/app/steam_links.go`（`OpenURLInSteam`：仅放行 http(s)，转 `steam://openurl/`）；
+  前端 `features/diagnostics/subscription-audit.js` + `-view.mjs` + 新模态框 + 工具箱卡片。
+- 测试：Go 新增 `workshop_subscriptions_test.go`（VDF 词法 / 多账号选择 / 本地分类与计数）；
+  前端新增 `subscription-audit.test.mjs`（筛选 / 徽标 / 日期 / 计数 / 链接 8 项）。
+- 验证：`go vet ./...` / `go test ./...` 全过；前端显式清单 628 项 0 失败；`npm run build` 通过；
+  **CUA 真机冒烟通过**（真实数据 957 条订阅 → 已下载 947 / 已转存 addons 128 / 无本地文件 10；
+  筛选 / 多选 / 全选 / 清空 / 弹窗开关全部正常——记录见 manual-verification「工坊订阅清单」小节）。
+
 ## 2.7.1-community.68 — 2026-10-12
 
 本版把 2026-10-09 起的全部工作带入正式版（各专项完整记录见下方「未发布」小节，标题保留原始记录）：

@@ -344,6 +344,12 @@
         "status": "可检测",
         "action": "打开检测工具"
       },
+      "subscriptionAudit": {
+        "title": "工坊订阅清单",
+        "description": "只读清点你在该游戏的工坊订阅，标出「已转存 addons」「无本地文件」的订阅，并直达 Steam 官方退订页。",
+        "status": "只读引导",
+        "action": "打开清单"
+      },
       "autoexec": {
         "title": "autoexec.cfg 编辑器",
         "description": "识别已使用的控制台命令，显示含义、风险和来源，并保留原文件编码、BOM 与换行格式。",
@@ -632,6 +638,57 @@
       "deleteTitle": "删除快照",
       "deleted": "已删除快照",
       "deleteFailed": "删除快照失败: {error}"
+    },
+    "subscriptionAudit": {
+      "subtitle": "只读对照你的工坊订阅与本地文件，并直达 Steam 官方退订页",
+      "loading": "正在读取工坊订阅…",
+      "loadFailed": "读取工坊订阅失败：{error}",
+      "retry": "重新加载",
+      "reason": {
+        "noSteam": "未检测到 Steam 安装路径：若本机未安装 Steam 或注册表不可读，此功能不可用。",
+        "noVdf": "未找到 550_subscriptions.vdf：这个账号还没有订阅记录，或尚未运行过 Left 4 Dead 2。"
+      },
+      "summaryLine": "共 {total} 条订阅 · 已下载 {downloaded} · 已转存 addons {rootCopies} · 无本地文件 {missing} · 本地停用 {disabled}",
+      "accountLine": "数据来源：Steam 账号 {accountId}（更新于 {updated}）",
+      "filter": {
+        "all": "全部",
+        "rootCopy": "已转存 addons",
+        "missing": "无本地文件",
+        "downloaded": "已下载",
+        "disabled": "本地停用"
+      },
+      "badge": {
+        "downloaded": "已下载",
+        "rootCopy": "已转存 addons",
+        "missing": "无本地文件",
+        "disabled": "Steam 本地停用"
+      },
+      "untitled": "（标题未解析）",
+      "subscribedAt": "订阅于 {date}",
+      "row": {
+        "open": "打开工坊页"
+      },
+      "batch": {
+        "selectAll": "全选当前筛选",
+        "selected": "已选 {count} 项",
+        "openSelected": "打开所选工坊页",
+        "clear": "清空选择",
+        "confirmOpen": "将打开 {count} 个工坊页面。浏览器会开不少标签，确定继续吗？",
+        "opened": "已打开 {count} 个工坊页面"
+      },
+      "more": "显示更多（还有 {count} 条）",
+      "emptyFiltered": "当前筛选下没有条目",
+      "guide": {
+        "title": "怎么退订（LytVPK 不会执行任何退订）",
+        "step1": "点「在 Steam 中打开退订页」→ 在 Steam 官方页面里勾选要取消的作品 → 取消订阅；页面上也有「取消全部订阅」（不可逆，请谨慎）。",
+        "step2": "「已转存 addons」和「无本地文件」通常是最值得清理的两类；「本地停用」是你在 Steam 里停用过的订阅。",
+        "step3": "退订只影响 Steam 的订阅与下载；本工具里的 Mod 文件不受影响。"
+      },
+      "footer": {
+        "openSteam": "在 Steam 中打开退订页",
+        "openBrowser": "在系统浏览器中打开",
+        "close": "关闭"
+      }
     },
     "modelStats": {
       "subtitle": "统计启用与创意工坊 Mod 的 LOD0 顶点数和三角形数量",

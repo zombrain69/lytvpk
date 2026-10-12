@@ -8,6 +8,7 @@ export async function renderDiagnosticsPage({
   GetProblemModScanSession,
   openProblemModScanIntro,
   openModelStatsScanModal,
+  openSubscriptionAuditModal,
   showConflictModal,
   openVPKUnpackTool,
   openVPKIntegrityTool,
@@ -104,6 +105,20 @@ export async function renderDiagnosticsPage({
             </div>
             <button type="button" class="btn btn-primary diagnostics-tool-action" id="diagnostics-model-stats-btn">
               ${t("toolbox.card.modelStats.action")}
+            </button>
+          </section>
+
+          <section class="diagnostics-tool-card">
+            <div class="diagnostics-tool-icon is-workshop">${subscriptionIcon()}</div>
+            <div class="diagnostics-tool-main">
+              <div class="diagnostics-tool-title-row">
+                <h3>${t("toolbox.card.subscriptionAudit.title")}</h3>
+                <span class="diagnostics-status">${t("toolbox.card.subscriptionAudit.status")}</span>
+              </div>
+              <p>${t("toolbox.card.subscriptionAudit.description")}</p>
+            </div>
+            <button type="button" class="btn btn-primary diagnostics-tool-action" id="diagnostics-subscription-audit-btn">
+              ${t("toolbox.card.subscriptionAudit.action")}
             </button>
           </section>
         </div>
@@ -265,6 +280,12 @@ export async function renderDiagnosticsPage({
     });
 
   document
+    .getElementById("diagnostics-subscription-audit-btn")
+    ?.addEventListener("click", () => {
+      openSubscriptionAuditModal?.();
+    });
+
+  document
     .getElementById("toolbox-mod-snapshot-btn")
     ?.addEventListener("click", () => {
       openModSnapshotTool?.();
@@ -315,6 +336,10 @@ function conflictIcon() {
 
 function modelIcon() {
   return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7.2v9.6L12 21l8-4.2V7.2L12 3Z"/><path d="m4 7.2 8 4.2 8-4.2"/><path d="M12 11.4V21"/><path d="m8.2 5.2 8 4.2"/></svg>`;
+}
+
+function subscriptionIcon() {
+  return `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h11"/><path d="M9 12h11"/><path d="M9 19h11"/><path d="m3 5 1.6 1.6L7.5 3.7"/><path d="m3 12 1.6 1.6 2.9-2.9"/><path d="m3 19 1.6 1.6 2.9-2.9"/></svg>`;
 }
 
 function unpackIcon() {

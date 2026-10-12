@@ -38,6 +38,7 @@ import {
   configureModelStatsScan,
   openModelStatsScanModal,
 } from "./diagnostics/model-stats-scan.js";
+import { openSubscriptionAuditModal } from "./diagnostics/subscription-audit.js";
 import { renderSettingsPage } from "./settings/settings-page.js";
 import { configureModSnapshotTool, openModSnapshotTool } from "./diagnostics/snapshot-tool.js";
 import { configureVPKMerge, openVPKMergeTool } from "./diagnostics/vpk-merge.js";
@@ -1037,6 +1038,7 @@ function setupSettingsAndAboutListeners() {
         GetProblemModScanSession,
         openProblemModScanIntro,
         openModelStatsScanModal,
+        openSubscriptionAuditModal,
         showConflictModal,
         openVPKUnpackTool,
         openVPKIntegrityTool,

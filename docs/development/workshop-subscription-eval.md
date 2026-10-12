@@ -184,3 +184,8 @@ runtime.WindowExecJS 存在（仅注入、无返回通道）
   → SteamUGC → `GetSubscribedItems` → 打印数量与 ID 片段 → `Shutdown`。
 - 与 `550_subscriptions.vdf`（本机实测 957 条）核对一致性与差异。
 - 零写操作、零账号影响；结果记录后再决定是否进入写验证。
+
+
+**实施进度（2026-10-12 晚）**：**P0 引导模式已实现并真机冒烟通过**（工具箱「工坊订阅清单」：
+只读解析 `550_subscriptions.vdf` + 本地分类 + 筛选/多选 + Steam 官方退订页引导；全程零写入）。
+P1（ISteamUGC 只读 spike）与 P2（网页会话，备选）待后续编排。

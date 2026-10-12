@@ -306,6 +306,8 @@ export function GetWorkshopMetaEnabled():Promise<boolean>;
 
 export function GetWorkshopPreferredIP():Promise<boolean>;
 
+export function GetWorkshopSubscriptions():Promise<app.WorkshopSubscriptionsSummary>;
+
 export function GetWorkshopTranslateCustomBaseURL():Promise<string>;
 
 export function GetWorkshopTranslateCustomModelId():Promise<string>;
@@ -411,6 +413,8 @@ export function OpenArchivePackage(arg1:string):Promise<void>;
 export function OpenFileLocation(arg1:string):Promise<void>;
 
 export function OpenModSnapshotsFolder():Promise<void>;
+
+export function OpenURLInSteam(arg1:string):Promise<void>;
 
 export function OpenVPKPreviewInExplorer(arg1:string):Promise<void>;
 
