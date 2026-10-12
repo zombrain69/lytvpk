@@ -58,6 +58,7 @@ type NamingBatchPlan struct {
 	Renamable int               `json:"renamable"` // 可改名且非低置信（默认勾选）
 	Pending   int               `json:"pending"`   // 可改名但低置信（待复核，默认不勾选）
 	Skipped   int               `json:"skipped"`
+	Exempted  int               `json:"exempted"` // 已豁免（例外表命中，含在 Skipped 内）
 }
 
 // NamingBatchRenameRequest 是执行请求的单项（前端回传预览中的 path / oldName / newName）。
@@ -156,13 +157,16 @@ func (a *App) PlanNamingNormalization(paths []string) (NamingBatchPlan, error) {
 			plan.Renamable++
 		default:
 			plan.Skipped++
+			if item.SkipReason == "exempt" {
+				plan.Exempted++
+			}
 		}
 	}
 	plan.Total = len(plan.Items)
 	return plan, nil
 }
 
-// planNamingItem 为单个文件生成计划项（复核校验 → 推演建议 → 组装新名）。
+// planNamingItem 为单个文件生成计划项（复核校验 → 例外表 → 推演建议 → 组装新名）。
 func (a *App) planNamingItem(path string) NamingBatchItem {
 	item := NamingBatchItem{Path: path, OldName: filepath.Base(path), Fits: true}
 	if err := a.validateNamingRenameTarget(path); err != nil {
@@ -170,12 +174,17 @@ func (a *App) planNamingItem(path string) NamingBatchItem {
 		item.SkipDetail = err.Error()
 		return item
 	}
+	// 例外表（路线图第 20 项 P3）：用户裁定不参与规范化建议的包直接跳过。
+	if a.isNamingExemptPath(path) {
+		item.SkipReason = "exempt"
+		return item
+	}
 	item.Location = a.getLocationFromPath(path)
 	if item.Location == "workshop" {
 		item.SkipReason = "workshop"
 		return item
 	}
-	suggestion, err := parser.SuggestNameForFile(path)
+	suggestion, err := parser.SuggestNameForFileWithOptions(path, a.namingOptionsSnapshot())
 	if err != nil {
 		item.SkipReason = "readError"
 		item.SkipDetail = err.Error()

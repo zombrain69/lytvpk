@@ -6,6 +6,14 @@ export function AddModStrategyGroupMembers(arg1, arg2) {
   return window['go']['app']['App']['AddModStrategyGroupMembers'](arg1, arg2);
 }
 
+export function AddNamingExemptions(arg1) {
+  return window['go']['app']['App']['AddNamingExemptions'](arg1);
+}
+
+export function AddNamingRulesAlias(arg1, arg2) {
+  return window['go']['app']['App']['AddNamingRulesAlias'](arg1, arg2);
+}
+
 export function AddWorkshopHistoryEntries(arg1) {
   return window['go']['app']['App']['AddWorkshopHistoryEntries'](arg1);
 }
@@ -502,6 +510,10 @@ export function GetModelStatsScanState() {
   return window['go']['app']['App']['GetModelStatsScanState']();
 }
 
+export function GetNamingRules() {
+  return window['go']['app']['App']['GetNamingRules']();
+}
+
 export function GetOpenWithSettings() {
   return window['go']['app']['App']['GetOpenWithSettings']();
 }
@@ -924,6 +936,14 @@ export function RemoveMissingFileAddonListEntries() {
 
 export function RemoveModStrategyGroupMembers(arg1, arg2) {
   return window['go']['app']['App']['RemoveModStrategyGroupMembers'](arg1, arg2);
+}
+
+export function RemoveNamingExemptions(arg1) {
+  return window['go']['app']['App']['RemoveNamingExemptions'](arg1);
+}
+
+export function RemoveNamingRulesAlias(arg1) {
+  return window['go']['app']['App']['RemoveNamingRulesAlias'](arg1);
 }
 
 export function RenameModStrategyGroup(arg1, arg2, arg3) {

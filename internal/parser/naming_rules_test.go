@@ -372,3 +372,63 @@ func TestSuggestionReasonKeysAreStableAndLocalizable(t *testing.T) {
 		t.Fatalf("已规范名应置 AlreadyNormalized: %+v", normalized)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// 可配置词表（路线图第 20 项 P3）：NamingOptions.SubjectAliases
+// ---------------------------------------------------------------------------
+
+func TestNamingOptionsAppliesSubjectAliases(t *testing.T) {
+	options := NamingOptions{SubjectAliases: map[string]string{"木喷": "泵动霰弹枪"}}
+
+	// 单行命中的替换对象直接套词表替换。
+	single := namingEvidence(30, true, map[string]map[string]int{"主武器": {"木喷": 3}})
+	aliased := DeriveNameSuggestionWithOptions("Chrome Pack", single, 0, options)
+	if aliased.Stem != "主武器-泵动霰弹枪-Chrome Pack" || aliased.Subject != "泵动霰弹枪" {
+		t.Fatalf("词表替换应作用于替换对象: %+v", aliased)
+	}
+
+	// 空选项与旧签名等价（内置默认词表）。
+	plain := DeriveNameSuggestionWithOptions("Chrome Pack", single, 0, NamingOptions{})
+	if plain.Stem != "主武器-木喷-Chrome Pack" {
+		t.Fatalf("空选项应走内置词表: %+v", plain)
+	}
+
+	// 上位名（同域多行合并产物）也能被替换。
+	shotguns := namingEvidence(30, true, map[string]map[string]int{"主武器": {"木喷": 2, "铁喷": 3}})
+	super := DeriveNameSuggestionWithOptions("Chrome Pack", shotguns, 0,
+		NamingOptions{SubjectAliases: map[string]string{"霰弹枪": "泵动/铁质霰弹枪"}})
+	if super.Subject != "泵动/铁质霰弹枪" || super.Stem != "主武器-泵动/铁质霰弹枪-Chrome Pack" {
+		t.Fatalf("上位名应可被词表替换: %+v", super)
+	}
+
+	// 空目标/未命中的条目一律不影响输出。
+	guarded := DeriveNameSuggestionWithOptions("Chrome Pack", single, 0,
+		NamingOptions{SubjectAliases: map[string]string{"木喷": "", "无关": "X"}})
+	if guarded.Stem != "主武器-木喷-Chrome Pack" {
+		t.Fatalf("空目标不应生效: %+v", guarded)
+	}
+}
+
+func TestNamingOptionsAliasIdempotentAndStrip(t *testing.T) {
+	options := NamingOptions{SubjectAliases: map[string]string{"木喷": "泵动霰弹枪"}}
+	single := namingEvidence(30, true, map[string]map[string]int{"主武器": {"木喷": 3}})
+
+	// 已按别名改名 → 重跑 0 改动（幂等以替换后的名称为准）。
+	kept := DeriveNameSuggestionWithOptions("主武器-泵动霰弹枪-Chrome Pack", single, 0, options)
+	if kept.Stem != "主武器-泵动霰弹枪-Chrome Pack" || kept.Changed || !kept.AlreadyNormalized {
+		t.Fatalf("别名目标应幂等保留: %+v", kept)
+	}
+
+	// 先按内置词表命名过的旧名 → 剥掉旧替换对象段后换成别名。
+	swapped := DeriveNameSuggestionWithOptions("主武器-木喷-Chrome Pack", single, 0, options)
+	if swapped.Stem != "主武器-泵动霰弹枪-Chrome Pack" {
+		t.Fatalf("旧替换对象段应被剥掉并换别名: %+v", swapped)
+	}
+
+	// 别名目标本身也要能作为「旧替换对象」被剥掉（换域重推场景）。
+	shadow := namingEvidence(30, true, map[string]map[string]int{"生还者": {"Coach": 4}})
+	replaced := DeriveNameSuggestionWithOptions("主武器-泵动霰弹枪-Chrome Pack", shadow, 0, options)
+	if replaced.Stem != "生还者-Coach-Chrome Pack" {
+		t.Fatalf("别名目标应可被识别为已知段剥掉: %+v", replaced)
+	}
+}

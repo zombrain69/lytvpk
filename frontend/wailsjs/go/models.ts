@@ -2601,6 +2601,7 @@ export namespace app {
 	    renamable: number;
 	    pending: number;
 	    skipped: number;
+	    exempted: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new NamingBatchPlan(source);
@@ -2613,6 +2614,7 @@ export namespace app {
 	        this.renamable = source["renamable"];
 	        this.pending = source["pending"];
 	        this.skipped = source["skipped"];
+	        this.exempted = source["exempted"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2649,6 +2651,112 @@ export namespace app {
 	        this.newName = source["newName"];
 	    }
 	}
+	export class NamingExemptionView {
+	    path: string;
+	    name?: string;
+	    note?: string;
+	    addedAt?: string;
+	    exists: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingExemptionView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.name = source["name"];
+	        this.note = source["note"];
+	        this.addedAt = source["addedAt"];
+	        this.exists = source["exists"];
+	    }
+	}
+	export class NamingSubjectAlias {
+	    from: string;
+	    to: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingSubjectAlias(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.from = source["from"];
+	        this.to = source["to"];
+	    }
+	}
+	export class NamingRulesView {
+	    filePath: string;
+	    subjectAliases: NamingSubjectAlias[];
+	    exemptions: NamingExemptionView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingRulesView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filePath = source["filePath"];
+	        this.subjectAliases = this.convertValues(source["subjectAliases"], NamingSubjectAlias);
+	        this.exemptions = this.convertValues(source["exemptions"], NamingExemptionView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class NamingRulesMutationResult {
+	    added: number;
+	    removed: number;
+	    skipped?: string[];
+	    rules: NamingRulesView;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingRulesMutationResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.added = source["added"];
+	        this.removed = source["removed"];
+	        this.skipped = source["skipped"];
+	        this.rules = this.convertValues(source["rules"], NamingRulesView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
 	export class OpenWithSettings {
 	    program: string;
 	    arguments: string;

@@ -279,6 +279,11 @@ type App struct {
 	collectionsMu sync.Mutex
 	// namingBatchMu 串行化「批量规范化命名」的执行（计划/执行都走它，防并发批量改名）。
 	namingBatchMu sync.Mutex
+	// namingRules / namingRulesLoaded 是「命名规范化规则配置」（naming_rules.json：
+	// 词表替换 + 例外表）的内存快照（懒加载）；namingRulesMu 串行化读改写。
+	namingRules       NamingRulesFile
+	namingRulesLoaded bool
+	namingRulesMu     sync.Mutex
 	// workshopDetailsFetcher 允许测试注入工坊详情获取器（默认走真实接口）。
 	workshopDetailsFetcher workshopDetailFetcher
 	// workshopItemDetailFetcher 允许测试注入"单个作品详情"获取器（更新检测用，默认走真实接口）。

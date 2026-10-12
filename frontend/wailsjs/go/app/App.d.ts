@@ -8,6 +8,10 @@ import {rules} from '../models';
 
 export function AddModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
 
+export function AddNamingExemptions(arg1:Array<string>):Promise<app.NamingRulesMutationResult>;
+
+export function AddNamingRulesAlias(arg1:string,arg2:string):Promise<app.NamingRulesMutationResult>;
+
 export function AddWorkshopHistoryEntries(arg1:Array<app.WorkshopHistoryItem>):Promise<app.WorkshopHistoryStorage>;
 
 export function AnalyzeAutoexecCommands(arg1:string):Promise<Array<app.AutoexecCommandMatch>>;
@@ -256,6 +260,8 @@ export function GetModStrategyGroupMissingMembers():Promise<Array<app.ModStrateg
 
 export function GetModelStatsScanState():Promise<app.ModelStatsScanState>;
 
+export function GetNamingRules():Promise<app.NamingRulesView>;
+
 export function GetOpenWithSettings():Promise<app.OpenWithSettings>;
 
 export function GetPanelMapUploadTasks():Promise<Array<app.PanelMapUploadTask>>;
@@ -467,6 +473,10 @@ export function RemoveDuplicateAddonListEntries():Promise<number>;
 export function RemoveMissingFileAddonListEntries():Promise<number>;
 
 export function RemoveModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promise<app.ModStrategyGroup>;
+
+export function RemoveNamingExemptions(arg1:Array<string>):Promise<app.NamingRulesMutationResult>;
+
+export function RemoveNamingRulesAlias(arg1:string):Promise<app.NamingRulesMutationResult>;
 
 export function RenameModStrategyGroup(arg1:string,arg2:string,arg3:string):Promise<app.ModStrategyGroup>;
 

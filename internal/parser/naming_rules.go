@@ -20,6 +20,8 @@
 //     会保守处理，不会造成错误中段；
 //   - 物件域行名用 LytVPK 自己的标签词汇（如 AK47 / 木喷），不做 20 前缀表的全名映射；
 //   - 上位名只保留可机械判定的两条（副武器→手枪、主武器→霰弹枪）。
+//   - 可配置词表（P3）：NamingOptions.SubjectAliases 把替换对象映射为自定义显示名
+//     （设置页维护；空表 = 内置默认词表）；映射目标同样参与幂等判定与旧段剥离识别。
 package parser
 
 import (
@@ -405,9 +407,40 @@ func namingIsKnownPrefix(segment string) bool {
 	return false
 }
 
+// NamingOptions 是命名规范化的可配置规则（路线图第 20 项 P3「规则配置」）。
+//
+// SubjectAliases：替换对象（词表行名 / 上位名）→ 自定义显示名。用户在设置页配置后，
+// 建议组装（DeriveNameSuggestionWithOptions）与幂等判定（旧替换对象段的可剥离识别）
+// 都会采用它；空表 = 完全走内置默认词表（参考 20 前缀体系）。
+type NamingOptions struct {
+	SubjectAliases map[string]string
+}
+
+// aliasSubject 返回替换对象经词表替换后的显示名（无配置 / 空目标时原样返回）。
+func (o NamingOptions) aliasSubject(subject string) string {
+	if subject == "" || len(o.SubjectAliases) == 0 {
+		return subject
+	}
+	if aliased := strings.TrimSpace(o.SubjectAliases[subject]); aliased != "" {
+		return aliased
+	}
+	return subject
+}
+
+// hasAliasTarget 判断段是否等于某个词表替换的目标名（供幂等剥前缀识别）。
+func (o NamingOptions) hasAliasTarget(segment string) bool {
+	for _, target := range o.SubjectAliases {
+		if target != "" && segment == target {
+			return true
+		}
+	}
+	return false
+}
+
 // namingIsKnownSubject 判断一个「旧替换对象」段是否可安全剥掉（只认已知词汇，
-// 避免把原标题里的词吃掉）。
-func namingIsKnownSubject(segment string) bool {
+// 避免把原标题里的词吃掉）。词表替换的目标名（用户配置）同样视为已知，
+// 否则「建议 → 改名 → 重跑」会在别名目标上重复拼接。
+func namingIsKnownSubject(segment string, options NamingOptions) bool {
 	if _, ok := namingWeaponTagDomains[segment]; ok {
 		return true
 	}
@@ -421,6 +454,9 @@ func namingIsKnownSubject(segment string) bool {
 		if segment == display {
 			return true
 		}
+	}
+	if options.hasAliasTarget(segment) {
+		return true
 	}
 	switch segment {
 	case "手枪", "霰弹枪", "Common Infected", "手电筒", "管理员插件":
@@ -515,9 +551,16 @@ const (
 	namingReasonNone         = "modals.naming.reason.none"
 )
 
-// DeriveNameSuggestion 把证据推演成命名建议。currentStem 是去掉 [标签]/隐藏前缀/.vpk
+// DeriveNameSuggestion 把证据推演成命名建议（内置默认词表；等价于
+// DeriveNameSuggestionWithOptions 传空选项）。currentStem 是去掉 [标签]/隐藏前缀/.vpk
 // 后的编辑体；outerBytes 是外层修饰（[标签] 与 _）占掉的 ANSI 字节数（计入 63B 预算）。
 func DeriveNameSuggestion(currentStem string, evidence NamingEvidence, outerBytes int) NamingSuggestion {
+	return DeriveNameSuggestionWithOptions(currentStem, evidence, outerBytes, NamingOptions{})
+}
+
+// DeriveNameSuggestionWithOptions 与 DeriveNameSuggestion 同口径，但接受用户配置
+// （词表替换；路线图第 20 项 P3）。
+func DeriveNameSuggestionWithOptions(currentStem string, evidence NamingEvidence, outerBytes int, options NamingOptions) NamingSuggestion {
 	budget := AddonStemMaxANSIBytes - outerBytes
 	if budget < 1 {
 		budget = 1
@@ -544,7 +587,7 @@ func DeriveNameSuggestion(currentStem string, evidence NamingEvidence, outerByte
 
 	// S1 · 地图【高置信】
 	if evidence.HasMapBSP || evidence.HasMapNav {
-		return namingComposeSuggestion(currentStem, "地图", "", "S1", false, "S1 含 maps/*.bsp 或 maps/*.nav（地图包）", namingReasonMap, nil, budget)
+		return namingComposeSuggestion(currentStem, "地图", "", "S1", false, "S1 含 maps/*.bsp 或 maps/*.nav（地图包）", namingReasonMap, nil, budget, options)
 	}
 
 	// S5a · 未归类过半（标签体系没覆盖到，判定不可靠）
@@ -579,26 +622,26 @@ func DeriveNameSuggestion(currentStem string, evidence NamingEvidence, outerByte
 			reason += "；同域多行，中段取占比最高行"
 		}
 		return namingComposeSuggestion(currentStem, namingDomainPrefix[best], subject, stage, pending, reason, reasonKey,
-			map[string]string{"domain": best, "percent": percent}, budget)
+			map[string]string{"domain": best, "percent": percent}, budget, options)
 	}
 
 	// 专项（放在物件域之后、资源类型之前）
 	if float64(evidence.AdminPluginHits)/float64(total) >= namingSpecialistMinRatio {
-		return namingComposeSuggestion(currentStem, "管理员插件", "", "专项", false, "专项：管理员插件入口资源占比达标", namingReasonAdminPlugin, nil, budget)
+		return namingComposeSuggestion(currentStem, "管理员插件", "", "专项", false, "专项：管理员插件入口资源占比达标", namingReasonAdminPlugin, nil, budget, options)
 	}
 	if float64(evidence.FlashlightHits)/float64(total) >= namingSpecialistMinRatio {
-		return namingComposeSuggestion(currentStem, "手电筒", "", "专项", false, "专项：手电筒本体资源占比达标", namingReasonFlashlight, nil, budget)
+		return namingComposeSuggestion(currentStem, "手电筒", "", "专项", false, "专项：手电筒本体资源占比达标", namingReasonFlashlight, nil, budget, options)
 	}
 
 	// S4 · 资源类型【高置信】（模型需 20% 门槛，防「顺带带模型」）
 	if evidence.HasModelFile && float64(evidence.TypeHits["模型"])/float64(total) >= namingModelTypeMinRatio {
-		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型（含模型文件且占比达标）", namingReasonModel, nil, budget)
+		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型（含模型文件且占比达标）", namingReasonModel, nil, budget, options)
 	}
 	if kind := namingTopResourceType(evidence.TypeHits); kind != "" {
-		return namingComposeSuggestion(currentStem, kind, "", "S4", false, "S4 资源类型="+kind, namingReasonResource, map[string]string{"kind": kind}, budget)
+		return namingComposeSuggestion(currentStem, kind, "", "S4", false, "S4 资源类型="+kind, namingReasonResource, map[string]string{"kind": kind}, budget, options)
 	}
 	if evidence.TypeHits["模型"] > 0 {
-		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型", namingReasonModel, nil, budget)
+		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型", namingReasonModel, nil, budget, options)
 	}
 
 	// S5 · 保留原前缀【低置信】
@@ -642,7 +685,10 @@ func namingNormalizeTitleSegment(text string) string {
 }
 
 // namingComposeSuggestion 组装「分类-替换对象-原标题」并处理幂等（前缀匹配式剥旧前缀）。
-func namingComposeSuggestion(currentStem, prefix, subject, stage string, pending bool, reason, reasonKey string, reasonArgs map[string]string, budget int) NamingSuggestion {
+// 替换对象先过一遍用户词表替换（NamingOptions.SubjectAliases）：组装、幂等判定与
+// 旧段剥离识别都以替换后的名称为准。
+func namingComposeSuggestion(currentStem, prefix, subject, stage string, pending bool, reason, reasonKey string, reasonArgs map[string]string, budget int, options NamingOptions) NamingSuggestion {
+	subject = options.aliasSubject(subject)
 	want := prefix
 	if subject != "" {
 		want = prefix + "-" + subject
@@ -678,7 +724,7 @@ func namingComposeSuggestion(currentStem, prefix, subject, stage string, pending
 		strippedPrefix = true
 	}
 	if strippedPrefix && subject != "" && rest != "" {
-		if segment, tail, ok := namingSplitFirstSegment(rest); ok && namingIsKnownSubject(segment) {
+		if segment, tail, ok := namingSplitFirstSegment(rest); ok && namingIsKnownSubject(segment, options) {
 			rest = tail
 		}
 	}
@@ -715,8 +761,14 @@ func namingSplitFirstSegment(value string) (segment, tail string, ok bool) {
 // 只读入口
 // ---------------------------------------------------------------------------
 
-// SuggestNameForFile 为单个 VPK 文件生成规范化命名建议（只读：只解目录索引，不写盘）。
+// SuggestNameForFile 为单个 VPK 文件生成规范化命名建议（只读：只解目录索引，不写盘；
+// 内置默认词表）。
 func SuggestNameForFile(filePath string) (NamingSuggestion, error) {
+	return SuggestNameForFileWithOptions(filePath, NamingOptions{})
+}
+
+// SuggestNameForFileWithOptions 与 SuggestNameForFile 同口径，但接受用户配置（词表替换）。
+func SuggestNameForFileWithOptions(filePath string, options NamingOptions) (NamingSuggestion, error) {
 	opener := vpk.Single(filePath)
 	defer opener.Close()
 	archive, err := opener.ReadArchive()
@@ -727,7 +779,7 @@ func SuggestNameForFile(filePath string) (NamingSuggestion, error) {
 	stem := strings.TrimSuffix(base, filepath.Ext(base))
 	editStem, outerBytes := namingEditContext(stem)
 	evidence := CollectNamingEvidence(archive)
-	return DeriveNameSuggestion(editStem, evidence, outerBytes), nil
+	return DeriveNameSuggestionWithOptions(editStem, evidence, outerBytes, options), nil
 }
 
 // namingEditContext 返回重命名弹窗编辑体与「外层修饰」的 ANSI 字节数：

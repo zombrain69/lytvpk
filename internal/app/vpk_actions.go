@@ -814,7 +814,7 @@ func (a *App) SuggestNormalizedName(filePath string) (parser.NamingSuggestion, e
 	if info.IsDir() {
 		return suggestion, errors.New("目标不是文件")
 	}
-	suggestion, err = parser.SuggestNameForFile(trimmed)
+	suggestion, err = parser.SuggestNameForFileWithOptions(trimmed, a.namingOptionsSnapshot())
 	if err != nil {
 		return suggestion, fmt.Errorf("读取 VPK 失败：%w", err)
 	}
