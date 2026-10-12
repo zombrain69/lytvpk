@@ -362,7 +362,12 @@ type NamingSuggestion struct {
 	Truncated     bool   `json:"truncated"`     // 标题段被 63B 截断
 	Fits          bool   `json:"fits"`          // 前缀段本身放得进 63B（false 时无法压缩）
 	Changed       bool   `json:"changed"`       // 建议与当前名不同
-	Reason        string `json:"reason"`        // 依据说明（界面展示）
+	Reason        string `json:"reason"`        // 依据说明（中文原文，兜底展示）
+	// ReasonKey / ReasonArgs 是依据说明的 i18n 形式：界面按当前语言取文案模板再填参数
+	// （domain / kind 参数为原文词，由界面本地化；ReasonKey 为空时回退 Reason）。
+	ReasonKey         string            `json:"reasonKey"`
+	ReasonArgs        map[string]string `json:"reasonArgs,omitempty"`
+	AlreadyNormalized bool              `json:"alreadyNormalized"` // 当前名已符合规范（界面在依据后追加「已符合规范」）
 }
 
 // 物件域优先级（参考规则：命中多域时取优先级最高者）。
@@ -496,6 +501,20 @@ func namingTopResourceType(hits map[string]int) string {
 	return best
 }
 
+// 命名建议依据的 i18n key（界面按当前语言取模板；frontend/src/js/features/file-list/naming-display.mjs）。
+const (
+	namingReasonMap          = "modals.naming.reason.map"
+	namingReasonUnclassified = "modals.naming.reason.unclassified"
+	namingReasonDomain       = "modals.naming.reason.domain"
+	namingReasonDomainMulti  = "modals.naming.reason.domainMultiRow"
+	namingReasonSparse       = "modals.naming.reason.sparse"
+	namingReasonAdminPlugin  = "modals.naming.reason.adminPlugin"
+	namingReasonFlashlight   = "modals.naming.reason.flashlight"
+	namingReasonModel        = "modals.naming.reason.model"
+	namingReasonResource     = "modals.naming.reason.resource"
+	namingReasonNone         = "modals.naming.reason.none"
+)
+
 // DeriveNameSuggestion 把证据推演成命名建议。currentStem 是去掉 [标签]/隐藏前缀/.vpk
 // 后的编辑体；outerBytes 是外层修饰（[标签] 与 _）占掉的 ANSI 字节数（计入 63B 预算）。
 func DeriveNameSuggestion(currentStem string, evidence NamingEvidence, outerBytes int) NamingSuggestion {
@@ -508,7 +527,7 @@ func DeriveNameSuggestion(currentStem string, evidence NamingEvidence, outerByte
 		total = 1
 	}
 
-	keepOriginal := func(reason string, pending bool) NamingSuggestion {
+	keepOriginal := func(reasonKey string, reasonArgs map[string]string, reason string, pending bool) NamingSuggestion {
 		stem, truncated := CapAddonStemToANSIBytes(currentStem, budget)
 		return NamingSuggestion{
 			Stem:          stem,
@@ -518,17 +537,21 @@ func DeriveNameSuggestion(currentStem string, evidence NamingEvidence, outerByte
 			Fits:          true,
 			Changed:       stem != currentStem,
 			Reason:        reason,
+			ReasonKey:     reasonKey,
+			ReasonArgs:    reasonArgs,
 		}
 	}
 
 	// S1 · 地图【高置信】
 	if evidence.HasMapBSP || evidence.HasMapNav {
-		return namingComposeSuggestion(currentStem, "地图", "", "S1", false, "S1 含 maps/*.bsp 或 maps/*.nav（地图包）", budget)
+		return namingComposeSuggestion(currentStem, "地图", "", "S1", false, "S1 含 maps/*.bsp 或 maps/*.nav（地图包）", namingReasonMap, nil, budget)
 	}
 
 	// S5a · 未归类过半（标签体系没覆盖到，判定不可靠）
 	if ratio := float64(evidence.Unclassified) / float64(total); ratio > namingUnclassifiedMaxRatio {
-		return keepOriginal(fmt.Sprintf("S5 未归类占比 %.0f%%，保留原名", ratio*100), true)
+		percent := fmt.Sprintf("%.0f", ratio*100)
+		return keepOriginal(namingReasonUnclassified, map[string]string{"percent": percent},
+			fmt.Sprintf("S5 未归类占比 %s%%，保留原名", percent), true)
 	}
 
 	// S2/S3 · 物件域【高/中置信】
@@ -540,40 +563,46 @@ func DeriveNameSuggestion(currentStem string, evidence NamingEvidence, outerByte
 			// S3 · 无模型证据（贴图/音效类物件）→ 仍用物件域前缀，列入待复核
 			stage, pending = "S3", true
 		} else if total >= namingSparseMinTotal && ratio < namingSparseMinRatio {
-			return keepOriginal(fmt.Sprintf("S5 大而散（总 %d 条路径、域占比 %.1f%%），保留原名", total, ratio*100), true)
+			percent := fmt.Sprintf("%.1f", ratio*100)
+			return keepOriginal(namingReasonSparse, map[string]string{"total": fmt.Sprintf("%d", total), "percent": percent},
+				fmt.Sprintf("S5 大而散（总 %d 条路径、域占比 %s%%），保留原名", total, percent), true)
 		}
 		subject, multiRow := namingPickSubject(best, evidence.DomainRows[best])
 		if multiRow {
 			pending = true
 		}
-		reason := fmt.Sprintf("%s 物件域=%s（占比 %.0f%%）", stage, best, ratio*100)
+		percent := fmt.Sprintf("%.0f", ratio*100)
+		reasonKey := namingReasonDomain
+		reason := fmt.Sprintf("%s 物件域=%s（占比 %s%%）", stage, best, percent)
 		if multiRow {
+			reasonKey = namingReasonDomainMulti
 			reason += "；同域多行，中段取占比最高行"
 		}
-		return namingComposeSuggestion(currentStem, namingDomainPrefix[best], subject, stage, pending, reason, budget)
+		return namingComposeSuggestion(currentStem, namingDomainPrefix[best], subject, stage, pending, reason, reasonKey,
+			map[string]string{"domain": best, "percent": percent}, budget)
 	}
 
 	// 专项（放在物件域之后、资源类型之前）
 	if float64(evidence.AdminPluginHits)/float64(total) >= namingSpecialistMinRatio {
-		return namingComposeSuggestion(currentStem, "管理员插件", "", "专项", false, "专项：管理员插件入口资源占比达标", budget)
+		return namingComposeSuggestion(currentStem, "管理员插件", "", "专项", false, "专项：管理员插件入口资源占比达标", namingReasonAdminPlugin, nil, budget)
 	}
 	if float64(evidence.FlashlightHits)/float64(total) >= namingSpecialistMinRatio {
-		return namingComposeSuggestion(currentStem, "手电筒", "", "专项", false, "专项：手电筒本体资源占比达标", budget)
+		return namingComposeSuggestion(currentStem, "手电筒", "", "专项", false, "专项：手电筒本体资源占比达标", namingReasonFlashlight, nil, budget)
 	}
 
 	// S4 · 资源类型【高置信】（模型需 20% 门槛，防「顺带带模型」）
 	if evidence.HasModelFile && float64(evidence.TypeHits["模型"])/float64(total) >= namingModelTypeMinRatio {
-		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型（含模型文件且占比达标）", budget)
+		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型（含模型文件且占比达标）", namingReasonModel, nil, budget)
 	}
 	if kind := namingTopResourceType(evidence.TypeHits); kind != "" {
-		return namingComposeSuggestion(currentStem, kind, "", "S4", false, "S4 资源类型="+kind, budget)
+		return namingComposeSuggestion(currentStem, kind, "", "S4", false, "S4 资源类型="+kind, namingReasonResource, map[string]string{"kind": kind}, budget)
 	}
 	if evidence.TypeHits["模型"] > 0 {
-		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型", budget)
+		return namingComposeSuggestion(currentStem, "模型", "", "S4", false, "S4 资源类型=模型", namingReasonModel, nil, budget)
 	}
 
 	// S5 · 保留原前缀【低置信】
-	return keepOriginal("S5 无可用标签，保留原名", true)
+	return keepOriginal(namingReasonNone, nil, "S5 无可用标签，保留原名", true)
 }
 
 // namingNormalizeTitleSegment 是参考规则的「硬性改写」之一：Windows 非法字符全角化
@@ -613,7 +642,7 @@ func namingNormalizeTitleSegment(text string) string {
 }
 
 // namingComposeSuggestion 组装「分类-替换对象-原标题」并处理幂等（前缀匹配式剥旧前缀）。
-func namingComposeSuggestion(currentStem, prefix, subject, stage string, pending bool, reason string, budget int) NamingSuggestion {
+func namingComposeSuggestion(currentStem, prefix, subject, stage string, pending bool, reason, reasonKey string, reasonArgs map[string]string, budget int) NamingSuggestion {
 	want := prefix
 	if subject != "" {
 		want = prefix + "-" + subject
@@ -625,6 +654,8 @@ func namingComposeSuggestion(currentStem, prefix, subject, stage string, pending
 		PendingReview: pending,
 		Fits:          true,
 		Reason:        reason,
+		ReasonKey:     reasonKey,
+		ReasonArgs:    reasonArgs,
 	}
 
 	// 幂等：当前名已经以目标「前缀-替换对象」开头 → 原样保留（规范库重跑 0 改动）。
@@ -634,6 +665,7 @@ func namingComposeSuggestion(currentStem, prefix, subject, stage string, pending
 		result.Truncated = truncated
 		result.Changed = stem != currentStem
 		result.Reason = reason + "；已符合规范"
+		result.AlreadyNormalized = true
 		return result
 	}
 
@@ -723,4 +755,42 @@ func namingEditContext(stem string) (string, int) {
 		outerBytes += ANSIByteLength("[" + strings.Join(tags, "+") + "]")
 	}
 	return strings.TrimPrefix(withoutTags, "_"), outerBytes
+}
+
+// ComposeNormalizedFilename 把「新编辑体」（建议的 Stem）组装为该文件的最终新文件名，
+// 口径与重命名链路的标签保留完全一致（前端 buildRenamePreview ↔ 后端 RenameVPKFile）：
+//   - 原文件名带隐藏 `_` 前缀 → 保留；
+//   - 原文件名带 `[标签]` 且新名里没有标签 → 自动补回旧标签（`_[主+副]新编辑体.vpk` 形）；
+//   - 最后补 `.vpk` 扩展名。
+//
+// 批量规范化用它生成「预览即写入」的完整新文件名（前端把预览展示的字符串原样回传执行，
+// 执行阶段不再重新推演）。
+func ComposeNormalizedFilename(oldName, newStem string) string {
+	name := strings.TrimSpace(oldName)
+	stem := strings.TrimSpace(newStem)
+	if stem == "" {
+		return name
+	}
+	body := stem + ".vpk"
+	prefix := ""
+	if strings.HasPrefix(name, "_") {
+		prefix = "_"
+	}
+	primary, secondary, _, hasTags := ParseFilenameTags(name)
+	if !hasTags {
+		return prefix + body
+	}
+	tags := make([]string, 0, 1+len(secondary))
+	if trimmed := strings.TrimSpace(primary); trimmed != "" {
+		tags = append(tags, trimmed)
+	}
+	for _, tag := range secondary {
+		if trimmed := strings.TrimSpace(tag); trimmed != "" {
+			tags = append(tags, trimmed)
+		}
+	}
+	if len(tags) == 0 {
+		return prefix + body
+	}
+	return prefix + "[" + strings.Join(tags, "+") + "]" + body
 }

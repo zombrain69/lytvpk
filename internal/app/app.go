@@ -277,6 +277,8 @@ type App struct {
 	// fileOpsMu 是文件操作（移动 / 删除 / 打包）的互斥闸门，见 file_op_gate.go。
 	fileOpsMu     sync.Mutex
 	collectionsMu sync.Mutex
+	// namingBatchMu 串行化「批量规范化命名」的执行（计划/执行都走它，防并发批量改名）。
+	namingBatchMu sync.Mutex
 	// workshopDetailsFetcher 允许测试注入工坊详情获取器（默认走真实接口）。
 	workshopDetailsFetcher workshopDetailFetcher
 	// workshopItemDetailFetcher 允许测试注入"单个作品详情"获取器（更新检测用，默认走真实接口）。

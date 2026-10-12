@@ -34,6 +34,10 @@ export function ApplyModStrategyGroup(arg1, arg2) {
   return window['go']['app']['App']['ApplyModStrategyGroup'](arg1, arg2);
 }
 
+export function ApplyNamingNormalization(arg1) {
+  return window['go']['app']['App']['ApplyNamingNormalization'](arg1);
+}
+
 export function ApplyTagToModKeys(arg1, arg2) {
   return window['go']['app']['App']['ApplyTagToModKeys'](arg1, arg2);
 }
@@ -852,6 +856,10 @@ export function PauseDownloadTask(arg1) {
 
 export function PickSteamAPIDllFile() {
   return window['go']['app']['App']['PickSteamAPIDllFile']();
+}
+
+export function PlanNamingNormalization(arg1) {
+  return window['go']['app']['App']['PlanNamingNormalization'](arg1);
 }
 
 export function PrepareGroupingWorkspace() {

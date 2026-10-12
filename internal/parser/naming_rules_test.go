@@ -289,3 +289,86 @@ func vpkTestFile(name string) vpk.File {
 	dir, base, ext := splitVPKEntryName(name)
 	return vpk.File{Dir: dir, Base: base, Ext: ext}
 }
+
+func TestComposeNormalizedFilenamePreservesTagsAndHidden(t *testing.T) {
+	cases := []struct {
+		oldName string
+		stem    string
+		want    string
+	}{
+		{"Airi.vpk", "生还者-Coach-Airi", "生还者-Coach-Airi.vpk"},
+		{"[人物]Airi.vpk", "生还者-Coach-Airi", "[人物]生还者-Coach-Airi.vpk"},
+		{"_[人物+coach]Airi.vpk", "生还者-Coach-Airi", "_[人物+coach]生还者-Coach-Airi.vpk"},
+		{"_Airi.vpk", "生还者-Coach-Airi", "_生还者-Coach-Airi.vpk"},
+		{"Airi.vpk", "", "Airi.vpk"},
+	}
+	for _, tc := range cases {
+		if got := ComposeNormalizedFilename(tc.oldName, tc.stem); got != tc.want {
+			t.Fatalf("ComposeNormalizedFilename(%q, %q) = %q, want %q", tc.oldName, tc.stem, got, tc.want)
+		}
+	}
+}
+
+// TestSuggestionReasonKeysAreStableAndLocalizable 钉住每个判定分支都带 i18n 依据 key：
+// key 一律 ASCII、落在 modals.naming.reason.*；参数为纯数据（domain / kind 原文词 + 已格式化数值）。
+func TestSuggestionReasonKeysAreStableAndLocalizable(t *testing.T) {
+	assertReason := func(label string, suggestion NamingSuggestion, wantKey string) {
+		t.Helper()
+		if suggestion.ReasonKey != wantKey {
+			t.Fatalf("%s reasonKey = %q, want %q（%+v）", label, suggestion.ReasonKey, wantKey, suggestion)
+		}
+		if ANSIByteLength(suggestion.ReasonKey) != len(suggestion.ReasonKey) {
+			t.Fatalf("%s reasonKey 不是纯 ASCII: %q", label, suggestion.ReasonKey)
+		}
+		if strings.TrimSpace(suggestion.Reason) == "" {
+			t.Fatalf("%s 缺少中文兜底 reason", label)
+		}
+	}
+
+	assertReason("地图", DeriveNameSuggestion("X", NamingEvidence{Total: 5, HasMapBSP: true}, 0), namingReasonMap)
+
+	domain := DeriveNameSuggestion("Airi", namingEvidence(40, true, map[string]map[string]int{"生还者": {"Coach": 6}}), 0)
+	assertReason("物件域", domain, namingReasonDomain)
+	if domain.ReasonArgs["domain"] != "生还者" || domain.ReasonArgs["percent"] != "15" {
+		t.Fatalf("物件域参数不对: %+v", domain.ReasonArgs)
+	}
+
+	multi := DeriveNameSuggestion("Pack", namingEvidence(30, true, map[string]map[string]int{"主武器": {"AK47": 5, "M16": 2}}), 0)
+	assertReason("同域多行", multi, namingReasonDomainMulti)
+
+	sparse := DeriveNameSuggestion("glubtastic5", namingEvidence(600, true, map[string]map[string]int{"生还者": {"Coach": 12}}), 0)
+	assertReason("大而散", sparse, namingReasonSparse)
+	if sparse.ReasonArgs["total"] != "600" || sparse.ReasonArgs["percent"] != "2.0" {
+		t.Fatalf("大而散参数不对: %+v", sparse.ReasonArgs)
+	}
+
+	unclassified := DeriveNameSuggestion("V社启动动画", NamingEvidence{Total: 20, Unclassified: 11}, 0)
+	assertReason("未归类", unclassified, namingReasonUnclassified)
+	if unclassified.ReasonArgs["percent"] != "55" {
+		t.Fatalf("未归类参数不对: %+v", unclassified.ReasonArgs)
+	}
+
+	flashlight := DeriveNameSuggestion("Wide Beam", NamingEvidence{Total: 100, FlashlightHits: 30}, 0)
+	assertReason("手电筒", flashlight, namingReasonFlashlight)
+
+	admin := DeriveNameSuggestion("Admin System", NamingEvidence{Total: 100, AdminPluginHits: 30}, 0)
+	assertReason("管理员插件", admin, namingReasonAdminPlugin)
+
+	model := DeriveNameSuggestion("Pack", NamingEvidence{Total: 100, HasModelFile: true, TypeHits: map[string]int{"模型": 25, "材质": 40}}, 0)
+	assertReason("模型", model, namingReasonModel)
+
+	resource := DeriveNameSuggestion("HUD Cleanup", NamingEvidence{Total: 20, TypeHits: map[string]int{"界面": 9, "材质": 4}}, 0)
+	assertReason("资源类型", resource, namingReasonResource)
+	if resource.ReasonArgs["kind"] != "界面" {
+		t.Fatalf("资源类型参数不对: %+v", resource.ReasonArgs)
+	}
+
+	none := DeriveNameSuggestion("X", NamingEvidence{Total: 5}, 0)
+	assertReason("保留原名", none, namingReasonNone)
+
+	normalized := DeriveNameSuggestion("地图-Cold Front (Part 1)", NamingEvidence{Total: 10, HasMapBSP: true}, 0)
+	assertReason("已符合规范", normalized, namingReasonMap)
+	if !normalized.AlreadyNormalized {
+		t.Fatalf("已规范名应置 AlreadyNormalized: %+v", normalized)
+	}
+}

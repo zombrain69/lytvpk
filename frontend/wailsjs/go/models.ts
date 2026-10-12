@@ -2491,6 +2491,164 @@ export namespace app {
 	        this.errors = source["errors"];
 	    }
 	}
+	export class NamingBatchApplyItem {
+	    path: string;
+	    oldName?: string;
+	    newName: string;
+	    newPath?: string;
+	    ok: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingBatchApplyItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.oldName = source["oldName"];
+	        this.newName = source["newName"];
+	        this.newPath = source["newPath"];
+	        this.ok = source["ok"];
+	        this.error = source["error"];
+	    }
+	}
+	export class NamingBatchApplyResult {
+	    backupPath?: string;
+	    total: number;
+	    success: number;
+	    failed: number;
+	    items: NamingBatchApplyItem[];
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingBatchApplyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.backupPath = source["backupPath"];
+	        this.total = source["total"];
+	        this.success = source["success"];
+	        this.failed = source["failed"];
+	        this.items = this.convertValues(source["items"], NamingBatchApplyItem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class NamingBatchItem {
+	    path: string;
+	    oldName: string;
+	    newName?: string;
+	    stage?: string;
+	    prefix?: string;
+	    subject?: string;
+	    reasonKey?: string;
+	    reasonArgs?: Record<string, string>;
+	    alreadyNormalized?: boolean;
+	    pendingReview?: boolean;
+	    truncated?: boolean;
+	    fits: boolean;
+	    changed: boolean;
+	    actionable: boolean;
+	    location?: string;
+	    skipReason?: string;
+	    skipDetail?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingBatchItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.oldName = source["oldName"];
+	        this.newName = source["newName"];
+	        this.stage = source["stage"];
+	        this.prefix = source["prefix"];
+	        this.subject = source["subject"];
+	        this.reasonKey = source["reasonKey"];
+	        this.reasonArgs = source["reasonArgs"];
+	        this.alreadyNormalized = source["alreadyNormalized"];
+	        this.pendingReview = source["pendingReview"];
+	        this.truncated = source["truncated"];
+	        this.fits = source["fits"];
+	        this.changed = source["changed"];
+	        this.actionable = source["actionable"];
+	        this.location = source["location"];
+	        this.skipReason = source["skipReason"];
+	        this.skipDetail = source["skipDetail"];
+	    }
+	}
+	export class NamingBatchPlan {
+	    items: NamingBatchItem[];
+	    total: number;
+	    renamable: number;
+	    pending: number;
+	    skipped: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingBatchPlan(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], NamingBatchItem);
+	        this.total = source["total"];
+	        this.renamable = source["renamable"];
+	        this.pending = source["pending"];
+	        this.skipped = source["skipped"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class NamingBatchRenameRequest {
+	    path: string;
+	    oldName?: string;
+	    newName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingBatchRenameRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.oldName = source["oldName"];
+	        this.newName = source["newName"];
+	    }
+	}
 	export class OpenWithSettings {
 	    program: string;
 	    arguments: string;
@@ -5710,6 +5868,9 @@ export namespace parser {
 	    fits: boolean;
 	    changed: boolean;
 	    reason: string;
+	    reasonKey: string;
+	    reasonArgs?: Record<string, string>;
+	    alreadyNormalized: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new NamingSuggestion(source);
@@ -5726,6 +5887,9 @@ export namespace parser {
 	        this.fits = source["fits"];
 	        this.changed = source["changed"];
 	        this.reason = source["reason"];
+	        this.reasonKey = source["reasonKey"];
+	        this.reasonArgs = source["reasonArgs"];
+	        this.alreadyNormalized = source["alreadyNormalized"];
 	    }
 	}
 	export class TagEvidence {

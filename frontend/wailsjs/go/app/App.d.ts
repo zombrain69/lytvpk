@@ -22,6 +22,8 @@ export function ApplyModPriorityLayers():Promise<app.AddonListLoadOrderPreview>;
 
 export function ApplyModStrategyGroup(arg1:string,arg2:app.ModStrategyGroupApplyOptions):Promise<app.ModStrategyGroupApplyResult>;
 
+export function ApplyNamingNormalization(arg1:Array<app.NamingBatchRenameRequest>):Promise<app.NamingBatchApplyResult>;
+
 export function ApplyTagToModKeys(arg1:string,arg2:Array<string>):Promise<app.ModTagApplyResult>;
 
 export function AutoDiscoverAddons():Promise<string>;
@@ -431,6 +433,8 @@ export function ParseWorkshopID(arg1:string):Promise<string>;
 export function PauseDownloadTask(arg1:string):Promise<void>;
 
 export function PickSteamAPIDllFile():Promise<string>;
+
+export function PlanNamingNormalization(arg1:Array<string>):Promise<app.NamingBatchPlan>;
 
 export function PrepareGroupingWorkspace():Promise<app.GroupingWorkspace>;
 
