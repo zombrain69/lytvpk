@@ -1435,3 +1435,9 @@ async function createGroupFromSelectionKeys(name, keys) {
     return false;
   }
 }
+
+// 语言切换（第 19 项 P2 收尾）：分组筛选按钮文案与下拉内容由 JS 渲染、挂在 mods 页常驻位置，
+// 不在 page-change / locale-change 的既有重绘路径上——语言切换时原地重画（纯内存态）。
+document.addEventListener("app:locale-change", () => {
+  renderGroupFilterMenu();
+});

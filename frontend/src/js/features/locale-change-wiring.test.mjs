@@ -20,7 +20,7 @@ const settingsPage = read("./settings/settings-page.js");
 const runtime = read("../core/i18n-runtime.js");
 
 /** 从监听注册点起截一段窗口，断言「监听存在 + 紧跟着调用某个重绘入口」。 */
-function listenerWindow(source, size = 600) {
+function listenerWindow(source, size = 1500) {
   const start = source.indexOf('addEventListener("app:locale-change"');
   assert.ok(start >= 0, "没有找到 app:locale-change 监听");
   return source.slice(start, start + size);
@@ -84,4 +84,41 @@ test("设置页：locale-change 时整页重画并保持当前分区；写配置
     localeWrite < setLocaleCall,
     "先写 config.locale 再 setLocale：否则 locale-change 重绘出旧选中态"
   );
+});
+
+test("P2 收尾：一次性填充的说明书 / 状态面在语言切换时就地重建", () => {
+  // mods 页搜索说明书 + 快捷键总览（app-runtime 启动时一次性填充，之后只切换显隐）
+  const runtimeWindow = listenerWindow(appRuntime);
+  assert.match(runtimeWindow, /buildSearchHelpTitle\(\)/, "搜索说明书标题要重建");
+  assert.match(runtimeWindow, /buildSearchHelpHtml\(\)/, "搜索说明书浮层要重建");
+  assert.match(runtimeWindow, /buildShortcutsTitle\(\)/, "快捷键总览标题要重建");
+  assert.match(runtimeWindow, /buildShortcutsHtml\(\)/, "快捷键总览浮层要重建");
+
+  // 分类侧边栏（filters.js：纯内存重算）
+  const modsWindow = listenerWindow(filters);
+  assert.match(modsWindow, /refreshCategorySidebar\(\)/, "分类侧边栏要重画");
+
+  // 冲突面（状态条 / 范围摘要 / 弹窗筛选与开始按钮 / 一次性填充的搜索说明书）
+  const conflicts = read("./conflicts/conflicts.js");
+  const conflictWindow = listenerWindow(conflicts);
+  assert.match(conflictWindow, /syncConflictSearchBar\(\)/, "冲突搜索说明书要重填");
+  assert.match(conflictWindow, /updateScopedConflictControl\(\)/, "冲突状态条要重刷");
+  assert.match(conflictWindow, /updateConflictScopeSummary\(\)/, "冲突范围摘要要重刷");
+  assert.match(conflictWindow, /updateFilterButtons\(\)/, "冲突弹窗筛选按钮要重刷");
+  assert.match(conflictWindow, /setConflictChecking\(isConflictChecking\)/, "开始按钮文案要重刷");
+
+  // 分组筛选按钮/下拉（group-ui.js）与策略组管理窗口的搜索说明书（一次性填充）
+  const groupUi = read("./mod-groups/group-ui.js");
+  assert.match(listenerWindow(groupUi), /renderGroupFilterMenu\(\)/, "分组筛选按钮/下拉要重画");
+  const manager = read("./mod-groups/strategy-group-manager.js");
+  const managerWindow = listenerWindow(manager);
+  assert.match(managerWindow, /strategy-group-search-help-popover/, "策略组管理说明书浮层要重填");
+  assert.match(
+    managerWindow,
+    /buildSearchHelpHtml\(GROUP_MANAGER_SEARCH_HELP_VARIANT\)/,
+    "策略组管理说明书要用对变体"
+  );
+  // 轮换按钮（mod-rotation.js：状态驱动的文案）
+  const rotation = read("./mods/mod-rotation.js");
+  assert.match(listenerWindow(rotation), /updateModRotationUI\(current\)/, "轮换按钮文案要重画");
 });

@@ -1931,3 +1931,15 @@ export function initStrategyGroupManager() {
     void applyGroupFilterIds([]);
   });
 }
+
+// 语言切换（第 19 项 P2 收尾）：策略组管理窗口的搜索说明书浮层是一次性填充（dataset.filled），
+// 语言切换时重填标题与浮层，避免重开窗口后仍是旧语言。
+document.addEventListener("app:locale-change", () => {
+  const helpPopover = document.getElementById("strategy-group-search-help-popover");
+  if (helpPopover) {
+    helpPopover.innerHTML = buildSearchHelpHtml(GROUP_MANAGER_SEARCH_HELP_VARIANT);
+    helpPopover.dataset.filled = "1";
+  }
+  const search = document.getElementById("strategy-group-search");
+  if (search) search.title = buildSearchHelpTitle(GROUP_MANAGER_SEARCH_HELP_VARIANT);
+});

@@ -1663,3 +1663,15 @@ function getFileCategory(filePath) {
 
   return { label: t("conflicts.fileCategoryOther"), className: "tag-info" };
 }
+
+// 语言切换（第 19 项 P2 收尾）：冲突状态条 / 范围摘要 / 弹窗筛选与开始按钮，以及弹窗里
+// 一次性填充的搜索说明书浮层——语言切换时按当前状态原地重刷（纯读状态、幂等）。
+document.addEventListener("app:locale-change", () => {
+  const helpPopover = document.getElementById("conflict-search-help-popover");
+  if (helpPopover) helpPopover.dataset.filled = "";
+  syncConflictSearchBar();
+  updateScopedConflictControl();
+  updateConflictScopeSummary();
+  updateFilterButtons();
+  setConflictChecking(isConflictChecking);
+});

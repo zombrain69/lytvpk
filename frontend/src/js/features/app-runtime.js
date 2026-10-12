@@ -1074,6 +1074,17 @@ function setupSettingsAndAboutListeners() {
   // JS 整页渲染——需要在原地重画，并保持用户当时所在的分区（否则会跳回第一个分区）。
   // 其余页面的动态内容每次进入都由 page-change 整页重建，不会以旧语言被看到，不在这里接。
   document.addEventListener("app:locale-change", () => {
+    // mods 页的搜索语法说明书（悬停提示 + `?` 浮层）在启动时渲染一次、之后只切换显隐：
+    // 语言切换时就地重建，否则整块保持旧语言（P2 收尾）。
+    const localeSearchInput = document.getElementById("search-input");
+    if (localeSearchInput) localeSearchInput.title = buildSearchHelpTitle();
+    const localeHelpPopover = document.getElementById("search-help-popover");
+    if (localeHelpPopover) localeHelpPopover.innerHTML = buildSearchHelpHtml();
+    // 快捷键总览浮层（标题栏 `?`）同样是一次性填充，一并重建。
+    const localeShortcutsBtn = document.getElementById("shortcuts-help-btn");
+    if (localeShortcutsBtn) localeShortcutsBtn.title = buildShortcutsTitle();
+    const localeShortcutsPopover = document.getElementById("shortcuts-help-popover");
+    if (localeShortcutsPopover) localeShortcutsPopover.innerHTML = buildShortcutsHtml();
     const activePanel = document.querySelector(
       "#settings-page-content .settings-nav-item.active"
     )?.dataset.panel;

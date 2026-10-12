@@ -101,3 +101,12 @@ test("卡片签名覆盖 XDR 动作生效角标", () => {
   const card = functionBody("createFileCard");
   assert.ok(card.includes("buildXDRPriorityBadge(file)"), "卡片要渲染 XDR 动作生效角标");
 });
+
+test("卡片签名覆盖界面语言（语言切换后卡片必须重绘）", () => {
+  const body = functionBody("getFileCardRenderSignature");
+  assert.ok(
+    body.includes("getLocale"),
+    "签名必须含界面语言：卡片角标/按钮文案是 t() 结果，否则语言切换后被整批复用",
+  );
+  assert.ok(body.includes("locale:"), "签名应显式记录 locale 字段");
+});

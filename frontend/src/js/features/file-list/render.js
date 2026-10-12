@@ -40,7 +40,7 @@ import {
   formatGroupChipTitle,
   groupsForFile,
 } from "../mod-groups/group-view.mjs";
-import { t } from "../../core/i18n-runtime.js";
+import { getLocale, t } from "../../core/i18n-runtime.js";
 
 let cardPreviewObserver = null;
 const pendingCardPreviews = new Map();
@@ -1020,6 +1020,9 @@ function getFileCardRenderSignature(file, panelServersAvailable) {
     conflictEnabled: Boolean(appState.conflictAnalysisEnabled),
     conflict: scopedConflictSignature,
     panelServersAvailable,
+    // 界面语言同样参与签名：卡片的角标与按钮文案都是渲染期 t() 的结果，
+    // 没有这一项时语言切换后卡片会被整批复用、旧语言文案停在屏幕上（P2 收尾）。
+    locale: getLocale(),
   });
 }
 

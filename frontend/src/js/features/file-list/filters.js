@@ -513,6 +513,8 @@ document.addEventListener("app:locale-change", () => {
   void renderTagFilters();
   void performSearch();
   updateSortButtonUI();
+  // 分类侧边栏的折叠/动作提示等文案：随标签条同批重画（纯内存重算，不触发扫描）。
+  refreshCategorySidebar();
   requestAnimationFrame(updateClassicSecondaryTagsCollapse);
 });
 

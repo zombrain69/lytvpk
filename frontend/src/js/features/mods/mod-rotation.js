@@ -212,3 +212,10 @@ export async function toggleModRotation() {
     true
   );
 }
+
+// 语言切换（第 19 项 P2 收尾）：轮换按钮文案由状态驱动（初始化 / toggle / 轮换完成时才更新），
+// 不在语言切换的重绘路径上——按当前配置原地重画。
+document.addEventListener("app:locale-change", () => {
+  const current = getConfig().modRotationConfig || { enableCharacters: false, enableWeapons: false };
+  updateModRotationUI(current);
+});
