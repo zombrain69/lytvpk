@@ -163,7 +163,23 @@
   - 验证：Go 新增 9 项 + parser 2 项；前端新增 15 项（133 文件 677 项 0 失败）；CUA 只读沙箱
     冒烟（批量菜单 → 计划弹窗 → 全选开关 → 执行被只读闸门拒绝 → 取消；真库零改动核验通过）；
   - 已知差异：写盘成功路径的镜像沙箱复验与 en 界面目视留给人工会话（见 manual-verification.md）。
-- **P3 剩余**：规则对齐与例外表（横切行 / 全名映射可配置化；默认词表 + 例外表 UI）。
+- **P3 已完成（2026-10-13，自动轮次）**：规则配置（词表替换 + 例外表）：
+  - `internal/app/naming_rules_config.go`：`naming_rules.json`（配置目录）——`subjectAliases`
+    词表替换 + `exemptions` 例外表（存储键 = 相对 Mod 根目录、斜杠分隔）；懒加载快照 /
+    损坏容忍（按空配置并可写回修复）/ 读改写 + 临时文件 + rename 原子替换 + 互斥串行化；
+    导出方法 5 个（GetNamingRules / Add·RemoveNamingRulesAlias / Add·RemoveNamingExemptions）；
+  - `parser.NamingOptions`（`DeriveNameSuggestionWithOptions` / `SuggestNameForFileWithOptions`）：
+    替换对象先过词表替换再组装；幂等判定与「旧替换对象段」剥离识别都以替换后名称为准；
+    空表 = 内置默认词表（单文件建议与批量计划同口径）；
+  - 批量计划：例外命中 `skipReason=exempt` + `exempted` 计数（含在 skipped 内）；弹窗摘要
+    与跳过原因文案同步（`modals.batchNaming.summary` / `skip.exempt`）；
+  - UI：设置页「加载顺序」分区「命名规范化」卡片（词表增删 + 例外查看/移出 + 缺失徽标；
+    重画后保持分区）+ 右键批量菜单「加入/移出命名例外」（lock/unlock 图标）；文案 35 键；
+  - 验证：Go 新增 7 项测试（parser 2 + app 5）；前端 135 文件 691 项 0 失败；CUA 镜像
+    沙箱全链路冒烟（真配置 sha/mtime 与真库零改动；记录见 manual-verification.md
+    「命名规范化 P3」）；wails 重生成绑定。
+  - 与参考实现仍存的已知差异（有意保留）：横切行不单独建行、行名默认词汇不做 20 前缀
+    全名映射（这两项现在都可以经「词表替换」由用户按需覆盖）。
 
 参考索引（`sHartet/l4d2-addons`）：`reference/naming-rules.md`（v1.2 全文）、
 `scripts/plan_v4.py`（cap_name/幂等判定）、`scripts/rename_batch.ps1`（批次执行/三件套）、
