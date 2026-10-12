@@ -27,8 +27,12 @@ export function defaultCheckedPaths(plan) {
 }
 
 // buildApplyRequests 把勾选项拼成执行请求（path / oldName / newName 原样回传）。
+// checkedPaths 允许是数组或 Set（UI 状态用 Set；测试与序列化路径常用数组）——
+// 只用 Array.isArray 判别会把 Set 当成空集（真机回归：按钮计数恒 0、执行静默不触发）。
 export function buildApplyRequests(plan, checkedPaths) {
-  const checked = new Set(Array.isArray(checkedPaths) ? checkedPaths : []);
+  const source =
+    checkedPaths instanceof Set ? checkedPaths : Array.isArray(checkedPaths) ? checkedPaths : [];
+  const checked = new Set(source);
   const items = Array.isArray(plan && plan.items) ? plan.items : [];
   return items
     .filter((item) => item.actionable && item.newName && checked.has(item.path))

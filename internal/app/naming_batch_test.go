@@ -311,6 +311,40 @@ func TestApplyNamingNormalizationBackupFailureAborts(t *testing.T) {
 	}
 }
 
+func TestApplyNamingNormalizationRenamesSidecars(t *testing.T) {
+	app, addonsDir := newNamingBatchTestApp(t)
+
+	coach := filepath.Join(addonsDir, "Airi.vpk")
+	writeCoachPackVPK(t, coach)
+	if err := os.WriteFile(filepath.Join(addonsDir, "Airi.url"),
+		[]byte("[InternetShortcut]\nURL=steam://url/CommunityFilePage/123\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(addonsDir, "Airi.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := app.ApplyNamingNormalization([]NamingBatchRenameRequest{
+		{Path: coach, OldName: "Airi.vpk", NewName: "生还者-Coach-Airi.vpk"},
+	})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if result.Success != 1 || result.Failed != 0 {
+		t.Fatalf("执行失败: %+v", result)
+	}
+
+	// 侧车联动：工坊快捷方式（.url）与同图名（.png）要随主文件一起改名。
+	for _, ext := range []string{".vpk", ".url", ".png"} {
+		if _, err := os.Stat(filepath.Join(addonsDir, "生还者-Coach-Airi"+ext)); err != nil {
+			t.Fatalf("侧车 %s 应随主文件改名: %v", ext, err)
+		}
+		if _, err := os.Stat(filepath.Join(addonsDir, "Airi"+ext)); !os.IsNotExist(err) {
+			t.Fatalf("旧侧车 %s 应已不存在", ext)
+		}
+	}
+}
+
 func TestApplyNamingNormalizationBusyMutex(t *testing.T) {
 	app, addonsDir := newNamingBatchTestApp(t)
 	coach := filepath.Join(addonsDir, "Airi.vpk")

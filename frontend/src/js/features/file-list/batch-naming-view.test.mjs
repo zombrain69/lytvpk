@@ -73,6 +73,21 @@ test("buildApplyRequests 原样回传勾选项的 path/oldName/newName", () => {
   ]);
 });
 
+test("buildApplyRequests 接受 Set 输入（真机回归：Set 曾被当成空集）", () => {
+  const plan = {
+    items: [
+      { path: "a", oldName: "A.vpk", newName: "地图-A.vpk", actionable: true },
+      { path: "b", oldName: "B.vpk", newName: "地图-B.vpk", actionable: true },
+    ],
+  };
+  const viaSet = buildApplyRequests(plan, new Set(["a"]));
+  assert.deepEqual(viaSet, [{ path: "a", oldName: "A.vpk", newName: "地图-A.vpk" }]);
+  // 数组与 Set 两种输入必须同口径（UI 状态是 Set；测试/序列化路径常用数组）。
+  assert.deepEqual(buildApplyRequests(plan, ["a"]), viaSet);
+  assert.deepEqual(buildApplyRequests(plan, new Set()), []);
+  assert.deepEqual(buildApplyRequests(plan, null), []);
+});
+
 test("serializePlanPayload 只含可执行项，含新旧名对照", () => {
   const plan = {
     items: [
