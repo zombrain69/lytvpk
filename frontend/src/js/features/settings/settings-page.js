@@ -52,6 +52,13 @@ import { openStrategyGroupManager } from "../mod-groups/strategy-group-manager.j
 import { confirmInApp, showConfirmModal } from "../modals/confirm.js";
 import { showPromptModal } from "../modals/prompt.js";
 import { isValidDNSAddress } from "./workshop-dns.mjs";
+import {
+  ALIAS_ERROR_KEYS,
+  aliasEntries,
+  exemptEntries,
+  mutationCounts,
+  validateAliasInput,
+} from "./naming-rules-view.mjs";
 
 const SETTINGS_NAV_ICONS = {
   network: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>`,
@@ -215,6 +222,16 @@ export async function renderSettingsPage(deps) {
     console.warn("读取自定义标签规则失败:", error);
     customTagRulesText = "";
   }
+  // 命名规范化规则（词表替换 + 例外表，第 20 项 P3）：读不到就显示空表。
+  let namingRulesView = null;
+  try {
+    namingRulesView = (await deps.GetNamingRules?.()) || null;
+  } catch (error) {
+    console.warn("读取命名规范化规则失败:", error);
+    namingRulesView = null;
+  }
+  const namingAliasRows = aliasEntries(namingRulesView);
+  const namingExemptRows = exemptEntries(namingRulesView);
   const metaEnabled = await readSetting(t("settings.readLabels.metaEnabled"), GetWorkshopMetaEnabled, Boolean(config.workshopMetaEnabled));
   // 更新检测依赖工坊信息存储。旧配置可能留下两者不一致的组合；渲染时
   // 以实际可执行的状态为准，避免禁用的开关仍显示内容和操作入口。
@@ -954,6 +971,55 @@ export async function renderSettingsPage(deps) {
                 <span id="settings-custom-tag-rules-status" class="setting-row-status"></span>
               </div>
               <div id="settings-custom-tag-rules-preview-list" class="settings-health-issues"></div>
+            </div>
+          </div>
+          <div class="setting-card">
+            <div class="setting-card-title">${t("settings.addonlist.maintenance.naming.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.maintenance.naming.desc")}</div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">${t("settings.addonlist.maintenance.naming.aliasesLabel")}</div>
+                <div class="setting-row-desc">${t("settings.addonlist.maintenance.naming.aliasesDesc")}</div>
+              </div>
+              <div class="addonlist-action-row settings-naming-alias-row">
+                <input type="text" id="settings-naming-alias-from" class="form-input settings-naming-alias-input" maxlength="60" placeholder="${t("settings.addonlist.maintenance.naming.aliasFromPlaceholder")}" autocomplete="off" spellcheck="false">
+                <input type="text" id="settings-naming-alias-to" class="form-input settings-naming-alias-input" maxlength="60" placeholder="${t("settings.addonlist.maintenance.naming.aliasToPlaceholder")}" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-naming-alias-add" class="trigger-check-btn addonlist-action-btn">${t("settings.addonlist.maintenance.naming.aliasAdd")}</button>
+              </div>
+              <div id="settings-naming-alias-list" class="settings-naming-list">
+                ${namingAliasRows.length > 0
+                  ? namingAliasRows.map((alias) => `
+                    <div class="settings-naming-item">
+                      <div class="settings-naming-main">
+                        <strong>${escapeHtml(alias.from)}</strong>
+                        <span class="settings-naming-sep">→</span>
+                        <span>${escapeHtml(alias.to)}</span>
+                      </div>
+                      <button type="button" class="settings-naming-remove" data-naming-alias-from="${escapeAttr(alias.from)}">${t("settings.addonlist.maintenance.naming.aliasRemove")}</button>
+                    </div>
+                  `).join("")
+                  : `<div class="setting-row-desc">${t("settings.addonlist.maintenance.naming.aliasEmpty")}</div>`}
+              </div>
+            </div>
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-row-info">
+                <div class="setting-row-label">${t("settings.addonlist.maintenance.naming.exemptLabel")}</div>
+                <div class="setting-row-desc">${t("settings.addonlist.maintenance.naming.exemptDesc")}</div>
+              </div>
+              <div id="settings-naming-exempt-list" class="settings-naming-list">
+                ${namingExemptRows.length > 0
+                  ? namingExemptRows.map((entry) => `
+                    <div class="settings-naming-item">
+                      <div class="settings-naming-main">
+                        <strong>${escapeHtml(entry.name)}</strong>
+                        <span class="settings-naming-path">${escapeHtml(entry.path)}</span>
+                        ${entry.exists ? "" : `<span class="settings-naming-missing">${t("settings.addonlist.maintenance.naming.exemptMissing")}</span>`}
+                      </div>
+                      <button type="button" class="settings-naming-remove" data-naming-exempt-path="${escapeAttr(entry.path)}">${t("settings.addonlist.maintenance.naming.exemptRemove")}</button>
+                    </div>
+                  `).join("")
+                  : `<div class="setting-row-desc">${t("settings.addonlist.maintenance.naming.exemptEmpty")}</div>`}
+              </div>
             </div>
           </div>
         </div>
@@ -1996,6 +2062,89 @@ function bindSettingsPage(deps) {
       deps.showNotification(t("settings.addonlist.maintenance.customTags.saveFailed", { error }), "error");
     } finally {
       button.disabled = false;
+    }
+  });
+
+  // ---- 命名规范化规则（词表替换 + 例外表；路线图第 20 项 P3） ----
+  // 增删后整页重画（设置页是 JS 整页渲染，卡片数据来自 GetNamingRules），并把分区
+  // 恢复到「加载顺序」（卡片所在分区）——整页重画会把激活分区重置回第一个，不恢复会跳页。
+  const refreshNamingRulesPanel = () => {
+    void renderSettingsPage(deps).then(() => {
+      document
+        .querySelector('#settings-page-content .settings-nav-item[data-panel="addonlist"]')
+        ?.click();
+    });
+  };
+  const namingAliasFromInput = document.getElementById("settings-naming-alias-from");
+  const namingAliasToInput = document.getElementById("settings-naming-alias-to");
+  document.getElementById("settings-naming-alias-add")?.addEventListener("click", async () => {
+    const from = namingAliasFromInput?.value || "";
+    const to = namingAliasToInput?.value || "";
+    const problem = validateAliasInput(from, to);
+    if (problem) {
+      deps.showNotification(t(ALIAS_ERROR_KEYS[problem]), "error");
+      return;
+    }
+    try {
+      await deps.AddNamingRulesAlias(from.trim(), to.trim());
+      deps.showNotification(
+        t("settings.addonlist.maintenance.naming.aliasAdded", { from: from.trim(), to: to.trim() }),
+        "success",
+      );
+      refreshNamingRulesPanel();
+    } catch (error) {
+      deps.showNotification(
+        t("settings.addonlist.maintenance.naming.aliasFailed", { error: String(error?.message || error) }),
+        "error",
+      );
+    }
+  });
+  document.getElementById("settings-naming-alias-list")?.addEventListener("click", async (event) => {
+    const button =
+      event.target instanceof Element ? event.target.closest("[data-naming-alias-from]") : null;
+    if (!button) return;
+    const from = button.getAttribute("data-naming-alias-from") || "";
+    try {
+      await deps.RemoveNamingRulesAlias(from);
+      deps.showNotification(
+        t("settings.addonlist.maintenance.naming.aliasRemoved", { from }),
+        "success",
+      );
+      refreshNamingRulesPanel();
+    } catch (error) {
+      deps.showNotification(
+        t("settings.addonlist.maintenance.naming.aliasFailed", { error: String(error?.message || error) }),
+        "error",
+      );
+    }
+  });
+  document.getElementById("settings-naming-exempt-list")?.addEventListener("click", async (event) => {
+    const button =
+      event.target instanceof Element ? event.target.closest("[data-naming-exempt-path]") : null;
+    if (!button) return;
+    const relPath = button.getAttribute("data-naming-exempt-path") || "";
+    try {
+      const result = await deps.RemoveNamingExemptions([relPath]);
+      const counts = mutationCounts(result);
+      if (counts.removed > 0) {
+        deps.showNotification(
+          t("settings.addonlist.maintenance.naming.exemptRemoved", { count: counts.removed }),
+          "success",
+        );
+      } else {
+        deps.showNotification(
+          t("settings.addonlist.maintenance.naming.exemptFailed", {
+            error: (Array.isArray(result?.skipped) && result.skipped[0]) || "",
+          }),
+          "error",
+        );
+      }
+      refreshNamingRulesPanel();
+    } catch (error) {
+      deps.showNotification(
+        t("settings.addonlist.maintenance.naming.exemptFailed", { error: String(error?.message || error) }),
+        "error",
+      );
     }
   });
 

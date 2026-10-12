@@ -1257,3 +1257,79 @@ html.dark-mode .autoexec-analysis.is-warning {
   gap: 0.4rem;
   cursor: pointer;
 }
+
+/* 命名规范化卡片（路线图第 20 项 P3）：词表替换与例外表列表。 */
+.settings-naming-alias-row {
+  flex-wrap: wrap;
+}
+
+.settings-naming-alias-input {
+  flex: 1 1 10rem;
+  min-width: 7rem;
+}
+
+.settings-naming-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+.settings-naming-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.settings-naming-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-naming-main strong {
+  font-weight: 700;
+}
+
+.settings-naming-sep {
+  color: var(--text-tertiary);
+}
+
+.settings-naming-path {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.settings-naming-missing {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--danger, #f85149) 45%, var(--border-default));
+  border-radius: 999px;
+  color: var(--danger, #f85149);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings-naming-remove {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted, transparent);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.settings-naming-remove:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}

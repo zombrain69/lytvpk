@@ -14,6 +14,10 @@ import {
 import { openSetTagsModal } from "./tags.js";
 import { openBatchSetTagsModal } from "./batch-tags.js";
 import { openBatchNamingModal } from "./batch-naming.js";
+import {
+  addNamingExemptionsForPaths,
+  removeNamingExemptionsForPaths,
+} from "./naming-exempt.js";
 import { openLoadOrderModal } from "../modals/load-order.js";
 import {
   enableSelected,
@@ -341,6 +345,17 @@ function buildBatchMenu(menu) {
   }
   menu.appendChild(createMenuItem(t("mods.batch.setTags"), iconSvg("tag"), () => openBatchSetTagsModal()));
   menu.appendChild(createMenuItem(t("mods.batch.normalizeNames"), iconSvg("edit"), () => openBatchNamingModal()));
+  // 命名例外（第 20 项 P3）：加入 / 移出「不参与批量规范化」的例外表。
+  menu.appendChild(
+    createMenuItem(t("mods.contextMenu.namingExemptAdd"), iconSvg("lock"), () =>
+      addNamingExemptionsForPaths(selectedPaths),
+    ),
+  );
+  menu.appendChild(
+    createMenuItem(t("mods.contextMenu.namingExemptRemove"), iconSvg("unlock"), () =>
+      removeNamingExemptionsForPaths(selectedPaths),
+    ),
+  );
   appendGroupMenuItems(menu, selectedPaths);
   menu.appendChild(
     createMenuItem(t("mods.contextMenu.adjustLoadOrder"), loadOrderIconSvg, () =>

@@ -1685,7 +1685,13 @@
       "noPanelServers": "No servers with a config panel",
       "unnamedServer": "Unnamed server",
       "uploadAdded": "Added {count} files to the upload task",
-      "uploadFailed": "Upload failed: {error}"
+      "uploadFailed": "Upload failed: {error}",
+      "namingExemptAdd": "Add naming exception",
+      "namingExemptRemove": "Remove naming exception",
+      "namingExemptAdded": "Added {count} naming exception(s)",
+      "namingExemptRemoved": "Removed {count} naming exception(s)",
+      "namingExemptSkipped": "{count} item(s) skipped (already listed or invalid)",
+      "namingExemptFailed": "Naming exception operation failed: {error}"
     },
     "tags": {
       "none": "None",
@@ -3219,6 +3225,30 @@
           "descTail": " — it never changes or removes automatically recognized results and does not take part in conflict or priority decisions. Saving rescans the whole library once.",
           "exampleLabel": "Example: ",
           "exampleJson": "{\"version\":1,\"rules\":[{\"tag\":\"Delta\",\"nameContains\":[\"Delta\",\"delta\"]},{\"tag\":\"texture pack\",\"anyTags\":[\"texture\"]}]}"
+        },
+        "naming": {
+          "cardTitle": "Name normalization",
+          "desc": "Rule configuration for batch name normalization (category-subject-original title). Built-in word tables follow the reference 20-prefix system; edits here only change suggestions, files are never renamed automatically.",
+          "aliasesLabel": "Subject word replacements",
+          "aliasesDesc": "Rewrite a built-in subject word with your preferred wording; used by both batch and single-file suggestions.",
+          "aliasFromPlaceholder": "Original word (from built-in tables)",
+          "aliasToPlaceholder": "Replacement name",
+          "aliasAdd": "Add / update",
+          "aliasEmpty": "No replacements yet.",
+          "aliasRemove": "Remove",
+          "aliasAdded": "Saved replacement: {from} → {to}",
+          "aliasRemoved": "Removed replacement: {from}",
+          "aliasInvalid": "Both the original word and the replacement name are required",
+          "aliasSame": "Replacement name is identical to the original word",
+          "aliasInvalidChars": "Replacement name cannot contain \\ / : * ? \" < > | or line breaks",
+          "aliasFailed": "Failed to save replacement: {error}",
+          "exemptLabel": "Exception list (excluded from batch normalization)",
+          "exemptDesc": "Listed packages never appear in batch normalization suggestions. To add one: select file(s) in the mod list and use the right-click menu → Add naming exception.",
+          "exemptEmpty": "No exceptions yet.",
+          "exemptMissing": "File missing",
+          "exemptRemove": "Remove",
+          "exemptRemoved": "Removed {count} exception(s)",
+          "exemptFailed": "Failed to remove exception: {error}"
         }
       },
       "dns": {
@@ -4160,7 +4190,7 @@
     },
     "batchNaming": {
       "title": "Normalize names",
-      "summary": "{total} items in total: {renamable} renamable, {pending} to review, {skipped} skipped",
+      "summary": "{total} items in total: {renamable} renamable, {pending} to review, {skipped} skipped ({exempted} exempt)",
       "selectAll": "Select all",
       "groupActionable": "To rename ({count})",
       "groupPending": "Needs review ({count})",
@@ -4190,6 +4220,7 @@
       "reasonPrefix": "Basis: {reason}",
       "skip": {
         "workshop": "Workshop files keep their names (Steam needs the original filename)",
+        "exempt": "In the naming exception list (excluded from batch normalization)",
         "unchanged": "Already follows the naming convention",
         "unfittable": "The category prefix and subject exceed 63 bytes and cannot be shortened",
         "noStem": "Could not build a usable name",

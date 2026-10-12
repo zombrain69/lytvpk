@@ -1685,7 +1685,13 @@
       "noPanelServers": "没有配置面板的服务器",
       "unnamedServer": "未命名服务器",
       "uploadAdded": "已添加 {count} 个文件到上传任务",
-      "uploadFailed": "上传失败: {error}"
+      "uploadFailed": "上传失败: {error}",
+      "namingExemptAdd": "加入命名例外",
+      "namingExemptRemove": "移出命名例外",
+      "namingExemptAdded": "已加入命名例外：{count} 项",
+      "namingExemptRemoved": "已移出命名例外：{count} 项",
+      "namingExemptSkipped": "有 {count} 项未变更（已在例外表或无效）",
+      "namingExemptFailed": "命名例外操作失败: {error}"
     },
     "tags": {
       "none": "无",
@@ -3219,6 +3225,30 @@
           "descTail": "，不改动也不删除自动识别结果，也不参与冲突/优先级判定。保存后会重新扫描一次全库。",
           "exampleLabel": "示例：",
           "exampleJson": "{\"version\":1,\"rules\":[{\"tag\":\"三角洲\",\"nameContains\":[\"三角洲\",\"delta\"]},{\"tag\":\"贴图包\",\"anyTags\":[\"贴图\"]}]}"
+        },
+        "naming": {
+          "cardTitle": "命名规范化",
+          "desc": "批量规范化命名（分类-替换对象-原标题）的规则配置。内置词表为参考 20 前缀体系；这里只影响「建议」的组装与筛选，绝不自动改名。",
+          "aliasesLabel": "词表替换（替换对象）",
+          "aliasesDesc": "把内置词表的替换对象改写成自己的叫法；批量与单文件建议都会采用。例：木喷 → 泵动霰弹枪",
+          "aliasFromPlaceholder": "原词（如 木喷）",
+          "aliasToPlaceholder": "替换为（如 泵动霰弹枪）",
+          "aliasAdd": "添加 / 更新",
+          "aliasEmpty": "暂无词表替换。",
+          "aliasRemove": "移除",
+          "aliasAdded": "已保存词表替换：{from} → {to}",
+          "aliasRemoved": "已移除词表替换：{from}",
+          "aliasInvalid": "原词与替换名都不能为空",
+          "aliasSame": "替换名与原词相同，无需配置",
+          "aliasInvalidChars": "替换名不能包含 \\ / : * ? \" < > | 或换行",
+          "aliasFailed": "保存词表替换失败: {error}",
+          "exemptLabel": "例外表（不参与批量规范化）",
+          "exemptDesc": "清单里的包不会出现在批量规范化的建议中。添加：在 Mod 列表里选中文件后右键 →「加入命名例外」。",
+          "exemptEmpty": "暂无例外条目。",
+          "exemptMissing": "文件不存在",
+          "exemptRemove": "移出",
+          "exemptRemoved": "已移出例外：{count} 项",
+          "exemptFailed": "移出例外失败: {error}"
         }
       },
       "dns": {
@@ -4160,7 +4190,7 @@
     },
     "batchNaming": {
       "title": "批量规范化命名",
-      "summary": "共 {total} 项：{renamable} 个可改名、{pending} 个待复核、{skipped} 个跳过",
+      "summary": "共 {total} 项：{renamable} 个可改名、{pending} 个待复核、{skipped} 个跳过（含 {exempted} 个已豁免）",
       "selectAll": "全选",
       "groupActionable": "将改名（{count}）",
       "groupPending": "待复核（{count}）",
@@ -4190,6 +4220,7 @@
       "reasonPrefix": "建议依据：{reason}",
       "skip": {
         "workshop": "工坊文件不改名（Steam 需要原始文件名）",
+        "exempt": "在命名例外表里（不参与批量规范化）",
         "unchanged": "已符合规范化命名或无需变化",
         "unfittable": "分类前缀与替换对象已超出 63 字节，无法压缩",
         "noStem": "无法生成可用的名字",

@@ -200,6 +200,7 @@ function renderPlan() {
     renamable: currentPlan.renamable,
     pending: currentPlan.pending,
     skipped: currentPlan.skipped,
+    exempted: currentPlan.exempted || 0,
   });
   setStatusLine(t("modals.batchNaming.hint"));
 

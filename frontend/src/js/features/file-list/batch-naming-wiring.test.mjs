@@ -82,7 +82,7 @@ test("i18n 目录：界面文案 zh 逐字 + en 对齐 + 动态 key 全存在", 
   assert.equal(zhCatalog.modals.naming.reason.alreadySuffix, "；已符合规范");
 
   // 弹窗全部键在 en 侧齐平（含动态拼装的 skip.* —— 它们只能靠这里兜住）。
-  const skipCodes = ["workshop", "unchanged", "unfittable", "noStem", "collision", "tooLong", "invalid", "readError"];
+  const skipCodes = ["workshop", "exempt", "unchanged", "unfittable", "noStem", "collision", "tooLong", "invalid", "readError"];
   for (const code of skipCodes) {
     assert.equal(typeof enCatalog.modals.batchNaming.skip[code], "string", `en 缺 skip.${code}`);
     assert.equal(typeof enCatalog.modals.batchNaming.skip[code], "string");
