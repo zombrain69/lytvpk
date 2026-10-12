@@ -663,3 +663,186 @@ html.dark-mode .tag-suggestions-menu {
   z-index: 7000;
 }
 
+/* ── 批量规范化命名（路线图第 20 项 P2）：计划预览列表 + 逐项结果 ── */
+
+.batch-naming-summary {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.batch-naming-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.batch-naming-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.batch-naming-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batch-naming-group-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.batch-naming-row {
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.batch-naming-row.is-skipped {
+  opacity: 0.78;
+}
+
+.batch-naming-row.is-ok {
+  border-color: var(--success);
+}
+
+.batch-naming-row.is-fail {
+  border-color: var(--danger);
+}
+
+.batch-naming-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-naming-names {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.batch-naming-old {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.batch-naming-arrow {
+  color: var(--text-tertiary);
+}
+
+.batch-naming-new {
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.batch-naming-badges {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.batch-naming-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.batch-naming-badge.badge-stage {
+  color: var(--primary, #3b82f6);
+  background: var(--primary-50, rgba(59, 130, 246, 0.1));
+}
+
+.batch-naming-badge.badge-pending {
+  color: var(--warning, #d97706);
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.batch-naming-badge.badge-truncated {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.batch-naming-reason,
+.batch-naming-skip,
+.batch-naming-row-status {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #94a3b8);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.batch-naming-skip-detail {
+  opacity: 0.8;
+}
+
+.batch-naming-row.is-ok .batch-naming-row-status {
+  color: var(--success-light);
+  font-weight: 500;
+}
+
+.batch-naming-row.is-fail .batch-naming-row-status {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.batch-naming-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-naming-footer-left,
+.batch-naming-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.batch-naming-status {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  max-width: 360px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.batch-naming-backup-note {
+  margin: 8px 16px 12px;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  word-break: break-all;
+}
+
+.batch-naming-empty {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+

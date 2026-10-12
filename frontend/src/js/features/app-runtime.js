@@ -184,6 +184,10 @@ import {
   openBatchSetTagsModal,
   setupBatchTagsModalListeners,
 } from "./file-list/batch-tags.js";
+import {
+  openBatchNamingModal,
+  setupBatchNamingListeners,
+} from "./file-list/batch-naming.js";
 import { showConfirmModal } from "./modals/confirm.js";
 import { showExitModal, closeExitModal, confirmExit } from "./modals/exit.js";
 import { showInfoModal, closeInfoModal } from "./modals/info.js";
@@ -934,6 +938,7 @@ async function initializeApp() {
     "agent-prompt-modal",
     "set-tags-modal",
     "batch-set-tags-modal",
+    "batch-naming-modal",
     "group-picker-modal",
     "group-tag-modal",
     "server-details-modal",
@@ -1450,6 +1455,7 @@ function setupEventListeners() {
   // 标签模态框事件
   setupTagModalListeners();
   setupBatchTagsModalListeners();
+  setupBatchNamingListeners();
 
   // 清除已完成任务
   setupClearCompletedTasks();
@@ -1659,6 +1665,14 @@ function setupBatchActionEvents() {
     batchSetTagsBtn.addEventListener("click", () => {
       closeBatchDropdown();
       openBatchSetTagsModal();
+    });
+  }
+
+  const batchNormalizeNamesBtn = document.getElementById("batch-normalize-names-btn");
+  if (batchNormalizeNamesBtn) {
+    batchNormalizeNamesBtn.addEventListener("click", () => {
+      closeBatchDropdown();
+      void openBatchNamingModal();
     });
   }
 

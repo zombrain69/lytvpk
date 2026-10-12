@@ -13,6 +13,7 @@ import {
 } from "./operations.js";
 import { openSetTagsModal } from "./tags.js";
 import { openBatchSetTagsModal } from "./batch-tags.js";
+import { openBatchNamingModal } from "./batch-naming.js";
 import { openLoadOrderModal } from "../modals/load-order.js";
 import {
   enableSelected,
@@ -339,6 +340,7 @@ function buildBatchMenu(menu) {
     );
   }
   menu.appendChild(createMenuItem(t("mods.batch.setTags"), iconSvg("tag"), () => openBatchSetTagsModal()));
+  menu.appendChild(createMenuItem(t("mods.batch.normalizeNames"), iconSvg("edit"), () => openBatchNamingModal()));
   appendGroupMenuItems(menu, selectedPaths);
   menu.appendChild(
     createMenuItem(t("mods.contextMenu.adjustLoadOrder"), loadOrderIconSvg, () =>

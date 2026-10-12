@@ -15,6 +15,7 @@ import { getFileLoadOrderIndex, refreshLoadOrderMap } from "./sorting.js";
 import { updateSingleFileDisplay } from "./render.js";
 import { getUnrecordedGameStateOptions } from "./unrecorded-game-state.mjs";
 import { buildRenamePreview, computeRenameEditName, sanitizeRenameTitle } from "./rename-edit.mjs";
+import { localizeReason } from "./naming-display.mjs";
 import { explainActionAvailability, formatExplanation } from "../../core/action-explanation.mjs";
 import { formatStrategyGroupEnforcementNotice } from "../settings/strategy-group-format.mjs";
 import {
@@ -661,7 +662,7 @@ export async function renameFile(filePath) {
         if (suggestion.pendingReview) flags.push(t("modals.rename.suggestPending"));
         if (!suggestion.fits) flags.push(t("modals.rename.suggestUnfittable"));
         else if (suggestion.truncated) flags.push(t("modals.rename.suggestTruncated"));
-        suggestionNote.textContent = `${t("modals.rename.suggestNote", { reason: suggestion.reason })}${flags.join("")}`;
+        suggestionNote.textContent = `${t("modals.rename.suggestNote", { reason: localizeReason(suggestion, t) })}${flags.join("")}`;
         suggestionNote.classList.remove("hidden");
       }
       input.focus();

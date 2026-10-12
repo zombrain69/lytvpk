@@ -19,6 +19,7 @@ const REQUIRED_FLOATING = [
   "agent-prompt-modal",
   "set-tags-modal",
   "batch-set-tags-modal",
+  "batch-naming-modal",
   "group-picker-modal",
   "group-tag-modal",
   "server-details-modal",

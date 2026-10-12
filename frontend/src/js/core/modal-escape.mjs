@@ -26,6 +26,7 @@ export const ESC_CLOSABLE_MODAL_IDS = [
   "group-picker-modal",
   "set-tags-modal",
   "batch-set-tags-modal",
+  "batch-naming-modal",
   "rename-modal",
   "group-tag-modal",
   "server-form-modal",

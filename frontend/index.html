@@ -805,6 +805,14 @@
                     </svg>
                   </span> <span data-i18n="mods.batch.setTags">设置标签</span>
                 </button>
+                <button id="batch-normalize-names-btn" class="dropdown-item">
+                  <span class="btn-icon">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 20h9"></path>
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                    </svg>
+                  </span> <span data-i18n="mods.batch.normalizeNames">批量规范化命名</span>
+                </button>
                 <button id="share-selected-btn" class="dropdown-item">
                   <span class="btn-icon">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -3305,6 +3313,50 @@
         </div>
       </div>
     </div>
+
+    <!-- 批量规范化命名（路线图第 20 项 P2）：计划预览 + 勾选执行 + 逐项结果 -->
+    <div id="batch-naming-modal" class="modal hidden">
+      <div class="modal-content modal-large batch-naming-modal-content">
+        <div class="modal-header">
+          <h2 data-i18n="modals.batchNaming.title">批量规范化命名</h2>
+          <button id="close-batch-naming-modal-btn" class="close-btn">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="batch-naming-summary" class="batch-naming-summary"></p>
+          <label id="batch-naming-select-all-wrap" class="batch-naming-select-all hidden">
+            <input type="checkbox" id="batch-naming-select-all" />
+            <span data-i18n="modals.batchNaming.selectAll">全选</span>
+          </label>
+          <div id="batch-naming-list" class="batch-naming-list"></div>
+          <p id="batch-naming-empty" class="batch-naming-empty hidden" data-i18n="modals.batchNaming.empty">
+            没有可处理的文件。请先在列表里勾选要规范化的 Mod。
+          </p>
+        </div>
+        <div class="modal-footer batch-naming-footer">
+          <div class="batch-naming-footer-left">
+            <button id="copy-batch-naming-plan-btn" class="btn btn-secondary" data-i18n="modals.batchNaming.copyPlan">
+              复制计划
+            </button>
+            <button id="copy-batch-naming-undo-btn" class="btn btn-secondary hidden" data-i18n="modals.batchNaming.copyUndo">
+              复制撤销清单
+            </button>
+          </div>
+          <div class="batch-naming-footer-right">
+            <span id="batch-naming-status" class="batch-naming-status hidden"></span>
+            <button id="cancel-batch-naming-btn" class="btn btn-secondary" data-i18n="modals.batchNaming.cancel">
+              取消
+            </button>
+            <button id="apply-batch-naming-btn" class="btn btn-primary" data-i18n="modals.batchNaming.apply">
+              执行改名
+            </button>
+          </div>
+        </div>
+        <p id="batch-naming-backup-note" class="batch-naming-backup-note hidden"></p>
+      </div>
+    </div>
+
     <script src="./src/js/main.js" type="module"></script>
     <!-- 创意工坊浏览弹窗 -->
     <div id="browser-modal" class="modal hidden" style="z-index: 2000">

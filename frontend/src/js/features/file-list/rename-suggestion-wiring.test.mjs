@@ -28,8 +28,9 @@ test("operations.js 接线：导入绑定、点击调用、回填输入框与备
   assert.match(operationsSource, /await SuggestNormalizedName\(filePath\)/, "点击要调用后端建议接口");
   assert.match(operationsSource, /input\.value = suggestion\.stem;/, "建议要回填到输入框");
   assert.match(operationsSource, /updateRenameLengthHint\(\);/, "回填后要刷新长度提示");
-  // 备注要带依据与三个旗标（待复核 / 截断 / 放不下）。
-  assert.match(operationsSource, /suggestNote", \{ reason: suggestion\.reason \}/);
+  // 备注要带依据（经 naming-display 按语言本地化）与三个旗标（待复核 / 截断 / 放不下）。
+  assert.match(operationsSource, /import \{ localizeReason \} from "\.\/naming-display\.mjs";/);
+  assert.match(operationsSource, /suggestNote", \{ reason: localizeReason\(suggestion, t\) \}/);
   assert.match(operationsSource, /suggestion\.pendingReview/);
   assert.match(operationsSource, /suggestion\.truncated/);
   assert.match(operationsSource, /suggestion\.fits/);
