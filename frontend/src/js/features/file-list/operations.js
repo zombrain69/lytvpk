@@ -22,6 +22,7 @@ import {
   DeleteVPKFile,
   OpenFileLocation,
   RenameVPKFile,
+  SuggestNormalizedName,
   ToggleVPKVisibility,
   MoveWorkshopFilesToAddons,
 } from "../../../../wailsjs/go/app/App";
@@ -503,6 +504,8 @@ export async function renameFile(filePath) {
   const modal = document.getElementById("rename-modal");
   const input = document.getElementById("rename-input");
   const fillFromTitleBtn = document.getElementById("fill-rename-from-title-btn");
+  const fillFromCategoryBtn = document.getElementById("fill-rename-from-category-btn");
+  const suggestionNote = document.getElementById("rename-suggestion-note");
   const lengthHint = document.getElementById("rename-length-hint");
   const confirmBtn = document.getElementById("confirm-rename-btn");
   const cancelBtn = document.getElementById("cancel-rename-btn");
@@ -517,6 +520,14 @@ export async function renameFile(filePath) {
       ? t("modals.rename.useModNameTooltip")
       : t("modals.rename.noModTitle");
   }
+  if (fillFromCategoryBtn) {
+    fillFromCategoryBtn.disabled = false;
+    fillFromCategoryBtn.title = t("modals.rename.useCategoryTooltip");
+  }
+  if (suggestionNote) {
+    suggestionNote.classList.add("hidden");
+    suggestionNote.textContent = "";
+  }
   modal.classList.remove("hidden");
   input.focus();
   input.select();
@@ -528,6 +539,9 @@ export async function renameFile(filePath) {
     closeBtn.onclick = null;
     if (fillFromTitleBtn) {
       fillFromTitleBtn.onclick = null;
+    }
+    if (fillFromCategoryBtn) {
+      fillFromCategoryBtn.onclick = null;
     }
     input.oninput = null;
     input.onkeydown = null;
@@ -629,8 +643,42 @@ export async function renameFile(filePath) {
     }
   };
 
+  // 「按分类建议填充」：只读调用后端命名规范建议（分类-替换对象-原标题），
+  // 低置信/截断在下方备注里提示，用户仍可在保存前自行修改。
+  const fillFromCategory = async () => {
+    if (!fillFromCategoryBtn) return;
+    fillFromCategoryBtn.disabled = true;
+    try {
+      const suggestion = await SuggestNormalizedName(filePath);
+      if (!suggestion || !suggestion.stem) {
+        showError(t("modals.rename.suggestEmpty"));
+        return;
+      }
+      input.value = suggestion.stem;
+      updateRenameLengthHint();
+      if (suggestionNote) {
+        const flags = [];
+        if (suggestion.pendingReview) flags.push(t("modals.rename.suggestPending"));
+        if (!suggestion.fits) flags.push(t("modals.rename.suggestUnfittable"));
+        else if (suggestion.truncated) flags.push(t("modals.rename.suggestTruncated"));
+        suggestionNote.textContent = `${t("modals.rename.suggestNote", { reason: suggestion.reason })}${flags.join("")}`;
+        suggestionNote.classList.remove("hidden");
+      }
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    } catch (error) {
+      console.error("生成命名建议失败:", error);
+      showError(t("modals.rename.suggestFailed", { error: String(error) }));
+    } finally {
+      fillFromCategoryBtn.disabled = false;
+    }
+  };
+
   if (fillFromTitleBtn) {
     fillFromTitleBtn.onclick = fillFromTitle;
+  }
+  if (fillFromCategoryBtn) {
+    fillFromCategoryBtn.onclick = fillFromCategory;
   }
   confirmBtn.onclick = doRename;
   cancelBtn.onclick = cleanup;

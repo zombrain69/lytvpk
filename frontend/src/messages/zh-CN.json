@@ -4004,7 +4004,15 @@
       "lengthPathWarning": "完整路径较长：{current}/{max}，接近 Windows 限制",
       "lengthTooLong": "文件名过长：{current}/{max}，请缩短名称",
       "noModTitle": "未解析到 Mod 名称",
-      "useModNameTooltip": "使用 addoninfo 中的 Mod 名称"
+      "useModNameTooltip": "使用 addoninfo 中的 Mod 名称",
+      "useCategorySuggestion": "按分类建议填充",
+      "useCategoryTooltip": "按命名规范生成「分类-替换对象-原标题」建议（只读扫描；保存前可修改）",
+      "suggestFailed": "生成命名建议失败: {error}",
+      "suggestEmpty": "没有生成可用的命名建议",
+      "suggestNote": "建议依据：{reason}",
+      "suggestPending": "（低置信，请复核）",
+      "suggestTruncated": "（标题已按 63 字节上限截断）",
+      "suggestUnfittable": "（分类前缀与替换对象已超出 63 字节，无法压缩）"
     },
     "confirm": {
       "title": "确认",

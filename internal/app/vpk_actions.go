@@ -796,6 +796,31 @@ func (a *App) setWorkshopVPKTagsLocked(filePath, primaryTag string, secondaryTag
 	return nil
 }
 
+// SuggestNormalizedName 按命名规范（分类-替换对象-原标题）为单个 VPK 生成重命名建议。
+//
+// 只读：打开 VPK 目录索引收集路径级证据（internal/parser/naming_rules.go 的 S1–S5），
+// 不写盘、不改文件名；低置信结果以 pendingReview 提示，由用户在重命名弹窗里复核后自行保存。
+// 参考实现：sHartet/l4d2-addons naming-rules v1.2（评估文档 docs/development/mod-naming-normalization-eval.md）。
+func (a *App) SuggestNormalizedName(filePath string) (parser.NamingSuggestion, error) {
+	var suggestion parser.NamingSuggestion
+	trimmed := strings.TrimSpace(filePath)
+	if trimmed == "" {
+		return suggestion, errors.New("文件路径不能为空")
+	}
+	info, err := os.Stat(trimmed)
+	if err != nil {
+		return suggestion, fmt.Errorf("找不到要处理的文件：%w", err)
+	}
+	if info.IsDir() {
+		return suggestion, errors.New("目标不是文件")
+	}
+	suggestion, err = parser.SuggestNameForFile(trimmed)
+	if err != nil {
+		return suggestion, fmt.Errorf("读取 VPK 失败：%w", err)
+	}
+	return suggestion, nil
+}
+
 // RenameVPKFile 重命名VPK文件
 func (a *App) RenameVPKFile(filePath string, newFilename string) (string, error) {
 	// 沙箱只读闸门：重命名会改真实库里的文件名。

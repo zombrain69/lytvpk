@@ -1246,6 +1246,10 @@ export function SuggestModGroups() {
   return window['go']['app']['App']['SuggestModGroups']();
 }
 
+export function SuggestNormalizedName(arg1) {
+  return window['go']['app']['App']['SuggestNormalizedName'](arg1);
+}
+
 export function TestMirrorsLatency(arg1) {
   return window['go']['app']['App']['TestMirrorsLatency'](arg1);
 }

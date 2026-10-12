@@ -5700,6 +5700,34 @@ export namespace parser {
 	        this.modes = source["modes"];
 	    }
 	}
+	export class NamingSuggestion {
+	    stem: string;
+	    prefix: string;
+	    subject: string;
+	    stage: string;
+	    pendingReview: boolean;
+	    truncated: boolean;
+	    fits: boolean;
+	    changed: boolean;
+	    reason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NamingSuggestion(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.stem = source["stem"];
+	        this.prefix = source["prefix"];
+	        this.subject = source["subject"];
+	        this.stage = source["stage"];
+	        this.pendingReview = source["pendingReview"];
+	        this.truncated = source["truncated"];
+	        this.fits = source["fits"];
+	        this.changed = source["changed"];
+	        this.reason = source["reason"];
+	    }
+	}
 	export class TagEvidence {
 	    tag: string;
 	    rule: string;

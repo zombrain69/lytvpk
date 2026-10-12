@@ -4004,7 +4004,15 @@
       "lengthPathWarning": "Full path is long: {current}/{max}, close to the Windows limit",
       "lengthTooLong": "File name too long: {current}/{max}. Shorten the name",
       "noModTitle": "No Mod name parsed",
-      "useModNameTooltip": "Use the Mod name from addoninfo"
+      "useModNameTooltip": "Use the Mod name from addoninfo",
+      "useCategorySuggestion": "Fill from category suggestion",
+      "useCategoryTooltip": "Generate a “category-subject-title” suggestion from the naming rules (read-only scan; editable before saving)",
+      "suggestFailed": "Failed to generate a name suggestion: {error}",
+      "suggestEmpty": "No usable name suggestion was generated",
+      "suggestNote": "Suggestion basis: {reason}",
+      "suggestPending": " (low confidence — please review)",
+      "suggestTruncated": " (title truncated to the 63-byte limit)",
+      "suggestUnfittable": " (prefix + subject exceed 63 bytes and cannot be compressed)"
     },
     "confirm": {
       "title": "Confirm",

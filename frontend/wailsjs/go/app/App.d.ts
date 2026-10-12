@@ -628,6 +628,8 @@ export function SubscribeSteamWorkshopItems(arg1:Array<string>):Promise<app.Stea
 
 export function SuggestModGroups():Promise<Array<app.ModGroupSuggestion>>;
 
+export function SuggestNormalizedName(arg1:string):Promise<parser.NamingSuggestion>;
+
 export function TestMirrorsLatency(arg1:boolean):Promise<void>;
 
 export function ToggleVPKFile(arg1:string):Promise<void>;

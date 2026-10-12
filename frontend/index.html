@@ -2193,6 +2193,15 @@
               <div class="rename-field-header">
                 <label for="rename-input" class="input-label" data-i18n="modals.rename.fieldLabel">新文件名</label>
                 <button
+                  id="fill-rename-from-category-btn"
+                  class="rename-title-btn"
+                  type="button"
+                  data-i18n="modals.rename.useCategorySuggestion"
+                  title="按命名规范生成「分类-替换对象-原标题」建议（只读扫描；保存前可修改）"
+                  data-i18n-title="modals.rename.useCategoryTooltip">
+                  按分类建议填充
+                </button>
+                <button
                   id="fill-rename-from-title-btn"
                   class="rename-title-btn"
                   type="button"
@@ -2213,6 +2222,7 @@
                 无需输入 .vpk 后缀；原有隐藏状态与 [标签] 前缀自动保留
               </p>
               <p id="rename-length-hint" class="rename-length-hint hidden"></p>
+              <p id="rename-suggestion-note" class="help-text mt-8 text-sm-tertiary hidden"></p>
             </div>
           </div>
           <div class="modal-footer">

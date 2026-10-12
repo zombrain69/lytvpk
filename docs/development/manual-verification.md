@@ -4400,3 +4400,25 @@ en 溢出扫描（7 页 + 4 设置分区 + 排序下拉 / 搜索说明书 / 快�
   真库 addonlist.txt：sha256 前后一致（`241df1b4…c45e`）；addons 目录 mtime 无新改动
   本会话写盘只落沙箱；零账号写操作；收尾沙箱进程已停止、临时 flag 已还原
 ```
+
+### 命名规范化 P1 · 重命名建议填充（2026-10-13 · 自动轮次）
+
+环境：CUA 调试 EXE（`scripts/devtools/build-cua.ps1`，桥标记自检通过）+ 只读沙箱
+（`scripts/devtools/launch-cua-sandbox.ps1`：`LYTVPK_READONLY_LIBRARY=1`，真实库只读扫描）。
+探针与产物：`.tmp-cua/naming-probe/`（`cua-rename-*.py`、`audit-log-2026-10-13.txt`）、
+`.tmp-cua/shots/rename-suggestion-{modal,pending}.png`。
+
+```text
+桥端到端（window.go.app.App.SuggestNormalizedName，真实文件、只读）：
+  !!医疗箱-0主文件.vpk       → 消耗品-医疗包-…（S2 占比 2%）
+  [MANUKA]Pure替换Hunter.vpk → 特感-Hunter-…（S2 占比 65%）
+弹窗全链路（派发 contextmenu → 点「重命名」→ 点「按分类建议填充」）：
+  3470004819.vpk：输入框 3470004819 →「特效-3470004819」，
+    备注「建议依据：S4 资源类型=特效」（截图 rename-suggestion-modal.png）
+  特效 a4-电击器复活 只狼 20Cat移植版.vpk →「消耗品-电击器-…」，
+    备注「建议依据：S3 物件域=消耗品（占比 60%）（低置信，请复核）」（截图 rename-suggestion-pending.png）
+只读纪律：两次驱动均未点「确定」（沙箱写闸门 + 未保存）；真库 / 真配置零改动。
+真机质量抽查（CLI 只读，1764 VPK 均匀抽样 44）：S2 29 / S3 2 / S4 13；平均 0.3–1.4ms/包；
+真机幂等复核：6 个真实包「建议→副本改名→重跑」保持 0 改动。
+未做：真实保存动作的写盘验证（保存复用既有 RenameVPKFile 链路、回归已覆盖；批量写属 P2）。
+```
