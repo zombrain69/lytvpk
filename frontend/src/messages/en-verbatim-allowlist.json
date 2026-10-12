@@ -1,0 +1,9 @@
+{
+  "_comment": "en 译文「有意保持原文」的 key 白名单：这些值承载数据层取值（解析器生成的标签名等，按既定决策不做映射层），语言切换时保持中文。一致性测试对这些 key 放行 CJK，但要求 en 值必须与 zh 完全一致。",
+  "keys": [
+    "search.example.mods.tagSingle.syntax",
+    "search.example.mods.tagOr.syntax",
+    "search.example.mods.tagAnd.syntax",
+    "search.example.mods.tagExclude.syntax"
+  ]
+}

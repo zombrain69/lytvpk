@@ -90,15 +90,20 @@ test("index.html 静态节点 data-i18n* 引用的 key 都在目录里", () => {
   assert.deepEqual(missing, [], `index.html 里以下 data-i18n key 没有对应的中文文案：\n${missing.join("\n")}`);
 });
 
-// en 目录一致性（第 19 项 P0：「缺翻回退中文」的渐进目录）：
+// en 目录一致性（第 19 项 P0/P2：P2 已全量机翻产出）：
 //   - 每个 en key 必须在 zh-CN 里存在（防拼写漂移 / 陈旧 key 一路留在目录里）；
 //   - 每个 en 值的 {placeholder} 集合必须与该 key 的 zh 值一致（漏翻占位符 = 运行时少显示数据）；
-//   - en 值不允许中文残渣（CJK）、不允许空值；
-//   - 规模下限兜底：防误删把占位目录变成空文件（P2 机翻会继续往上加）。
+//   - en 值不允许中文残渣（CJK）、不允许空值；**例外**：en-verbatim-allowlist.json 里列出的
+//     key 是「有意保持原文」的数据层取值（如解析器生成的标签名，按既定决策不做映射层），
+//     这类 key 的 en 值必须与 zh 完全一致（白名单自身也做保鲜检查）；
+//   - 规模下限兜底：P2 全量机翻后基线 3750；将来 zh 新增文案短期缺翻属预期，但不应大面积丢失。
 test("messages/en.json 与 zh-CN 对齐：key 在 zh 内、占位符一致、无中文残渣", () => {
   const zh = JSON.parse(readFileSync(catalogPath, "utf8"));
   const enPath = join(srcRoot, "..", "messages", "en.json");
   const en = JSON.parse(readFileSync(enPath, "utf8"));
+  const allowPath = join(srcRoot, "..", "messages", "en-verbatim-allowlist.json");
+  const allowList = JSON.parse(readFileSync(allowPath, "utf8"));
+  const verbatimKeys = new Set(allowList.keys || []);
 
   const flatten = (node, prefix = "", out = new Map()) => {
     for (const [name, value] of Object.entries(node)) {
@@ -111,7 +116,7 @@ test("messages/en.json 与 zh-CN 对齐：key 在 zh 内、占位符一致、无
   const zhMap = flatten(zh);
   const enMap = flatten(en);
 
-  assert.ok(enMap.size >= 100, `en 目录规模异常（${enMap.size} keys）——检查是否被误删`);
+  assert.ok(enMap.size >= 3000, `en 目录规模异常（${enMap.size} keys）——检查是否被误删`);
 
   const placeholders = (value) =>
     [...String(value).matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
@@ -122,12 +127,19 @@ test("messages/en.json 与 zh-CN 对齐：key 在 zh 内、占位符一致、无
       continue;
     }
     if (!value.trim()) issues.push(`${key}: 空值`);
-    if (/[\u4e00-\u9fff]/.test(value)) issues.push(`${key}: 含中文残渣`);
+    if (/[\u4e00-\u9fff]/.test(value) && !(verbatimKeys.has(key) && value === zhMap.get(key))) {
+      issues.push(`${key}: 含中文残渣`);
+    }
     const zhPlaceholders = placeholders(zhMap.get(key));
     const enPlaceholders = placeholders(value);
     if (zhPlaceholders.join(",") !== enPlaceholders.join(",")) {
       issues.push(`${key}: 占位符不一致 zh=[${zhPlaceholders}] en=[${enPlaceholders}]`);
     }
+  }
+  // 白名单保鲜：列出的 key 必须真实存在，且值与 zh 完全一致（否则白名单已陈旧）。
+  for (const key of verbatimKeys) {
+    if (!enMap.has(key)) issues.push(`白名单 ${key}: en 目录里不存在`);
+    else if (enMap.get(key) !== zhMap.get(key)) issues.push(`白名单 ${key}: 必须与 zh 原文完全一致`);
   }
   assert.deepEqual(issues, [], `en.json 存在问题：\n${issues.join("\n")}`);
 });
