@@ -588,6 +588,7 @@ export namespace app {
 	    locale?: string;
 	    addonListGuardEnabled?: boolean;
 	    unrecordedModLoadOrderPlacement?: string;
+	    singletonConflictMode?: string;
 	    theme: string;
 	    ignoredVersion: string;
 	    lastUpdateCheckTime: string;
@@ -637,6 +638,7 @@ export namespace app {
 	        this.locale = source["locale"];
 	        this.addonListGuardEnabled = source["addonListGuardEnabled"];
 	        this.unrecordedModLoadOrderPlacement = source["unrecordedModLoadOrderPlacement"];
+	        this.singletonConflictMode = source["singletonConflictMode"];
 	        this.theme = source["theme"];
 	        this.ignoredVersion = source["ignoredVersion"];
 	        this.lastUpdateCheckTime = source["lastUpdateCheckTime"];
