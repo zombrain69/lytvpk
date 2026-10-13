@@ -196,6 +196,10 @@ func TestSteamUGCStatusAutoDetectionAndCache(t *testing.T) {
 	a := newSteamUGCTestApp(t)
 	dll := writeTempDLL(t)
 
+	// 自动检测现在会对候选做一次只读可用性探测：注入假会话让探测通过。
+	recorded := ""
+	useFakeSteamUGCSession(t, newFakeSteamUGCSession(), &recorded)
+
 	callCount := 0
 	previous := steamUGCDetector
 	steamUGCDetector = func() []SteamAPIDllCandidate {
@@ -207,6 +211,9 @@ func TestSteamUGCStatusAutoDetectionAndCache(t *testing.T) {
 	status := a.GetSteamUGCStatus()
 	if !status.Available || status.Source != "auto" || status.Path != dll {
 		t.Fatalf("自动检测结果不对：%+v", status)
+	}
+	if recorded != dll {
+		t.Fatalf("自动检测应通过可用性探测打开一次会话，实际 %q", recorded)
 	}
 	// 第二次调用应命中缓存（检测器只跑一次）。
 	a.GetSteamUGCStatus()
@@ -467,6 +474,97 @@ func TestBatchPassesResolvedDllPathToSession(t *testing.T) {
 	}
 	if recordedPath != dll {
 		t.Fatalf("会话应以解析出的路径打开，实际 %q", recordedPath)
+	}
+}
+
+// 真机复验场景：候选里前几份"存在但不可用"（模拟器改版 / 损坏 / 版本过旧），
+// 自动检测必须继续逐份探测并选中第一份真正可用的；全部不可用时如实显示未就绪。
+func TestSteamUGCAutoDetectSkipsUnusableCandidates(t *testing.T) {
+	a := newSteamUGCTestApp(t)
+	dud1 := writeTempDLL(t)
+	dud2 := writeTempDLL(t)
+	good := writeTempDLL(t)
+	useFakeDetector(t, []SteamAPIDllCandidate{
+		{Path: dud1, Game: "Dud1"},
+		{Path: dud2, Game: "Dud2"},
+		{Path: good, Game: "Good"},
+	})
+
+	previous := openSteamUGCSession
+	var tried []string
+	openSteamUGCSession = func(dllPath string) (steamUGCSession, error) {
+		tried = append(tried, dllPath)
+		if dllPath == good {
+			return newFakeSteamUGCSession(), nil
+		}
+		return nil, errors.New("DLL 里没有可用的 ISteamUGC 接口（文件损坏或版本过旧？）")
+	}
+	t.Cleanup(func() { openSteamUGCSession = previous })
+
+	status := a.GetSteamUGCStatus()
+	if !status.Available || status.Source != "auto" || status.Path != good {
+		t.Fatalf("应跳过不可用副本选中可用的一份：%+v（探测顺序 %v）", status, tried)
+	}
+	if len(tried) != 3 || tried[0] != dud1 || tried[1] != dud2 || tried[2] != good {
+		t.Fatalf("应逐份探测直到命中：%v", tried)
+	}
+	// 缓存：第二次查询不再探测。
+	tried = nil
+	a.GetSteamUGCStatus()
+	if len(tried) != 0 {
+		t.Fatalf("二次查询不应重复探测：%v", tried)
+	}
+}
+
+func TestSteamUGCAutoDetectAllCandidatesUnusable(t *testing.T) {
+	a := newSteamUGCTestApp(t)
+	dud := writeTempDLL(t)
+	useFakeDetector(t, []SteamAPIDllCandidate{{Path: dud, Game: "Dud"}})
+
+	previous := openSteamUGCSession
+	openSteamUGCSession = func(string) (steamUGCSession, error) {
+		return nil, errors.New("可以打开但不是 Steam DLL")
+	}
+	t.Cleanup(func() { openSteamUGCSession = previous })
+
+	status := a.GetSteamUGCStatus()
+	if status.Available || status.Source != "none" || status.Hint != "no-dll" {
+		t.Fatalf("全部不可用时应显示未就绪：%+v", status)
+	}
+}
+
+// 「检测本机 DLL」方法：可用副本被提到第一位；全部不可用时明确报错。
+func TestDetectSteamAPIDllCandidatesPicksWorking(t *testing.T) {
+	a := newSteamUGCTestApp(t)
+	dud := writeTempDLL(t)
+	good := writeTempDLL(t)
+	useFakeDetector(t, []SteamAPIDllCandidate{
+		{Path: dud, Game: "Dud"},
+		{Path: good, Game: "Good"},
+	})
+
+	previous := openSteamUGCSession
+	openSteamUGCSession = func(dllPath string) (steamUGCSession, error) {
+		if dllPath == good {
+			return newFakeSteamUGCSession(), nil
+		}
+		return nil, errors.New("不可用")
+	}
+	t.Cleanup(func() { openSteamUGCSession = previous })
+
+	list, err := a.DetectSteamAPIDllCandidates()
+	if err != nil {
+		t.Fatalf("应返回可用候选列表: %v", err)
+	}
+	if len(list) != 2 || list[0].Path != good || list[1].Path != dud {
+		t.Fatalf("可用副本应被提到第一位：%+v", list)
+	}
+
+	// 全部不可用：明确报错（新的 App 避免命中缓存）。
+	a2 := newSteamUGCTestApp(t)
+	useFakeDetector(t, []SteamAPIDllCandidate{{Path: dud, Game: "Dud"}})
+	if _, err := a2.DetectSteamAPIDllCandidates(); err == nil {
+		t.Fatal("全部不可用时应报错")
 	}
 }
 

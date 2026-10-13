@@ -43,7 +43,9 @@ const (
 	steamAPIDllCandidatesMax = 32
 )
 
-// SteamUGCStatus 是「一键退订」可用性状态（发给前端展示，不初始化 Steam、零副作用）。
+// SteamUGCStatus 是「一键退订」可用性状态（发给前端展示）。自动模式会对候选副本做一次
+// 只读可用性探测（加载 + 初始化 + 取接口后立即关闭，不碰任何订阅数据；结果按进程缓存），
+// 自定义路径只校验文件存在。
 type SteamUGCStatus struct {
 	Available bool   `json:"available"`
 	Path      string `json:"path,omitempty"`
@@ -115,6 +117,35 @@ var steamUGCDetector = func() []SteamAPIDllCandidate {
 	return detectSteamAPIDllCandidates(installPath, os.ReadFile, os.ReadDir, fileExists)
 }
 
+// validateSteamAPIDll 对一份 steam_api64.dll 做一次只读的可用性探测：
+// 加载 + 以 app 550 初始化 + 取 ISteamUGC 句柄 + 接口探测，随后立即关闭。
+// 不涉及任何订阅写操作。用于过滤"存在但不可用"的副本（模拟器改版 / 损坏 / 版本过旧——
+// 真机复验实测：某游戏目录里的一份无法初始化 ISteamUGC）。
+func validateSteamAPIDll(path string) error {
+	session, err := openSteamUGCSession(path)
+	if err != nil {
+		return err
+	}
+	session.Close()
+	return nil
+}
+
+// pickWorkingSteamAPIDll 逐份探测候选，返回第一份可用的下标；全部不可用时返回 -1 与最后一条错误。
+func pickWorkingSteamAPIDll(candidates []SteamAPIDllCandidate) (int, error) {
+	var lastErr error
+	for index := range candidates {
+		if err := validateSteamAPIDll(candidates[index].Path); err != nil {
+			lastErr = err
+			continue
+		}
+		return index, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("候选列表为空")
+	}
+	return -1, lastErr
+}
+
 // GetSteamUGCStatus 返回「一键退订」可用性（只读；自定义路径失效时保留路径信息并给出 hint）。
 func (a *App) GetSteamUGCStatus() SteamUGCStatus {
 	return a.steamUGCStatus()
@@ -147,9 +178,14 @@ func (a *App) steamUGCAutoDetectPath(force bool) string {
 	}
 	a.mu.RUnlock()
 
+	// 只按"存在性"取首份会踩坑：本机可能存在模拟器改版 / 损坏 / 版本过旧的副本
+	// （真机复验实测：Gunfire Reborn 目录里的一份无法初始化 ISteamUGC）。
+	// 逐份做一次只读可用性探测，取第一份真正可用的。
 	found := ""
 	if candidates := steamUGCDetector(); len(candidates) > 0 {
-		found = candidates[0].Path
+		if index, err := pickWorkingSteamAPIDll(candidates); err == nil {
+			found = candidates[index].Path
+		}
 	}
 
 	a.mu.Lock()
@@ -187,19 +223,36 @@ func (a *App) SetSteamAPIDllPath(path string) (SteamUGCStatus, error) {
 func (a *App) DetectSteamAPIDllCandidates() ([]SteamAPIDllCandidate, error) {
 	candidates := steamUGCDetector()
 
-	a.mu.Lock()
-	a.steamUGCAutoChecked = true
-	if len(candidates) > 0 {
-		a.steamUGCAutoPath = candidates[0].Path
-	} else {
-		a.steamUGCAutoPath = ""
-	}
-	a.mu.Unlock()
-
 	if len(candidates) == 0 {
+		a.mu.Lock()
+		a.steamUGCAutoChecked = true
+		a.steamUGCAutoPath = ""
+		a.mu.Unlock()
 		return nil, fmt.Errorf("本机 Steam 游戏目录里没有找到 steam_api64.dll，请用「手动指定…」选择一份")
 	}
-	return candidates, nil
+
+	// 逐份做只读可用性探测：前端「检测本机 DLL」直接采用返回列表的第一个，
+	// 所以把第一份"真正可用"的副本提到最前；全部不可用时明确报错。
+	index, lastErr := pickWorkingSteamAPIDll(candidates)
+	if index < 0 {
+		return nil, fmt.Errorf(
+			"检测到 %d 份 steam_api64.dll，但没有一份能用（可能是模拟器改版 / 损坏 / 版本过旧）：%v；请用「手动指定…」另选一份",
+			len(candidates), lastErr)
+	}
+	working := candidates[index]
+	ordered := make([]SteamAPIDllCandidate, 0, len(candidates))
+	ordered = append(ordered, working)
+	for i, candidate := range candidates {
+		if i != index {
+			ordered = append(ordered, candidate)
+		}
+	}
+
+	a.mu.Lock()
+	a.steamUGCAutoChecked = true
+	a.steamUGCAutoPath = working.Path
+	a.mu.Unlock()
+	return ordered, nil
 }
 
 // PickSteamAPIDllFile 打开系统文件选择器挑一份 steam_api64.dll。
