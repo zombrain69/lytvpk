@@ -159,7 +159,7 @@ git -C FireAxe checkout f8aa1cf1391802c64525412fdf326dbe0ecc98b1
   FireAxe 的 `Push()` 同样把高优先级写在前面（`AddonRoot.cs:899` 降序），方向一致。
 - **覆盖方向**：本项目既有的用户文档语义是"越靠后加载越容易覆盖前面的资源"，
   因此冲突判定里"有效分层更大者获胜"集中在 `conflict.go` 的 `conflictOrderWins` 一处。
-  该方向仍属于待实测项（见 `manual-verification.md`），一旦受控实验给出相反结论，只需改这一处。
+  结论（2026-10-13 口径调整）：**以 FireAxe / 社区惯例为准视为落定**——FireAxe 多年、大规模的真实使用（用户按优先级设置并得到预期结果）即是最实在的验证；受控实验降级为**可选复核**（见 `manual-verification.md`），若未来复核结论相反，仍只需改这一处。
 
 ## 4. 逐项落地状态
 
