@@ -35,6 +35,12 @@ import { formatFileGroupImpact, normalizeGroupKey } from "../mod-groups/group-vi
 import { promptSingletonConflict } from "../conflicts/singleton-conflict.js";
 import { normalizeSingletonConflictMode } from "../conflicts/singleton-conflict-mode.mjs";
 import { getConfig } from "../../core/config.js";
+import {
+  REMINDER_KEYS,
+  ensureReminderSessionLoaded,
+  reminderChoiceThisSession,
+  reminderSuppressedThisSession,
+} from "../../core/reminders.mjs";
 import { labelSeparator } from "../../core/format-list.mjs";
 import { formatBackendErrorDetail } from "../../core/backend-error.mjs";
 
@@ -147,10 +153,19 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   // 同类互斥：同一角色/同一把武器的替换只会生效一个。按设置（设置 → addonlist →
   // 「启用 Mod 时的同类冲突提醒」）处理：
   //   ask（默认）→ 弹一次三选一；replace → 自动关闭旧的并启用；coexist → 不再提醒，直接启用。
-  // 借鉴其它管理器的 SingletonResource 思路，避免"启用了却没生效"的困惑。
+  // 「提醒窗口」会话级：本次运行已选「不再显示」时不再弹窗，按当时选择自动处理
+  //   （replace 沿用；其它 → 仅启用、不动旧的）。借鉴 SingletonResource 思路。
   if (nextEnabled) {
+    await ensureReminderSessionLoaded();
     const conflictMode = normalizeSingletonConflictMode(getConfig().singletonConflictMode);
-    if (conflictMode !== "coexist") {
+    if (reminderSuppressedThisSession(REMINDER_KEYS.singletonConflict)) {
+      if (reminderChoiceThisSession(REMINDER_KEYS.singletonConflict) === "replace") {
+        const conflict = await checkSingletonConflict(filePath);
+        if (conflict) {
+          await disableSingletonConflicts(conflict);
+        }
+      }
+    } else if (conflictMode !== "coexist") {
       const conflict = await checkSingletonConflict(filePath);
       if (conflict) {
         if (conflictMode === "replace") {

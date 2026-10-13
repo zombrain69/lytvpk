@@ -1390,6 +1390,10 @@
       "replace": "Turn off the old one and enable",
       "prompt": "A Mod of the same kind is already enabled in-game: {label}."
     },
+    "reminder": {
+      "sessionSuppress": "Don't show this reminder again during this run",
+      "sessionSuppressHint": "This choice lasts for the current run only; restarting the app restores the default from Settings → addonlist → Window reminders."
+    },
     "loading": "Loading...",
     "detail": {
       "previewSection": "Preview",
@@ -2992,6 +2996,16 @@
         },
         "saved": "Same-slot conflict preference saved",
         "failed": "Failed to save the same-slot conflict preference: {error}"
+      },
+      "reminders": {
+        "cardTitle": "Window reminders",
+        "desc": "Each reminder dialog below can be turned off by default here. Also, the first time a reminder pops in a run, it asks whether to hide it for that run only (the choice lasts until the app closes).",
+        "vpkRisk": {
+          "label": "VPK risk warning dialog",
+          "desc": "Shown before operations (enable / disable / delete / move) when the selected VPKs have problems. When off, the dialog no longer appears and operations proceed as usual."
+        },
+        "saved": "Window reminder settings saved",
+        "failed": "Failed to save window reminder settings: {error}"
       },
       "state": {
         "exists": "Exists",

@@ -853,6 +853,20 @@ export async function renderSettingsPage(deps) {
             </div>
           </div>
           <div class="setting-card">
+            <div class="setting-card-title">${t("settings.addonlist.reminders.cardTitle")}</div>
+            <div class="setting-row-desc">${t("settings.addonlist.reminders.desc")}</div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">${t("settings.addonlist.reminders.vpkRisk.label")}</div>
+                <div class="setting-row-desc">${t("settings.addonlist.reminders.vpkRisk.desc")}</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="settings-reminder-vpk-risk" ${getConfig().remindersHidden?.["vpk-risk"] === true ? "" : "checked"}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-card">
             <div class="setting-card-title">${t("settings.addonlist.profiles.cardTitle")}</div>
             <div class="setting-row-desc">${t("settings.addonlist.profiles.desc")}</div>
             <div class="addonlist-action-row settings-profile-capture-row">
@@ -2296,6 +2310,25 @@ function bindSettingsPage(deps) {
   // 界面语言（core/locale.mjs；入口由 LANGUAGE_SWITCH_ENABLED 控制，第 19 项收口后为 true：
   // 入口已开放）。切换即时生效并写回 config.json；动态页面按「重开生效」约定，
   // 未迁的动态面（mods 列表/标签条/目录下拉、工坊卡片、设置页自身）由 app:locale-change 重绘（P1）。
+  // 「窗口提醒」默认开关：remindersHidden[key] = true 表示默认隐藏（会话级静音另见
+  // core/reminders.mjs；这里只写设置默认）。
+  document.getElementById("settings-reminder-vpk-risk")?.addEventListener("change", async (event) => {
+    const config = deps.getConfig();
+    const hidden = { ...(config.remindersHidden || {}) };
+    if (event.target.checked) {
+      delete hidden["vpk-risk"];
+    } else {
+      hidden["vpk-risk"] = true;
+    }
+    config.remindersHidden = hidden;
+    try {
+      await deps.saveConfig(config);
+      deps.showNotification(t("settings.addonlist.reminders.saved"), "success");
+    } catch (error) {
+      deps.showNotification(t("settings.addonlist.reminders.failed", { error }), "error");
+    }
+  });
+
   // 「启用 Mod 时的同类冲突提醒」：写入 config.singletonConflictMode（ask / replace / coexist）。
   const applyAndSaveSingletonConflictMode = async (rawMode) => {
     const next = normalizeSingletonConflictMode(rawMode);

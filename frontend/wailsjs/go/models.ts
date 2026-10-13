@@ -589,6 +589,7 @@ export namespace app {
 	    addonListGuardEnabled?: boolean;
 	    unrecordedModLoadOrderPlacement?: string;
 	    singletonConflictMode?: string;
+	    remindersHidden?: Record<string, boolean>;
 	    theme: string;
 	    ignoredVersion: string;
 	    lastUpdateCheckTime: string;
@@ -639,6 +640,7 @@ export namespace app {
 	        this.addonListGuardEnabled = source["addonListGuardEnabled"];
 	        this.unrecordedModLoadOrderPlacement = source["unrecordedModLoadOrderPlacement"];
 	        this.singletonConflictMode = source["singletonConflictMode"];
+	        this.remindersHidden = source["remindersHidden"];
 	        this.theme = source["theme"];
 	        this.ignoredVersion = source["ignoredVersion"];
 	        this.lastUpdateCheckTime = source["lastUpdateCheckTime"];

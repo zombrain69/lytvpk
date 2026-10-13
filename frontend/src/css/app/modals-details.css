@@ -1487,3 +1487,22 @@ html.dark-mode .toast-close:hover {
   justify-content: flex-end;
   flex-wrap: wrap;
 }
+
+/* 「提醒窗口」会话级勾选行：只在本次运行第一次弹窗时出现；选择保留到 EXE 关闭。 */
+.reminder-session-row {
+  margin-top: 10px;
+}
+
+.reminder-session-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.reminder-session-toggle input {
+  margin: 0;
+}

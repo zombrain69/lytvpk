@@ -530,6 +530,10 @@ export function GetProblemModScanSession() {
   return window['go']['app']['App']['GetProblemModScanSession']();
 }
 
+export function GetReminderSessionStates() {
+  return window['go']['app']['App']['GetReminderSessionStates']();
+}
+
 export function GetRootDirectory() {
   return window['go']['app']['App']['GetRootDirectory']();
 }
@@ -1172,6 +1176,10 @@ export function SetModStrategyGroupTier(arg1, arg2) {
 
 export function SetOpenWithSettings(arg1, arg2) {
   return window['go']['app']['App']['SetOpenWithSettings'](arg1, arg2);
+}
+
+export function SetReminderSessionState(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SetReminderSessionState'](arg1, arg2, arg3);
 }
 
 export function SetRootDirectory(arg1) {

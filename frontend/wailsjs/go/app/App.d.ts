@@ -270,6 +270,8 @@ export function GetPrimaryTags():Promise<Array<string>>;
 
 export function GetProblemModScanSession():Promise<app.ProblemModScanSession>;
 
+export function GetReminderSessionStates():Promise<Record<string, app.ReminderSessionState>>;
+
 export function GetRootDirectory():Promise<string>;
 
 export function GetScanStats():Promise<app.ScanStats>;
@@ -591,6 +593,8 @@ export function SetModStrategyGroupMembers(arg1:string,arg2:Array<string>):Promi
 export function SetModStrategyGroupTier(arg1:string,arg2:any):Promise<app.ModStrategyGroup>;
 
 export function SetOpenWithSettings(arg1:string,arg2:string):Promise<app.OpenWithSettings>;
+
+export function SetReminderSessionState(arg1:string,arg2:boolean,arg3:string):Promise<void>;
 
 export function SetRootDirectory(arg1:string):Promise<void>;
 

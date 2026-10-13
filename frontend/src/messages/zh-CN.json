@@ -1390,6 +1390,10 @@
       "replace": "关闭旧的并启用",
       "prompt": "检测到同类的 Mod 已经在游戏内启用：{label}。"
     },
+    "reminder": {
+      "sessionSuppress": "本次运行期间不再显示此提醒",
+      "sessionSuppressHint": "仅对本次运行有效；重开应用后按「设置 → addonlist → 窗口提醒」里的默认行为。"
+    },
     "loading": "正在加载...",
     "detail": {
       "previewSection": "预览图",
@@ -2992,6 +2996,16 @@
         },
         "saved": "同类冲突提醒设置已保存",
         "failed": "保存同类冲突提醒设置失败: {error}"
+      },
+      "reminders": {
+        "cardTitle": "窗口提醒",
+        "desc": "以下提醒窗口都可以在这里默认关闭；另外每个提醒在本次运行第一次弹出时也会询问是否「本次运行期间不再显示」（该选择只保留到应用关闭）。",
+        "vpkRisk": {
+          "label": "VPK 风险提示窗口",
+          "desc": "启用/禁用/删除/移动等操作前，检测到有问题的 VPK 时弹出风险提示。关闭后不再弹出，操作照常执行。"
+        },
+        "saved": "窗口提醒设置已保存",
+        "failed": "保存窗口提醒设置失败: {error}"
       },
       "state": {
         "exists": "存在",

@@ -213,6 +213,11 @@ type App struct {
 	unrecordedModLoadOrderPlacement string
 	conflictPriorityAware           bool
 	conflictIgnoreFiles             []string
+	// remindersHidden 是「提醒窗口」的设置默认（config.json：键 → true=默认隐藏；空=全部显示）；
+	// reminderSession 是本进程内的会话级选择（第一次弹窗时问一次，只保留到 EXE 关闭）。
+	// 键与前端 core/reminders.mjs 同一套（singleton-conflict / vpk-risk）。
+	remindersHidden map[string]bool
+	reminderSession map[string]ReminderSessionState
 	// strategyGroupFloating 记录「策略组管理」窗口是否以浮动模式打开（nil 表示从未设置过）。
 	strategyGroupFloating *bool
 	// categorySidebarVisible 记录「分类侧边栏」是否展开（nil 表示从未设置过 → 默认收起）。
@@ -350,9 +355,12 @@ type ConfigFile struct {
 	// SingletonConflictMode：「启用 Mod 时的同类冲突提醒」的处理方式（ask / replace / coexist；
 	// 空 = ask，保持旧行为）。前端写入、前端消费（启用流程读它决定弹窗/自动处理）；Go 侧只持久化。
 	SingletonConflictMode string `json:"singletonConflictMode,omitempty"`
-	Theme                 string `json:"theme"`
-	IgnoredVersion        string `json:"ignoredVersion"`
-	LastUpdateCheckTime   string `json:"lastUpdateCheckTime"`
+	// RemindersHidden：「提醒窗口」的默认隐藏开关（键 → true = 默认不显示；空 = 全部显示）。
+	// 会话级静音不落盘（见 reminders.go）；前端 core/reminders.mjs 读写。
+	RemindersHidden     map[string]bool `json:"remindersHidden,omitempty"`
+	Theme               string          `json:"theme"`
+	IgnoredVersion      string          `json:"ignoredVersion"`
+	LastUpdateCheckTime string          `json:"lastUpdateCheckTime"`
 	// migrationVersion=2 表示前端 localStorage 配置已迁移到配置目录。
 	MigrationVersion      int      `json:"migrationVersion"`
 	ConflictPriorityAware *bool    `json:"conflictPriorityAware,omitempty"`

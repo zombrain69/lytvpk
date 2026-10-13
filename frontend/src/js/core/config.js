@@ -3,7 +3,7 @@ import {
   GetConfigMigrationVersion,
   MigrateLocalStorageConfig,
   SaveAppConfig,
-} from "../../../wailsjs/go/app/App";
+} from "../../../wailsjs/go/app/App.js";
 import { DEFAULT_UI_SCALE, normalizeUIScale } from "./ui-scale.js";
 import { normalizeWorkshopDNSConfig } from "../features/settings/workshop-dns.mjs";
 import { normalizeLocale } from "./locale.mjs";

@@ -3,6 +3,14 @@ import { t } from "../../core/i18n-runtime.js";
 import { beginMessageModalSession } from "../../core/message-modal.js";
 import { openVPKIntegrityForPaths } from "../diagnostics/vpk-integrity.js";
 import { clauseSeparator, labelSeparator } from "../../core/format-list.mjs";
+import { getConfig } from "../../core/config.js";
+import {
+  REMINDER_KEYS,
+  ensureReminderSessionLoaded,
+  isReminderActive,
+  recordReminderSessionChoice,
+  reminderToggleHtml,
+} from "../../core/reminders.mjs";
 
 /**
  * Normalize paths while preserving their first-seen order.
@@ -99,6 +107,10 @@ export async function confirmVPKIntegrityWarning(filePaths, operationLabel = nul
   const paths = normalizeVPKPaths(filePaths);
   if (paths.length === 0) return true;
 
+  // 「提醒窗口」体系：设置里关掉、或本次运行选了「不再显示」时直接放行（也不做检查）。
+  await ensureReminderSessionLoaded();
+  if (!isReminderActive(REMINDER_KEYS.vpkRisk, getConfig())) return true;
+
   let results;
   try {
     if (paths.length === 1) {
@@ -123,6 +135,8 @@ function showRiskModal(paths, operationLabel, items) {
     const settle = (value, reason) => {
       if (settled) return;
       settled = true;
+      // 会话级勾选（首次弹窗才出现）：记录后本次运行不再弹（只保留到应用关闭）。
+      recordReminderSessionChoice(REMINDER_KEYS.vpkRisk);
       session?.close(reason);
       resolve(value);
     };
@@ -130,6 +144,7 @@ function showRiskModal(paths, operationLabel, items) {
     const session = beginMessageModalSession({
       onClose: () => {
         if (!settled) {
+          recordReminderSessionChoice(REMINDER_KEYS.vpkRisk);
           settled = true;
           resolve(false);
         }
@@ -142,7 +157,15 @@ function showRiskModal(paths, operationLabel, items) {
 
     session.addClass(session.modal.querySelector(".modal-content"), "vpk-risk-warning-modal");
     session.titleEl.textContent = t("modals.vpkRisk.title", { label: operationLabel });
-    session.contentEl.replaceChildren(createRiskContent(items, operationLabel));
+    const content = createRiskContent(items, operationLabel);
+    // 第一次弹出时给「本次运行期间不再显示」勾选；已问过则为空串、不追加。
+    const sessionRow = document.createElement("div");
+    sessionRow.className = "reminder-session-row";
+    sessionRow.innerHTML = reminderToggleHtml(REMINDER_KEYS.vpkRisk, t("mods.reminder.sessionSuppress"));
+    if (sessionRow.innerHTML) {
+      content.appendChild(sessionRow);
+    }
+    session.contentEl.replaceChildren(content);
 
     const inspectButton = document.createElement("button");
     inspectButton.type = "button";
@@ -150,6 +173,7 @@ function showRiskModal(paths, operationLabel, items) {
     inspectButton.textContent = t("modals.vpkRisk.inspect");
     inspectButton.onclick = async () => {
       if (!session.isCurrent()) return;
+      recordReminderSessionChoice(REMINDER_KEYS.vpkRisk);
       session.close("inspect");
       if (!settled) {
         settled = true;

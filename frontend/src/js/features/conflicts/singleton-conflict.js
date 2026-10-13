@@ -7,8 +7,16 @@
 const CHOICES = new Set(["replace", "coexist", "cancel"]);
 
 import { t } from "../../core/i18n-runtime.js";
+import {
+  REMINDER_KEYS,
+  ensureReminderSessionLoaded,
+  recordReminderSessionChoice,
+  reminderToggleHtml,
+} from "../../core/reminders.mjs";
 
-export function promptSingletonConflict(conflict) {
+export async function promptSingletonConflict(conflict) {
+  // 「提醒窗口」体系：拉一次会话状态，决定本次要不要带「本次运行期间不再显示」勾选。
+  await ensureReminderSessionLoaded();
   const modal = document.getElementById("singleton-conflict-modal");
   if (!modal) return Promise.resolve("coexist");
 
@@ -28,6 +36,13 @@ export function promptSingletonConflict(conflict) {
       list.appendChild(row);
     });
   }
+  const sessionRow = document.getElementById("singleton-conflict-session-row");
+  if (sessionRow) {
+    sessionRow.innerHTML = reminderToggleHtml(
+      REMINDER_KEYS.singletonConflict,
+      t("mods.reminder.sessionSuppress"),
+    );
+  }
   modal.classList.remove("hidden");
 
   const replaceButton = document.getElementById("singleton-conflict-replace");
@@ -37,6 +52,12 @@ export function promptSingletonConflict(conflict) {
 
   return new Promise((resolve) => {
     const cleanup = (choice) => {
+      // 会话级勾选（仅首次弹窗出现）：只保留到应用关闭；静音后按本次的动作自动处理
+      // （replace 沿用；其它 → 仅启用、不动旧的）。
+      recordReminderSessionChoice(
+        REMINDER_KEYS.singletonConflict,
+        choice === "cancel" ? "" : choice,
+      );
       modal.classList.add("hidden");
       replaceButton?.removeEventListener("click", onReplace);
       coexistButton?.removeEventListener("click", onCoexist);
