@@ -171,6 +171,8 @@ test("源码接线：一键退订用到的绑定 / 事件 / 帮助函数都已�
 	assert.match(source, /EventsOn\("steam_ugc_progress"/, "应订阅批量进度事件");
 	assert.match(source, /buildUnsubscribeConfirmHtml/);
 	assert.match(source, /buildResubscribeConfirmHtml/);
+	assert.match(source, /subscription-batch-resub-all/, "结果面板应有「重新订阅本次退订」入口");
+	assert.match(source, /resubscribeLastBatch/, "回滚入口应接在结果面板上");
 	assert.match(source, /confirmHtmlInApp\(/, "退订前必须走清单确认弹窗");
 	// 账户红线的 UI 侧执行点：只在确认之后调用批量退订。
 	const confirmIndex = source.indexOf("await confirmHtmlInApp(");

@@ -4,7 +4,7 @@
 //
 // 纪律：
 //  - 一键退订只在用户当次点击确认后执行（授权不跨会话）；后端在真正写之前会先导出回滚清单；
-//  - 确认弹窗展示 ID + 标题 + 总数 + 不可逆说明 + 回退方式（「重新订阅所选」）；
+//  - 确认弹窗展示 ID + 标题 + 总数 + 不可逆说明 + 回退方式（结果面板「重新订阅本次退订」）；
 //  - 未配置 DLL 时退订按钮不出现，只保留官方页面引导（零风险路径）；
 //  - 批量执行期间界面只读进度事件，第二次执行会被后端互斥闸门拒绝。
 // 数据来自后端 GetWorkshopSubscriptions / GetSteamUGCStatus（只读解析 550_subscriptions.vdf + 本地文件对照）。
@@ -441,6 +441,31 @@ async function resubscribeSelected() {
 	await runBatch("subscribe", entries);
 }
 
+// resubscribeLastBatch 回滚入口（结果面板）：退订成功后条目会随刷新离开订阅清单，
+// 选择集里再也选不到它们——所以「把本次退订的条目订阅回来」必须以结果面板为入口
+// （标题来自 lastBatchTitles；退订后订阅快照里已经拿不到）。
+async function resubscribeLastBatch() {
+	if (!lastBatch || lastBatch.action !== "unsubscribe") return;
+	const entries = (Array.isArray(lastBatch.results) ? lastBatch.results : [])
+		.filter((item) => item?.ok && !item?.skipped)
+		.map((item) => {
+			const id = String(item?.publishedFileId || "");
+			return {
+				publishedFileId: id,
+				title: String(item?.title || "").trim() || lastBatchTitles?.get(id) || "",
+			};
+		})
+		.filter((entry) => entry.publishedFileId !== "");
+	if (entries.length === 0) return;
+	const confirmed = await confirmHtmlInApp(
+		t("toolbox.subscriptionAudit.ugc.resubConfirmTitle", { count: entries.length }),
+		buildResubscribeConfirmHtml(entries),
+		"subscription-unsub-confirm",
+	);
+	if (!confirmed) return;
+	await runBatch("subscribe", entries);
+}
+
 // runBatch 执行一轮批量操作：置忙（禁用按钮）→ 调后端 → 刷新清单 → 渲染逐条结果。
 // 进度来自后端事件 steam_ugc_progress（done/total）。
 async function runBatch(action, entries) {
@@ -529,12 +554,23 @@ function renderBatchResult() {
 				t("toolbox.subscriptionAudit.ugc.backupLine", { path: lastBatch.backupPath }),
 			)}</div>`
 		: "";
+	const resubAllCount = lastBatch.action === "unsubscribe"
+		? (Array.isArray(lastBatch.results) ? lastBatch.results : []).filter((item) => item?.ok && !item?.skipped).length
+		: 0;
+	const resubAllButton = resubAllCount > 0
+		? `<button type="button" class="btn btn-small btn-outline" id="subscription-batch-resub-all">${escapeHtmlText(
+				t("toolbox.subscriptionAudit.ugc.resubLastBatch", { count: resubAllCount }),
+			)}</button>`
+		: "";
 	panel.innerHTML = `
 		<div class="subscription-batch-head">
 			<span class="subscription-batch-title-main">${escapeHtmlText(t("toolbox.subscriptionAudit.ugc.resultTitle"))}</span>
-			<button type="button" class="btn btn-small btn-outline" id="subscription-batch-result-close">
-				${escapeHtmlText(t("toolbox.subscriptionAudit.ugc.resultClose"))}
-			</button>
+			<div class="subscription-batch-head-actions">
+				${resubAllButton}
+				<button type="button" class="btn btn-small btn-outline" id="subscription-batch-result-close">
+					${escapeHtmlText(t("toolbox.subscriptionAudit.ugc.resultClose"))}
+				</button>
+			</div>
 		</div>
 		<div class="subscription-batch-summary">${escapeHtmlText(
 			t("toolbox.subscriptionAudit.ugc.batchDone", {
@@ -635,6 +671,10 @@ function onBodyClick(event) {
 	}
 	if (target.closest("#subscription-ugc-resub")) {
 		void resubscribeSelected();
+		return;
+	}
+	if (target.closest("#subscription-batch-resub-all")) {
+		void resubscribeLastBatch();
 		return;
 	}
 	if (target.closest("#subscription-batch-result-close")) {

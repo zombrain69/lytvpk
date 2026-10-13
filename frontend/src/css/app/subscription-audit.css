@@ -445,3 +445,9 @@
   color: var(--text-tertiary);
   font-size: 0.74rem;
 }
+
+.subscription-batch-head-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
