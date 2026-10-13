@@ -1,5 +1,16 @@
 # Changelog
 
+## 未发布 — 「启用 Mod 时的同类冲突提醒」增加设置项（2026-10-13）
+
+- 新增设置（设置 → addonlist → 「Mod 冲突分析」卡片）：同一角色 / 同一把武器的替换只会生效一个，
+  启用时的处理方式可选 **每次询问（默认）/ 自动关闭旧的 / 不再提醒** 三档——此前每次启用同类
+  Mod 都会弹三选一确认，现在可以固定处理方式。
+- 实现：`config.json` 新增 `singletonConflictMode`（ask / replace / coexist；空 = ask，旧行为不变）；
+  启用流程（`operations.js`）按设置分支——coexist 直接跳过检查与弹窗，replace 自动关闭同类旧 Mod
+  后启用（与弹窗「关闭旧的并启用」完全同路径：走 addonlist 0/1 游戏内开关，不涉及加载顺序）。
+- 测试：新纯逻辑模块 `singleton-conflict-mode.mjs`（归一化单测 + 启用流程源码级分支守卫）；
+  Go 侧 `TestSingletonConflictModeRoundTrip`（持久化往返）。
+
 ## 2.7.1-community.69 — 2026-10-13
 
 本版汇总 2026-10-12 晚 ~ 10-13 的全部开发（各专项完整记录见下方「未发布」小节，标题保留原始记录）：

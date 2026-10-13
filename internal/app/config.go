@@ -200,6 +200,8 @@ func (a *App) loadConfig() {
 	a.readingComfort = normalizeReadingComfortKey(config.ReadingComfort)
 	// 界面语言：与前端 core/locale.mjs 同套白名单，未知值回落 zh-CN。
 	a.locale = normalizeLocaleKey(config.Locale)
+	// 同类冲突提醒的处理方式：与前端 singleton-conflict-mode.mjs 同套白名单；未知值回落空串（= ask）。
+	a.singletonConflictMode = normalizeSingletonConflictModeKey(config.SingletonConflictMode)
 	if config.AddonListGuardEnabled != nil {
 		a.addonListGuardEnabled = *config.AddonListGuardEnabled
 	}
@@ -366,6 +368,7 @@ func (a *App) snapshotConfig() ConfigFile {
 		TextSize:                        normalizeTextSizeKey(a.textSize),
 		ReadingComfort:                  normalizeReadingComfortKey(a.readingComfort),
 		Locale:                          normalizeLocaleKey(a.locale),
+		SingletonConflictMode:           normalizeSingletonConflictModeKey(a.singletonConflictMode),
 		AddonListGuardEnabled:           &addonListGuardEnabled,
 		UnrecordedModLoadOrderPlacement: &unrecordedModLoadOrderPlacement,
 		ConflictPriorityAware:           &conflictPriorityAware,
@@ -507,6 +510,7 @@ func (a *App) SaveAppConfig(config ConfigFile) error {
 	a.textSize = normalizeTextSizeKey(config.TextSize)
 	a.readingComfort = normalizeReadingComfortKey(config.ReadingComfort)
 	a.locale = normalizeLocaleKey(config.Locale)
+	a.singletonConflictMode = normalizeSingletonConflictModeKey(config.SingletonConflictMode)
 	a.theme = config.Theme
 	a.ignoredVersion = config.IgnoredVersion
 	a.lastUpdateCheckTime = config.LastUpdateCheckTime
@@ -583,6 +587,18 @@ var localeKeys = map[string]string{
 }
 
 // normalizeLocaleKey 归一化界面语言；未知值与空值一律回落默认 zh-CN。
+// normalizeSingletonConflictModeKey 归一化「同类冲突提醒处理方式」（与前端
+// features/conflicts/singleton-conflict-mode.mjs 同套白名单）：ask / replace / coexist；
+// 未知或空值一律回落空串（读侧按 ask 语义处理，保持旧行为、配置文件也保持干净）。
+func normalizeSingletonConflictModeKey(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "ask", "replace", "coexist":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
 func normalizeLocaleKey(value string) string {
 	key := strings.ToLower(strings.TrimSpace(value))
 	if key == "" {

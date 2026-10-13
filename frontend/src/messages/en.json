@@ -2981,6 +2981,18 @@
         "updated": "Updated the load order position for unrecorded Mods on first enable",
         "failed": "Failed to save the unrecorded Mod insert position: {error}"
       },
+      "singletonConflict": {
+        "label": "Same-slot conflict prompt when enabling Mods",
+        "desc": "Only one replacement per character / weapon takes effect in-game. \"Ask each time\": show the three-way prompt on enable (default); \"Auto disable old\": silently disable same-slot old Mods and enable; \"Don't remind\": enable directly without touching old Mods.",
+        "ariaLabel": "How to handle same-slot conflicts when enabling a Mod",
+        "mode": {
+          "ask": "Ask each time",
+          "replace": "Auto disable old",
+          "coexist": "Don't remind"
+        },
+        "saved": "Same-slot conflict preference saved",
+        "failed": "Failed to save the same-slot conflict preference: {error}"
+      },
       "state": {
         "exists": "Exists",
         "missing": "Missing"

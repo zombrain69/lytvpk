@@ -206,7 +206,10 @@ type App struct {
 	textSize       string
 	readingComfort string
 	// locale 是界面语言（zh-CN / en；前端 core/locale.mjs 定义白名单，未知值归一化回 zh-CN）。
-	locale                          string
+	locale string
+	// singletonConflictMode 是「启用 Mod 时的同类冲突提醒」处理方式（ask / replace / coexist；
+	// 空 = ask；与前端 features/conflicts/singleton-conflict-mode.mjs 同套白名单）。
+	singletonConflictMode           string
 	unrecordedModLoadOrderPlacement string
 	conflictPriorityAware           bool
 	conflictIgnoreFiles             []string
@@ -344,9 +347,12 @@ type ConfigFile struct {
 	Locale                          string  `json:"locale,omitempty"`
 	AddonListGuardEnabled           *bool   `json:"addonListGuardEnabled,omitempty"`
 	UnrecordedModLoadOrderPlacement *string `json:"unrecordedModLoadOrderPlacement,omitempty"`
-	Theme                           string  `json:"theme"`
-	IgnoredVersion                  string  `json:"ignoredVersion"`
-	LastUpdateCheckTime             string  `json:"lastUpdateCheckTime"`
+	// SingletonConflictMode：「启用 Mod 时的同类冲突提醒」的处理方式（ask / replace / coexist；
+	// 空 = ask，保持旧行为）。前端写入、前端消费（启用流程读它决定弹窗/自动处理）；Go 侧只持久化。
+	SingletonConflictMode string `json:"singletonConflictMode,omitempty"`
+	Theme                 string `json:"theme"`
+	IgnoredVersion        string `json:"ignoredVersion"`
+	LastUpdateCheckTime   string `json:"lastUpdateCheckTime"`
 	// migrationVersion=2 表示前端 localStorage 配置已迁移到配置目录。
 	MigrationVersion      int      `json:"migrationVersion"`
 	ConflictPriorityAware *bool    `json:"conflictPriorityAware,omitempty"`

@@ -33,6 +33,8 @@ import { confirmVPKIntegrityWarning } from "./vpk-risk-warning.js";
 import { filePriorityKeys } from "../conflicts/conflict-badge.mjs";
 import { formatFileGroupImpact, normalizeGroupKey } from "../mod-groups/group-view.mjs";
 import { promptSingletonConflict } from "../conflicts/singleton-conflict.js";
+import { normalizeSingletonConflictMode } from "../conflicts/singleton-conflict-mode.mjs";
+import { getConfig } from "../../core/config.js";
 import { labelSeparator } from "../../core/format-list.mjs";
 import { formatBackendErrorDetail } from "../../core/backend-error.mjs";
 
@@ -142,15 +144,24 @@ export async function setGameState(filePath, state) {
 
 async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   if (nextEnabled && !(await confirmVPKOperationWarning(filePath, t("mods.ops.label.enableGame")))) return;
-  // 同类互斥：同一角色/同一把武器的替换只会生效一个。启用前先问一次，
-  // 避免"启用了却没生效"的困惑（借鉴其它管理器的 SingletonResource 思路）。
+  // 同类互斥：同一角色/同一把武器的替换只会生效一个。按设置（设置 → addonlist →
+  // 「启用 Mod 时的同类冲突提醒」）处理：
+  //   ask（默认）→ 弹一次三选一；replace → 自动关闭旧的并启用；coexist → 不再提醒，直接启用。
+  // 借鉴其它管理器的 SingletonResource 思路，避免"启用了却没生效"的困惑。
   if (nextEnabled) {
-    const conflict = await checkSingletonConflict(filePath);
-    if (conflict) {
-      const choice = await promptSingletonConflict(conflict);
-      if (choice === "cancel") return;
-      if (choice === "replace") {
-        await disableSingletonConflicts(conflict);
+    const conflictMode = normalizeSingletonConflictMode(getConfig().singletonConflictMode);
+    if (conflictMode !== "coexist") {
+      const conflict = await checkSingletonConflict(filePath);
+      if (conflict) {
+        if (conflictMode === "replace") {
+          await disableSingletonConflicts(conflict);
+        } else {
+          const choice = await promptSingletonConflict(conflict);
+          if (choice === "cancel") return;
+          if (choice === "replace") {
+            await disableSingletonConflicts(conflict);
+          }
+        }
       }
     }
   }

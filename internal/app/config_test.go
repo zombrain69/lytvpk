@@ -109,6 +109,25 @@ func TestFileSortPreferenceRoundTrip(t *testing.T) {
 	}
 }
 
+// 同类冲突提醒的处理方式要能持久化、重启恢复（空值语义 = ask，由前端归一化）。
+func TestSingletonConflictModeRoundTrip(t *testing.T) {
+	first := newConfigTestApp(t)
+	first.loadConfig()
+
+	config := first.GetAppConfig()
+	config.SingletonConflictMode = "replace"
+	if err := first.SaveAppConfig(config); err != nil {
+		t.Fatalf("保存同类冲突设置失败: %v", err)
+	}
+
+	// 模拟重启：同一个配置目录再建一个 App 读盘。
+	second := configTestAppAtDir(first.configDir)
+	second.loadConfig()
+	if got := second.GetAppConfig().SingletonConflictMode; got != "replace" {
+		t.Fatalf("重启后应恢复同类冲突设置，实际 %q", got)
+	}
+}
+
 // 工坊 DNS 设置要能持久化、重启恢复，并保持"系统 DNS 不写进配置文件"的干净口径。
 func TestWorkshopDNSConfigRoundTrip(t *testing.T) {
 	first := newConfigTestApp(t)

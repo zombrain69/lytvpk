@@ -21,6 +21,7 @@ import {
   formatConflictIgnoreList,
   parseConflictIgnoreList,
 } from "../conflicts/conflict-ignore-options.mjs";
+import { normalizeSingletonConflictMode } from "../conflicts/singleton-conflict-mode.mjs";
 import {
   formatCollectionCheckAllSummary,
   formatCollectionQueueSummary,
@@ -807,6 +808,26 @@ export async function renderSettingsPage(deps) {
                 <input type="checkbox" id="settings-conflict-priority-aware" ${getConfig().conflictPriorityAware === true ? "checked" : ""}>
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row-info">
+                <div class="setting-row-label">${t("settings.addonlist.singletonConflict.label")}</div>
+                <div class="setting-row-desc">${t("settings.addonlist.singletonConflict.desc")}</div>
+              </div>
+              <div class="mode-toggle-group" id="settings-singleton-conflict" role="radiogroup" aria-label="${t("settings.addonlist.singletonConflict.ariaLabel")}">
+                <label class="mode-option ${normalizeSingletonConflictMode(getConfig().singletonConflictMode) === "ask" ? "active" : ""}">
+                  <input type="radio" name="settings-singleton-conflict" value="ask" ${normalizeSingletonConflictMode(getConfig().singletonConflictMode) === "ask" ? "checked" : ""}>
+                  <span class="mode-text">${t("settings.addonlist.singletonConflict.mode.ask")}</span>
+                </label>
+                <label class="mode-option ${normalizeSingletonConflictMode(getConfig().singletonConflictMode) === "replace" ? "active" : ""}">
+                  <input type="radio" name="settings-singleton-conflict" value="replace" ${normalizeSingletonConflictMode(getConfig().singletonConflictMode) === "replace" ? "checked" : ""}>
+                  <span class="mode-text">${t("settings.addonlist.singletonConflict.mode.replace")}</span>
+                </label>
+                <label class="mode-option ${normalizeSingletonConflictMode(getConfig().singletonConflictMode) === "coexist" ? "active" : ""}">
+                  <input type="radio" name="settings-singleton-conflict" value="coexist" ${normalizeSingletonConflictMode(getConfig().singletonConflictMode) === "coexist" ? "checked" : ""}>
+                  <span class="mode-text">${t("settings.addonlist.singletonConflict.mode.coexist")}</span>
+                </label>
+              </div>
             </div>
             <div class="setting-row setting-row-stacked">
               <div class="setting-row-info">
@@ -2275,6 +2296,30 @@ function bindSettingsPage(deps) {
   // 界面语言（core/locale.mjs；入口由 LANGUAGE_SWITCH_ENABLED 控制，第 19 项收口后为 true：
   // 入口已开放）。切换即时生效并写回 config.json；动态页面按「重开生效」约定，
   // 未迁的动态面（mods 列表/标签条/目录下拉、工坊卡片、设置页自身）由 app:locale-change 重绘（P1）。
+  // 「启用 Mod 时的同类冲突提醒」：写入 config.singletonConflictMode（ask / replace / coexist）。
+  const applyAndSaveSingletonConflictMode = async (rawMode) => {
+    const next = normalizeSingletonConflictMode(rawMode);
+    const config = deps.getConfig();
+    if (next === normalizeSingletonConflictMode(config.singletonConflictMode)) return;
+    config.singletonConflictMode = next;
+    try {
+      await deps.saveConfig(config);
+      deps.showNotification(t("settings.addonlist.singletonConflict.saved"), "success");
+    } catch (error) {
+      deps.showNotification(t("settings.addonlist.singletonConflict.failed", { error }), "error");
+    }
+  };
+
+  document.querySelectorAll("#settings-singleton-conflict input[name='settings-singleton-conflict']").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      document.querySelectorAll("#settings-singleton-conflict .mode-option").forEach((label) => {
+        label.classList.toggle("active", label.contains(input));
+      });
+      void applyAndSaveSingletonConflictMode(input.value);
+    });
+  });
+
   const applyAndSaveLanguage = async (rawLocale) => {
     const next = normalizeLocale(rawLocale);
     const config = deps.getConfig();
