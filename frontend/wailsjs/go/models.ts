@@ -1570,6 +1570,9 @@ export namespace app {
 	    path: string;
 	    name: string;
 	    tag: string;
+	    overlapCount: number;
+	    severity: string;
+	    overlapFiles?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ModEnableConflictItem(source);
@@ -1580,6 +1583,9 @@ export namespace app {
 	        this.path = source["path"];
 	        this.name = source["name"];
 	        this.tag = source["tag"];
+	        this.overlapCount = source["overlapCount"];
+	        this.severity = source["severity"];
+	        this.overlapFiles = source["overlapFiles"];
 	    }
 	}
 	export class ModEnableConflict {

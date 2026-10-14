@@ -44,6 +44,12 @@ type ModEnableConflictItem struct {
 	Path string `json:"path"`
 	Name string `json:"name"`
 	Tag  string `json:"tag"`
+	// OverlapCount 是与"要启用的目标 Mod"在归档内的文件重叠数（已排除忽略规则文件）。
+	OverlapCount int `json:"overlapCount"`
+	// Severity 是文件级定级：severe（严重冲突）/ normal（普通或仅同类标签）。
+	Severity string `json:"severity"`
+	// OverlapFiles 是重叠样例（最多 singletonOverlapSampleLimit 个，已排序）。
+	OverlapFiles []string `json:"overlapFiles,omitempty"`
 }
 
 type ModEnableConflict struct {
@@ -51,6 +57,82 @@ type ModEnableConflict struct {
 	Key       string                  `json:"key"`
 	Label     string                  `json:"label"`
 	Conflicts []ModEnableConflictItem `json:"conflicts"`
+}
+
+// singletonOverlapFileList 是"取某个 Mod 归档文件清单"的注入点：
+// 默认复用冲突分析的索引缓存（getConflictFileList：带 mtime/大小校验的 LRU）；
+// 测试注入假清单，不解析真实 VPK。
+var singletonOverlapFileList = func(a *App, path string) ([]string, error) {
+	return a.getConflictFileList(path)
+}
+
+// singletonOverlapSampleLimit 是随条目返回给界面的重叠样例数量上限。
+const singletonOverlapSampleLimit = 6
+
+// singletonOverlapSevereBulk 是"重叠文件数达到该值即为严重"的兜底阈值。
+const singletonOverlapSevereBulk = 20
+
+// classifySingletonOverlap 用冲突分析的文件口径（normalizeConflictFilePath /
+// isIgnoredConflictFile / getConflictSeverity）给"目标 Mod vs 同类旧 Mod"定级：
+//
+//	severe：重叠含 critical 级文件（scripts/清单/bsp 等全局资源）；
+//	        或重叠 ≥ singletonOverlapSevereBulk 个；
+//	        或重叠 ≥ 3 个且占目标文件数 ≥ 30%（双方在争夺同一批资源）；
+//	        或占目标文件数 ≥ 90%（小体量包被整体覆盖）。
+//	normal：其余情况（含 0 重叠的纯同类标签、仅 HUD 图标级重叠）。
+//
+// 返回定级、重叠文件数与前若干个样例（已排序、去重、归一化）。
+func classifySingletonOverlap(targetFiles, otherFiles []string) (string, int, []string) {
+	targetSet := make(map[string]struct{}, len(targetFiles))
+	for _, file := range targetFiles {
+		key := normalizeConflictFilePath(file)
+		if key == "" || isIgnoredConflictFile(key) {
+			continue
+		}
+		targetSet[key] = struct{}{}
+	}
+	if len(targetSet) == 0 {
+		return "normal", 0, nil
+	}
+
+	overlap := make([]string, 0, 16)
+	hasCritical := false
+	for _, file := range otherFiles {
+		key := normalizeConflictFilePath(file)
+		if key == "" || isIgnoredConflictFile(key) {
+			continue
+		}
+		if _, ok := targetSet[key]; !ok {
+			continue
+		}
+		overlap = append(overlap, key)
+		if getConflictSeverity(key) == "critical" {
+			hasCritical = true
+		}
+	}
+	sort.Strings(overlap)
+	unique := overlap[:0]
+	for index, item := range overlap {
+		if index > 0 && item == overlap[index-1] {
+			continue
+		}
+		unique = append(unique, item)
+	}
+	overlap = unique
+
+	count := len(overlap)
+	severity := "normal"
+	if count > 0 {
+		ratio := float64(count) / float64(len(targetSet))
+		if hasCritical || count >= singletonOverlapSevereBulk || (count >= 3 && ratio >= 0.3) || ratio >= 0.9 {
+			severity = "severe"
+		}
+	}
+	samples := overlap
+	if len(samples) > singletonOverlapSampleLimit {
+		samples = samples[:singletonOverlapSampleLimit]
+	}
+	return severity, count, append([]string(nil), samples...)
 }
 
 // CheckModEnableConflict 检查"游戏内启用这个 Mod"时会不会和已启用的同类 Mod 撞车。
@@ -109,13 +191,39 @@ func (a *App) CheckModEnableConflict(filePath string) (ModEnableConflict, error)
 		return ModEnableConflict{}, nil
 	}
 
+	// 给每条同类旧 Mod 定级：复用冲突分析的文件清单（缓存索引）逐条算重叠。
+	targetFiles, _ := singletonOverlapFileList(a, target)
+	for _, bucket := range buckets {
+		for index := range bucket.items {
+			otherFiles, err := singletonOverlapFileList(a, bucket.items[index].Path)
+			if err != nil {
+				otherFiles = nil
+			}
+			severity, count, samples := classifySingletonOverlap(targetFiles, otherFiles)
+			bucket.items[index].Severity = severity
+			bucket.items[index].OverlapCount = count
+			bucket.items[index].OverlapFiles = samples
+		}
+	}
+
 	// 命中多个分类时，报告"冲突项最多"的那一条；界面一次只处理一个提示。
+	// 条目排序：严重在前，其次按重叠数降序，再按名称。
 	list := make([]*conflictBucket, 0, len(buckets))
 	for _, bucket := range buckets {
 		if len(bucket.items) == 0 {
 			continue
 		}
-		sort.Slice(bucket.items, func(i, j int) bool { return bucket.items[i].Name < bucket.items[j].Name })
+		sort.Slice(bucket.items, func(i, j int) bool {
+			severeI := bucket.items[i].Severity == "severe"
+			severeJ := bucket.items[j].Severity == "severe"
+			if severeI != severeJ {
+				return severeI
+			}
+			if bucket.items[i].OverlapCount != bucket.items[j].OverlapCount {
+				return bucket.items[i].OverlapCount > bucket.items[j].OverlapCount
+			}
+			return bucket.items[i].Name < bucket.items[j].Name
+		})
 		list = append(list, bucket)
 	}
 	if len(list) == 0 {

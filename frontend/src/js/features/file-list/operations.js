@@ -56,25 +56,34 @@ async function checkSingletonConflict(filePath) {
   }
 }
 
-// disableSingletonConflicts 把用户选择"关闭旧的"落实到游戏内开关上。
-async function disableSingletonConflicts(conflict) {
+// disableSingletonConflictPaths 把"要关闭的旧 Mod"逐条落实到游戏内开关上。
+async function disableSingletonConflictPaths(paths) {
   const setGameEnabled = getBackendMethod("SetVPKGameEnabled");
-  for (const item of conflict.conflicts || []) {
+  for (const path of paths || []) {
     try {
-      await setGameEnabled(item.path, false);
+      await setGameEnabled(path, false);
       [appState.allVpkFiles, appState.vpkFiles].forEach((files) => {
         files.forEach((file) => {
-          if (file.path === item.path) {
+          if (file.path === path) {
             file.gameStateKnown = true;
             file.gameEnabled = false;
           }
         });
       });
     } catch (error) {
-      showError(t("mods.ops.gameState.singletonDisableFailed", { name: item.name || item.path, error }));
+      showError(t("mods.ops.gameState.singletonDisableFailed", { name: path, error }));
     }
   }
   await refreshLoadOrderMap({ silent: true });
+}
+
+// severeSingletonPaths 从冲突结果里取"严重冲突"一档的路径：
+// 「自动关闭旧的」设置与会话静音后的自动重放都只处理这一档（与弹窗默认勾选一致）。
+function severeSingletonPaths(conflict) {
+  return (conflict?.conflicts || [])
+    .filter((item) => item?.severity === "severe")
+    .map((item) => String(item?.path || ""))
+    .filter((path) => path !== "");
 }
 
 function getBackendMethod(name) {
@@ -154,7 +163,7 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
   // 「启用 Mod 时的同类冲突提醒」）处理：
   //   ask（默认）→ 弹一次三选一；replace → 自动关闭旧的并启用；coexist → 不再提醒，直接启用。
   // 「提醒窗口」会话级：本次运行已选「不再显示」时不再弹窗，按当时选择自动处理
-  //   （replace 沿用；其它 → 仅启用、不动旧的）。借鉴 SingletonResource 思路。
+  //   （replace → 自动关闭「严重冲突」档；其它 → 仅启用、不动旧的）。借鉴 SingletonResource 思路。
   if (nextEnabled) {
     await ensureReminderSessionLoaded();
     const conflictMode = normalizeSingletonConflictMode(getConfig().singletonConflictMode);
@@ -162,19 +171,19 @@ async function setGameEnabled(filePath, nextEnabled, wasUnrecorded) {
       if (reminderChoiceThisSession(REMINDER_KEYS.singletonConflict) === "replace") {
         const conflict = await checkSingletonConflict(filePath);
         if (conflict) {
-          await disableSingletonConflicts(conflict);
+          await disableSingletonConflictPaths(severeSingletonPaths(conflict));
         }
       }
     } else if (conflictMode !== "coexist") {
       const conflict = await checkSingletonConflict(filePath);
       if (conflict) {
         if (conflictMode === "replace") {
-          await disableSingletonConflicts(conflict);
+          await disableSingletonConflictPaths(severeSingletonPaths(conflict));
         } else {
-          const choice = await promptSingletonConflict(conflict);
-          if (choice === "cancel") return;
-          if (choice === "replace") {
-            await disableSingletonConflicts(conflict);
+          const result = await promptSingletonConflict(conflict);
+          if (!result || result.choice === "cancel") return;
+          if (result.choice === "replace") {
+            await disableSingletonConflictPaths(result.paths);
           }
         }
       }

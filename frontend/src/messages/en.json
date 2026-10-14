@@ -1387,8 +1387,15 @@
       "desc": "In-game, the same character / the same weapon only takes one replacement (a later one overrides, or one applies at random).",
       "cancel": "Cancel",
       "coexist": "Keep both",
-      "replace": "Turn off the old one and enable",
-      "prompt": "A Mod of the same kind is already enabled in-game: {label}."
+      "replace": "Turn off selected and enable",
+      "replaceSelected": "Turn off selected {count} and enable",
+      "prompt": "A Mod of the same kind is already enabled in-game: {label}.",
+      "severity": {
+        "severe": "Severe conflict",
+        "normal": "Minor conflict"
+      },
+      "overlap": "{count} overlapping files",
+      "overlapNone": "No overlapping files"
     },
     "reminder": {
       "sessionSuppress": "Don't show this reminder again during this run",
@@ -2987,7 +2994,7 @@
       },
       "singletonConflict": {
         "label": "Same-slot conflict prompt when enabling Mods",
-        "desc": "Only one replacement per character / weapon takes effect in-game. \"Ask each time\": show the three-way prompt on enable (default); \"Auto disable old\": silently disable same-slot old Mods and enable; \"Don't remind\": enable directly without touching old Mods.",
+        "desc": "Only one replacement per character / weapon takes effect in-game. \"Ask each time\": show the three-way prompt on enable (default); \"Auto disable old\": silently disable severely conflicting same-slot old Mods and enable; \"Don't remind\": enable directly without touching old Mods.",
         "ariaLabel": "How to handle same-slot conflicts when enabling a Mod",
         "mode": {
           "ask": "Ask each time",
